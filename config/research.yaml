@@ -10,7 +10,7 @@ version: 1.0.0
 # TRIGGERS — kdy auto-research spustit
 # =============================================================================
 # Research se spouští AUTOMATICKY pokud splněn aspoň 1 trigger.
-# Dave může explicitně vypnout přes `--no-research` v promptu.
+# the user může explicitně vypnout přes `--no-research` v promptu.
 triggers:
   - name: new_project_bootstrap
     when: prompts/new-project.md is being used
@@ -98,7 +98,7 @@ budget:
   max_webfetch_per_agent: 10       # each agent can fetch N pages
 
   # When budget exceeded
-  over_budget_action: warn_and_ask  # tell Dave, let him override
+  over_budget_action: warn_and_ask  # tell the user, let him override
 
 # =============================================================================
 # OUTPUT DISCIPLINE

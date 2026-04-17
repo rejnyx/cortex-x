@@ -1,5 +1,5 @@
 name: nextjs-saas
-description: Next.js 16 + Supabase + AI SaaS — Dave's primary stack, AGENTIC-READY by default (RELO-style). Even without AI at MVP, structure allows plug-in without refactor.
+description: Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor.
 version: 2.0.0
 agentic_ready: true  # ← 2026 default. Opt out with 'minimal' or 'astro-static'.
 

@@ -1,6 +1,6 @@
 # Self-Improvement Loop — RFC
 
-> Status: **Draft v1** · Date: 2026-04-17 · Author: cortex-x + Dave
+> Status: **Draft v1** · Date: 2026-04-17 · Author: cortex-x + the user
 >
 > Architecture decision record for cortex-x's self-improvement system. Read this once to understand WHY each piece exists; the implementation details live in [`prompts/cortex-evolve.md`](../prompts/cortex-evolve.md).
 
@@ -8,17 +8,17 @@
 
 ## Goal
 
-cortex-x should **compound across projects**. Every session Dave runs across RELO, Chatbot Platform, WaaS, Kiosek, etc. produces traces. Those traces should make the next project better — without Dave manually curating anything.
+cortex-x should **compound across projects**. Every session the maintainer runs across their portfolio of projects produces traces. Those traces should make the next project better — without manual curation.
 
 **Non-goal:** agents that rewrite their own prompts autonomously. Research (DGM, Reflexion, self-refine) shows this works in narrow domains with verifiable outcomes. cortex-x outputs are soft (documentation, scaffolds) — auto-modification drifts.
 
-**Therefore:** cortex-x proposes, Dave disposes. Every change lands through a reviewable diff.
+**Therefore:** cortex-x proposes, the user disposes. Every change lands through a reviewable diff.
 
 ---
 
 ## Three-cadence architecture
 
-Research finding (Anthropic constitutional AI, 2212.08073): reflection loops need ≥50 samples to stabilize. At Dave's scale (~200 events/day × 6 projects), that means **weekly is the right insight cadence — daily is noise**.
+Research finding (Anthropic constitutional AI, 2212.08073): reflection loops need ≥50 samples to stabilize. At the user's scale (~200 events/day × 6 projects), that means **weekly is the right insight cadence — daily is noise**.
 
 ```
   DAILY (cron 3:00 UTC)        WEEKLY (cron Sun 4:00 UTC)       MONTHLY (manual)
@@ -43,14 +43,14 @@ The killer anti-pattern from research: LLMs invent patterns from 2 occurrences. 
 2. **Evidence citations required** — every insight must link to ≥3 journal entries or it's discarded by the scorer. No citations = no insight.
 3. **Bonferroni correction** — when testing N patterns, require `p < 0.05/N`. For 50 candidate patterns, p<0.001.
 4. **Insight budget** — max 3 insights per week across ALL projects. Spam kills trust.
-5. **No auto-merge** — every proposed change is a PR Dave reviews. Framework never modifies its own standards.
+5. **No auto-merge** — every proposed change is a PR the user reviews. Framework never modifies its own standards.
 6. **Stale-entry detection uses `mtime + access_count`, NOT LLM** — deterministic rules for deterministic problems.
 
 ---
 
 ## Memory architecture (Letta sleep-time compute)
 
-Mirrors RELO's proven autoDream pattern, extended cross-project:
+Mirrors the autoDream pattern (three-layer memory with nightly consolidation) proven in prior agent projects, extended cross-project:
 
 | Layer | What | When written | Size budget |
 |---|---|---|---|
@@ -79,7 +79,7 @@ Without evals, prompt changes are vibes. With evals, they're data.
 
 ## What auto-improves vs what doesn't
 
-| Auto-improves (cron writes PR) | Human-only (Dave edits directly) |
+| Auto-improves (cron writes PR) | Human-only (the user edits directly) |
 |---|---|
 | Insights in `insights/` | Standards in `standards/` |
 | Stale-entry removal proposals | Prompts in `prompts/` |
@@ -102,7 +102,7 @@ From research synthesis — explicitly NOT doing these:
 - ❌ **Cursor-style real-time RL** — requires fine-tuning pipeline + billions of tokens. Not solo-dev viable.
 - ❌ **Self-modifying prompts** — Anthropic explicitly does not endorse this for subagents. Drifts badly.
 - ❌ **Daily insight generation** — <50 samples/day = noise. Weekly is the floor.
-- ❌ **BERTopic on <200 documents** — density-based clustering needs scale Dave doesn't have.
+- ❌ **BERTopic on <200 documents** — density-based clustering needs scale the user doesn't have.
 - ❌ **LLM-driven stale detection** — hallucinates "this is outdated" from fresh files. Use mtime.
 - ❌ **Voyager-style tool autogeneration** — tools need testing. Auto-generated tools break silently.
 - ❌ **Reward hacking via vague metrics** — "quality improved" ≠ measurable. Use eval suite.

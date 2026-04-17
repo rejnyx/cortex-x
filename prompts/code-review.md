@@ -75,7 +75,7 @@ Once all 5 agents return, merge their findings into triage buckets:
 ### ✅ Approved by all agents
 - Items where all agents returned clean
 
-## Step 4 — Present to Dave
+## Step 4 — Present to the user
 
 ```markdown
 # Code Review Report — <date>
@@ -122,7 +122,7 @@ Once all 5 agents return, merge their findings into triage buckets:
 
 ## Step 5 — Offer follow-up
 
-Ask Dave:
+Ask the user:
 
 ```
 Chceš abych:
@@ -136,7 +136,7 @@ Chceš abych:
 
 - **5 agents in SINGLE message.** Sequential spawn defeats the parallel pipeline.
 - **Different context per agent.** The differentiation is the feature.
-- **Triage, don't dump.** 30 findings unfiltered = Dave ignores. 5 critical + categorized = action.
+- **Triage, don't dump.** 30 findings unfiltered = the user ignores. 5 critical + categorized = action.
 - **Cite sources.** Every finding shows which agent surfaced it.
 - **No editorial editing.** Pass agent findings through — don't rewrite.
 
@@ -170,6 +170,6 @@ Total: ~3-4 min for comprehensive 5-agent review.
 
 Single-reviewer bias misses bugs that differentiated reviewers catch. BMAD figured this out: Blind Hunter + Edge Case Hunter + Acceptance Auditor as parallel adversarial pipeline > any single "super reviewer."
 
-cortex-x adds security-auditor and ssot-enforcer for Dave's specific principles.
+cortex-x adds security-auditor and ssot-enforcer for the user's specific principles.
 
 This is 4 minutes of compute that saves 40 minutes of bug-hunting later.

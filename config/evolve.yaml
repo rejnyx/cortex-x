@@ -19,7 +19,7 @@ cadence:
     cron: "0 4 * * 0"  # Sunday 04:00 UTC
   monthly:
     what: [eval_suite_rerun, prompt_refinement_proposal, 3month_audit_reminder]
-    trigger: manual  # Dave runs ~/cortex-x/prompts/cortex-evolve.md with "monthly" arg
+    trigger: manual  # the user runs ~/cortex-x/prompts/cortex-evolve.md with "monthly" arg
 
 # =============================================================================
 # ANTI-HALLUCINATION RULES (hard gates — if violated, discard insight)
@@ -39,7 +39,7 @@ evidence_gates:
   significance_level: 0.05
   apply_bonferroni: true
 
-  # Budget — research shows spam kills trust (RELO insight budget proven)
+  # Budget — research shows spam kills trust (insight budget pattern proven in prior projects)
   max_insights_per_week: 3
   max_insights_per_session: 1
 
@@ -47,7 +47,7 @@ evidence_gates:
 # WHAT AUTO-IMPROVES vs WHAT DOESN'T
 # =============================================================================
 # The framework's GENERATED artifacts can self-update via PR.
-# The framework's SOURCE OF TRUTH only changes through Dave's direct edits.
+# The framework's SOURCE OF TRUTH only changes through the user's direct edits.
 auto_improves:
   - path: "insights/**"
     mode: append
@@ -111,7 +111,7 @@ proposals:
     - proposed_change
     - expected_impact
     - rollback_plan
-  review_sla_days: 7  # if Dave doesn't review within 7d, auto-close as stale
+  review_sla_days: 7  # if the user doesn't review within 7d, auto-close as stale
 
 # =============================================================================
 # META-LOOP (improving the improvement loop itself)
@@ -121,7 +121,7 @@ meta_review:
   trigger_every_n_insights: 30
   output_path: "insights/META-<YYYY-MM-DD>.md"
   measures:
-    - acted_on_rate       # % insights Dave acted on
-    - false_positive_rate # % insights Dave dismissed with reason
+    - acted_on_rate       # % insights the user acted on
+    - false_positive_rate # % insights the user dismissed with reason
     - detection_latency   # days between pattern emergence → insight surfaced
     - transfer_count      # insights that led to cross-project pattern transfer

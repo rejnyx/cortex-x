@@ -13,7 +13,7 @@
 7. **CSP header.** Content Security Policy allowlist for script/style sources.
 8. **Rate limiting.** Per-user and per-IP on every endpoint, not just auth.
 
-## 8-layer defense model (adapt from RELO)
+## 8-layer defense model
 
 ```
 Layer 1: Network       → HTTPS, HSTS, CSP, CORS allowlist

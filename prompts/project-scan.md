@@ -6,7 +6,7 @@
 
 ## Core Philosophy — READ THIS FIRST
 
-cortex-x respects Dave's Rule #1 (SSOT). It holds ONLY what project CLAUDE.md **cannot**:
+cortex-x respects the user's Rule #1 (SSOT). It holds ONLY what project CLAUDE.md **cannot**:
 
 | Lives in CLAUDE.md (changes) | Lives in cortex-x (stable) |
 |------------------------------|----------------------------|
@@ -76,7 +76,7 @@ Include only decisions that have **long-term consequences** and **non-obvious re
 
 The most valuable section. Document what was TRIED and DIDN'T WORK, or non-obvious patterns that DID work.
 
-Mark `[TRANSFERABLE]` prefix if insight applies to other Dave's projects.
+Mark `[TRANSFERABLE]` prefix if insight applies to other the user's projects.
 
 ### <Short title> — <YYYY-MM-DD>
 **What happened:** <1-2 sentences>
@@ -102,7 +102,7 @@ Append or update the index table with `| <name> | <slug> | <status> | <claude_md
 
 ## Step 4 — Report
 
-Reply to Dave:
+Reply to the user:
 - ✅ What you wrote (5 sections filled)
 - ⚠️ Gaps you noticed (e.g., "project has no ADRs yet, I inferred from commits")
 - 💡 Suggestion: if CLAUDE.md is weak/missing, flag that — cortex CAN'T replace it

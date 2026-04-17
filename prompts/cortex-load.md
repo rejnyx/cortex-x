@@ -4,7 +4,7 @@
 
 ---
 
-## When working in any Dave's project
+## When working in any the user's project
 
 Before starting work:
 

@@ -14,7 +14,7 @@ Retrofitting agentic patterns into a CRUD codebase = architecture rewrite. 30 mi
 
 Opens a new empty project folder → one command → you get:
 
-- **CLAUDE.md** tailored to your stack (Next.js+Supabase / Chatbot / WaaS / Kiosek / Minimal)
+- **CLAUDE.md** tailored to your stack (one of 9 profiles — see below)
 - **PROGRESS.md** sprint tracking template
 - **.claude/** folder with hooks, subagents, skills, settings
 - **MEMORY.md** multi-layer memory scaffold
@@ -60,7 +60,7 @@ Every scaffolded project inherits these — see [standards/](./standards/README.
 ```
 cortex-x/
 ├── bin/              CLI entrypoint (init, doctor, sync)
-├── profiles/         Project-type profiles (Next.js SaaS, Chatbot, WaaS, ...)
+├── profiles/         Project-type profiles (Next.js SaaS, Chatbot, Website-as-a-Service, ...)
 ├── templates/        Handlebars templates (CLAUDE.md, PROGRESS.md, ...)
 ├── standards/        Principle docs (SSOT, Modular, Scalable, Security)
 ├── shared/
@@ -193,23 +193,23 @@ Cortex isn't just templates — it **thinks**:
 - **journal/** tracks tool-use traces (privacy-safe metadata only) for repeat-mistake detection
 - **Budget:** max 1 insight per session, max 3 per week — silence > noise
 
-Cortex acts as **senior engineer partner** — catches what Dave misses, politely, once, moves on.
+Cortex acts as **senior engineer partner** — catches what the user misses, politely, once, moves on.
 
 ## Available profiles
 
 Every scaffolded project picks ONE profile that defines its stack + conventions:
 
-| Profile | Use case | Example Dave project |
-|---------|----------|---------------------|
-| **nextjs-saas** | Next.js + Supabase + OpenAI SaaS | RELO, Chatbot Platform |
-| **waas-template** | Website-as-a-Service, multi-tenant | Champions Barber |
-| **chatbot-platform** | Multi-tenant chatbot with channel adapters | Amici, Objednáme |
-| **ai-agent** | Autonomous multi-step AI agent | RELO |
-| **tauri-desktop** | Cross-platform desktop app (Rust + Web) | Future |
-| **astro-static** | Portfolio, blog, docs (zero-JS) | portfolio-uxui |
-| **cli-tool** | Node.js CLI published to npm | cortex-x itself |
-| **kiosek** | Restaurant touch kiosk PWA | Kiosek |
-| **minimal** | Quick prototype, no ceremony | Experiments |
+| Profile | Use case | Typical example |
+|---------|----------|-----------------|
+| **nextjs-saas** | Next.js + Supabase + OpenAI SaaS | back-office AI agent, admin platform |
+| **waas-template** | Website-as-a-Service, multi-tenant | barbershop / gym / restaurant landing template |
+| **chatbot-platform** | Multi-tenant chatbot with channel adapters | e-commerce assistant, booking agent |
+| **ai-agent** | Autonomous multi-step AI agent | domain-specific assistant with tool use |
+| **tauri-desktop** | Cross-platform desktop app (Rust + Web) | local-first productivity tool |
+| **astro-static** | Portfolio, blog, docs (zero-JS) | personal portfolio, changelog site |
+| **cli-tool** | Node.js CLI published to npm | dev tooling, scripts-as-a-CLI |
+| **kiosek** | Restaurant / retail touch kiosk PWA | self-service ordering screen |
+| **minimal** | Quick prototype, no ceremony | experiments, spikes |
 
 Pick via `cortex init` → interactive selector → scaffolds everything.
 
@@ -243,12 +243,12 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 - PR-only mutations (framework never auto-edits its own source of truth)
 - Meta-loop: every 30 insights → effectiveness review → threshold tuning
 
-**Phase 6 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md (port back to RELO)
+**Phase 6 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md consolidation
 
 ## License
 
-Proprietary. See [LICENSE](./LICENSE).
+[PolyForm Noncommercial 1.0.0](./LICENSE) — SPDX `PolyForm-Noncommercial-1.0.0`. Noncommercial use is broadly permitted; commercial use requires a separate grant. See [LICENSE](./LICENSE) for full text.
 
 ---
 
-**Author:** David Rajnoha (Rejnyx) · REDACTED@redacted.invalid
+**Author:** David Rajnoha (Rejnyx) · contact via [GitHub](https://github.com/Rejnyx/cortex-x)

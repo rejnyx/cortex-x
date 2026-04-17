@@ -28,3 +28,31 @@ yarn-debug.log*
 .claude/compact-state.md
 .claude/sessions/
 .claude/shell-snapshots/
+
+# Personal data (ship-ready — see standards/ship-ready.md)
+# Project entries, dated insights, journal streams, project-scoped research
+# caches are maintainer-private. Framework-level examples ship.
+/projects/*.md
+!/projects/README.md
+!/projects/cortex-x.md
+# insights/proposals/* are framework examples (whole subdir ships).
+# Top-level dated insights are the user's private mining outputs — ignored.
+/insights/20*-*.md
+/insights/rejected/
+/insights/META-*.md
+# journal is per-machine — never shipped.
+/journal/20*.jsonl
+/journal/.hook-errors.log
+# research: framework-level decision caches ship (manual `git add`).
+# Project-specific caches are private.
+/research/*-20*.md
+!/research/README.md
+!/research/tone-adaptation-*.md
+!/research/beta-distribution-*.md
+# runtime & per-user overrides
+/.hook-errors.log
+module.local.yaml
+.claude/
+
+# Internal design docs referencing maintainer's private projects — not shipped
+/docs/framework-rfc.md
