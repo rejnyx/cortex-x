@@ -64,9 +64,11 @@ agents:
 # Hooks (installed to ~/.claude/shared/hooks via install.sh)
 hooks:
   global:
-    - block-destructive  # rm -r, force push, DROP TABLE blocking
-    - session-start      # PROGRESS.md + git + cortex-x awareness
-    - pre-compact        # Sprint state recovery before compaction
+    - block-destructive  # rm -r, force push, DROP TABLE blocking (PreToolUse matcher: Bash)
+    - session-start      # PROGRESS.md + git + cortex-x awareness (SessionStart)
+    - pre-compact        # Sprint state recovery before compaction (PreCompact)
+    - pre-tool-use       # Journal companion: records tool-call start ts for duration_ms (PreToolUse, all tools)
+    - post-tool-use      # Journal writer: appends JSONL entry per tool call (PostToolUse, all tools)
 
 # Profiles (project types for new-project bootstrap)
 profiles:

@@ -37,9 +37,25 @@ Only metadata: timestamps, tool names, durations, success/failure, short summari
 
 ## How it gets populated
 
-- **Stop hook** (future) writes session summary
-- **PostToolUse hook** (future) appends per-tool entries
-- For now: manually appended by cortex-thinker when session has notable events
+- **PreToolUse hook** (`shared/hooks/pre-tool-use.cjs`) records start timestamp per tool call to `os.tmpdir()` — used purely to compute `duration_ms`.
+- **PostToolUse hook** (`shared/hooks/post-tool-use.cjs`) appends one JSONL entry per tool call, paired with the pre-hook's timestamp. Writes to `{cortex_root}/journal/YYYY-MM-DD-<project-slug>.jsonl`.
+- **Silent by design:** if cortex-x isn't installed (no `~/cortex-x`, no `~/Desktop/APPs/cortex-x`), hooks silently no-op. Never blocks Claude's flow.
+
+### Redaction guarantees (enforced in post-tool-use.cjs)
+
+Before writing, the hook scrubs:
+- `password|token|secret|api_key|authorization|bearer=VALUE` → `<redacted>`
+- OpenAI/Anthropic keys (`sk-…`), GitHub tokens (`ghp_…`, `ghs_…`), Slack tokens (`xox[bapr]-…`)
+- JWTs (`eyJ…`)
+- Long hex tokens (32+ chars)
+
+Per-tool summary captures only high-signal metadata:
+- `Bash` → command (redacted, ≤120 chars)
+- `Edit`/`Write`/`Read` → file path only, no old_string/new_string/content
+- `Grep`/`Glob` → pattern
+- `WebFetch` → URL only (not the prompt)
+- `WebSearch` → query (redacted)
+- `Agent`/`Task` → description only (not the prompt)
 
 ## Anti-patterns
 

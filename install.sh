@@ -29,7 +29,24 @@ cp -r "$CORTEX_ROOT/profiles" "$CLAUDE_HOME/shared/"
 
 echo "Done."
 echo
-echo "Next: ensure ~/.claude/settings.json references hooks at:"
-echo "  ~/.claude/shared/hooks/block-destructive.cjs"
-echo "  ~/.claude/shared/hooks/session-start.cjs"
-echo "  ~/.claude/shared/hooks/pre-compact.cjs"
+echo "Hooks copied to ~/.claude/shared/hooks/:"
+echo "  block-destructive.cjs   (PreToolUse matcher:Bash)"
+echo "  session-start.cjs       (SessionStart)"
+echo "  pre-compact.cjs         (PreCompact)"
+echo "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
+echo "  post-tool-use.cjs       (PostToolUse all tools — journal writer)"
+echo
+echo "Register them in ~/.claude/settings.json under \"hooks\". Example snippet:"
+cat <<'JSON'
+  "PreToolUse": [
+    { "matcher": "Bash",
+      "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/block-destructive.cjs\"","timeout":5}] },
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/pre-tool-use.cjs\"","timeout":3}] }
+  ],
+  "PostToolUse": [
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+  ]
+JSON
+echo
+echo "Journal will be written to: $CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl"
+echo "See journal/README.md for schema + privacy contract."
