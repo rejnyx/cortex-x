@@ -1,0 +1,174 @@
+# Ship-Ready — Governance Invariants for Distribution
+
+> **Tier-0 invariant.** Governance pillar that precedes Rule 1. Rule 1 answers "is the code correct for its job?"; Ship-Ready answers "is the code fit for an audience beyond the author?"
+>
+> Violations don't break the framework — they leak private data, strand legal ambiguity, or ship unattributable artifacts. Harder to fix later than before, per the same "retrofit = rewrite" logic as Rule 1.
+
+---
+
+## The three pillars
+
+### 1. No personal data in generic code
+Anything a stranger would never need to know about Dave must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes:
+
+- Full paths scoped to Dave's machine (`C:\Users\david\...`, `~/Desktop/APPs/cortex-x/`)
+- Personal email addresses, phone numbers, social handles
+- Project names Dave owns privately (RELO, Chatbot Platform, WaaS template, Kiosek, Portfolio)
+- Internal URLs (company Slack, private Notion, private GitHub projects)
+
+**Allowed in designated personal files** (gitignored from the shipped bundle): `projects/<slug>.md` entries for Dave's private projects, `insights/<dated>.md` sessions, `journal/*.jsonl`, `research/<slug>-<date>.md` caches, `module.local.yaml` (if adopted).
+
+### 2. Clear licensing + attribution
+- `LICENSE` names a specific license with SPDX identifier
+- `Proprietary`/`All Rights Reserved` blocks all beta distribution — either clearly OSS (MIT/Apache-2.0/etc.) or **source-available** (PolyForm Noncommercial 1.0.0, Elastic License 2.0)
+- `Required Notice` (PolyForm) or copyright header present on copy-redistributable files
+- Third-party dependencies listed with their licenses (when we add any)
+
+### 3. Stranger can reproduce the install
+- `README.md` onboarding tested fresh: unfamiliar user gets from clone → working hook in ≤10 minutes
+- `install.sh` + `install.ps1` make no Dave-specific assumptions (tested on macOS + Ubuntu in addition to Dave's Windows)
+- `CORTEX_HOME` env var honored for side-by-side installs
+- `CONTRIBUTING.md` states the beta posture (currently closed, how to reach maintainer)
+- `SECURITY.md` states disclosure contact
+
+---
+
+## Staging / prod architecture
+
+**Single repo. Two channels. Promote by tagging.**
+
+Grounded in research ([`research/beta-distribution-2026-04-17.md`](../research/beta-distribution-2026-04-17.md)) — Claude Code's `autoUpdatesChannel: latest|stable` model + GitHub native `--prerelease` flag. BMAD's dual-npm-channel is overkill at Dave's scale; Aider's single-stream too coarse once breaking changes ship.
+
+| Channel | Branch / Tag | Purpose | Audience |
+|---|---|---|---|
+| **`beta`** | `main` HEAD | Rolling latest. Breaking changes possible between day 1 and day 7. | Beta testers who explicitly opt in |
+| **`stable`** | semver tag `vX.Y.Z` | Reproducible release. No changes after tag is cut. | Default for new installs |
+
+**Install resolution:**
+
+```bash
+CORTEX_CHANNEL=beta   ./install.sh   # tracks main
+CORTEX_CHANNEL=stable ./install.sh   # checks out highest non-prerelease tag (default)
+```
+
+**Update flow:**
+- `beta`: `git fetch origin && git reset --hard origin/main` (Dave's control plane for beta iteration)
+- `stable`: `git fetch --tags && git checkout $(git tag -l "v*" --sort=-v:refname | grep -v beta | head -1)`
+
+**Version scheme:**
+- `v0.x.y` — pre-first-stable; every tag can have breaking changes
+- `v0.x.y-beta.N` — pre-release snapshots pushed while testing next tag
+- `v1.0.0` — first contract-stable tag (everything tagged after this respects semver)
+
+---
+
+## Required artifacts (before first beta ship)
+
+- [ ] `LICENSE` — specific license, SPDX identifier, not "Proprietary"
+- [ ] `README.md` — no personal email; install → first journal entry in ≤10 min
+- [ ] `CONTRIBUTING.md` — beta posture + contact channel
+- [ ] `SECURITY.md` — disclosure contact
+- [ ] `MIGRATIONS.md` — empty but present (becomes v-keyed log on first breaking change)
+- [ ] `CHANGELOG.md` — empty but present
+- [ ] `.gitignore` — personal data dirs excluded
+- [ ] CI grep gate (can be shell script for v0) blocking commits containing personal identifiers
+
+---
+
+## Reserved environment variables (document now, use later)
+
+Even if unimplemented, reserve names so the future opt-in doesn't collide:
+
+| Var | Purpose | v0 behavior |
+|---|---|---|
+| `CORTEX_HOME` | Override install dir | Honored (default `~/.claude/shared`) |
+| `CORTEX_CHANNEL` | `beta` \| `stable` | Honored by install scripts |
+| `CORTEX_TELEMETRY_DISABLED` | Opt-out of future telemetry | Reserved, unused |
+| `CORTEX_OFFLINE` | Skip auto-research network calls | Already honored ([config/research.yaml](../config/research.yaml)) |
+| `CORTEX_NO_UPDATE` | Block self-update nag | Reserved |
+
+---
+
+## Telemetry stance (opinionated)
+
+**v0: zero telemetry.** No counters, no events, no phone-home. Journal stays strictly local.
+
+**v0.3+ (if adopted): opt-IN, never opt-out.** Per research ([`research/beta-distribution-2026-04-17.md`](../research/beta-distribution-2026-04-17.md)) the 2026 baseline is Supabase/Vercel-style: env-var + CLI-command disable + public schema doc + DEBUG inspect mode. Vercel's Claude Code plugin that injected telemetry via prompt context was publicly shamed ([akshaychugh.xyz/vercel-plugin-telemetry](https://akshaychugh.xyz/writings/png/vercel-plugin-telemetry)) — **never ship that pattern**.
+
+If telemetry ever lands: explicit opt-in at first run, never default-on. Schema doc at `docs/telemetry-schema.md`. Inspection mode via `CORTEX_TELEMETRY_DEBUG=1`.
+
+---
+
+## Pre-ship grep gate (the bright line)
+
+Before any `v*` tag, this command must return zero matches in shipped dirs (everything except `.personal/`, gitignored data, and this very standard):
+
+```bash
+SHIPPED_DIRS="standards templates profiles prompts agents shared docs config install.sh install.ps1 module.yaml README.md CLAUDE.md LICENSE CONTRIBUTING.md SECURITY.md MIGRATIONS.md CHANGELOG.md"
+
+grep -rnE "(davidrajnoha@|C:\\\\Users\\\\david|/Users/[a-z]+/Desktop|back-office-bot|custom-chatbot|hustle-masterbar|kiosek-main)" $SHIPPED_DIRS && echo "BLOCK: personal identifier leak" && exit 1
+```
+
+Exceptions:
+- `CLAUDE.md` may reference "Dave Rajnoha" in the Identity line if the framework's authorship matters to users — but never Dave's email, paths, or other projects
+- `projects/cortex-x.md` is the framework's self-entry and OK as-is
+- `LICENSE` `Required Notice` line intentionally names the licensor
+
+---
+
+## Enforcement
+
+### A) At distribution time
+Pre-ship grep gate (above). If CI grows, this becomes a GitHub Actions check on `main` + all tags.
+
+### B) At scaffold time ([prompts/new-project.md](../prompts/new-project.md) Phase 4.4)
+When cortex scaffolds a new project, the scaffolded output must itself satisfy ship-ready: `CLAUDE.md` has no hardcoded user-scoped paths, `.env.example` present, `LICENSE` stub written with user's choice, not "Proprietary" by default.
+
+### C) At review time ([prompts/code-review.md](../prompts/code-review.md))
+`ssot-enforcer` already detects duplication; extend its scope (or add `ship-ready-auditor` as 6th pipeline agent) to grep new diffs for personal identifiers. Any leak → 🔴 block.
+
+### D) At evolve time ([prompts/cortex-evolve.md](../prompts/cortex-evolve.md))
+Weekly mining surfaces ship-ready regressions as priority insights. A new commit containing `davidrajnoha@` in a template is a Rule-0 violation (higher than Rule 1).
+
+---
+
+## What ship-ready is NOT
+
+- ❌ **Open source by default.** Ship-ready = distributable, not OSS. PolyForm Noncommercial is source-available. Dave can relicense to MIT later if scope changes.
+- ❌ **Multi-tenant architecture.** Beta testers run local, own their data, never share with Dave's install. No SaaS machinery required at v0.
+- ❌ **Full CI/CD from day 1.** One `install.sh`, one grep gate, semver tags. Automation arrives when manual work bites.
+- ❌ **`cortex` CLI binary mandatory.** Paste-prompt UX works for v0. CLI is v0.2+ quality-of-life.
+- ❌ **i18n.** UI is Czech in Dave's own install per his preference; shipped docs/prompts in English is the baseline.
+
+---
+
+## Tier relationship
+
+```
+Rule 0 — Ship-Ready   (governance — for whom is this code?)
+Rule 1 — SSOT+Modular+Scalable   (technical invariants — is the code fit for purpose?)
+Rule 2 — Security+Testing+Observability   (quality-critical)
+Rule 3 — Process standards   (should-haves)
+```
+
+Ship-ready doesn't outrank Rule 1 technically — it precedes it. Before we ask "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with Dave's email hardcoded fails Rule 0 before Rule 1 even runs.
+
+---
+
+## Audit results (2026-04-17, initial pass)
+
+Actual state before remediation commit:
+
+| Artifact | Violation | Severity | Fix |
+|---|---|---|---|
+| `LICENSE` | `Proprietary` blocks beta distribution | 🔴 Blocker | → PolyForm Noncommercial 1.0.0 |
+| `README.md:254` | Personal email in public docs | 🔴 Blocker | Remove or link to GitHub profile |
+| `projects/relo.md`, `projects/amd-hackathon-2026.md` | Private project entries shipped | 🔴 Blocker | Gitignore + `git rm --cached` |
+| `insights/2026-04-17-amd-retrofit-gaps.md` | Private insight shipped | 🔴 Blocker | Gitignore personal insight pattern |
+| `prompts/new-project.md:107`, `prompts/cortex-doctor.md:15` | Hardcoded `~/Desktop/APPs/cortex-x/` | 🟡 High | Use `{cortex_root}` placeholder |
+| `module.yaml` config.user_name, config.author | Dave's name as default | 🟡 High | Empty default + document override |
+| `CONTRIBUTING.md` missing | GitHub surfaces warning + no contact channel | 🟡 High | Stub added |
+| `SECURITY.md` missing | No disclosure contact | 🟡 High | Stub added |
+| `MIGRATIONS.md`, `CHANGELOG.md` missing | Can't version breaking changes | 🟠 Medium | Empty stubs |
+
+Remediation in same commit as this standard lands. Post-remediation, grep gate must pass.

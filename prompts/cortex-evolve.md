@@ -1,6 +1,6 @@
 # Cortex Evolve — Self-Improvement Loop
 
-> **Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč Dave's projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, Dave review-uje.
+> **Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč the user's projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, the user review-uje.
 >
 > **Kdy spustit:** manuálně přes `paste this prompt`, nebo auto přes cron (až bude Vercel deployment hotový).
 > **Režim:** arg `daily` / `weekly` / `monthly` (default: `weekly`).
@@ -71,7 +71,7 @@ Read last 7 days journal entries across all projects. Find tool-use sequences wh
 - Ended in `ok: false` majority of time
 - Appeared in ≥2 different projects
 
-Example finding: `[Edit, Bash(npm test), Bash(npm test)]` → failure rate 60% across RELO + Chatbot Platform.
+Example finding: `[Edit, Bash(npm test), Bash(npm test)]` → failure rate 60% across project A and project B.
 
 #### B.1.2 Error clustering (TF-IDF contrast)
 Split journal entries by `ok: true/false`. For failures:
@@ -166,7 +166,7 @@ git commit -m "evolve: N insights from weekly consolidation"
 gh pr create --title "Weekly evolve — <date>" --body "<summary>"
 ```
 
-Otherwise: save as `insights/proposals/PENDING-<date>.md` and instruct Dave to review manually.
+Otherwise: save as `insights/proposals/PENDING-<date>.md` and instruct the user to review manually.
 
 **Stop here if mode = weekly.**
 
@@ -214,14 +214,14 @@ For tasks scoring <80%:
 ### C.5 3-month audit reminder
 
 If `today >= config.audit.first_audit_date` AND last audit > 90 days ago:
-- Remind Dave to run `~/cortex-x/docs/3-month-audit.md` checklist
+- Remind the user to run `~/cortex-x/docs/3-month-audit.md` checklist
 - Generate usage report: `docs/audit-usage-<date>.md` with:
   - Files never read in last 90 days
   - Prompts never invoked
   - Profiles never scaffolded
   - Insights never acted on
 
-Dave uses this to prune.
+the user uses this to prune.
 
 ---
 
@@ -252,7 +252,7 @@ Po každých 30 zaznamenaných insights (sjednotí rejected + accepted), napiš 
 - ❌ Generating insights without algorithmic pre-filter (LLM hallucinates)
 - ❌ Skipping evidence citations (makes insights unverifiable)
 - ❌ Running daily → noise explosion
-- ❌ Auto-merging proposals → kills Dave's trust
+- ❌ Auto-merging proposals → kills the user's trust
 - ❌ LLM-based stale detection → use mtime
 - ❌ Ignoring rejected queue → learn from what failed the gate
 - ❌ Rewriting standards/prompts/profiles directly → use PR always

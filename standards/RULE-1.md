@@ -44,13 +44,16 @@ Details: [`scalable.md`](./scalable.md)
 
 ## Tier hierarchy (for priority decisions)
 
-When two standards conflict or budget is limited, Rule 1 wins.
+When two standards conflict or budget is limited, Rule 0 (governance) precedes Rule 1 (technical); Rule 1 precedes Rule 2; Rule 2 precedes Rule 3.
 
 | Tier | Standards | Status | Enforcement |
 |---|---|---|---|
+| **Rule 0** | [Ship-Ready](./ship-ready.md) — no personal data in generic code, clear licensing, stranger-reproducible install | Inviolable before any distribution | Pre-ship grep gate + scaffold + evolve priority |
 | **Rule 1** | SSOT, Modular, Scalable | Inviolable | Scaffold validation + ssot-enforcer always-on + PR gate |
 | **Critical (Rule 2)** | Security, Testing, Observability | Must-have | Review pipeline flag = blocker |
 | **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns | Should-have | Review pipeline flag = warning |
+
+Rule 0 isn't technically above Rule 1 — it precedes it. Before asking "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with the author's email hardcoded fails Rule 0 before Rule 1 even runs.
 
 **Rule 1 violations = blocker.** No "we'll fix it later." Later never comes, and by then the whole codebase is the violation.
 
@@ -115,7 +118,7 @@ These are **automatic PR blocks**, not debates:
 - ❌ **RLS disabled on user-facing table** — even in "MVP"
 - ❌ **`SELECT *` inside a loop** — N+1 + over-fetch
 - ❌ **Feature code scattered across folders** — `manage-X` logic in 6 files without `features/X/` boundary
-- ❌ **Docs duplicated between cortex-x and CLAUDE.md** — Dave's own bug caught in projects/relo.md April 2026
+- ❌ **Docs duplicated between cortex-x and CLAUDE.md** — tech stack / commands / env vars live in project `CLAUDE.md` only; institutional wisdom (lessons learned, key decisions) lives in cortex-x library only
 
 ---
 

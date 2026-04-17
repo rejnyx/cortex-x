@@ -4,7 +4,7 @@
 
 ## Branch strategy
 
-### For solo dev (Dave's default)
+### For solo dev (the user's default)
 
 ```
 main (protected, auto-deploys to prod)

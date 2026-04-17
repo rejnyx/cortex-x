@@ -96,7 +96,7 @@ Based on current state:
 
 ## Anti-patterns
 
-- ❌ Summarizing every story verbatim (Dave can read PROGRESS.md)
+- ❌ Summarizing every story verbatim (the user can read PROGRESS.md)
 - ❌ Burying next-actionable in long list
 - ❌ Ignoring git context (commits that complete stories should auto-suggest status update)
 - ❌ Over-formatting (keep it scannable)

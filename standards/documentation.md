@@ -213,7 +213,7 @@ Store in `docs/adr/`. Number them sequentially. Never delete — add "Superseded
 - CLAUDE.md makes AI agent productive within first prompt — architecture explained
 - Docs are updated in every feature PR — living, not stagnant
 
-## For Dave's projects
+## For the user's projects
 
 - **CLAUDE.md** — comprehensive (AI agent needs full context)
 - **README.md** — proprietary banner + what-it-does + contact

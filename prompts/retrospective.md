@@ -106,7 +106,7 @@ Suggest updating PROGRESS.md with next sprint structure, referencing learned pat
 
 ## Output format
 
-After retrospective, give Dave:
+After retrospective, give the user:
 
 ```markdown
 # Retrospective — <project> — Sprint <N>
@@ -144,7 +144,7 @@ After retrospective, give Dave:
 
 ## Rules
 
-- **4 questions only.** Retrospective fatigue is real. More than 4 = Dave disengages.
+- **4 questions only.** Retrospective fatigue is real. More than 4 = the user disengages.
 - **Force concreteness.** "Things went OK" = useless. "Migration 024 broke prod because we didn't test against real DB" = gold.
 - **Mark TRANSFERABLE explicitly.** Without this label, insights die in the sprint.
 - **Preserve history.** Don't overwrite Lessons Learned — append with dates.
@@ -160,7 +160,7 @@ After retrospective, give Dave:
 
 ## Time budget
 
-- Questions: ~5-10 min Dave typing
+- Questions: ~5-10 min the user typing
 - Distillation + commit: ~2 min Claude
 - Total: ~10-15 min
 
@@ -170,7 +170,7 @@ That's a 15-minute investment per sprint for institutional memory that compounds
 
 - **Triggered by:** end of sprint (sprint-status detects 90%+ completion)
 - **Outputs to:** `~/cortex-x/projects/<slug>.md` Lessons Learned + Key Decisions + Cross-Project Deps + Glossary
-- **Informs:** next `new-project.md` for similar projects (Dave starts ahead because lessons exist)
+- **Informs:** next `new-project.md` for similar projects (the user starts ahead because lessons exist)
 
 ## Philosophy
 

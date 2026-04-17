@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-Před velkými rozhodnutími cortex **automaticky** spouští 2-5 paralelních research agentů, cachuje výsledky do `research/`, a čerpá z cache když je fresh. Dave se nemusí ptát. Budget + anti-trigger chrání před noise a cost.
+Před velkými rozhodnutími cortex **automaticky** spouští 2-5 paralelních research agentů, cachuje výsledky do `research/`, a čerpá z cache když je fresh. the user se nemusí ptát. Budget + anti-trigger chrání před noise a cost.
 
 ---
 
@@ -134,7 +134,7 @@ Inject synthesis into the current prompt's decision flow:
 Per `config/research.yaml`:
 - Max **1 research batch per session** (no spamming)
 - Max **10 batches per week across all projects**
-- Over-budget action: **warn + ask** Dave, don't silently execute
+- Over-budget action: **warn + ask** the user, don't silently execute
 
 Check budget:
 ```
@@ -157,7 +157,7 @@ if >= 10:
 **If a research report violates these:**
 - Log to `insights/META-research-quality.md`
 - Re-run with stricter prompt on next invocation
-- After 3 violations → flag prompt template bug, ask Dave
+- After 3 violations → flag prompt template bug, ask the user
 
 ---
 
@@ -169,7 +169,7 @@ if >= 10:
 - ❌ Blog-post-heavy research — prefer docs
 - ❌ Research cached forever — use TTL by topic
 - ❌ Research results without cited URLs — worthless
-- ❌ Research to "confirm" a decision Dave already made — rationalization
+- ❌ Research to "confirm" a decision the user already made — rationalization
 
 ---
 
@@ -194,7 +194,7 @@ User can skip with `--no-research` in the input.
 
 Research protocol's own effectiveness gets audited quarterly:
 - Hit rate (how often cache saves a call)
-- Dismissal rate (how often Dave ignores research findings)
+- Dismissal rate (how often the user ignores research findings)
 - Staleness (how often outdated cache leads to bad decision)
 
 Log to `insights/META-research-<quarter>.md`. If dismissal rate >40%, research prompt template has bug → revisit.

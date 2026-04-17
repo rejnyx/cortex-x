@@ -6,13 +6,13 @@
 
 ## Your task
 
-Run a systematic healthcheck of Dave's cortex-x setup. Identify what's missing, broken, or drifted. Report with actionable fixes.
+Run a systematic healthcheck of the user's cortex-x setup. Identify what's missing, broken, or drifted. Report with actionable fixes.
 
 ## Check matrix
 
 ### 1. Installation integrity
 
-- [ ] `~/cortex-x/` or `~/Desktop/APPs/cortex-x/` exists
+- [ ] `$CORTEX_HOME` (default `~/cortex-x/` or `~/.cortex-x/`) exists
 - [ ] `cortex-x/shared/hooks/block-destructive.cjs` exists
 - [ ] `cortex-x/shared/hooks/session-start.cjs` exists
 - [ ] `cortex-x/shared/hooks/pre-compact.cjs` exists
@@ -174,7 +174,7 @@ Run a test: check if `node ~/cortex-x/shared/hooks/session-start.cjs` outputs va
 ## Anti-patterns
 
 - ❌ Running doctor every session (check occasionally)
-- ❌ Auto-fixing without asking (show fixes, let Dave decide)
+- ❌ Auto-fixing without asking (show fixes, let the user decide)
 - ❌ Philosophical "consider improvements" (concrete or omit)
 
 ## When to run

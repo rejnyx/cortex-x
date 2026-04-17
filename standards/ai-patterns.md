@@ -13,7 +13,7 @@
 
 But for **every SaaS, chatbot, dashboard, builder, CRM, content tool** — agentic-ready is the 2026 default.
 
-## The 10 agentic patterns (all transferable from RELO)
+## The 10 agentic patterns (battle-tested across production agent projects)
 
 ### 1. safe-tool wrapper (CRITICAL — port to every agent project)
 
@@ -102,7 +102,7 @@ streamText({
 })
 ```
 
-Don't use infinite loops. 8 steps is the RELO-validated sweet spot.
+Don't use infinite loops. 8 steps is an empirically validated sweet spot.
 
 ### 6. Prompt injection defense
 
@@ -173,7 +173,7 @@ Tools: `promptfoo`, `braintrust`, custom Vitest setup.
 | Project type | Required patterns | Optional |
 |--------------|-------------------|----------|
 | **SaaS with AI chat** | 1, 2 (Layer 1+3), 3, 5, 6, 7, 9 | 2 (Layer 2), 8, 10 |
-| **Autonomous agent (RELO-like)** | 1, 2 (all 3 layers), 3, 4, 5, 6, 7, 9, 10 | 8 |
+| **Autonomous agent (multi-step with memory)** | 1, 2 (all 3 layers), 3, 4, 5, 6, 7, 9, 10 | 8 |
 | **Chatbot platform** | 1, 2 (Layer 1+3), 3, 5, 6, 7, 9 | 2 (Layer 2), 10 |
 | **AI-powered feature in existing app** | 1, 6, 7, 9 | 3, 5, 10 |
 | **Static blog / portfolio** | — | — (skip) |
@@ -188,7 +188,7 @@ src/
 ├── lib/
 │   ├── ai/                    ← empty now, ready for future
 │   │   ├── tools/             ← LEGO tools
-│   │   ├── safe-tool.ts       ← wrapper (copy from RELO)
+│   │   ├── safe-tool.ts       ← wrapper (see pattern #1 above)
 │   │   ├── system-prompt.ts
 │   │   └── memory/            ← three-layer scaffold
 │   ├── supabase/              ← if pgvector needed later
@@ -234,6 +234,6 @@ The right question is: **"What's the minimum agentic scaffolding so we can add A
 
 Answer: patterns 1-3 (safe-tool, three-layer memory scaffold, LEGO structure). 30 min at init. Earns back 10x.
 
-Retrofitting agentic architecture into a CRUD codebase = architecture rewrite. Dave already lived this pain with RELO migration from flat to three-layer.
+Retrofitting agentic architecture into a CRUD codebase = architecture rewrite. This framework emerged from exactly that retrofit pain — a migration from flat to three-layer memory that could have been avoided with agentic-ready scaffolding from day 1.
 
 **cortex-x defaults to agentic-ready. Projects opt OUT (static blog, minimal prototype), not opt IN.**

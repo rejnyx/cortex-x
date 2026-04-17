@@ -105,4 +105,4 @@ This framework enforces four standards in every scaffolded project:
 
 ## License
 
-Proprietary. See [LICENSE](./LICENSE).
+PolyForm Noncommercial 1.0.0. See [LICENSE](./LICENSE).

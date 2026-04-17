@@ -3,16 +3,25 @@
 
 version: 1.0.0
 name: cortex-x
-description: Personal Claude Code framework — bootstrap + institutional wisdom + adversarial review
+description: AI-agentic-first Claude Code framework — bootstrap + institutional wisdom + adversarial review
 author: David Rajnoha (Rejnyx)
 repo: https://github.com/Rejnyx/cortex-x
+license: PolyForm-Noncommercial-1.0.0
 
-# Config variables — resolved via {placeholder} syntax in prompts/agents
+# Config variables — resolved via {placeholder} syntax in prompts/agents.
+# These are DEFAULTS shipped with the framework. For your own install,
+# create `module.local.yaml` (gitignored) with overrides:
+#
+#   config:
+#     user_name: "Your Name"
+#     communication_language: cs  # cs | en
+#     ...
+#
 config:
-  user_name: David Rajnoha
-  communication_language: cs
+  user_name: ""          # user sets via module.local.yaml
+  communication_language: en
   code_language: en
-  ui_language: cs
+  ui_language: en
 
   # Paths (cross-platform — use forward slashes, Node os.homedir() resolves)
   cortex_root: "~/Desktop/APPs/cortex-x"
@@ -72,7 +81,7 @@ hooks:
 
 # Profiles (project types for new-project bootstrap)
 profiles:
-  - nextjs-saas      # RELO-style SaaS (primary)
+  - nextjs-saas      # Next.js SaaS with Supabase + OpenAI (primary)
   - chatbot-platform # Multi-tenant chatbot
   - waas-template    # Website-as-a-Service
   - ai-agent         # Autonomous multi-step agent

@@ -51,13 +51,13 @@ Ask yourself:
    git commit -m "knowledge: <slug> — <short description>"
    git push
    ```
-2. Report summary to Dave — what was captured, what was skipped
+2. Report summary to the user — what was captured, what was skipped
 
 ## Anti-patterns
 
 - ❌ Capturing every small change (signal dies in noise)
 - ❌ Cross-referencing specific line numbers (they rot)
-- ❌ Personal emotional context ("Dave was tired") — keep it technical
+- ❌ Personal emotional context ("the user was tired") — keep it technical
 - ❌ Redundant with git history ("added a function") — cortex tracks INSIGHTS not DIFFS
 - ❌ Speculation about future work (that's what PROGRESS.md is for)
 
