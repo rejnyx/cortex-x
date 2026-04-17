@@ -111,6 +111,56 @@ if (hasMemory) docs.push('MEMORY.md');
 if (recovery) docs.push('.claude/compact-state.md (recovery available)');
 if (docs.length > 0) ctx.push(`\nDocs: ${docs.join(', ')}`);
 
+// cortex-x awareness — detect if current project has a cortex library entry
+try {
+  const os = require('os');
+  // Check standard locations for cortex-x install (cross-platform)
+  const candidates = [
+    path.join(os.homedir(), 'cortex-x', 'projects'),
+    path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x', 'projects'),
+    path.join(os.homedir(), '.cortex-x', 'projects'),
+  ];
+  const projectsDir = candidates.find(p => fs.existsSync(p));
+
+  if (projectsDir) {
+    // Derive slug from project name — matches projects/<slug>.md convention
+    const slug = projectName
+      .replace(/^@[^/]+\//, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const entryPath = path.join(projectsDir, `${slug}.md`);
+    const cortexRoot = path.dirname(projectsDir);
+
+    if (fs.existsSync(entryPath)) {
+      ctx.push(`\ncortex-x library: entry exists (${slug}.md)`);
+      ctx.push('  Claude: reference it for cross-project context when relevant');
+    } else {
+      ctx.push(`\ncortex-x library: no entry for '${slug}'`);
+      ctx.push(`  Suggest: paste ${path.join(cortexRoot, 'prompts', 'project-scan.md')} to populate`);
+    }
+
+    // Check for pending insights
+    const insightsDir = path.join(cortexRoot, 'insights');
+    if (fs.existsSync(insightsDir)) {
+      const insights = fs.readdirSync(insightsDir)
+        .filter(f => f.endsWith('.md') && f !== 'README.md')
+        .filter(f => {
+          try {
+            const content = fs.readFileSync(path.join(insightsDir, f), 'utf8');
+            const projectMatch = content.match(/^project:\s*(\S+)/m);
+            return projectMatch && projectMatch[1] === slug;
+          } catch { return false; }
+        });
+      if (insights.length > 0) {
+        ctx.push(`  ${insights.length} pending insight(s) — paste prompts/cortex-reflect.md to review`);
+      }
+    }
+  }
+} catch {
+  // cortex-x not installed or unreachable — silently skip
+}
+
 console.log(JSON.stringify({
   hookSpecificOutput: {
     hookEventName: 'SessionStart',
