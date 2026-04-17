@@ -86,6 +86,25 @@ Add to project's `CLAUDE.md`:
 See ~/cortex-x/prompts/cortex-load.md before starting work.
 ```
 
+### 🧠 Deep reflection (when something feels off)
+```
+Paste ~/cortex-x/prompts/cortex-reflect.md → cortex-thinker subagent
+analyzes current project + library state, surfaces 0-3 grounded insights,
+writes to ~/cortex-x/insights/<date>.md
+```
+
+## The Thinking Layer
+
+Cortex isn't just templates — it **thinks**:
+
+- **SessionStart hook** auto-detects if current project has cortex entry, mentions it
+- **cortex-thinker subagent** reflects on cross-project patterns, grounds every insight in file paths
+- **insights/** directory captures proactive observations (standard violations, transferable patterns, repeated mistakes, stale entries, security regressions)
+- **journal/** tracks tool-use traces (privacy-safe metadata only) for repeat-mistake detection
+- **Budget:** max 1 insight per session, max 3 per week — silence > noise
+
+Cortex acts as **senior engineer partner** — catches what Dave misses, politely, once, moves on.
+
 ## Available profiles
 
 Every scaffolded project picks ONE profile that defines its stack + conventions:
