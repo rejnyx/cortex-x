@@ -14,6 +14,23 @@ Opens a new empty project folder → one command → you get:
 - Principles injected: **SSOT, Modular, Scalable, Security**
 - Optional: web research of 2026 best practices for your use case
 
+## Core Mental Model — SSOT respected
+
+**cortex-x holds institutional wisdom. Project `CLAUDE.md` holds current state.**
+
+| Lives in project CLAUDE.md (changes) | Lives in cortex-x (stable) |
+|--------------------------------------|----------------------------|
+| Tech Stack (versions change) | Lessons Learned (what failed) |
+| Architecture (refactors) | Key Decisions (why we chose X) |
+| Commands (new scripts) | Cross-Project Dependencies |
+| Env Vars (new integrations) | Glossary (domain terms) |
+| Directory Structure | Identity (one-liner + URL) |
+| Stats (LOC, tests) | |
+
+**Rule:** If the info ROTS (changes in weeks), it's CLAUDE.md's job. Cortex stays valid for years.
+
+No duplication = no drift = no lying cortex entries.
+
 ## Design principles (11 standards)
 
 Every scaffolded project inherits these — see [standards/](./standards/README.md) for full docs:

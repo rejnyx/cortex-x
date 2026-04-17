@@ -3,269 +3,98 @@ name: RELO (Back Office Bot)
 slug: relo
 status: production
 last_scanned: 2026-04-17
-scan_version: 1
+scan_version: 2
 scanned_by: Claude Opus 4.7
+claude_md_reference: c:/Users/david/Desktop/APPs/back-office-bot/CLAUDE.md
 ---
 
 # RELO — AI Back Office Agent
 
-## Identity
+## 1. Identity
 
 - **One-liner:** AI-powered autonomous back office agent for Czech real estate agencies — 27 domain tools, 8-step agentic loop, three-layer memory, voice input, proactive alerts
-- **Owner:** Dave (David Rajnoha)
-- **Repo path:** `c:/Users/david/Desktop/APPs/back-office-bot`
-- **Remote:** https://github.com/Rejnyx/back-office-bot
-- **Live URL:** https://back-office-bot.vercel.app
-- **Stakeholders:** 50 beta registrations (12 with real activity), 1 confirmed realtor (Vojta Žižka)
-- **Origin:** Competition project (deadline 26.3.2026) → passed first filter → interview invited but not selected (14.4.2026)
+- **Repo:** https://github.com/Rejnyx/back-office-bot
+- **Live:** https://back-office-bot.vercel.app
+- **Owner / Stakeholders:** Dave (David Rajnoha). Active users: 33 with data, 1 confirmed realtor (Vojta Žižka). Origin: competition project 26.3.2026 deadline, passed first filter, interview not selected 14.4.2026.
+- **Status context:** production-grade quality (top 1% complexity among AI agent projects on GitHub per research audit), needs distribution to real realtors — current user base is mostly Dave's test accounts.
 
-## Tech Stack
+For Tech Stack / Architecture / Commands / Env Vars / Directory Structure → **read `c:/Users/david/Desktop/APPs/back-office-bot/CLAUDE.md` live**.
 
-- **Framework:** Next.js 16, React 19.2, TypeScript strict
-- **Styling:** Tailwind CSS 4, shadcn/ui, OKLCH color system, Motion 12
-- **AI/LLM:** OpenAI gpt-5.4-mini (Chat Completions API), gpt-4o Vision, Whisper, Vercel AI SDK v6
-- **Database:** Supabase PostgreSQL (24 migrations, RLS, pgvector, triggers, 18 tables)
-- **Storage:** Supabase Storage (chat-attachments bucket)
-- **Testing:** Vitest 4 (1700+ tests, 91 files), Playwright (16 E2E specs), k6 load tests
-- **Deploy:** Vercel (cron jobs for monitoring + briefing + autoDream + tasks + anomalies)
-- **Monitoring:** Sentry (error monitoring), Vercel Analytics
-- **Auth:** Google OAuth 2.0 (Gmail + Calendar scopes)
-- **Charts:** Recharts 3.8
+## 2. Key Decisions (ADR-lite)
 
-## Architecture
-
-```
-User (Czech) → Chat UI (SSE) → /api/chat → OpenAI gpt-5.4-mini
-                                    ↓
-                            27 AI tools (function calling, 8-step chain)
-                            ├── Query: clients, leads, properties
-                            ├── Mutate: CRUD on clients, leads, properties
-                            ├── Analyze: charts, data quality, insolvency, vision
-                            ├── External: Google (Gmail/Calendar), ISIR, ČÚZK, Valuo, sReality
-                            ├── Memory: manage_memory (Layer 1-3), semantic_search
-                            ├── Async: schedule_background_task (cron worker)
-                            ├── Meta: think (reasoning), introspect, explain_platform
-                            └── Platform: seed_demo, check_system_health, link_document
-
-Memory architecture (three-layer):
-  Layer 1 — core index (compact markdown, always in context)
-  Layer 2 — pgvector semantic search over agent_memory
-  Layer 3 — agent_activity_log (append-only, searchable)
-  autoDream — nightly cron (3:00 UTC) consolidates, verifies, rebuilds index
-```
-
-### Key modules
-
-- `src/lib/ai/safe-tool.ts` — Wrapper: strips `$schema` from Zod v4 JSON (OpenAI rejects it), try/catch error classification (timeout/auth/not_found/validation/rate_limit)
-- `src/lib/ai/tools/*.ts` — 27 tool implementations (one per file, LEGO pattern)
-- `src/lib/ai/system-prompt.ts` — Czech v3 prompt with emoji policy, suggestion taxonomy, injection defense, Think-Plan-Execute protocol
-- `src/lib/ai/memory-index.ts` — Layer 1 core index builder (getCoreIndex, rebuildCoreIndex)
-- `src/lib/ai/activity-log.ts` — Layer 3 activity log (logActivity, searchActivity)
-- `src/lib/embeddings/memory.ts` — Layer 2 semantic memory (embedMemory, backfill)
-- `src/app/api/chat/route.ts` — SSE streaming orchestrator
-- `src/app/api/cron/autodream/route.ts` — Memory consolidation cron
-- `src/app/api/cron/anomalies/route.ts` — Proactive alerts (stagnating leads, data quality, stale clients)
-- `src/proxy.ts` — Auth middleware (renamed from middleware.ts per Next.js 16 convention)
-
-## Integrations
-
-- **OpenAI** — Chat Completions (gpt-5.4-mini for chat + tools), Vision (gpt-4o for photo analysis), Whisper (Czech transcription), Embeddings (text-embedding-3-small)
-- **Supabase** — Auth (Google OAuth), DB (Postgres + RLS), Storage, pgvector
-- **Google Gmail API** — email draft + send (OAuth)
-- **Google Calendar API** — read + write events (OAuth)
-- **ISIR** — Czech insolvency register (risk screening)
-- **ČÚZK** — Czech cadastre (property ownership verification)
-- **Valuo / CMA** — property valuation
-- **sReality / Bezrealitky** — listing monitoring
-- **Telegram Bot API** — webhook integration (voice + text)
-- **Sentry** — error monitoring
-- **Vercel Cron** — 5 cron jobs (monitor, briefing, tasks, autodream, anomalies)
-
-## Key Decisions (ADR-lite)
-
-- **Chat Completions API over Responses API** — gpt-5.x has documented tool_call_id bug in Responses API — 2026-01 — active
-- **Zod v4 `$schema` stripping** — OpenAI JSON Schema parser rejects `$schema` field — 2026-02 — active via safe-tool wrapper
-- **safe-tool wrapper pattern** — Tools never throw, return `{success, data|error}`, AI self-heals — 2026-02 — active
-- **Three-layer memory architecture** — Inspired by MemGPT/Letta, validates Letta pattern — 2026-03 — active
-- **autoDream nightly consolidation** — Matches OpenClaw Dreaming pattern — 2026-03 — active
+- **Chat Completions API over Responses API** — gpt-5.x has documented `tool_call_id` mismatch bug in Responses API with multi-tool chains — 2026-01 — active
+- **Zod v4 `$schema` stripping via safe-tool wrapper** — OpenAI JSON Schema parser rejects `$schema` field — 2026-02 — active
+- **Tools never throw, return `{success, data|error}`** — AI self-heals with alternative tool calls instead of crashing loop — 2026-02 — active
+- **Three-layer memory (core index + pgvector + activity log) with nightly autoDream consolidation** — Inspired by MemGPT/Letta research, validated by Anthropic KAIROS leak — 2026-03 — active
 - **8-step agentic loop (`stopWhen: stepCountIs(8)`)** — Balance between capability and cost — 2026-03 — active
-- **middleware.ts → proxy.ts rename** — Next.js 16 convention change — 2026-04 — active
-- **No test database mocks for integration tests** — Real Supabase test DB catches migration divergence — 2026-04 — active
+- **`middleware.ts` → `proxy.ts` rename** — Next.js 16 convention change, all `@/middleware` imports need update — 2026-04 — active
+- **No mocks in integration tests — real Supabase test DB** — Prior incident: mocked tests passed while real migration broke prod — 2026-04 — active
+- **`@source not` directive in globals.css for large markdown** — Tailwind 4 auto-scans `docs/`, big markdown files (4500+ lines) break build — 2026-04 — active
+- **`microphone=(self)` in Permissions-Policy header** — `microphone=()` blocked voice input, `(self)` allows same-origin — 2026-04 — active
+- **Wrap `supabase.auth.getUser()` in try/catch in proxy** — `@supabase/ssr` uses Web Locks API, throws AbortError on parallel requests — 2026-04 — active
 
-## Conventions
-
-- **UI language:** Czech (every user-facing string)
-- **Code language:** English (variables, comments, types)
-- **Color system:** OKLCH (from `config/design-tokens.ts`)
-- **Component library:** shadcn/ui + Radix primitives
-- **Form validation:** Zod v4 (with `$schema` stripped for OpenAI compat)
-- **Commit style:** Conventional (`feat:`, `fix:`, `docs:`, `chore:`)
-- **File naming:** kebab-case for files, PascalCase for components, camelCase for functions
-- **Supabase client:** via `@supabase/ssr` (`createClient` + `createServiceClient`)
-- **Logging:** Structured `src/lib/logger.ts` (sanitize sensitive keys)
-- **SSOT labels:** `config/constants.ts` (Czech labels for DB enums)
-
-## Known Issues / Tech Debt
-
-- **Duplicate project-level hooks** — `.claude/hooks/` duplicates global `~/.claude/shared/hooks/` after cortex-x setup. Safe (both run, regex-based dedup). Clean up after 1-2 weeks of proven global hook operation.
-- **50 beta users includes Dave's own test accounts** — 10 deleted 2026-04-17, but cleanup revealed only 12 users with real activity (vs "50 beta testers" narrative)
-- **Drop-off brutal** — 16/49 users registered but zero activity. Onboarding needs UX work.
-- **No multi-tenant UI** — Migration 024 added `org_id` schema but team management UI is Phase 2.
-- **Proactive alerts cron once daily** — Hobby plan limit. Paid plan would allow every 6h.
-- **1-person product** — No testimonials, no case study, no sales funnel yet.
-
-## Lessons Learned
+## 3. Lessons Learned
 
 ### [TRANSFERABLE] safe-tool pattern saves hours — 2026-02
-**What:** Wrapping AI SDK `tool()` with try/catch + error classification means tools NEVER throw to the agent loop. AI reads error code, attempts alternatives.
-**Why transferable:** Any project using Vercel AI SDK v6 with multi-step agents benefits. Copy `safe-tool.ts` to Chatbot Platform.
+**What happened:** Tools throwing to agent loop crashed multi-step chains 4 separate times. Wrapper with try/catch + error classification eliminated crashes.
+**Lesson:** Any Vercel AI SDK v6 project with multi-step agents needs this wrapper. Tools return `{success, data|error}`, never throw.
+**Why it matters:** Apply immediately to Chatbot Platform when adding AI agent features. Port `safe-tool.ts` pattern.
 
 ### [TRANSFERABLE] Three-layer memory > flat memory — 2026-03
-**What:** Core index (always in context) + vector search (semantic) + activity log (searchable) outperforms flat vector DB for agent context.
-**Why transferable:** Any long-running agent project. Validated by Letta/MemGPT. Pattern works across projects.
+**What happened:** Flat vector DB approach consumed too much context, lost discoverability for core user preferences.
+**Lesson:** Layer 1 (compact cheat sheet, always in context) + Layer 2 (pgvector semantic) + Layer 3 (activity log) outperforms flat storage.
+**Why it matters:** Any long-running agent project. Pattern validated by Letta/MemGPT research. Don't reinvent.
 
 ### [TRANSFERABLE] Chat Completions > Responses API for tool calling — 2026-01
-**What:** gpt-5.x has documented bug in Responses API where `tool_call_id` gets mismatched in multi-tool chains.
-**Why transferable:** Every OpenAI-based project using tool calling. Document in `cortex-x/standards/ai-patterns.md` (future).
+**What happened:** Multi-tool chains broke with gpt-5.x + Responses API due to `tool_call_id` mismatches.
+**Lesson:** Always use `openai.chat()` for function calling, not Responses API, until OpenAI fixes the bug.
+**Why it matters:** Every OpenAI tool-calling project. Not worth retesting quarterly.
 
-### Voice input needs design polish — 2026-04
-**What:** First iteration used `MicrophoneSlash` icon (looks like "no microphone"). Changed to `Stop` icon (universal "stop" affordance).
-**Why matters:** Design details compound. Dave's design eye catches what pure engineers miss. Apply same eye to Chatbot Platform + WaaS.
+### [TRANSFERABLE] Design eye catches what engineers miss — 2026-04
+**What happened:** Voice recording UX used `MicrophoneSlash` icon (reads as "no microphone" to users). Changed to `Stop` icon (universal stop affordance).
+**Lesson:** Active states need UNIVERSAL affordance icons, not domain-clever ones. Dave's 17-year design background = competitive edge.
+**Why it matters:** Apply same lens to Chatbot Platform + WaaS UI audits.
 
-### Next.js 16 middleware deprecation — 2026-04
-**What:** `middleware.ts` → `proxy.ts` with `export default async function proxy`. All `@/middleware` imports need update.
-**Why transferable:** All Next.js 16 projects need this migration. Check Chatbot Platform + Portfolio.
+### [TRANSFERABLE] Tailwind 4 auto content scanning gotcha — 2026-04
+**What happened:** Tailwind 4 scans `docs/` by default. Large markdown files (Claude session export 4500 lines) broke build with "Invalid code point 11839035".
+**Lesson:** Add `@source not "../../docs/**/*.md";` in globals.css preemptively in all Next.js 16 + Tailwind 4 projects.
+**Why it matters:** WaaS template, Chatbot Platform, any future projects. Pre-emptive fix.
 
-### Tailwind 4 auto content scanning gotcha — 2026-04
-**What:** Tailwind 4 scans `docs/` by default — large markdown files (4500 lines session export) broke build with "Invalid code point".
-**Fix:** `@source not "../../docs/**/*.md";` in globals.css
-**Why transferable:** Any Next.js 16 + Tailwind 4 project with large markdown files. Pre-emptive add to WaaS.
+### [TRANSFERABLE] Supabase Web Locks AbortError — 2026-04
+**What happened:** `@supabase/ssr` uses Web Locks API internally. Parallel `getUser()` calls throw AbortError when lock contention.
+**Lesson:** Wrap auth calls in try/catch in proxy/middleware. AbortError is harmless, just means one request waits.
+**Why it matters:** All Supabase + Next.js 16 projects. Invisible bug until it surfaces.
 
-### Supabase Web Locks AbortError — 2026-04
-**What:** `@supabase/ssr` uses Web Locks API, can throw AbortError when parallel requests fight over locks.
-**Fix:** Wrap `getUser()` in try/catch in proxy.ts — harmless, just means one request waits.
-**Why transferable:** All Supabase + Next.js 16 projects.
+### [TRANSFERABLE] Database mocks in integration tests lie — 2026 (historical)
+**What happened:** Mocked Supabase tests all passed. Real migration broke in production.
+**Lesson:** Integration tests MUST use real Supabase test database. Never mock the DB boundary.
+**Why it matters:** Already codified in cortex-x `standards/testing.md`. Enforce in every project.
 
-### Database mocks in integration tests lie — 2026 (from old incidents)
-**What:** Mocked Supabase tests passed while real migration broke in production.
-**Rule:** Integration tests use REAL Supabase test database, not mocks.
-**Why transferable:** Every project. Already in cortex-x standards/testing.md.
+### Distribution ≠ development — 2026-04
+**What happened:** Built top 1% AI agent platform in 5 days. 50 "beta users" turned out to be 12 real users (after audit), none confirmed realtors except Vojta.
+**Lesson:** Engineering excellence doesn't equal market validation. Beta funnel needs verification, not assumptions.
+**Why it matters:** Apply to all Dave's projects. Count REAL users, not registrations. Interview users early before scaling features.
 
-## Cross-Project Dependencies
+## 4. Cross-Project Dependencies
 
-- **Shares patterns with:** chatbot-platform (adapter pattern, multi-tenant RLS), waas-template (design system OKLCH tokens)
-- **Upstream from:** cortex-x (this project funds the cortex framework)
-- **Learned from:** chatbot-platform (5669 tests, earlier iteration of multi-tenant)
-- **Inspired by research:** Letta/MemGPT (memory), OpenClaw Dreaming (autoDream), Anthropic KAIROS leak (validated 3-layer approach)
+- **Shares patterns with:**
+  - `chatbot-platform` — adapter pattern concept (RELO's 27 LEGO tools = Chatbot's 5 channel adapters); multi-tenant RLS approach
+  - `waas-template` — OKLCH design token system, shadcn/ui conventions
+  - `cortex-x` — `safe-tool` pattern candidate for future extraction
+- **Upstream from:** `cortex-x` (this project was the experience that funded cortex framework Lessons Learned library)
+- **Learned from:** `chatbot-platform` (5669 tests, earlier iteration of multi-tenant patterns that informed RELO's migration 024)
+- **Inspired by research:** Letta/MemGPT (three-layer memory), OpenClaw Dreaming (autoDream cron), Anthropic KAIROS leak (validated memory architecture)
 
-## Commands Cheatsheet
+## 5. Glossary (domain terms)
 
-```bash
-# Development
-npm install
-npm run dev
-npm run build
-npm test                              # unit + integration
-npx playwright test                   # E2E
-
-# Data
-npx tsx scripts/seed.ts               # seed demo data (6 profiles)
-npx tsx scripts/test-tools.ts         # integration tests 27 tools
-npx tsx scripts/audit-users.ts        # DB user audit
-npx tsx scripts/audit-users.ts --delete <uuid>  # cleanup
-
-# Database
-supabase db push                      # apply migrations
-supabase gen types typescript         # regenerate types
-
-# Deploy
-git push                              # auto-deploys to Vercel
-npx vercel --prod                     # manual deploy
-
-# Load testing
-k6 run load-tests/chat-load.js
-k6 run load-tests/dashboard-load.js
-```
-
-## Environment Variables
-
-**OpenAI:**
-- `OPENAI_API_KEY`
-
-**Supabase:**
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-**Google OAuth:**
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI`
-
-**App:**
-- `NEXT_PUBLIC_APP_URL`
-- `CRON_SECRET` (Vercel auto-sets)
-
-**Integrations (optional):**
-- `TELEGRAM_BOT_TOKEN`
-- `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`
-
-## Glossary (domain terms)
-
-- **Klient (client)** — person who owns properties OR is looking to buy/rent. Distinguished by `type` enum
-- **Lead** — potential deal linking client ↔ property, with pipeline status
-- **Nemovitost (property)** — real estate listing (apartment, house, land)
-- **Pipeline** — lead status flow (new → contacted → viewing → negotiating → closed)
-- **ISIR** — Czech insolvency register (Insolvenční rejstřík ČR)
-- **ČÚZK** — Czech Office for Surveying, Mapping and Cadastre
-- **sReality / Bezrealitky / iDNES** — major Czech real estate portals
-- **autoDream** — nightly memory consolidation cron (3:00 UTC)
-- **Pitch demo** — deterministic seed profile for client presentations
-- **Think tool (#27)** — internal reasoning tool, no side effects
-
-## Key Files (top 10 for new developer)
-
-1. `CLAUDE.md` — full project context (read first)
-2. `src/lib/ai/safe-tool.ts` — tool execution wrapper (pattern to understand)
-3. `src/lib/ai/tools/index.ts` — factory for 27 tools (entry point)
-4. `src/lib/ai/system-prompt.ts` — Czech system prompt (agent behavior)
-5. `src/lib/ai/memory-index.ts` — three-layer memory Layer 1
-6. `src/app/api/chat/route.ts` — SSE streaming + agent loop
-7. `src/app/api/cron/autodream/route.ts` — memory consolidation
-8. `supabase/migrations/001_initial.sql` — schema foundation
-9. `supabase/migrations/024_organizations.sql` — multi-tenant prep
-10. `PROGRESS.md` — sprint state + remaining work
-
-## Stats (as of 2026-04-17)
-
-- **Lines of TypeScript:** ~18,000 (approx)
-- **Test files:** 91 unit test files, 16 Playwright E2E specs
-- **Test count:** 1700+ unit tests passing
-- **DB migrations:** 24 SQL migrations applied
-- **AI tools:** 27 domain-specific tools
-- **Deployed:** Yes, Vercel production + preview envs
-- **Users:** 49 registered (33 active), 1 confirmed realtor
-- **Hardening score:** Top 1% complexity among AI agent projects on GitHub (per research audit)
-
-## Open Problems / Next Steps
-
-**Active work:**
-- Story 8.5 in Phase 8: Deploy + Demo Video
-- 4 uncommitted files in working tree
-- Multi-tenant Phase 2 (UI for team management, invitation flow, role switching)
-
-**Distribution:**
-- Beta outreach to real realtors (current DB is mostly Dave's tests)
-- Vojta Žižka (confirmed realtor) — request testimonial + intro to network
-- FB groups + LinkedIn (Dave's proven organic distribution)
-
-**Monetization (from 30-day plan 14.4-14.5):**
-- Possible SaaS launch if no job lands
-- Free beta → paid after validation
-- Czech real estate market is empty for AI tools
-
-**Technical debt:**
-- Multi-tenant UI (migration 024 is schema-only)
-- Vercel Pro upgrade decision (60s → 300s timeout, 40 crons, allows tighter anomaly detection)
-- Cleanup duplicate hooks (project-level vs global)
-- Onboarding UX (16/49 drop-off rate)
+- **Klient (client):** Person who owns properties OR is looking to buy/rent. Distinguished by `type` enum. NOT a Chatbot Platform customer.
+- **Lead:** Potential deal linking client ↔ property, with pipeline status. Domain-specific to real estate — not the SaaS meaning.
+- **Nemovitost (property):** Real estate listing (apartment, house, land). Czech term used throughout DB and UI.
+- **Pipeline:** Lead status flow (new → contacted → viewing → negotiating → closed).
+- **ISIR:** Czech insolvency register (Insolvenční rejstřík ČR). Used for risk screening.
+- **ČÚZK:** Czech Office for Surveying, Mapping and Cadastre (Český úřad zeměměřický a katastrální). Used for property ownership verification.
+- **sReality / Bezrealitky / iDNES:** Major Czech real estate portals. Monitored for listing alerts.
+- **autoDream:** Nightly memory consolidation cron (3:00 UTC). NOT related to Anthropic's KAIROS — independent implementation, same pattern family.
+- **Pitch demo:** Deterministic seed profile used for client presentations (reproducible demo data).
+- **Think tool (#27):** Internal reasoning tool, no side effects. Used for Think-Plan-Execute protocol on complex tasks.
+- **Safe-tool:** Wrapper around Vercel AI SDK `tool()` that catches errors and returns `{success, data|error}`. RELO-specific name for a transferable pattern.
