@@ -1,23 +1,32 @@
 # cortex-x Standards
 
-> The **9 principles** every cortex-x-scaffolded project inherits. Read these once — they're what separates senior-level output from hobby code.
+> The **12 principles** organized in 3 tiers. **Rule 1 is inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
 
-## The 9 pillars
+## Tier hierarchy
 
-| # | Standard | What it enforces |
-|---|----------|------------------|
-| 1 | [SSOT](./ssot.md) | One source of truth per piece of knowledge |
-| 2 | [Modular](./modular.md) | Isolated subsystems with clean interfaces |
-| 3 | [Scalable](./scalable.md) | Patterns that survive 10x growth |
-| 4 | [Security](./security.md) | Layered defense, 8-layer model |
-| 5 | [Testing](./testing.md) | Layered coverage, 5 pillars per test |
-| 6 | [Observability](./observability.md) | See what's happening in production |
-| 7 | [Performance](./performance.md) | Core Web Vitals, DB indexes, streaming |
-| 8 | [Accessibility](./accessibility.md) | WCAG 2.2 AA, keyboard, screen reader |
-| 9 | [Error handling](./error-handling.md) | Classify, recover, user-friendly |
-| 10 | [Git workflow](./git-workflow.md) | Clean history, atomic commits, safety |
-| 11 | [Documentation](./documentation.md) | Knowledge that outlives memory |
-| 12 | [AI Patterns](./ai-patterns.md) | Agentic-ready architecture as 2026 default |
+| Tier | Standard | Status | Enforcement |
+|---|---|---|---|
+| **🔒 RULE 1** | [Rule 1 meta-standard](./RULE-1.md) | — | Contract + active enforcement |
+| | &nbsp;&nbsp;[SSOT](./ssot.md) | Inviolable | Scaffold + ssot-enforcer always-on + PR block |
+| | &nbsp;&nbsp;[Modular](./modular.md) | Inviolable | ssot-enforcer + architecture-guard patterns |
+| | &nbsp;&nbsp;[Scalable](./scalable.md) | Inviolable | RLS + indexes + rate-limits from day 1 |
+| **⚠️ RULE 2** | [Security](./security.md) | Must-have | Review pipeline flag = blocker |
+| (Critical) | [Testing](./testing.md) | Must-have | Review pipeline flag = blocker |
+| | [Observability](./observability.md) | Must-have | Review pipeline flag = blocker |
+| **📋 RULE 3** | [Performance](./performance.md) | Should-have | Review pipeline flag = warning |
+| (Process) | [Accessibility](./accessibility.md) | Should-have | Review pipeline flag = warning |
+| | [Error handling](./error-handling.md) | Should-have | Review pipeline flag = warning |
+| | [Git workflow](./git-workflow.md) | Should-have | Review pipeline flag = warning |
+| | [Documentation](./documentation.md) | Should-have | Review pipeline flag = warning |
+| | [AI Patterns](./ai-patterns.md) | Should-have | Should-have for non-static profiles |
+
+## Why tiered
+
+Security can be added. Testing can be retrofitted. Observability can be layered on.
+
+**But Rule 1 violations compound into rewrites.** SSOT drift in a 50-file codebase = architectural surgery. Modular violation = cross-feature coupling hell. Scalable violation = works at MVP, dies at PMF.
+
+Tier 1 is the only tier you can't fix later.
 
 ## Why 11 (not "9")
 

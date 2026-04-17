@@ -308,10 +308,37 @@ Vytvoř `.claude/README.md`:
 <quick guide>
 ```
 
-### 4.4 Finalize
-5. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
-6. `git init` + first commit s message odrážející vision (ne generic)
-7. Report + ask about cortex library entry
+### 4.4 Rule 1 validation (BLOCKER — scaffold fails if violated)
+
+Před finalizací ověř scaffold vs [`standards/RULE-1.md`](../standards/RULE-1.md) checklist. Pokud **kterékoliv** selže → regeneruj, ne push dál.
+
+**SSOT gate:**
+- [ ] Existuje jedno `config/` (ne `src/config/` + `src/settings/` + `app/config/`)
+- [ ] Design tokens mají SSOT soubor (`config/design-tokens.ts` nebo ekvivalent)
+- [ ] Žádný string literal duplikovaný ≥2× v scaffoldu (labels, URLs, constants)
+- [ ] DB schema je SSOT (migrace) — žádné hand-written types co drift-nou
+
+**Modular gate:**
+- [ ] Feature folders struktura `src/features/<slug>/` nebo jasný module boundary
+- [ ] Adapter folder pro externí SDKs (`src/lib/<service>/`, ne přímý import v UI)
+- [ ] Žádný kruhový import (grep nebo dep cruiser check)
+
+**Scalable gate (pro profiles s backend):**
+- [ ] RLS enabled na všech user-facing tabulkách (i v MVP)
+- [ ] Indexy na FK + query predikátech v initial migraci
+- [ ] Rate-limit stub existuje (`src/lib/rate-limit.ts`)
+- [ ] Paginace pattern v API route template (neposílat vše)
+
+Pokud **kterýkoliv gate** selže:
+1. Loguj detail do stdout (který, proč)
+2. Regeneruj dotčenou část
+3. Re-validuj
+4. **Nikdy** nepokračuj do 4.5 s violation
+
+### 4.5 Finalize
+8. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
+9. `git init` + first commit s message odrážející vision (ne generic)
+10. Report + ask about cortex library entry
 
 ### 4.5 Audit output
 Na konci scaffoldu vypiš:
