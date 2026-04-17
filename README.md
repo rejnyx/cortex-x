@@ -47,20 +47,43 @@ cortex-x/
 └── install.sh        One-command install to ~/.claude/
 ```
 
-## Installation (coming in Phase 2)
+## Installation
 
 ```bash
 git clone https://github.com/Rejnyx/cortex-x.git ~/cortex-x
-cd ~/cortex-x && ./install.sh
+cd ~/cortex-x
+./install.sh    # Unix / Git Bash / WSL
+# or
+.\install.ps1   # Windows PowerShell
 ```
 
-## Usage (coming in Phase 2)
+## Usage — no CLI needed, Claude IS the CLI
 
-```bash
-cd my-new-project
-cortex init              # interactive wizard
-cortex init --research   # with 2026 web research
-cortex doctor            # healthcheck your setup
+Three core prompts (paste into Claude Code):
+
+### 🌱 Start NEW project
+```
+Empty folder → open Claude Code → paste ~/cortex-x/prompts/new-project.md
+→ answer 3 questions → full project scaffolded in ~3 minutes
+```
+
+### 🔍 Scan EXISTING project (populate cortex library)
+```
+Project root → Claude Code → paste ~/cortex-x/prompts/project-scan.md
+→ Claude scans codebase, writes ~/cortex-x/projects/<slug>.md
+```
+
+### 🔄 Sync knowledge after work session
+```
+End of sprint → paste ~/cortex-x/prompts/cortex-sync.md
+→ Claude captures decisions, lessons, cross-project insights
+```
+
+### 📚 Load context at start of ongoing project session
+Add to project's `CLAUDE.md`:
+```markdown
+## Cross-project context
+See ~/cortex-x/prompts/cortex-load.md before starting work.
 ```
 
 ## Available profiles
