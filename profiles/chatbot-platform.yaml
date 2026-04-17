@@ -61,12 +61,14 @@ structure:
   - supabase/migrations/
 
 agents:
-  - code-reviewer
-  - security-checker    # critical for multi-tenant
-  - architecture-guard  # enforces adapter pattern
-  - db-reviewer         # RLS + tenant isolation checks
-  - test-writer
-  - doc-updater
+  # DEFAULT adversarial pipeline (source: {cortex_root}/agents/)
+  # Overridden per-project by research-driven generation (see prompts/new-project.md Phase 4)
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - security-auditor    # critical for multi-tenant (RLS + tenant isolation)
+  - ssot-enforcer       # catches adapter-pattern duplication
 
 hooks:
   - block-destructive

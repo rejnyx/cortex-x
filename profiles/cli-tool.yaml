@@ -42,9 +42,14 @@ structure:
   - tsup.config.ts
 
 agents:
-  - code-reviewer
-  - test-writer
-  - doc-updater
+  # DEFAULT adversarial pipeline (source: {cortex_root}/agents/)
+  # Overridden per-project by research-driven generation (see prompts/new-project.md Phase 4)
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - security-auditor    # npm supply chain + credential handling
+  - ssot-enforcer
 
 hooks:
   - block-destructive
