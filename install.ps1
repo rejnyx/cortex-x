@@ -28,7 +28,24 @@ Copy-Item -Recurse -Path (Join-Path $CortexRoot "profiles") -Destination $Shared
 
 Write-Host "Done."
 Write-Host ""
-Write-Host "Next: ensure ~/.claude/settings.json references hooks at:"
-Write-Host "  ~/.claude/shared/hooks/block-destructive.cjs"
-Write-Host "  ~/.claude/shared/hooks/session-start.cjs"
-Write-Host "  ~/.claude/shared/hooks/pre-compact.cjs"
+Write-Host "Hooks copied to ~/.claude/shared/hooks/:"
+Write-Host "  block-destructive.cjs   (PreToolUse matcher:Bash)"
+Write-Host "  session-start.cjs       (SessionStart)"
+Write-Host "  pre-compact.cjs         (PreCompact)"
+Write-Host "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
+Write-Host "  post-tool-use.cjs       (PostToolUse all tools — journal writer)"
+Write-Host ""
+Write-Host "Register them in ~/.claude/settings.json under ""hooks"". Example snippet:"
+@'
+  "PreToolUse": [
+    { "matcher": "Bash",
+      "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/block-destructive.cjs\"","timeout":5}] },
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/pre-tool-use.cjs\"","timeout":3}] }
+  ],
+  "PostToolUse": [
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+  ]
+'@ | Write-Host
+Write-Host ""
+Write-Host "Journal will be written to: $CortexRoot/journal/YYYY-MM-DD-<project-slug>.jsonl"
+Write-Host "See journal/README.md for schema + privacy contract."
