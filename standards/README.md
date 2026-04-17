@@ -17,6 +17,7 @@
 | 9 | [Error handling](./error-handling.md) | Classify, recover, user-friendly |
 | 10 | [Git workflow](./git-workflow.md) | Clean history, atomic commits, safety |
 | 11 | [Documentation](./documentation.md) | Knowledge that outlives memory |
+| 12 | [AI Patterns](./ai-patterns.md) | Agentic-ready architecture as 2026 default |
 
 ## Why 11 (not "9")
 

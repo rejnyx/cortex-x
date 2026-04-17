@@ -1,6 +1,16 @@
-# cortex-x — Claude Code Project Framework
+# cortex-x — AI-Agentic-First Claude Code Framework
 
-> Personal Claude Code framework by Rejnyx. Bootstraps new projects with senior-level orchestration, safety, and standards in under 3 minutes.
+> **AI-agentic-first** personal Claude Code framework by Rejnyx. Bootstraps new projects with agentic-ready architecture + senior-level orchestration + safety + standards in under 3 minutes.
+
+## Core positioning (2026)
+
+**Agentic-ready by default.** Every new SaaS/tool/platform gets safe-tool wrapper, three-layer memory scaffold, `/api/chat` reserved, cost guards ready — even if MVP has no AI.
+
+**Agentic-heavy by intent.** Use `ai-agent` or `chatbot-platform` profiles for projects where AI IS the product.
+
+**Opt-out explicitly.** Static blog, portfolio, landing page → `astro-static` or `minimal` profiles. Don't force AI where it's not needed.
+
+See [standards/ai-patterns.md](./standards/ai-patterns.md) for the 10 agentic patterns every project should respect.
 
 ## Core Mental Model (SSOT)
 

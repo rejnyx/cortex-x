@@ -1,6 +1,14 @@
 # cortex-x
 
-> Personal Claude Code framework by **Rejnyx**. Bootstrap new projects with senior-level orchestration, safety, and standards in under 3 minutes.
+> **AI-agentic-first** personal Claude Code framework by **Rejnyx**. Bootstrap new projects with agentic-ready architecture, senior-level orchestration, safety, and standards in under 3 minutes.
+
+## 🧠 Positioning (2026)
+
+**In 2026, starting a new SaaS/tool/platform without AI-agentic-ready architecture is a bet against the grain.** cortex-x defaults to agentic-ready (safe-tool wrapper, three-layer memory scaffold, `/api/chat` reserved, cost guards ready) even if MVP has no AI features yet.
+
+**Agentic-ready by default. Agentic-heavy by intent. Opt-out for static sites & prototypes.**
+
+Retrofitting agentic patterns into a CRUD codebase = architecture rewrite. 30 min of scaffolding earns back 10x when AI feature comes 3 months later. (See [standards/ai-patterns.md](./standards/ai-patterns.md).)
 
 ## What it does
 
