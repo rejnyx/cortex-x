@@ -2,6 +2,16 @@
 
 > Personal Claude Code framework by Rejnyx. Bootstraps new projects with senior-level orchestration, safety, and standards in under 3 minutes.
 
+## Core Mental Model (SSOT)
+
+cortex-x holds **institutional wisdom that doesn't change** (Lessons Learned, Key Decisions, Cross-Project Dependencies, Glossary, Identity).
+
+Project `CLAUDE.md` holds **current state that does change** (Tech Stack, Architecture, Commands, Env Vars, Stats, Directory Structure).
+
+**Zero overlap.** If info rots in weeks, it's CLAUDE.md's job. Cortex stays valid for years.
+
+See [prompts/cortex-load.md](./prompts/cortex-load.md) for the authoritative mental model.
+
 ## Status
 
 Phase 1 — Foundation (in progress)

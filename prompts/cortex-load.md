@@ -1,42 +1,48 @@
-# Cortex Load Prompt — Paste at start of every new project session
+# Cortex Load — The Mental Model
 
-> **How to use:** Add this to every project's `CLAUDE.md` under a "Cross-project context" section. Claude will load relevant context from the cortex library before starting work.
+> **One rule:** cortex-x holds institutional wisdom (lessons, decisions, dependencies, glossary). Project `CLAUDE.md` holds current state (tech stack, architecture, commands). **Never duplicate. Always trust CLAUDE.md for anything that changes.**
 
 ---
 
-## Cross-project context (cortex-x)
+## When working in any Dave's project
 
-Before starting work in this project, load relevant context from Dave's project library:
+Before starting work:
 
-1. **Read index:** `~/cortex-x/projects/README.md` — see all Dave's projects at a glance
-2. **Read THIS project's entry:** `~/cortex-x/projects/<slug>.md` — full history, decisions, lessons
-3. **Identify adjacent projects:** Based on this project's stack and "Cross-Project Dependencies" section, identify 1-2 related projects
-4. **Read adjacent entries** but DON'T load their full content into context — just note their patterns/decisions for reference
+1. **Read the project's own `CLAUDE.md` live** — this is the source of truth for:
+   - Tech stack + versions
+   - Architecture diagrams
+   - Directory structure
+   - Commands (npm scripts, DB commands, deploy)
+   - Environment variables
+   - Key files
+   - Stats
 
-## When to consult cortex during work
+2. **Read `~/cortex-x/projects/<slug>.md` for institutional wisdom** — this holds:
+   - Identity (one-liner + URL + stakeholders)
+   - Key Decisions (ADR-lite, why things are the way they are)
+   - Lessons Learned (what was tried, what failed, what transfers)
+   - Cross-Project Dependencies
+   - Glossary (domain terms)
 
-Use explicit `@project:<slug>` mentions when relevant:
+   **Note:** If `<slug>.md` doesn't exist, suggest running `~/cortex-x/prompts/project-scan.md`.
 
-- "I remember in `@project:chatbot-platform` we solved similar issue with adapter pattern"
-- "Let me check if `@project:relo` has this pattern already — avoiding duplicate work"
+3. **Trust CLAUDE.md for current state, cortex for institutional memory.** If they ever conflict, CLAUDE.md wins — it's the live code truth. Update cortex on next re-scan.
 
-## When to UPDATE cortex (using cortex-sync.md prompt)
+## When to reference cortex during work
 
-- After architectural decisions (add to Key Decisions)
-- After failed experiments (add to Lessons Learned — this is most valuable!)
-- After cross-project insights (add to Cross-Project Dependencies)
-- After significant refactors
+Use **explicit** mentions only when relevant:
 
-## Rules
+- "I remember `@project:chatbot-platform` solved similar issue — see its Lessons Learned"
+- "Per `@project:relo` Key Decision 2026-01, we prefer Chat Completions over Responses API"
 
-- **Explicit opt-in** — only reference cortex when relevant, not in every response
-- **Don't leak cross-project context unprompted** — Kiosek patterns don't belong in RELO suggestions unless relevant
-- **Trust but verify** — cortex entries are snapshots, check git history for latest truth
-- **Scan version matters** — if `scan_version` is old, note potential staleness
+**Don't auto-inject cross-project context.** Wrong project hallucination > silence.
 
-## Fallback
+## When to update cortex
 
-If `~/cortex-x/projects/<slug>.md` doesn't exist:
-1. Inform Dave: "I don't see this project in cortex library — want me to run `prompts/project-scan.md`?"
-2. Continue work using existing project docs (CLAUDE.md, README.md)
-3. Suggest running project-scan at end of session to populate cortex
+After work sessions where something notable happened — paste `~/cortex-x/prompts/cortex-sync.md`. Updates go to Lessons Learned, Key Decisions, or Cross-Project Dependencies. **Never** tech stack or commands (those live in project CLAUDE.md).
+
+## SSOT guarantee
+
+If you find yourself writing **Tech Stack**, **Architecture**, **Commands**, **Env Vars**, or **Stats** to a cortex file — stop. That belongs in CLAUDE.md, not cortex. Keeping it in cortex creates drift and lying cortex entries.
+
+Cortex stays valid for years. CLAUDE.md stays valid for weeks. Respect the split.
