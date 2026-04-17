@@ -1,0 +1,35 @@
+name: minimal
+description: Minimal scaffold for quick prototypes and experiments — no heavy architecture
+version: 1.0.0
+
+stack:
+  framework: any
+  language: any
+
+detect:
+  # Minimal is fallback — no auto-detection
+
+conventions:
+  typescript_strict: true
+  no_heavy_abstractions: true
+
+scaffolds:
+  claude_md: templates/CLAUDE.minimal.md.hbs
+  gitignore: templates/.gitignore.minimal
+
+structure:
+  - src/
+  - .claude/
+
+hooks:
+  - block-destructive
+
+skills: []
+
+standards_included:
+  - ssot
+  - modular
+
+initial_sprint:
+  phase_1: Build it
+  phase_2: Ship it
