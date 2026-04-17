@@ -124,11 +124,11 @@ try {
 
   if (projectsDir) {
     // Derive slug from project name — matches projects/<slug>.md convention
-    const slug = projectName
+    const slug = String(projectName || '')
       .replace(/^@[^/]+\//, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/^-|-$/g, '') || 'unknown';
     const entryPath = path.join(projectsDir, `${slug}.md`);
     const cortexRoot = path.dirname(projectsDir);
 

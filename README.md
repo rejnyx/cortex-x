@@ -224,7 +224,7 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 ## Status
 
 **Phase 1 — Foundation** ✅
-- 3 universal hooks (block-destructive, session-start, pre-compact)
+- 5 universal hooks (block-destructive, session-start, pre-compact, pre-tool-use, post-tool-use)
 - 9 project profiles (nextjs-saas, waas, chatbot, ai-agent, tauri, astro, cli, kiosek, minimal)
 - 11 standards (SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs)
 - 5 templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
