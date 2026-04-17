@@ -199,16 +199,132 @@ Tag pouze **reálná** rizika (ne všechny 4):
 
 Po `y`:
 
+### 4.1 Render scaffold
 1. Scaffold dle `profiles/<selected>.yaml` (struktura, package.json, configs, Next.js/Astro/etc.)
 2. Render templates s **daty z Phase 1 + 3** (ne generic placeholders):
    - `CLAUDE.md` — vlastní popis, stack, architektura zmíněná v Phase 3
    - `PROGRESS.md` — 5 stories z Phase 3, konkrétní k jeho projektu
    - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` s Q1-Q6 odpověďmi
    - `README.md` — jednovětná description z Q1
-3. Copy hooks z `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact)
-4. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
-5. `git init` + first commit s message odrážející vision (ne generic)
-6. Report + ask about cortex library entry
+
+### 4.2 Copy DEFAULT hooks + agents (baseline)
+3. Copy hooks z `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact, post-tool-use)
+4. Copy agents z `{cortex_root}/agents/*.md` → `.claude/agents/` (sada z profile YAML `agents:` listu)
+   - Default: `cortex-thinker`, `blind-hunter`, `edge-case-hunter`, `acceptance-auditor`, `security-auditor`, `ssot-enforcer`
+
+### 4.3 SYNTHESIZE project-specific agents + hooks (research-driven)
+
+**This is the killer feature.** Default agents pokrývají generic risks. Tenhle krok přidá **PROJECT-SPECIFIC strážce** na základě research findings z Phase 2 a proposalu z Phase 3.
+
+#### 4.3.1 Gap analysis
+Přečti:
+- Phase 2 research (domain/technical/competitive/AI výstupy)
+- Phase 3 proposal (stack, risks, MVP core)
+- `{cortex_root}/agents/*.md` (co už pokrývají default agenti)
+- `{cortex_root}/shared/hooks/*.cjs` (co už pokrývají default hooky)
+
+Urči **gaps** — project-specific invariants, které default set NEPOKRYJE. Příklady:
+
+| Project type | Research finding | Synthesize |
+|---|---|---|
+| Deterministic agent runtime (ReplayAgent) | "same seed must produce same output byte-exactly" | `determinism-auditor` agent + `pre-commit-seed-check` hook |
+| Fraud detection (MirrorPay) | "PII must never leak into logs or traces" | `pii-leak-auditor` agent + `block-pii-in-commit` hook |
+| WaaS multi-tenant | "tenant isolation is business-critical" | `tenant-isolation-auditor` agent + `rls-policy-validator` hook |
+| Kiosek touch PWA | "must work offline; service worker critical" | `offline-first-auditor` agent + `sw-registration-validator` hook |
+| AMD ROCm workload | "ROCm + Ubuntu 22.04, not 24.04" | `rocm-env-validator` hook (pre-deploy check) |
+| CLI tool on npm | "supply chain security (postinstall scripts)" | `postinstall-audit` hook |
+
+**Pravidlo:** Synthesize **POUZE** když:
+- Research explicitně identifikoval constraint/risk
+- Default set to nepokrývá
+- Constraint je domain-specific (ne generic)
+
+Minimum: 0 nových agentů/hooků (pokud research nic nepřinesl nad rámec defaults).
+Maximum: 3 nové agenty + 2 nové hooks (přes = overengineered).
+
+#### 4.3.2 Agent synthesis (pokud gap = behavioral audit)
+
+Pro každý agent gap, generuj soubor `.claude/agents/<slug>.md` s frontmatter pattern z `{cortex_root}/agents/blind-hunter.md` (template). Struktura:
+
+```markdown
+---
+name: <slug>
+description: One-sentence purpose. Invoke via Task tool when <trigger>.
+model: sonnet  # default; opus pro kritické audity
+---
+
+# <Name>
+
+## Role
+<What this agent checks — specific to this project>
+
+## Context needed
+<What files/dirs to read before auditing>
+
+## Detection rules
+1. <Concrete rule 1 with example>
+2. <Concrete rule 2 with example>
+...
+
+## Evidence requirements
+<Every finding must cite: file:line, expected vs actual, severity (blocker/warning/info)>
+
+## Output format
+<Structured markdown with verdict + findings list>
+
+## Grounded in
+- Phase 2 research: {URL from research cache}
+- Phase 3 decision: {ADR reference}
+```
+
+#### 4.3.3 Hook synthesis (pokud gap = deterministic pre/post-check)
+
+Pro každý hook gap, generuj `.claude/hooks/<slug>.cjs`. Pattern z `{cortex_root}/shared/hooks/block-destructive.cjs`:
+- CommonJS, cross-platform (používej `os.homedir()`, `path.join()`)
+- Return hook JSON output se správným `hookEventName`
+- Log rozhodnutí (allow/deny/warn) do stderr
+- **Nikdy** neblokuj bez jasného důvodu — research citation v komentáři
+
+Registrace v `.claude/settings.json` pod správným event name (PreToolUse, PostToolUse, SessionStart, atd.).
+
+#### 4.3.4 Documentation
+Vytvoř `.claude/README.md`:
+```markdown
+# .claude — Project-specific Claude Code config
+
+## Agents (default + synthesized)
+- **Default** (z cortex-x/agents/): cortex-thinker, blind-hunter, ...
+- **Synthesized** (project-specific, based on Phase 2 research):
+  - `<name>` — <one-liner>. Grounded in: <research citation>
+
+## Hooks
+- **Default** (z ~/.claude/shared/hooks/): block-destructive, session-start, ...
+- **Synthesized**:
+  - `<name>` — <one-liner>. Grounded in: <research citation>
+
+## Kdy co použít
+<quick guide>
+```
+
+### 4.4 Finalize
+5. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
+6. `git init` + first commit s message odrážející vision (ne generic)
+7. Report + ask about cortex library entry
+
+### 4.5 Audit output
+Na konci scaffoldu vypiš:
+```
+Scaffold done. Created:
+- N files total
+- K default agents + L synthesized agents (grounded in research)
+- M default hooks + P synthesized hooks (grounded in research)
+
+Synthesized artifacts:
+- .claude/agents/<name>.md — "<purpose>" (from research finding: <cite>)
+- .claude/hooks/<name>.cjs — "<purpose>" (from research finding: <cite>)
+```
+
+**Dave review-uje: pokud synthesized agent/hook vypadá overengineered → řekne "remove <name>" → smažeš + zapíšeš do `insights/` co nefungovalo (learning material pro příští scaffold).**
 
 ---
 
@@ -221,6 +337,8 @@ Po `y`:
 - **Cache research** — re-scan use se vyvaruje duplicitním web callům
 - **Respect SSOT** — CLAUDE.md drží current state, research je pointer ne duplicate
 - **Čeština v Q1-Q6 + proposal** — Dave's jazyk
+- **Synthesis is evidence-gated** — new agent/hook vzniká POUZE s research citation. No citation = žádná synthesis.
+- **Synthesis budget** — max 3 agenti + 2 hooky navíc k default set. Přes = overengineered.
 
 ## Anti-patterns
 
@@ -230,6 +348,8 @@ Po `y`:
 - ❌ 10+ questions → completion rate drop za 7 (research)
 - ❌ Persona thinking → "malé firmy v ČR" = useless, "Vojta Žižka, makléř" = actionable
 - ❌ Future-tense questions → "would you use?" useless, "kdy naposled?" actionable (Mom Test)
+- ❌ Synthesizing agents/hooks "for completeness" → generic `code-quality-auditor` = default set už to má. Synthesize jen když research říká "tenhle projekt potřebuje něco specifického, co default nepokryje"
+- ❌ Generating agent bez citace do research → halucinace, smazat
 
 ## Philosophy
 

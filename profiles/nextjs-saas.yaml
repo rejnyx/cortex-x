@@ -92,13 +92,14 @@ agentic_scaffolding:
   system_prompt_template: true           # src/lib/ai/system-prompt.ts skeleton
 
 agents:
-  - code-reviewer
-  - security-checker
-  - architecture-guard
-  - design-checker
-  - test-writer
-  - db-reviewer
-  - doc-updater
+  # Cortex-x adversarial pipeline (source: {cortex_root}/agents/)
+  # Invoked via prompts/code-review.md — parallel differentiated review
+  - cortex-thinker      # meta — proactive cross-project insights
+  - blind-hunter        # diff-only bug detection (no context bias)
+  - edge-case-hunter    # boundary condition enumeration
+  - acceptance-auditor  # PROGRESS.md / spec drift
+  - security-auditor    # 8-layer defense (RLS, injection, secrets)
+  - ssot-enforcer       # duplication detection
 
 hooks:
   - block-destructive  # from ~/.claude/shared/hooks/

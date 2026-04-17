@@ -54,12 +54,14 @@ structure:
   - src/app/api/cron/autodream/    # memory consolidation cron
 
 agents:
-  - code-reviewer
-  - security-checker      # prompt injection, tool permission scoping
-  - architecture-guard    # LEGO tool pattern enforcement
-  - test-writer
-  - db-reviewer           # RLS, pgvector indexes
-  - doc-updater
+  # DEFAULT adversarial pipeline (source: {cortex_root}/agents/)
+  # Overridden per-project by research-driven generation (see prompts/new-project.md Phase 4)
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - security-auditor    # prompt injection, tool permission scoping
+  - ssot-enforcer       # LEGO tool pattern — no duplicate tools
 
 hooks:
   - block-destructive

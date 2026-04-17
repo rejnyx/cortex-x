@@ -42,10 +42,14 @@ structure:
   - public/sw.js           # Workbox-generated
 
 agents:
-  - code-reviewer
-  - design-checker     # touch UI + accessibility
-  - test-writer        # E2E on actual touch devices
-  - doc-updater
+  # DEFAULT adversarial pipeline (source: {cortex_root}/agents/)
+  # Overridden per-project by research-driven generation (see prompts/new-project.md Phase 4)
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - security-auditor
+  - ssot-enforcer
 
 hooks:
   - block-destructive

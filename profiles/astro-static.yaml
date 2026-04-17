@@ -42,9 +42,14 @@ structure:
   - astro.config.mjs
 
 agents:
-  - code-reviewer
-  - design-checker
-  - doc-updater
+  # DEFAULT adversarial pipeline (source: {cortex_root}/agents/)
+  # Overridden per-project by research-driven generation (see prompts/new-project.md Phase 4)
+  # Security-lighter default — static site, no backend
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - ssot-enforcer
 
 hooks:
   - block-destructive
