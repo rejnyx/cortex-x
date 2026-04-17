@@ -1,0 +1,127 @@
+# cortex-x Self-Improvement — SSOT configuration
+# All thresholds, cadences, and anti-hallucination rules live here.
+# Read by: prompts/cortex-evolve.md, agents/cortex-thinker.md, cortex-doctor.md
+
+version: 1.0.0
+
+# =============================================================================
+# CADENCE
+# =============================================================================
+# Research: reflection needs ≥50 samples to stabilize (Constitutional AI, 2212.08073)
+# At ~200 events/day × 6 projects, weekly is the floor for insight generation.
+cadence:
+  daily:
+    what: [journal_ingestion, embedding_backfill, mtime_tracking]
+    never: [insight_generation, llm_review, prompt_changes]
+    cron: "0 3 * * *"
+  weekly:
+    what: [insight_mining, stale_detection, pr_creation]
+    cron: "0 4 * * 0"  # Sunday 04:00 UTC
+  monthly:
+    what: [eval_suite_rerun, prompt_refinement_proposal, 3month_audit_reminder]
+    trigger: manual  # Dave runs ~/cortex-x/prompts/cortex-evolve.md with "monthly" arg
+
+# =============================================================================
+# ANTI-HALLUCINATION RULES (hard gates — if violated, discard insight)
+# =============================================================================
+evidence_gates:
+  # Min support — kills single-project flukes + small-N inventions
+  min_events: 3
+  min_projects: 2
+  min_days_span: 7
+
+  # Every insight must cite journal entries. No citation = no insight.
+  require_citations: true
+  min_citations_per_insight: 3
+  citation_format: "journal/<YYYY-MM-DD>-<project>.jsonl:<line>"
+
+  # Bonferroni correction when testing N candidate patterns
+  significance_level: 0.05
+  apply_bonferroni: true
+
+  # Budget — research shows spam kills trust (RELO insight budget proven)
+  max_insights_per_week: 3
+  max_insights_per_session: 1
+
+# =============================================================================
+# WHAT AUTO-IMPROVES vs WHAT DOESN'T
+# =============================================================================
+# The framework's GENERATED artifacts can self-update via PR.
+# The framework's SOURCE OF TRUTH only changes through Dave's direct edits.
+auto_improves:
+  - path: "insights/**"
+    mode: append
+  - path: "insights/proposals/**"
+    mode: write
+  - path: "projects/*.md"
+    mode: propose_diff  # via PR, never direct write
+  - path: "journal/**"
+    mode: append
+  - path: "MEMORY.md"
+    mode: rebuild_index
+
+human_only:
+  - "standards/**"
+  - "prompts/**"
+  - "profiles/**"
+  - "agents/**"
+  - "module.yaml"
+  - "CLAUDE.md"
+  - "README.md"
+
+# =============================================================================
+# STALE-ENTRY DETECTION (deterministic — no LLM)
+# =============================================================================
+# Research: LLMs hallucinate "this is stale" on fresh files. Use mtime.
+stale_detection:
+  method: mtime_plus_access_count
+  thresholds:
+    project_entry:
+      no_edit_days: 90
+      no_access_days: 60
+    insight:
+      no_action_days: 30
+    research_cache:
+      max_age_days: 180  # 6 months
+
+# =============================================================================
+# EVAL SUITE (Aider pattern)
+# =============================================================================
+eval_suite:
+  path: "evals/"
+  tasks_count: 10
+  run_before_merge:
+    - "prompts/**"
+    - "standards/**"
+    - "profiles/**"
+  results_path: "evals/results/"
+  baseline_commit: null  # set after first run
+  required_score_threshold: 0.8  # 8/10 tasks must pass or PR blocked
+
+# =============================================================================
+# PROPOSAL GATING
+# =============================================================================
+# Every auto-generated change is a PR. Never a direct commit.
+proposals:
+  output_path: "insights/proposals/"
+  format: markdown_with_diff
+  required_sections:
+    - problem_statement
+    - evidence_citations
+    - proposed_change
+    - expected_impact
+    - rollback_plan
+  review_sla_days: 7  # if Dave doesn't review within 7d, auto-close as stale
+
+# =============================================================================
+# META-LOOP (improving the improvement loop itself)
+# =============================================================================
+# Every 30 insights, cortex-thinker writes META-<date>.md reviewing effectiveness
+meta_review:
+  trigger_every_n_insights: 30
+  output_path: "insights/META-<YYYY-MM-DD>.md"
+  measures:
+    - acted_on_rate       # % insights Dave acted on
+    - false_positive_rate # % insights Dave dismissed with reason
+    - detection_latency   # days between pattern emergence → insight surfaced
+    - transfer_count      # insights that led to cross-project pattern transfer

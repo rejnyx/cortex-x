@@ -24,8 +24,11 @@ config:
   agents_path: "{cortex_root}/agents"
   templates_path: "{cortex_root}/templates"
   insights_path: "{cortex_root}/insights"
+  proposals_path: "{cortex_root}/insights/proposals"
   journal_path: "{cortex_root}/journal"
   research_path: "{cortex_root}/research"
+  evals_path: "{cortex_root}/evals"
+  evolve_config: "{cortex_root}/config/evolve.yaml"
 
   # Defaults
   default_profile: nextjs-saas
@@ -45,6 +48,7 @@ skills:
     - cortex-doctor     # Self-healthcheck
     - sprint-status     # PROGRESS.md parser + next-action
     - retrospective     # Post-sprint capture to cortex library
+    - cortex-evolve     # Self-improvement loop (daily/weekly/monthly cadence)
 
 # Agents registration
 agents:
@@ -108,6 +112,18 @@ audit:
   first_audit_date: 2026-07-17
   cadence_months: 3
   checklist_path: "{cortex_root}/docs/3-month-audit.md"
+
+# Self-improvement loop (see docs/self-improvement-rfc.md for design)
+evolve:
+  config_path: "{cortex_root}/config/evolve.yaml"
+  prompt_path: "{cortex_root}/prompts/cortex-evolve.md"
+  proposals_inbox: "{cortex_root}/insights/proposals/"
+  evals_suite: "{cortex_root}/evals/"
+  cadence:
+    daily: ingest_only
+    weekly: insight_mining_plus_pr
+    monthly: eval_suite_plus_refinement
+  hard_rule: never_auto_merge_source_of_truth
 
 # Cross-platform compatibility
 platforms:

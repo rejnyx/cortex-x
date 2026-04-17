@@ -91,7 +91,14 @@ This framework enforces four standards in every scaffolded project:
 - Cached per-profile, versioned
 - Inject 2026 best practices into scaffolded CLAUDE.md
 
-**Phase 5 — Memory upgrades**
+**Phase 5 — Self-improvement loop** (v1 done 2026-04-17)
+- 4-cadence (daily/weekly/monthly/quarterly) via `prompts/cortex-evolve.md`
+- Hard evidence gates via `config/evolve.yaml`
+- Aider-style eval suite in `evals/`
+- PR-only mutations, never auto-edits source of truth
+- See `docs/self-improvement-rfc.md`
+
+**Phase 6 — Memory upgrades**
 - 6-signal scoring for autoDream promotion
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
