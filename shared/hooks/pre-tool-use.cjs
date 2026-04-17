@@ -12,6 +12,28 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
+// ---- Silent error log (mirrors post-tool-use.cjs logErr; Rule of Three =
+// extract when a 3rd hook needs this). Self-rotating at 16KB → 4KB tail.
+const ERRLOG_MAX = 16 * 1024;
+const ERRLOG_KEEP = 4 * 1024;
+function logErr(cortexRoot, where, err) {
+  if (!cortexRoot) return;
+  try {
+    const file = path.join(cortexRoot, '.hook-errors.log');
+    try {
+      const st = fs.statSync(file);
+      if (st.size > ERRLOG_MAX) {
+        const buf = fs.readFileSync(file);
+        const tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        fs.writeFileSync(file, tail, { mode: 0o600 });
+      }
+    } catch {}
+    const msg = err && err.message ? err.message : String(err);
+    const line = `${new Date().toISOString()} [pre-tool-use] ${where}: ${msg.slice(0, 300)}\n`;
+    fs.appendFileSync(file, line, { mode: 0o600 });
+  } catch {}
+}
+
 function resolveCortexRoot() {
   const candidates = [
     path.join(os.homedir(), 'cortex-x'),
@@ -66,7 +88,8 @@ process.stdin.on('end', () => {
     }
     try { fs.writeSync(fd, line); } finally { fs.closeSync(fd); }
     process.exit(0);
-  } catch {
+  } catch (e) {
+    try { logErr(resolveCortexRoot(), 'main', e); } catch {}
     process.exit(0);
   }
 });

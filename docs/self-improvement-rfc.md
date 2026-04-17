@@ -84,10 +84,14 @@ Without evals, prompt changes are vibes. With evals, they're data.
 | Insights in `insights/` | Standards in `standards/` |
 | Stale-entry removal proposals | Prompts in `prompts/` |
 | Skill candidates in `insights/proposals/skills/` | Profiles in `profiles/` |
-| `MEMORY.md` index rebuilds per project | `module.yaml` config |
-| Lessons-learned appends (cited only) | Agent definitions |
+| `MEMORY.md` index rebuilds per project | Agents in `agents/` |
+| Lessons-learned appends (cited only) | `module.yaml` config |
+| `journal/**` append-only via hooks | `CLAUDE.md`, `README.md` |
+| `projects/*.md` via `propose_diff` PR | |
 
-**Rule:** the framework's *generated artifacts* self-improve. The framework's *source of truth* (standards, prompts, profiles) only changes through human-approved PRs.
+**Authoritative list:** [`config/evolve.yaml`](../config/evolve.yaml) `auto_improves` / `human_only` keys. This table is illustrative; the YAML is SSOT.
+
+**Rule:** the framework's *generated artifacts* self-improve. The framework's *source of truth* (standards, prompts, profiles, agents, `module.yaml`, `CLAUDE.md`, `README.md`) only changes through human-approved PRs.
 
 ---
 
