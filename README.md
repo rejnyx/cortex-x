@@ -150,6 +150,24 @@ End of sprint → paste ~/cortex-x/prompts/retrospective.md
 Only path that compounds institutional memory across 6+ projects.
 ```
 
+### 🔬 Auto-research (cortex primitive)
+```
+Cortex sám spouští web research před velkými rozhodnutími — bez tvého zásahu.
+
+Triggers (SSOT v ~/cortex-x/config/research.yaml):
+- new project bootstrap → 4 paralelní agenti
+- unknown domain → 2 agenti
+- stale cache (>180 dní) → refresh
+- security-sensitive prompt → 1 security-focused agent
+- explicit --research flag
+
+Cache do ~/cortex-x/research/<slug>-<date>.md. TTL per topic
+(tech: 90d, security: 60d, competitive: 180d, domain: 365d).
+
+Budget: max 1 research batch/session, 10/week celkem.
+Protokol: ~/cortex-x/shared/research-protocol.md
+```
+
 ### 🧬 Evolve (self-improvement loop)
 ```
 Weekly → paste ~/cortex-x/prompts/cortex-evolve.md "weekly"
