@@ -1,0 +1,141 @@
+# cortex-x Auto-Research — SSOT configuration
+# Referenced by: shared/research-protocol.md, all prompts that need fresh knowledge
+#
+# Principle: research je OP. Cortex by měl by-default aktualizovat svoje znalosti
+# před důležitými rozhodnutími. Ale s budgetem — ne každý drobný dotaz.
+
+version: 1.0.0
+
+# =============================================================================
+# TRIGGERS — kdy auto-research spustit
+# =============================================================================
+# Research se spouští AUTOMATICKY pokud splněn aspoň 1 trigger.
+# Dave může explicitně vypnout přes `--no-research` v promptu.
+triggers:
+  - name: new_project_bootstrap
+    when: prompts/new-project.md is being used
+    agents: 4  # domain, technical, competitive, AI-integration
+    required: true
+
+  - name: unknown_domain
+    when: project deals with tech/domain NOT in cortex-x library (projects/ entries)
+    agents: 2  # domain + technical
+    required: true
+
+  - name: stale_cache
+    when: research/<slug>-*.md is older than max_age_days
+    agents: 3  # refresh domain + technical + competitive
+    required: true
+
+  - name: major_decision
+    when: user prompt contains "rozhodnutí" / "choice" / "should we use X or Y" / ADR-signal words
+    agents: 2  # technical + competitive
+    required: false  # user can skip
+
+  - name: security_sensitive
+    when: prompt involves auth / payment / PII / RLS / prompt injection
+    agents: 1  # security-focused research on current best practices
+    required: true
+
+  - name: explicit_flag
+    when: user prompt contains "--research" or "research toto"
+    agents: 3
+    required: true
+
+# =============================================================================
+# ANTI-TRIGGERS — kdy research EXPLICITNĚ nedělat
+# =============================================================================
+# Noise prevention. Cost prevention.
+anti_triggers:
+  - trivial_task: single-file edit, typo fix, rename, format
+  - recent_cache_hit: research/<slug>-*.md age < min_age_days (cache is fresh)
+  - user_explicit_no: prompt contains "--no-research" / "skip research" / "neřešit research"
+  - offline_mode: env var CORTEX_OFFLINE=1
+
+# =============================================================================
+# CACHING
+# =============================================================================
+cache:
+  path: "{cortex_root}/research/"
+  format: markdown_with_frontmatter
+  filename_pattern: "<slug>-<YYYY-MM-DD>.md"
+
+  # Freshness thresholds
+  min_age_days: 7      # under this → reuse cache, no new agents
+  max_age_days: 180    # over this → force refresh
+
+  # TTL per topic (tech evolves faster than domain)
+  topic_ttl:
+    tech_stack: 90        # "Next.js 16 patterns 2026" — fast decay
+    security: 60          # CVEs, new attack patterns
+    competitive: 180      # "who's doing X" — slow decay
+    domain: 365           # "what do real estate agents need" — very slow
+    ai_integration: 60    # models, SDKs, pricing shift fast
+
+# =============================================================================
+# AGENTS (parallel research spawning)
+# =============================================================================
+agents:
+  default_count: 3  # parallel agents per trigger
+  max_count: 5      # hard ceiling (cost + noise)
+  timeout_sec: 180  # 3 min per agent
+
+  # Typical agent roles (matches prompts/new-project.md Phase 2)
+  roles:
+    - domain          # "what does this domain need in 2026?"
+    - technical       # "how is this stack used in production?"
+    - competitive     # "who's doing this, what's their weakness?"
+    - ai_integration  # "where does AI fit here?" (skip if agentic_ready: false)
+    - security        # "current threats + best practices"
+
+# =============================================================================
+# BUDGET (cost guards)
+# =============================================================================
+budget:
+  max_research_per_session: 1      # 1 research batch per session (not per prompt)
+  max_research_per_week: 10        # across all projects
+  max_websearch_per_agent: 5       # each agent can do N web searches
+  max_webfetch_per_agent: 10       # each agent can fetch N pages
+
+  # When budget exceeded
+  over_budget_action: warn_and_ask  # tell Dave, let him override
+
+# =============================================================================
+# OUTPUT DISCIPLINE
+# =============================================================================
+output:
+  # Every research result MUST:
+  require_citations: true
+  min_sources_per_claim: 2    # claim without 2 sources → flag as weak
+  prefer_domains:
+    - anthropic.com
+    - openai.com
+    - vercel.com
+    - supabase.com
+    - github.com
+    - official docs over blog posts
+
+  # Every research result STRUCTURE:
+  sections:
+    - tldr               # 3 bullets max
+    - key_findings       # 5 bullets max
+    - cited_sources      # URLs + one-line summary
+    - recommended_action # concrete next step for current project
+
+  max_words_per_agent_report: 500
+
+# =============================================================================
+# INTEGRATION POINTS
+# =============================================================================
+# Which prompts auto-invoke research protocol
+auto_invoke_in:
+  - prompts/new-project.md        # Phase 2
+  - prompts/cortex-reflect.md     # when insight requires current context
+  - prompts/code-review.md        # security-auditor for CVEs
+  - prompts/retrospective.md      # when pattern needs external validation
+
+skip_in:
+  - prompts/sprint-status.md      # local parse only
+  - prompts/cortex-doctor.md      # healthcheck, no research
+  - prompts/cortex-load.md        # mental model load
+  - prompts/project-scan.md       # existing code read, no web

@@ -71,6 +71,8 @@ Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (s
 
 **NEVER ask "chceš research?" — always do it.** Research je cortex-x killer feature, silent by default.
 
+**Protokol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `research/<slug>-<date>.md`. Opt-out: `--no-research` v initial prompt.
+
 Spawn **3 parallel research agents** via Agent tool (subagent_type: general-purpose). Queries derived from Phase 1 answers:
 
 ### Agent 1 — Domain research

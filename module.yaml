@@ -125,6 +125,15 @@ evolve:
     monthly: eval_suite_plus_refinement
   hard_rule: never_auto_merge_source_of_truth
 
+# Auto-research protocol (cortex primitive — referenced by multiple prompts)
+research:
+  config_path: "{cortex_root}/config/research.yaml"
+  protocol_path: "{cortex_root}/shared/research-protocol.md"
+  cache_path: "{cortex_root}/research/"
+  default_on: true  # prompts auto-invoke when triggers match, opt-out with --no-research
+  budget_per_week: 10
+  hard_rule: always_cite_sources_prefer_official_docs
+
 # Cross-platform compatibility
 platforms:
   windows:
