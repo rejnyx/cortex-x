@@ -110,6 +110,38 @@ analyzes current project + library state, surfaces 0-3 grounded insights,
 writes to ~/cortex-x/insights/<date>.md
 ```
 
+### 🔬 Code review (BMAD-inspired parallel adversarial pipeline)
+```
+After feature work, paste ~/cortex-x/prompts/code-review.md
+→ spawns 5 agents in parallel with DIFFERENTIATED context scoping:
+   - blind-hunter (diff ONLY — catches what contextual reviewers rationalize)
+   - edge-case-hunter (diff + project — boundary condition enumeration)
+   - acceptance-auditor (diff + PROGRESS.md — spec drift)
+   - security-auditor (diff + standards/security.md — 8-layer audit)
+   - ssot-enforcer (diff + config/ — duplication detection)
+→ triages findings by severity, verdict: ship / fix / block
+```
+
+### 🩺 Healthcheck
+```
+Paste ~/cortex-x/prompts/cortex-doctor.md → diagnose cortex-x installation,
+identify drift, suggest fixes. Run weekly or after system migration.
+```
+
+### 📊 Sprint status
+```
+Paste ~/cortex-x/prompts/sprint-status.md → parse PROGRESS.md,
+surface active sprint, next actionable story, drift detection.
+Fast (<5s), runs at session start.
+```
+
+### 📝 Retrospective
+```
+End of sprint → paste ~/cortex-x/prompts/retrospective.md
+→ 4 questions, distill TRANSFERABLE lessons into cortex library.
+Only path that compounds institutional memory across 6+ projects.
+```
+
 ## The Thinking Layer
 
 Cortex isn't just templates — it **thinks**:

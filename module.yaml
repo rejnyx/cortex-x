@@ -1,0 +1,125 @@
+# cortex-x module manifest
+# Inspired by BMAD's module.yaml pattern for skill distribution + config resolution.
+
+version: 1.0.0
+name: cortex-x
+description: Personal Claude Code framework — bootstrap + institutional wisdom + adversarial review
+author: David Rajnoha (Rejnyx)
+repo: https://github.com/Rejnyx/cortex-x
+
+# Config variables — resolved via {placeholder} syntax in prompts/agents
+config:
+  user_name: David Rajnoha
+  communication_language: cs
+  code_language: en
+  ui_language: cs
+
+  # Paths (cross-platform — use forward slashes, Node os.homedir() resolves)
+  cortex_root: "~/Desktop/APPs/cortex-x"
+  cortex_root_alt: "~/cortex-x"
+  projects_path: "{cortex_root}/projects"
+  standards_path: "{cortex_root}/standards"
+  profiles_path: "{cortex_root}/profiles"
+  prompts_path: "{cortex_root}/prompts"
+  agents_path: "{cortex_root}/agents"
+  templates_path: "{cortex_root}/templates"
+  insights_path: "{cortex_root}/insights"
+  journal_path: "{cortex_root}/journal"
+  research_path: "{cortex_root}/research"
+
+  # Defaults
+  default_profile: nextjs-saas
+  default_license: proprietary
+  default_testing: vitest+playwright
+  default_deploy: vercel
+
+# Skills/prompts distribution
+skills:
+  core:
+    - new-project       # Bootstrap with discovery + research + scaffold
+    - project-scan      # Slim 5-section scan (SSOT-respecting)
+    - cortex-sync       # Capture decisions/lessons post-work
+    - cortex-load       # Mental model cheat sheet
+    - cortex-reflect    # Meta-reflection via cortex-thinker
+    - code-review       # 5-agent parallel adversarial pipeline
+    - cortex-doctor     # Self-healthcheck
+    - sprint-status     # PROGRESS.md parser + next-action
+    - retrospective     # Post-sprint capture to cortex library
+
+# Agents registration
+agents:
+  meta:
+    - cortex-thinker    # Proactive observations, grounded insights
+  review:
+    - blind-hunter      # Diff-only bug detection
+    - edge-case-hunter  # Boundary condition enumeration
+    - acceptance-auditor  # Spec/PROGRESS.md drift check
+    - security-auditor  # 8-layer defense audit
+    - ssot-enforcer     # Duplication detection
+
+# Hooks (installed to ~/.claude/shared/hooks via install.sh)
+hooks:
+  global:
+    - block-destructive  # rm -r, force push, DROP TABLE blocking
+    - session-start      # PROGRESS.md + git + cortex-x awareness
+    - pre-compact        # Sprint state recovery before compaction
+
+# Profiles (project types for new-project bootstrap)
+profiles:
+  - nextjs-saas      # RELO-style SaaS (primary)
+  - chatbot-platform # Multi-tenant chatbot
+  - waas-template    # Website-as-a-Service
+  - ai-agent         # Autonomous multi-step agent
+  - tauri-desktop    # Cross-platform desktop
+  - astro-static     # Portfolio/blog/docs
+  - cli-tool         # npm CLI
+  - kiosek           # Touch PWA
+  - minimal          # Quick prototype
+
+# Standards (11 pillars enforced in scaffolded projects)
+standards:
+  - ssot
+  - modular
+  - scalable
+  - security
+  - testing
+  - observability
+  - performance
+  - accessibility
+  - error-handling
+  - git-workflow
+  - documentation
+
+# Health gates (checked by cortex-doctor)
+health_checks:
+  required:
+    - hooks_installed
+    - global_claude_md_references_cortex
+    - at_least_one_profile_exists
+    - standards_readable
+  warning_if:
+    - research_older_than_6_months
+    - no_projects_scanned
+    - sprint_status_overdue
+    - audit_overdue
+
+# Audit schedule
+audit:
+  first_audit_date: 2026-07-17
+  cadence_months: 3
+  checklist_path: "{cortex_root}/docs/3-month-audit.md"
+
+# Cross-platform compatibility
+platforms:
+  windows:
+    install_script: install.ps1
+    shell: PowerShell
+    homedir_var: $HOME
+  unix:
+    install_script: install.sh
+    shell: bash
+    homedir_var: $HOME
+  macos:
+    install_script: install.sh
+    shell: zsh / bash
+    homedir_var: $HOME
