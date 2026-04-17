@@ -1,0 +1,40 @@
+# {{projectName}}
+
+{{description}}
+
+## Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Tech Stack
+
+{{#if stack.framework}}- **{{stack.framework}}** {{#if stack.language}}+ {{stack.language}}{{/if}}{{/if}}
+{{#if stack.database.provider}}- **{{stack.database.provider}}**{{/if}}
+{{#if stack.ai.provider}}- **{{stack.ai.provider}}**{{/if}}
+{{#if stack.deploy}}- **{{stack.deploy}}**{{/if}}
+
+## Development
+
+```bash
+npm run dev          # start dev server
+npm test             # run tests
+npm run build        # production build
+```
+
+## Project Structure
+
+See [CLAUDE.md](./CLAUDE.md) for full architecture documentation.
+
+## Contributing
+
+Internal project. Contact {{author}} for access.
+
+---
+
+**Author:** {{author}}
+**Built with:** [cortex-x](https://github.com/Rejnyx/cortex-x)

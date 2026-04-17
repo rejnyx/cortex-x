@@ -1,0 +1,115 @@
+name: nextjs-saas
+description: Next.js 16 + Supabase + OpenAI SaaS — Dave's primary stack (RELO, Chatbot Platform)
+version: 1.0.0
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  styling:
+    - tailwind@4
+    - shadcn/ui
+  database:
+    provider: supabase
+    features:
+      - postgres
+      - rls
+      - pgvector
+      - storage
+      - auth
+  ai:
+    provider: openai
+    models:
+      - gpt-5.4-mini
+      - text-embedding-3-small
+      - whisper-1
+    sdk: ai@6
+  deploy: vercel
+  monitoring: sentry
+  testing:
+    unit: vitest
+    e2e: playwright
+    load: k6
+
+detect:
+  package_json:
+    dependencies:
+      - next
+      - "@supabase/ssr"
+  files:
+    - supabase/migrations/
+
+conventions:
+  language_ui: czech
+  language_code: english
+  typescript_strict: true
+  color_system: oklch
+  component_library: shadcn/ui
+  form_validation: zod
+  orm: supabase-js (no ORM)
+
+scaffolds:
+  claude_md: templates/CLAUDE.md.hbs
+  progress_md: templates/PROGRESS.md.hbs
+  memory_md: templates/MEMORY.md.hbs
+  readme: templates/README.md.hbs
+  gitignore: templates/.gitignore.nextjs
+  settings: templates/.claude/settings.json.hbs
+
+structure:
+  - src/app/
+  - src/app/api/
+  - src/app/(auth)/
+  - src/app/(dashboard)/
+  - src/components/ui/
+  - src/components/shared/
+  - src/lib/
+  - src/lib/supabase/
+  - src/lib/ai/
+  - src/config/
+  - src/types/
+  - src/hooks/
+  - supabase/migrations/
+  - tests/
+  - .claude/
+  - .claude/hooks/
+  - .claude/agents/
+  - .claude/skills/
+
+agents:
+  - code-reviewer
+  - security-checker
+  - architecture-guard
+  - design-checker
+  - test-writer
+  - db-reviewer
+  - doc-updater
+
+hooks:
+  - block-destructive  # from ~/.claude/shared/hooks/
+  - session-start       # from ~/.claude/shared/hooks/
+  - pre-compact         # from ~/.claude/shared/hooks/
+
+skills:
+  - init-project
+  - review-pipeline
+  - memory-consolidate
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Foundation (auth, DB schema, layout)
+  phase_2: Core feature (domain logic)
+  phase_3: Polish (UX, perf, error states)
+  phase_4: Hardening (tests, CI, monitoring)
+  phase_5: Deploy
+
+research_topics:
+  - "Next.js 16 app router best practices 2026"
+  - "Supabase RLS patterns production"
+  - "OpenAI cost optimization patterns"
+  - "Tailwind 4 + shadcn/ui 2026 patterns"
