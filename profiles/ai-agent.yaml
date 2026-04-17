@@ -1,0 +1,94 @@
+name: ai-agent
+description: Autonomous multi-step AI agent — Vercel AI SDK v6, tool chaining, three-layer memory, MCP integration
+version: 1.0.0
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  ai:
+    sdk: ai@6
+    providers:
+      - anthropic (Claude Opus 4.7 / Sonnet 4.5)
+      - openai (gpt-5.4-mini as fallback)
+    validation: zod@4 (strip $schema for OpenAI compat)
+    protocol: mcp (Model Context Protocol for tool portability)
+  database:
+    provider: supabase
+    features:
+      - postgres
+      - rls
+      - pgvector  # for memory + RAG
+  streaming: SSE
+  deploy: vercel
+
+detect:
+  package_json:
+    dependencies:
+      - ai
+      - "@anthropic-ai/sdk"  # or openai
+      - "@supabase/ssr"
+    files:
+      - lib/ai/tools/
+      - lib/ai/memory/
+
+conventions:
+  agent_loop: "streamText with stopWhen: stepCountIs(N)"
+  error_recovery: safe-tool wrapper (tools never throw, AI retries with alternatives)
+  memory:
+    layer_1: core index (always in context, compact markdown)
+    layer_2: pgvector semantic search
+    layer_3: activity log (append-only, searchable)
+  memory_consolidation: autoDream nightly cron (rebuild index, dedup, promote)
+  chat_api: Chat Completions (not Responses — bugs with gpt-5.x tool calling)
+  tool_pattern: LEGO (one tool = one thing, agent composes)
+  think_tool: explicit reasoning tool for complex decisions (Think-Plan-Execute)
+
+structure:
+  - src/lib/ai/tools/*.ts          # one tool per file
+  - src/lib/ai/safe-tool.ts        # wrapper: strips $schema, try-catch
+  - src/lib/ai/system-prompt.ts    # versioned
+  - src/lib/ai/memory/             # 3-layer memory
+  - src/lib/ai/execute-text.ts     # streamText orchestrator
+  - src/app/api/chat/route.ts      # SSE streaming
+  - src/app/api/cron/autodream/    # memory consolidation cron
+
+agents:
+  - code-reviewer
+  - security-checker      # prompt injection, tool permission scoping
+  - architecture-guard    # LEGO tool pattern enforcement
+  - test-writer
+  - db-reviewer           # RLS, pgvector indexes
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - tool-audit            # validates tool permissions + Zod schemas
+  - memory-audit          # validates 3-layer architecture
+  - prompt-injection-test
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Foundation (Next.js, Supabase, AI SDK setup)
+  phase_2: First tools (LEGO pattern, safe-tool wrapper)
+  phase_3: Agent loop (streamText + stepCountIs)
+  phase_4: Three-layer memory + autoDream cron
+  phase_5: System prompt engineering (Think-Plan-Execute)
+  phase_6: MCP integration (tool portability)
+  phase_7: Production hardening (tests, monitoring, cost guards)
+
+research_topics:
+  - "Vercel AI SDK v6 streamText stopWhen patterns"
+  - "MCP Model Context Protocol server implementation 2026"
+  - "Three-layer memory architecture LLM agents"
+  - "autoDream memory consolidation 6-signal scoring"
+  - "Prompt injection defense 2026"

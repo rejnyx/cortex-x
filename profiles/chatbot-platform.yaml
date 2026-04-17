@@ -1,0 +1,98 @@
+name: chatbot-platform
+description: Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator
+version: 1.0.0
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  styling:
+    - tailwind@4
+    - shadcn/ui
+  database:
+    provider: supabase
+    features:
+      - postgres
+      - rls
+      - pgvector
+      - realtime
+  queue: upstash-redis
+  ai:
+    provider: openai  # or anthropic
+    sdk: ai@6
+    models:
+      - gpt-5.4-mini
+      - text-embedding-3-small
+  channels:
+    - telegram (grammY)
+    - whatsapp (cloud api)
+    - web-widget (iframe/sdk)
+    - chatwoot (webhook)
+  deploy: vercel
+
+detect:
+  package_json:
+    dependencies:
+      - "@supabase/ssr"
+      - grammy
+      - ai
+    files:
+      - app/api/webhook/
+      - lib/adapters/
+
+conventions:
+  channel_pattern: adapter (inbound → canonical → orchestrator → canonical → outbound)
+  tenant_isolation: RLS first (never trust app-layer)
+  message_type: CanonicalMessage (channel-agnostic)
+  rate_limiting: per-tenant + per-user + per-channel
+  typescript_strict: true
+
+structure:
+  - src/app/(admin)/                   # platform-level admin
+  - src/app/(tenant)/[workspace]/      # customer-facing
+  - src/app/api/webhook/[channel]/
+  - src/lib/adapters/telegram/
+  - src/lib/adapters/whatsapp/
+  - src/lib/adapters/web/
+  - src/lib/adapters/chatwoot/
+  - src/lib/orchestrator/
+  - src/lib/ai/
+  - src/lib/supabase/
+  - supabase/migrations/
+
+agents:
+  - code-reviewer
+  - security-checker    # critical for multi-tenant
+  - architecture-guard  # enforces adapter pattern
+  - db-reviewer         # RLS + tenant isolation checks
+  - test-writer
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - adapter-audit       # checks all channels use canonical pattern
+  - rls-audit           # validates RLS on every tenant table
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Foundation (auth, DB schema, RLS, multi-tenant)
+  phase_2: Orchestrator + canonical message pipeline
+  phase_3: First adapter (web widget)
+  phase_4: Telegram + WhatsApp adapters
+  phase_5: Admin UI + analytics
+  phase_6: Production deploy + first tenant
+
+research_topics:
+  - "Multi-tenant RLS patterns Supabase 2026"
+  - "Canonical message type cross-channel chatbot"
+  - "grammY Telegram bot Next.js 16 webhook"
+  - "Chatwoot v2 API handoff patterns"

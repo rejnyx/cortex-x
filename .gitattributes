@@ -1,0 +1,47 @@
+# Auto-detect text files, normalize to LF in repo, native on checkout
+* text=auto eol=lf
+
+# Shell scripts — MUST be LF everywhere (Git Bash/WSL/macOS/Linux all run these)
+*.sh              text eol=lf
+*.bash            text eol=lf
+
+# PowerShell and Windows batch — MUST be CRLF (some PS versions choke on LF)
+*.ps1             text eol=crlf
+*.psm1            text eol=crlf
+*.psd1            text eol=crlf
+*.cmd             text eol=crlf
+*.bat             text eol=crlf
+
+# Node.js / TS sources — LF is universally safe
+*.js              text eol=lf
+*.cjs             text eol=lf
+*.mjs             text eol=lf
+*.ts              text eol=lf
+*.tsx             text eol=lf
+*.json            text eol=lf
+*.jsonc           text eol=lf
+
+# Markdown, config, templates
+*.md              text eol=lf
+*.hbs             text eol=lf
+*.yml             text eol=lf
+*.yaml            text eol=lf
+*.toml            text eol=lf
+.env*             text eol=lf
+.editorconfig     text eol=lf
+.gitignore        text eol=lf
+.gitattributes    text eol=lf
+
+# Binaries — never touched
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.tgz   binary
+*.zip   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary

@@ -1,0 +1,75 @@
+name: cli-tool
+description: Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform
+version: 1.0.0
+
+stack:
+  runtime: node@22
+  language: typescript
+  module_system: esm  # ESM-only is the 2026 default
+  libs:
+    argparse: commander@12   # or oclif@4 for plugin-heavy CLIs
+    prompts: "@clack/prompts"  # replaced inquirer (smaller, prettier)
+    colors: picocolors         # replaced chalk (14x smaller)
+    tui: ink@5                 # for React-based TUIs (optional)
+    spawn: execa@9
+  bundler: tsup  # or tsdown (newer)
+  validation:
+    - publint
+    - "@arethetypeswrong/cli"
+
+detect:
+  package_json:
+    fields:
+      - bin
+    dependencies:
+      - commander
+      - "@clack/prompts"
+
+conventions:
+  cross_platform: true
+  esm_only: true
+  shebang: "#!/usr/bin/env node"
+  bin_entry: package.json bin field (npm auto-generates .cmd/.ps1/POSIX shims)
+  use_os_homedir: always (never ~ or $HOME in Node strings)
+  path_join: always path.join() (handles Windows separators + spaces)
+
+structure:
+  - src/commands/     # one file per command
+  - src/lib/          # shared logic
+  - src/prompts/      # interactive flows
+  - bin/cli.js        # shebang entry (built by tsup)
+  - tests/
+  - tsup.config.ts
+
+agents:
+  - code-reviewer
+  - test-writer
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - publint-check
+  - cross-platform-audit  # checks for path/shell issues
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: CLI skeleton (commander + clack prompts)
+  phase_2: First command (happy path)
+  phase_3: Error handling + cross-platform testing
+  phase_4: Tests + publint + ATTW
+  phase_5: Publish to npm
+
+research_topics:
+  - "Commander 12 vs Oclif 4 decision 2026"
+  - "Clack prompts patterns 2026"
+  - "ESM-only package publishing gotchas"
+  - "Cross-platform Node.js CLI path handling"
