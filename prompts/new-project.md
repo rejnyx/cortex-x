@@ -46,6 +46,17 @@ Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (s
 ### Q6 — Success signal (validation, not vanity)
 > "Jak poznáš za 2 týdny, že to má smysl pokračovat? Reálný metric — ne 'je to hezký', ale 'X lidí použilo' / 'mám prvního platícího' / 'ušetřilo mi to 2h týdně'."
 
+### Q7 — AI integration (2026 default, not optional)
+> "Jak AI zapadne do tohoto projektu? 3 možnosti:
+> a) **AI-heavy** — je to agentic tool / chatbot / AI-powered feature jako core value prop (použij profil `ai-agent` nebo `chatbot-platform`)
+> b) **AI-ready** — MVP bez AI, ale struktura připravená na budoucí AI features (safe-tool wrapper, memory scaffold, /api/chat endpoint reserved) — **tohle je 2026 default pro SaaS**
+> c) **No AI** — skutečně nepotřebuje AI (static blog, landing page, portfolio) — použij profil `astro-static` nebo `minimal`
+>
+> Výchozí hodnota: **b) AI-ready**. Pokud řekneš 'nevím', default je b."
+
+**Skip if:** Q1 + Q3 clearly indicates AI-heavy (e.g., "AI assistant", "chatbot", "autonomous agent") → auto-assume `a) AI-heavy`.
+**Skip if:** profile je už `astro-static` / `minimal` → auto-assume `c) No AI`.
+
 ### Branching rules
 
 | Trigger | Action |
@@ -73,6 +84,17 @@ Query based on pre-selected profile (derived from Q1):
 ### Agent 3 — Competitive/differentiator research
 Query based on Q4 + Q5 (MVP + out-of-scope):
 > "Research existing solutions that do `<Q4 MVP core>` specifically NOT doing `<Q5 out-of-scope>`. Who's in this space? What's their weakness Dave could exploit as differentiator? 300-word report with URLs."
+
+### Agent 4 — AI integration research (NEW, 2026 default)
+Query based on Q1 + Q7:
+> "Research AI integration points for `<Q1 project type>` in 2026. What AI features are:
+> - **Table stakes** (competitors have them, users expect them) — must-have for parity
+> - **Differentiator** (nobody does well yet) — opportunity for unique value
+> - **Over-hyped** (sounds good, doesn't ship) — skip traps
+> - **Technical patterns** specific to this project type (memory architecture, tool design, streaming UX)
+> 300-word report with specific model recommendations (OpenAI/Anthropic/Gemini/local) and agentic architecture suggestions. Cite 2026 examples."
+
+**Skip Agent 4 if** Q7 = `c) No AI`.
 
 **While agents run:** continue Phase 3 drafting in parallel, merge research when it arrives.
 

@@ -1,6 +1,7 @@
 name: nextjs-saas
-description: Next.js 16 + Supabase + OpenAI SaaS — Dave's primary stack (RELO, Chatbot Platform)
-version: 1.0.0
+description: Next.js 16 + Supabase + AI SaaS — Dave's primary stack, AGENTIC-READY by default (RELO-style). Even without AI at MVP, structure allows plug-in without refactor.
+version: 2.0.0
+agentic_ready: true  # ← 2026 default. Opt out with 'minimal' or 'astro-static'.
 
 stack:
   framework: next@16
@@ -59,22 +60,36 @@ scaffolds:
 structure:
   - src/app/
   - src/app/api/
+  - src/app/api/chat/           # reserved for future SSE streaming AI endpoint
   - src/app/(auth)/
   - src/app/(dashboard)/
   - src/components/ui/
   - src/components/shared/
   - src/lib/
   - src/lib/supabase/
-  - src/lib/ai/
+  - src/lib/ai/                  # agentic-ready: empty now, ready for tools+memory+prompts
+  - src/lib/ai/tools/            # LEGO tools (one file per tool)
+  - src/lib/ai/memory/           # three-layer memory scaffold
+  - src/lib/rate-limit.ts        # ready for AI cost guards
   - src/config/
   - src/types/
   - src/hooks/
   - supabase/migrations/
   - tests/
+  - evals/                       # AI eval suite (golden set, regression tests)
   - .claude/
   - .claude/hooks/
   - .claude/agents/
   - .claude/skills/
+
+# Agentic-ready baseline (even if MVP has no AI)
+agentic_scaffolding:
+  include_safe_tool_wrapper: true        # Copy from standards/ai-patterns.md Pattern 1
+  include_memory_scaffold: true          # Layer 1 + 3 ready, Layer 2 when needed
+  reserve_chat_endpoint: true            # src/app/api/chat/ folder exists
+  include_rate_limit: true               # ready for AI cost guards
+  include_eval_suite_folder: true        # evals/ folder with README.md placeholder
+  system_prompt_template: true           # src/lib/ai/system-prompt.ts skeleton
 
 agents:
   - code-reviewer
