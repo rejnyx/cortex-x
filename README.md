@@ -150,6 +150,21 @@ End of sprint → paste ~/cortex-x/prompts/retrospective.md
 Only path that compounds institutional memory across 6+ projects.
 ```
 
+### 🧬 Evolve (self-improvement loop)
+```
+Weekly → paste ~/cortex-x/prompts/cortex-evolve.md "weekly"
+→ Mining algoritmic (PrefixSpan + TF-IDF contrast) → hard evidence gate
+  (min 3 events, ≥2 projects, >7 days spread) → LLM validation (not generation)
+  → 0-3 proposals do ~/cortex-x/insights/proposals/ (PR, nikdy auto-merge)
+
+Monthly → paste ~/cortex-x/prompts/cortex-evolve.md "monthly"
+→ Eval suite run (10 canonical tasks, Aider-style) → score delta vs baseline
+  → if regression: auto-attribute → rollback proposal PR.
+
+Framework se zlepšuje sám, ale NIKDY nepřepisuje standards/prompts/profiles —
+jen navrhuje diffy přes PR. Viz ~/cortex-x/docs/self-improvement-rfc.md.
+```
+
 ## The Thinking Layer
 
 Cortex isn't just templates — it **thinks**:
@@ -203,7 +218,14 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 
 **Phase 4 — Web research** — Live 2026 best practices per use case via `--research` flag
 
-**Phase 5 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md (port back to RELO)
+**Phase 5 — Self-improvement loop** ✅ (v1 — 2026-04-17)
+- 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit)
+- Hard anti-hallucination gates (min_support=3, ≥2 projects, >7d spread, Bonferroni, citations required)
+- Aider-style eval suite (10 canonical tasks, scored per commit)
+- PR-only mutations (framework never auto-edits its own source of truth)
+- Meta-loop: every 30 insights → effectiveness review → threshold tuning
+
+**Phase 6 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md (port back to RELO)
 
 ## License
 
