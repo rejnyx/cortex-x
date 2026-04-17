@@ -1,213 +1,225 @@
-# New Project Prompt — Bootstrap via cortex-x
+# New Project — Discovery + Auto-Research + Scaffold
 
-> **How to use:** Create empty folder for new project. Open Claude Code there. Paste this prompt. Tell Claude the project description. Claude scans cortex-x and scaffolds everything.
+> **How to use:** Create empty folder, open Claude Code, paste this prompt. Claude vede Dave přes discovery → automatický web research → proposal → scaffold. Kompletní flow ~15 min.
 
 ---
 
 ## Your task
 
-Dave is starting a new project. Your job: **don't start from scratch**. Scan `~/cortex-x/` first, pick the right profile, and scaffold a senior-level project foundation in under 10 minutes.
+Dave začíná nový projekt. Tvá práce: **nejdřív porozumět co chce stavět, pak research, pak teprve scaffold**. Nikdy neskakuj přímo do scaffoldu bez discovery (pokud Dave explicitně neřekne `skip`).
 
-Never re-invent. Never lower the bar. Every new Dave's project should inherit the same quality standards his production projects have.
+## Režimy (auto-detect)
 
-## Step 1 — Ask Dave 3 questions
+**BAIL → QUICK SCAFFOLD** (když Dave už ví všechno):
+- Initial message obsahuje název + popis + profil ("3 questions answered")
+- Nebo obsahuje slovo `skip` / `quick`
+- Nebo initial message má ≥80 slov (Dave už promyslel)
+→ Přeskoč Phase 1, jdi na Phase 2 (research) a Phase 4 (scaffold)
 
-Exactly these 3, nothing more:
+**FULL FLOW (default):**
+Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (scaffold)
 
-1. **Název projektu?** (e.g., "medikon", "klient-portal", "smart-menu")
-2. **Co to dělá?** (1-2 věty — co řeší, pro koho)
-3. **Jaký typ?** Nabídni profily z `~/cortex-x/profiles/` a navrhni nejvhodnější:
-   - `nextjs-saas` — Next.js + Supabase SaaS (RELO-style)
-   - `chatbot-platform` — multi-tenant chatbot s kanály
-   - `waas-template` — website-as-a-service, multi-tenant
-   - `ai-agent` — autonomní multi-step agent
-   - `tauri-desktop` — desktop app (Rust + Web)
-   - `astro-static` — portfolio, blog, docs
-   - `cli-tool` — Node.js CLI na npm
-   - `kiosek` — touch PWA
-   - `minimal` — prototyp bez ceremonie
+---
 
-Na základě popisu projektu **pre-selectni** nejvhodnější profil a Dave jen potvrdí / změní.
+## Phase 1 — Discovery (6 otázek, česky, konverzační)
 
-## Step 2 — Scan cortex-x (paralelní čtení)
+**Opener:**
+> "Pojď si to rozmyslet. Projdu tě 6 otázkama — když na něco neznáš odpověď, řekni 'nevím' a jedu dál. Když už víš všechno a chceš scaffoldovat, napiš **skip** a přeskočím na konec."
 
-Než začneš cokoliv vytvářet, přečti:
+### Q1 — Seed (always)
+> "Popiš mi jednou větou, co ten projekt dělá. Klidně syrově — 'appka co X', 'nástroj pro Y'."
 
-1. `~/cortex-x/profiles/<selected>.yaml` — stack, structure, conventions, initial_sprint
-2. `~/cortex-x/standards/README.md` — index standardů (11 pillars)
-3. `~/cortex-x/templates/CLAUDE.md.hbs` — project bible template
-4. `~/cortex-x/templates/PROGRESS.md.hbs` — sprint tracking template
-5. `~/cortex-x/templates/MEMORY.md.hbs` — memory scaffold
-6. `~/cortex-x/templates/settings.json.hbs` — .claude/settings.json template
-7. `~/cortex-x/templates/README.md.hbs` — public README template
-8. `~/cortex-x/shared/hooks/*.cjs` — universal hooks (to install in project)
-9. `~/cortex-x/projects/README.md` — cross-project library index (for similar projects)
+### Q2 — Pain (Mom Test, past-tense)
+> "Kdy naposled jsi narazil na ten problém ty osobně (nebo někdo, kdo ti ho řekl)? Co jsi v tu chvíli udělal místo toho?"
+> *Skip if* Q1 already names concrete user + event.
 
-Pokud existuje podobný projekt v `~/cortex-x/projects/<slug>.md`, přečti ho — zjistíš patterns, decisions, lessons learned, které můžeš aplikovat.
+### Q3 — User (singular, not persona)
+> "Kdo je ten JEDEN člověk, pro kterýho to primárně stavíš? Jméno, role, nebo 'já sám' — ne 'malé firmy v ČR'."
 
-## Step 3 — Scaffold (use current working directory)
+### Q4 — Scope (MVP boundary, Levels-style)
+> "Kdyby sis za víkend měl postavit nejošklivější fungující verzi — co je to ONO jádro? Všechno ostatní je v2."
 
-**Do NOT** copy cortex-x files blindly. **Render templates intelligently** based on profile + Dave's answers.
+### Q5 — Not-doing list (explicit OUT)
+> "Co tenhle projekt vědomě NEBUDE řešit? Napiš 2-3 věci, co by ses mohl nechat svést udělat, ale teď nechceš."
+> *Skip if* Q4 gave tight scope (≤15 words + specific feature).
 
-### 3a. Directory structure
+### Q6 — Success signal (validation, not vanity)
+> "Jak poznáš za 2 týdny, že to má smysl pokračovat? Reálný metric — ne 'je to hezký', ale 'X lidí použilo' / 'mám prvního platícího' / 'ušetřilo mi to 2h týdně'."
 
-Based on `profiles/<selected>.yaml` → `structure` section, create folders.
+### Branching rules
 
-### 3b. Render templates
+| Trigger | Action |
+|---|---|
+| User typed `skip` at any Q | Jump to Phase 2 with current info |
+| User answered `nevím` to Q6 | Propose 2 measurable criteria, user picks |
+| Q3 = "já sám" | Tag as `dogfood`, raise bar on Q6 |
 
-Use Handlebars-style substitution (manually — don't invoke a template engine):
+---
 
-| Placeholder | Value source |
-|-------------|--------------|
-| `{{projectName}}` | Dave's answer #1 |
-| `{{description}}` | Dave's answer #2 |
-| `{{stack.*}}` | From selected profile YAML |
-| `{{conventions.*}}` | From selected profile YAML |
-| `{{structure}}` | From selected profile YAML |
-| `{{agents}}` | From selected profile YAML |
-| `{{hooks}}` | From selected profile YAML |
-| `{{date}}` | Today's date (ISO) |
-| `{{author}}` | "David Rajnoha (Rejnyx) · davidrajnoha@gmail.com" |
-| `{{initial_sprint}}` | From selected profile YAML |
+## Phase 2 — Auto-Research (parallel agents, 2-3 min)
 
-Render:
-- `CLAUDE.md` (project bible)
-- `PROGRESS.md` (sprint tracking — populate `initial_sprint` stories)
-- `MEMORY.md` (memory scaffold)
-- `README.md` (public facing — proprietary banner + what it does)
-- `.claude/settings.json` (permissions + hook config)
+**NEVER ask "chceš research?" — always do it.** Research je cortex-x killer feature, silent by default.
 
-### 3c. Install hooks
+Spawn **3 parallel research agents** via Agent tool (subagent_type: general-purpose). Queries derived from Phase 1 answers:
 
-Create `.claude/hooks/` and copy from `~/cortex-x/shared/hooks/`:
-- `block-destructive.cjs`
-- `session-start.cjs`
-- `pre-compact.cjs`
+### Agent 1 — Domain research
+Query based on Q1 + Q3:
+> "Research 2026 best practices for `<Q1 project type>` targeting `<Q3 user>`. What are the common features, architectural patterns, pitfalls to avoid? Top 3 existing products and what they do well/poorly. 300-word report with URLs."
 
-Or reference global ones (preferred — less duplication).
+### Agent 2 — Technical research
+Query based on pre-selected profile (derived from Q1):
+> "Research 2026 implementation patterns for `<type>` using `<stack>`. Key libraries, architectural decisions, recent gotchas. Cite specific resources from anthropic.com, vercel.com, supabase.com, github.com trending. 300-word report."
 
-### 3d. Stack-specific files
+### Agent 3 — Competitive/differentiator research
+Query based on Q4 + Q5 (MVP + out-of-scope):
+> "Research existing solutions that do `<Q4 MVP core>` specifically NOT doing `<Q5 out-of-scope>`. Who's in this space? What's their weakness Dave could exploit as differentiator? 300-word report with URLs."
 
-Based on profile `stack.framework`:
+**While agents run:** continue Phase 3 drafting in parallel, merge research when it arrives.
 
-- **nextjs-saas / waas-template / chatbot-platform / ai-agent / kiosek:**
-  - `package.json` with Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui deps
-  - `next.config.ts`, `tsconfig.json` (strict), `tailwind.config.ts`, `postcss.config.mjs`
-  - `.env.example` with required vars from profile
-  - `src/app/layout.tsx`, `src/app/page.tsx` (starter)
+### Cache research
 
-- **astro-static:**
-  - `package.json` with Astro 5, integrations
-  - `astro.config.mjs`
-  - `src/pages/index.astro`
-
-- **tauri-desktop:**
-  - Run `npm create tauri-app@latest` via Bash (or scaffold manually if that's blocked)
-
-- **cli-tool:**
-  - `package.json` with `bin` field, Commander 12, @clack/prompts, picocolors, execa
-  - `bin/cli.js` with shebang
-  - `tsup.config.ts`
-
-- **minimal:**
-  - Just `package.json` with bare necessities
-
-### 3e. Gitignore
-
-Copy appropriate `.gitignore` (Next.js / Astro / Node / Rust based on profile).
-
-### 3f. License
-
-`LICENSE` — proprietary template from cortex-x (Dave's default).
-
-### 3g. Git init + first commit
-
-```bash
-git init
-git add .
-git commit -m "init: scaffold via cortex-x (profile: <selected>)"
+After agents return, save to:
+```
+~/Desktop/APPs/cortex-x/research/<slug>-<YYYY-MM-DD>.md
 ```
 
-### 3h. Install dependencies
+Structure:
+```markdown
+---
+project: <slug>
+date: <YYYY-MM-DD>
+agents: [domain, technical, competitive]
+---
 
-```bash
-npm install
+# Research: <project name>
+
+## Domain (2026 best practices)
+<300 words from Agent 1>
+
+## Technical (<stack> patterns)
+<300 words from Agent 2>
+
+## Competitive landscape
+<300 words from Agent 3>
+
+## Key insights (1-3 bullets from all 3)
+- ...
 ```
 
-Only if Dave confirms (it's slow).
+---
 
-## Step 4 — Report
+## Phase 3 — Proposal (research-backed)
 
-Reply to Dave:
+Shrň co slyšíš + co research našel:
 
+```markdown
+## Shrnutí
+
+**PROJEKT:** <3 name candidates, kebab-case>
+**UŽIVATEL:** <Q3, one sentence>
+**PROBLÉM:** <from Q2, one sentence>
+**MVP JÁDRO:** <from Q4, max 5 bullets>
+**EXPLICITNĚ MIMO:** <from Q5>
+**DEFINITION OF DONE (sprint 1):** <from Q6, measurable>
+
+## Doporučený stack (profile: <cortex-x profile name>)
+
+<1-line reason pro profil>
+- Framework: <e.g., Next.js 16>
+- DB: <e.g., Supabase>
+- Styling: <e.g., Tailwind 4 + shadcn/ui>
+- Testing: <e.g., Vitest + Playwright>
+
+## 🔍 Co říká research (CRITICAL)
+
+**Domain:**
+- <insight 1 z Agent 1>
+- <insight 2 z Agent 1>
+
+**Technical:**
+- <insight 1 z Agent 2>
+- <insight 2 z Agent 2>
+
+**Competitive:**
+- <insight 1 z Agent 3>
+- <differentiator — what to leverage>
+
+**→ Doporučení z research:**
+- <concrete action item 1 — e.g., "add feature X from day 1, it's table stakes">
+- <concrete action item 2 — e.g., "avoid common mistake Y">
+
+## Rizika (Cagan 4 big risks)
+
+Tag pouze **reálná** rizika (ne všechny 4):
+- 🟡 **VALUE:** <if value proposition unclear — from Q2>
+- 🟡 **USABILITY:** <if UX is risky — from Q3>
+- 🟡 **FEASIBILITY:** <if tech is risky — from research>
+- 🟡 **VIABILITY:** <if business model is risky — from Q6>
+
+## První sprint (5 stories, každá ≤1 den)
+
+| # | Popis | Stav |
+|---|-------|------|
+| 1.1 | <foundation story> | pending |
+| 1.2 | <...> | pending |
+| 1.3 | <...> | pending |
+| 1.4 | <...> | pending |
+| 1.5 | <first measurable outcome from Q6> | pending |
+
+---
+
+**Pokračovat scaffoldem?** [y / uprav X / začni znovu / přejmenuj projekt na X]
 ```
-✅ Projekt '{{projectName}}' nascaffoldován via cortex-x
 
-Profil: <selected>
-Standards zděděné: SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs
-Stack: <summary>
-Struktura: <tree depth 2>
+---
 
-Vygenerováno:
-- CLAUDE.md (project bible, ready for you to fill tech specifics)
-- PROGRESS.md (<N> stories from profile initial_sprint)
-- MEMORY.md (multi-layer scaffold)
-- README.md (proprietary template)
-- .claude/settings.json (hooks registered)
-- .claude/hooks/ (3 universal safety hooks)
-- <stack-specific configs>
+## Phase 4 — Scaffold (when confirmed)
 
-Git: init + first commit done.
+Po `y`:
 
-Další krok:
-1. Přečti si CLAUDE.md a doplň tech specifika (architektura, env vars)
-2. Zkontroluj PROGRESS.md — upravit stories podle tvé vize
-3. npm install (pokud jsem nespustil)
-4. npm run dev → začni Story 1.1
+1. Scaffold dle `profiles/<selected>.yaml` (struktura, package.json, configs, Next.js/Astro/etc.)
+2. Render templates s **daty z Phase 1 + 3** (ne generic placeholders):
+   - `CLAUDE.md` — vlastní popis, stack, architektura zmíněná v Phase 3
+   - `PROGRESS.md` — 5 stories z Phase 3, konkrétní k jeho projektu
+   - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` s Q1-Q6 odpověďmi
+   - `README.md` — jednovětná description z Q1
+3. Copy hooks z `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact)
+4. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
+5. `git init` + first commit s message odrážející vision (ne generic)
+6. Report + ask about cortex library entry
 
-Když chceš další help — řekni, jdu na to.
-```
-
-## Step 5 — Ask if Dave wants cortex library entry
-
-After scaffold is complete, ask:
-
-```
-Chceš, abych hned vytvořil záznam v ~/cortex-x/projects/{{slug}}.md?
-
-Výhoda: budoucí sessions v tomhle projektu budou mít okamžitý kontext,
-a když budeš dělat jiný projekt podobného typu, cortex to tam zahrne.
-
-(yes — vytvořím teď / později — spustíš prompts/project-scan.md kdykoli)
-```
-
-Pokud yes → naskenuj čerstvý projekt (i když je prázdný — stack, profile, planned sprint struktura) a přidej do `~/cortex-x/projects/`.
+---
 
 ## Rules
 
-- **Rychlost > perfekce.** 80% řešení teď > 100% řešení zítra.
-- **Nikdy nevynechávej standardy.** SSOT, Modular, Scalable, Security, Testing — všechny. Bez výjimky.
-- **Nikdy nehardcoduj Dave's cesty** — v package.json a README používej dynamické hodnoty.
-- **Nikdy nescaffolduj bez cortex-x** — pokud není dostupné, ptej se Dave předtím než improvizuješ.
-- **Preferuj globální hooks.** Project-level jen pokud potřebuje domain-specific override.
-- **Čeština v UI, Angličtina v kódu.** Zadání profilu.
-- **Konvence profilu jsou zákon.** Neporušuj je bez Dave's souhlasu.
+- **Never skip discovery** unless auto-bail triggers (user explicit skip / already has all 3 questions / ≥80 word first message)
+- **Never ask "chceš research?"** — vždy run Phase 2 parallel. Research je silent + automatic.
+- **Never use generic placeholders** — každý soubor musí být personalized by Phase 1 answers
+- **Never skip cortex-x standards** — všechny projekty dědí 11 pillars
+- **Cache research** — re-scan use se vyvaruje duplicitním web callům
+- **Respect SSOT** — CLAUDE.md drží current state, research je pointer ne duplicate
+- **Čeština v Q1-Q6 + proposal** — Dave's jazyk
 
 ## Anti-patterns
 
-- ❌ Scaffold bez přečtení profilu → dostaneš nekonzistentní stack
-- ❌ "Později přidám testy" → přidej test setup teď (Vitest + Playwright)
-- ❌ "Zatím bez Sentry" → přidej z Day 1 (i když disabled v dev)
-- ❌ "RLS později" → RLS od prvního migrace (scalable.md rule)
-- ❌ Install všech deps najednou → rozděl na core + dev, let npm prune later
-- ❌ Ignore cortex-x/projects/ — ztrácíš institutional knowledge
+- ❌ Scaffold bez discovery → generic výstup, Dave musí vše přepisovat
+- ❌ Asking "do you want research?" → slows flow, research by měl být default
+- ❌ Research AFTER scaffold → pozdě, rozhodnutí už jsou udělaná
+- ❌ 10+ questions → completion rate drop za 7 (research)
+- ❌ Persona thinking → "malé firmy v ČR" = useless, "Vojta Žižka, makléř" = actionable
+- ❌ Future-tense questions → "would you use?" useless, "kdy naposled?" actionable (Mom Test)
 
 ## Philosophy
 
-Každý nový projekt začíná s **11 standardami**, **3 universal hooks**, **testing pyramid ready**, **Sentry ready**, **RLS ready**, **Czech UI conventions**, **TypeScript strict**, **Git safety**.
+Každý nový projekt začíná **6 otázkami co donutí Dave přemýšlet** + **auto-research který mu ušetří 2 hodiny googlování** + **research-backed scaffold co je personalizovaný**.
 
-Dave ušetří 3-5 dní setupu, který by dělal ručně.
+Cortex-x je osobní senior product partner, ne template engine.
 
-Dave nikdy nezapomene na best practice, protože cortex-x je memory.
+## Research methodology reference
 
-Dave škáluje tím, že každý nový projekt má stejný **senior foundation** — nezačíná z nuly.
+Flow design inspirován:
+- Mom Test (Rob Fitzpatrick) — past-tense questions
+- Lean Canvas (Ash Maurya) — 1-pager validation
+- Cagan 4 big risks (SVPG) — risk tagging framework
+- Pieter Levels indie hacker workflow — MVP boundary thinking
+- Teresa Torres opportunity solution tree — user-problem-solution mapping
