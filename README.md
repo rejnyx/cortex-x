@@ -14,12 +14,21 @@ Opens a new empty project folder → one command → you get:
 - Principles injected: **SSOT, Modular, Scalable, Security**
 - Optional: web research of 2026 best practices for your use case
 
-## Design principles
+## Design principles (11 standards)
 
-1. **SSOT** — Every piece of knowledge lives in exactly one place
-2. **Modular** — Each subsystem replaceable without breaking others
-3. **Scalable** — Default to patterns that survive 10x growth
-4. **Security** — Block destructive ops, never commit secrets, RLS from day 1
+Every scaffolded project inherits these — see [standards/](./standards/README.md) for full docs:
+
+1. **[SSOT](./standards/ssot.md)** — One source of truth per piece of knowledge
+2. **[Modular](./standards/modular.md)** — Isolated subsystems with clean interfaces
+3. **[Scalable](./standards/scalable.md)** — Patterns that survive 10x growth
+4. **[Security](./standards/security.md)** — Layered defense, 8-layer model, RLS from day 1
+5. **[Testing](./standards/testing.md)** — Test pyramid, 5 pillars per test (happy/error/edge/security/integration)
+6. **[Observability](./standards/observability.md)** — Structured logs, metrics, traces, Sentry from day 1
+7. **[Performance](./standards/performance.md)** — Core Web Vitals, DB indexes, streaming, bundle budgets
+8. **[Accessibility](./standards/accessibility.md)** — WCAG 2.2 AA, keyboard, screen reader, reduced motion
+9. **[Error handling](./standards/error-handling.md)** — Classify, recover, user-friendly messages
+10. **[Git workflow](./standards/git-workflow.md)** — Atomic commits, safety, conventional commits
+11. **[Documentation](./standards/documentation.md)** — README + CLAUDE.md + PROGRESS.md + ADRs
 
 ## Repo structure
 
@@ -54,20 +63,48 @@ cortex init --research   # with 2026 web research
 cortex doctor            # healthcheck your setup
 ```
 
+## Available profiles
+
+Every scaffolded project picks ONE profile that defines its stack + conventions:
+
+| Profile | Use case | Example Dave project |
+|---------|----------|---------------------|
+| **nextjs-saas** | Next.js + Supabase + OpenAI SaaS | RELO, Chatbot Platform |
+| **waas-template** | Website-as-a-Service, multi-tenant | Champions Barber |
+| **chatbot-platform** | Multi-tenant chatbot with channel adapters | Amici, Objednáme |
+| **ai-agent** | Autonomous multi-step AI agent | RELO |
+| **tauri-desktop** | Cross-platform desktop app (Rust + Web) | Future |
+| **astro-static** | Portfolio, blog, docs (zero-JS) | portfolio-uxui |
+| **cli-tool** | Node.js CLI published to npm | cortex-x itself |
+| **kiosek** | Restaurant touch kiosk PWA | Kiosek |
+| **minimal** | Quick prototype, no ceremony | Experiments |
+
+Pick via `cortex init` → interactive selector → scaffolds everything.
+
+## Cross-platform (Windows + macOS + Linux)
+
+- `.gitattributes` enforces LF for shell/Node.js, CRLF for PowerShell
+- Install scripts: `install.sh` (Unix/Git Bash/WSL) + `install.ps1` (Windows PowerShell)
+- Hooks use `os.homedir()` — never hardcoded paths
+- `path.join()` everywhere — handles Windows spaces
+- Tested on: Windows 11, macOS 14+, Ubuntu 22+
+
 ## Status
 
-**Phase 1 — Foundation** (in progress)
-- Shared hooks (block-destructive, session-start, pre-compact)
-- Templates + standards
-- First profile: Next.js + Supabase
+**Phase 1 — Foundation** ✅
+- 3 universal hooks (block-destructive, session-start, pre-compact)
+- 9 project profiles (nextjs-saas, waas, chatbot, ai-agent, tauri, astro, cli, kiosek, minimal)
+- 11 standards (SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs)
+- 5 templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
+- Cross-platform install scripts
 
 **Phase 2 — Bootstrap skill** — `/init-project` with Clack CLI
 
-**Phase 3 — Multi-agent** — Orchestrator + review pipeline
+**Phase 3 — Multi-agent** — Shared orchestrator + review pipeline (code-reviewer, security-checker, architecture-guard, design-checker, test-writer, db-reviewer, doc-updater)
 
-**Phase 4 — Web research** — Live 2026 best practices per use case
+**Phase 4 — Web research** — Live 2026 best practices per use case via `--research` flag
 
-**Phase 5 — RELO upgrades** — 6-signal memory scoring, graph expansion, DREAMS.md
+**Phase 5 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md (port back to RELO)
 
 ## License
 

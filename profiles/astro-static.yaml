@@ -1,0 +1,73 @@
+name: astro-static
+description: Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default
+version: 1.0.0
+
+stack:
+  framework: astro@5
+  runtime: node@22
+  language: typescript
+  styling:
+    - tailwind@4
+    - shadcn/ui  # optional, can integrate
+  content: "astro:content (Content Collections + Zod)"
+  integrations:
+    - "@astrojs/react"  # optional
+    - "@astrojs/sitemap"
+    - "@astrojs/mdx"
+  deploy:
+    - vercel  # or cloudflare, netlify, static host
+
+detect:
+  package_json:
+    dependencies:
+      - astro
+    files:
+      - astro.config.mjs
+
+conventions:
+  zero_js_default: true
+  content_collections: Zod schemas (type-safe)
+  images: "astro:assets Image component (automatic optimization)"
+  view_transitions: default enabled
+  server_islands: for dynamic fragments in static pages
+
+structure:
+  - src/content/          # content collections (blog, projects)
+  - src/content/config.ts # Zod schemas
+  - src/pages/            # file-based routing
+  - src/components/       # .astro / .tsx
+  - src/layouts/
+  - src/styles/
+  - public/
+  - astro.config.mjs
+
+agents:
+  - code-reviewer
+  - design-checker
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - content-collection-audit
+  - image-optimization-check
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+
+initial_sprint:
+  phase_1: Foundation (Astro init, Tailwind, typography)
+  phase_2: Content schema + first collection (blog or projects)
+  phase_3: Layouts + components
+  phase_4: Navigation + sitemap + SEO
+  phase_5: Deploy
+
+research_topics:
+  - "Astro 5 Content Layer API patterns 2026"
+  - "Astro Server Islands vs Next.js RSC"
+  - "Astro View Transitions best practices"

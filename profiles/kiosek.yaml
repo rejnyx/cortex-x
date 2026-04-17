@@ -1,0 +1,77 @@
+name: kiosek
+description: Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout
+version: 1.0.0
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  styling:
+    - tailwind@4
+    - shadcn/ui
+  offline:
+    - dexie@4      # IndexedDB wrapper
+    - workbox@7    # service worker
+  sync:
+    - websocket    # live order sync to kitchen
+  deploy: vercel   # or self-hosted on-site
+
+detect:
+  package_json:
+    dependencies:
+      - dexie
+      - next
+    files:
+      - public/sw.js
+
+conventions:
+  ui: touch-first (min 64px tap targets, no hover)
+  offline_first: true
+  mutation_queue: Dexie-backed, retry on reconnect
+  optimistic_ui: always
+  idle_timeout: 60s → reset cart
+  no_text_inputs: unless absolutely necessary
+  multi_tab_safety: Navigator.locks API
+
+structure:
+  - src/app/(kiosk)/       # customer-facing, no auth
+  - src/app/(admin)/       # menu management, auth-gated
+  - src/lib/offline/       # Dexie schemas, sync queue
+  - src/lib/sync/          # websocket client
+  - src/components/touch/  # touch-optimized primitives
+  - public/sw.js           # Workbox-generated
+
+agents:
+  - code-reviewer
+  - design-checker     # touch UI + accessibility
+  - test-writer        # E2E on actual touch devices
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - touch-target-audit    # validates 64px minimums
+  - offline-flow-check    # validates mutation queue
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Foundation (PWA, service worker, Dexie setup)
+  phase_2: Menu browsing (offline-first)
+  phase_3: Cart + checkout (offline mutations)
+  phase_4: Live sync to kitchen
+  phase_5: Admin menu management
+  phase_6: Deploy + idle timeout + safety
+
+research_topics:
+  - "PWA offline-first patterns 2026 restaurant"
+  - "Dexie vs native IndexedDB 2026"
+  - "Workbox 7 background sync periodic sync"
+  - "Touch UI accessibility WCAG 2.2"

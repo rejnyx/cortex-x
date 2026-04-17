@@ -1,0 +1,76 @@
+name: tauri-desktop
+description: Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets
+version: 1.0.0
+
+stack:
+  frontend:
+    framework: react@19.2  # or svelte, vue
+    language: typescript
+    styling:
+      - tailwind@4
+      - shadcn/ui
+  backend:
+    framework: tauri@2
+    language: rust
+  build: vite@6
+  distribution:
+    - windows (msi, exe)
+    - macos (dmg, app)
+    - linux (deb, appimage)
+    - ios (iOS 13+, Tauri 2)
+    - android (Android 7+, Tauri 2)
+
+detect:
+  files:
+    - src-tauri/tauri.conf.json
+    - src-tauri/Cargo.toml
+
+conventions:
+  rust_backend: native capabilities in Rust
+  frontend_ipc: invoke() from @tauri-apps/api
+  security: allowlist-based capabilities (declarative in tauri.conf.json)
+  bundle_size: keep frontend lean (Tauri wins on size)
+  webview: WebView2 (Windows), WKWebView (macOS/iOS), WebKit (Linux/Android)
+
+structure:
+  - src/                      # frontend (React/TS)
+  - src-tauri/src/            # Rust backend
+  - src-tauri/tauri.conf.json
+  - src-tauri/capabilities/
+  - public/
+
+agents:
+  - code-reviewer
+  - security-checker     # Tauri capabilities audit
+  - architecture-guard   # IPC boundary enforcement
+  - test-writer
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - capability-audit     # checks Tauri capabilities are minimal
+  - bundle-size-check
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Foundation (Tauri 2 init, basic window, IPC)
+  phase_2: Frontend UI (first screens)
+  phase_3: Backend commands (Rust)
+  phase_4: Platform features (tray, notifications, auto-updater)
+  phase_5: Code signing + distribution setup
+  phase_6: Release first version
+
+research_topics:
+  - "Tauri 2 vs Electron 2026 decision matrix"
+  - "Tauri 2 mobile targets iOS Android"
+  - "Tauri capabilities security model"
+  - "Code signing macOS Windows automation"

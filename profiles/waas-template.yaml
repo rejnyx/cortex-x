@@ -1,0 +1,79 @@
+name: waas-template
+description: Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization
+version: 1.0.0
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  styling:
+    - tailwind@4
+    - shadcn/ui
+    - motion@12
+    - gsap@3.13
+  cms: payload@3  # or sanity@3
+  deploy: vercel
+  domains: multi-tenant (host-based routing via middleware)
+  testing:
+    unit: vitest
+    e2e: playwright
+
+detect:
+  package_json:
+    dependencies:
+      - next
+      - gsap
+    patterns:
+      - "themes/*/tokens.css"
+      - "content/*.json"
+
+conventions:
+  color_system: oklch
+  theming: css-first (tailwind 4 @theme inline)
+  tenant_resolution: middleware host header
+  typescript_strict: true
+  animation: motion (react), gsap (scroll/timeline)
+
+structure:
+  - src/app/[tenant]/
+  - src/themes/
+  - src/components/sections/  # hero, about, services, testimonials, contact
+  - src/components/ui/
+  - src/content/              # tenant configs
+  - src/lib/tenant/
+  - src/middleware.ts
+  - public/assets/
+
+agents:
+  - code-reviewer
+  - design-checker
+  - test-writer
+  - doc-updater
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - template-snapshot  # snapshot current template state per-tenant
+  - design-system-audit
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security
+
+initial_sprint:
+  phase_1: Design system (tokens, presets, component library)
+  phase_2: Template sections (hero, services, testimonials, contact)
+  phase_3: Multi-tenant infrastructure (middleware, CMS, domains)
+  phase_4: Content editor (CMS integration)
+  phase_5: Deploy + first client
+
+research_topics:
+  - "Next.js 16 multi-tenant host routing 2026"
+  - "Tailwind 4 CSS-first theming per-tenant"
+  - "Payload CMS 3 multi-tenant patterns"
+  - "GSAP + Motion coexistence Next.js 16"
