@@ -40,6 +40,7 @@ Only metadata: timestamps, tool names, durations, success/failure, short summari
 - **PreToolUse hook** (`shared/hooks/pre-tool-use.cjs`) records start timestamp per tool call to `os.tmpdir()` — used purely to compute `duration_ms`.
 - **PostToolUse hook** (`shared/hooks/post-tool-use.cjs`) appends one JSONL entry per tool call, paired with the pre-hook's timestamp. Writes to `{cortex_root}/journal/YYYY-MM-DD-<project-slug>.jsonl`.
 - **Silent by design:** if cortex-x isn't installed (no `~/cortex-x`, no `~/Desktop/APPs/cortex-x`), hooks silently no-op. Never blocks Claude's flow.
+- **Failure observability:** when hooks catch an internal error they append one line to `{cortex_root}/.hook-errors.log` (mode 0600, self-rotating at 16KB → 4KB tail). Check this file if journal stops populating. Gitignored via global `*.log`.
 
 ### Redaction guarantees (enforced in post-tool-use.cjs)
 

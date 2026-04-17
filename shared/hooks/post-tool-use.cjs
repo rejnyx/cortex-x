@@ -16,6 +16,29 @@ const crypto = require('crypto');
 
 const CWD = process.cwd();
 
+// ---- Silent error log (observability for catch-swallowed failures) ----
+// Writes one line to {cortex_root}/.hook-errors.log on caught failures.
+// Rotates: truncates to last ~4KB when file exceeds 16KB. Never throws.
+const ERRLOG_MAX = 16 * 1024;
+const ERRLOG_KEEP = 4 * 1024;
+function logErr(cortexRoot, where, err) {
+  if (!cortexRoot) return;
+  try {
+    const file = path.join(cortexRoot, '.hook-errors.log');
+    try {
+      const st = fs.statSync(file);
+      if (st.size > ERRLOG_MAX) {
+        const buf = fs.readFileSync(file);
+        const tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        fs.writeFileSync(file, tail, { mode: 0o600 });
+      }
+    } catch {}
+    const msg = err && err.message ? err.message : String(err);
+    const line = `${new Date().toISOString()} [post-tool-use] ${where}: ${msg.slice(0, 300)}\n`;
+    fs.appendFileSync(file, line, { mode: 0o600 });
+  } catch {}
+}
+
 // ---- cortex-x location (mirrors session-start.cjs candidates) ----
 function resolveCortexRoot() {
   const candidates = [
@@ -285,9 +308,14 @@ process.stdin.on('end', () => {
     const dd = String(now.getUTCDate()).padStart(2, '0');
     const journalFile = path.join(journalDir, `${yyyy}-${mm}-${dd}-${slug}.jsonl`);
 
-    secureAppend(journalFile, JSON.stringify(entry) + '\n');
+    try {
+      secureAppend(journalFile, JSON.stringify(entry) + '\n');
+    } catch (e) {
+      logErr(cortexRoot, 'secureAppend', e);
+    }
     process.exit(0);
-  } catch {
+  } catch (e) {
+    try { logErr(resolveCortexRoot(), 'main', e); } catch {}
     process.exit(0);
   }
 });
