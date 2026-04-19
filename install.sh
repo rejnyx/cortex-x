@@ -80,11 +80,18 @@ fi
 
 mkdir -p "$CLAUDE_HOME/shared"
 
-# Copy shared content (hooks, skills, agents, standards)
+# Copy shared content (hooks, skills, agents, standards, prompts, review agents)
 cp -r "$CORTEX_ROOT/shared/." "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/standards" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/templates" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/profiles" "$CLAUDE_HOME/shared/"
+cp -r "$CORTEX_ROOT/prompts" "$CLAUDE_HOME/shared/"
+cp -r "$CORTEX_ROOT/agents" "$CLAUDE_HOME/shared/"
+
+# Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
+# Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
+# stay in source and need an absolute path baked into scaffolded files.
+printf 'cortex_source: %s\n' "$CORTEX_ROOT" > "$CLAUDE_HOME/shared/cortex-source.yaml"
 
 echo "Done."
 echo

@@ -88,6 +88,25 @@ ls -la ~/cortex-x/projects/
 - [ ] `research/` directory exists
 - [ ] No research file older than 6 months (research rots)
 
+**Auto-prune action (when stale research found):**
+Research files older than 6 months are archived, not silently kept. Run:
+
+```bash
+# macOS/Linux
+find "$CORTEX_HOME/research" -maxdepth 1 -name '*.md' -type f -mtime +180 \
+  -exec sh -c 'mkdir -p "$(dirname "$1")/archive/$(date -r "$1" +%Y)" && mv "$1" "$(dirname "$1")/archive/$(date -r "$1" +%Y)/"' _ {} \;
+
+# Windows PowerShell
+Get-ChildItem "$env:CORTEX_HOME\research\*.md" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-180) } | ForEach-Object {
+  $year = $_.LastWriteTime.Year
+  $dst = Join-Path $_.DirectoryName "archive\$year"
+  New-Item -ItemType Directory -Path $dst -Force | Out-Null
+  Move-Item $_.FullName $dst
+}
+```
+
+Archive (not delete) because stale research still has historical value for `cortex-reflect` / `cortex-evolve` retrospectives — just shouldn't be cited as current in new scaffolds. Doctor prompts user before running the prune (never silent delete).
+
 ### 10. Session-start hook liveness
 
 Run a test: check if `node ~/cortex-x/shared/hooks/session-start.cjs` outputs valid JSON when run from any project directory.
@@ -103,11 +122,33 @@ Run a test: check if `node ~/cortex-x/shared/hooks/session-start.cjs` outputs va
 - [ ] `install.ps1` exists
 - [ ] No hardcoded paths (should use `os.homedir()`, `$HOME`, `$PSScriptRoot`)
 
-### 12. Audit scheduling
+### 12. Scaffolded project cross-refs resolve
+
+For each scaffolded project's `CLAUDE.md` (discoverable via `git log`/user-told paths), verify that every `~/.claude/shared/...` and `<cortex_source>/...` path reference actually resolves on disk. Old scaffolds from before the 2026-04-19 path-fix may contain `~/cortex-x/` refs that are **broken** (that path never existed on the filesystem).
+
+**How to check (for a given project path `$P`):**
+```bash
+# 1. Extract path refs from the scaffolded CLAUDE.md
+grep -oE '(~/\.claude/shared/[^`]+|~/cortex-x/[^`]+)' "$P/CLAUDE.md" | sort -u
+
+# 2. For each, resolve and test existence.
+#    `~/cortex-x/...` = known-broken → flag for re-render.
+#    `~/.claude/shared/...` = should exist after install.
+```
+
+- [ ] No scaffolded `CLAUDE.md` contains `~/cortex-x/` (legacy broken prefix)
+- [ ] All `~/.claude/shared/*` refs resolve (warn if missing → suggest `install.sh`)
+- [ ] All absolute-path refs to source dirs exist (warn if dir moved → suggest re-anchor)
+
+**Fix when broken:** re-render scaffolded `CLAUDE.md` from current template with project-specific data preserved (or patch in-place — Claude can do section-by-section Edit).
+
+### 13. Audit scheduling
 
 - [ ] `docs/3-month-audit.md` exists
 - [ ] Audit date is in future (not overdue)
 - [ ] If overdue: 🟡 suggest running audit NOW
+
+**Note — renumbering:** pre-2026-04-19 the Audit scheduling section was #12. Now #13 (#12 is Scaffolded project cross-refs). Reports from older doctor runs may show the old numbering; treat as informational.
 
 ## Output format
 
