@@ -132,11 +132,13 @@ echo
 
 echo "Hooks copied to ~/.claude/shared/hooks/:"
 echo "  block-destructive.cjs   (PreToolUse matcher:Bash)"
-echo "  session-start.cjs       (SessionStart)"
+echo "  session-start.cjs       (SessionStart — also surfaces recent budget)"
 echo "  pre-compact.cjs         (PreCompact)"
 echo "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
-echo "  post-tool-use.cjs       (PostToolUse all tools — journal writer)"
+echo "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
+echo "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
 echo "  _lib/redact.cjs         (shared secret-scrubbing library)"
+echo "  _lib/budget.cjs         (shared token-cost tracking library)"
 echo
 echo "Register them in ~/.claude/settings.json under \"hooks\". Example snippet:"
 cat <<'JSON'
@@ -147,8 +149,13 @@ cat <<'JSON'
   ],
   "PostToolUse": [
     { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+  ],
+  "UserPromptSubmit": [
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"","timeout":3}] }
   ]
 JSON
+echo
+echo "Budget cap: set CORTEX_SESSION_BUDGET_USD (default \$5.00). Spend log: \$CORTEX_HOME/journal/.budget.jsonl"
 echo
 echo "Journal will be written to: $CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl"
 echo "See journal/README.md for schema + privacy contract."
