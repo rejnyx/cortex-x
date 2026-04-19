@@ -1,6 +1,11 @@
 name: kiosek
 description: Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout
-version: 1.0.0
+version: 1.1.0
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+# Offline-first kiosk: AI is rare (maybe voice order). Default off, opt in per deployment.
+ai_sdk: none
+ai_sdk_web: null
 
 stack:
   framework: next@16

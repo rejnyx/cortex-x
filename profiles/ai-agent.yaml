@@ -1,6 +1,11 @@
 name: ai-agent
-description: Autonomous multi-step AI agent — Vercel AI SDK v6, tool chaining, three-layer memory, MCP integration
-version: 1.0.0
+description: Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration
+version: 1.1.0
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+# Two-SDK topology: autonomy tier + web tier
+ai_sdk: claude-agent    # autonomy tier: filesystem/shell, Skills, MCP, subagents
+ai_sdk_web: vercel      # web tier (if chat UI exposed): streaming SSE
 
 stack:
   framework: next@16

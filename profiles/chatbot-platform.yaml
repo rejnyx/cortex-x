@@ -1,6 +1,10 @@
 name: chatbot-platform
 description: Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator
-version: 1.0.0
+version: 1.1.0
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+ai_sdk: vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility
+ai_sdk_web: null        # single-SDK topology (orchestrator runs in-process)
 
 stack:
   framework: next@16
