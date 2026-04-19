@@ -10,11 +10,13 @@ Orchestrate 5 parallel review agents on the current diff. Each has different con
 
 | Agent | Context access | Catches |
 |-------|----------------|---------|
-| **blind-hunter** | Diff ONLY — no project access | Obvious bugs, typos, logic errors |
+| **blind-hunter** | Diff ONLY — no project access | Obvious bugs + Rule 1.5 §2/§3 violations (Simplicity, Surgical Changes) visible in diff |
 | **edge-case-hunter** | Diff + project read | Unhandled edge cases, boundary conditions |
-| **acceptance-auditor** | Diff + PROGRESS.md + specs | Spec drift, scope creep |
+| **acceptance-auditor** | Diff + PROGRESS.md + specs | Spec drift, scope creep (cite Rule 1.5 §3) |
 | **security-auditor** | Diff + standards/security.md | 8-layer defense regressions |
 | **ssot-enforcer** | Diff + config/ + constants | Duplicated constants, labels, schemas |
+
+Every agent should cite the relevant standard when flagging — including [`standards/coding-behavior.md`](../standards/coding-behavior.md) principle numbers (1-4) for behavioral findings.
 
 The DIFFERENTIATED context is the killer feature. Blind Hunter catches bugs that contextual reviewers rationalize away ("oh, that's probably handled elsewhere"). Acceptance Auditor catches drift that security reviewer ignores.
 

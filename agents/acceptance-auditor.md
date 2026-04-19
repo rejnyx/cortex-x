@@ -19,10 +19,11 @@ tools:
 
 ## Audit checklist
 
-### 1. Scope match
+### 1. Scope match — Surgical Changes (Rule 1.5 §3)
 - [ ] Every acceptance criterion has corresponding code/test
 - [ ] No criterion is silently dropped
-- [ ] No unrelated features added (scope creep)
+- [ ] No unrelated features added (scope creep) — cite `standards/coding-behavior.md §3` when flagging
+- [ ] No drive-by refactoring in untouched code — a hunk without a mapped task requirement is a violation
 
 ### 2. Behavior match
 - [ ] Code does what story describes (not just resembles it)

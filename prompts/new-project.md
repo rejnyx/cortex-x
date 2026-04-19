@@ -23,6 +23,8 @@ Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (s
 
 ## Phase 1 — Discovery (6 otázek, česky, konverzační)
 
+> **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](../standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask. The six questions below ARE this principle at bootstrap time.
+
 **Opener:**
 > "Pojď si to rozmyslet. Projdu tě 6 otázkama — když na něco neznáš odpověď, řekni 'nevím' a jedu dál. Když už víš všechno a chceš scaffoldovat, napiš **skip** a přeskočím na konec."
 
