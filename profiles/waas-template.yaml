@@ -1,6 +1,11 @@
 name: waas-template
 description: Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization
-version: 1.0.0
+version: 1.1.0
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+# Marketing sites don't usually ship AI, but scaffold agentic-ready (reserve /api/chat).
+ai_sdk: vercel          # ready for per-tenant AI features (chatbots, copy gen)
+ai_sdk_web: null
 
 stack:
   framework: next@16

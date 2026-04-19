@@ -2,6 +2,8 @@
 
 > Every cortex-x project defaults to **AI-agentic-ready architecture**. Even if MVP doesn't ship AI features, the structure must allow plugging in AI later without architectural refactor. This is the 2026 baseline — retrofitting agentic patterns into a CRUD codebase is 10x harder than building them in from day 1.
 
+> **Sibling standard:** [`ai-sdks.md`](./ai-sdks.md) — which SDK (Vercel AI SDK / Claude Agent SDK / OpenAI Agents SDK) to pick per profile. The patterns below are **SDK-agnostic**; the sibling standard covers SDK-specific idioms.
+
 ## Philosophy
 
 **Agentic-ready by default, agentic-heavy by intent.**
@@ -178,6 +180,25 @@ Tools: `promptfoo`, `braintrust`, custom Vitest setup.
 | **AI-powered feature in existing app** | 1, 6, 7, 9 | 3, 5, 10 |
 | **Static blog / portfolio** | — | — (skip) |
 | **Kiosek / offline tool** | 1 (if any AI), 6, 7 | — |
+
+## Pattern implementation per SDK
+
+These 10 patterns are SDK-agnostic — the concepts apply everywhere. Idioms differ. Use the matrix to pick the right primitive once your profile's `ai_sdk` is set (see [`ai-sdks.md`](./ai-sdks.md)).
+
+| Pattern | Vercel AI SDK (`vercel`) | Claude Agent SDK (`claude-agent`) | OpenAI Agents SDK (`openai-agents`) |
+|---|---|---|---|
+| 1. safe-tool wrapper | Wrap `tool()` from `ai` | Wrap custom tools (built-ins are already safe) | Wrap `@function_tool` |
+| 2. Three-layer memory | BYO (pgvector + markdown) | Layer 1 via Skills + `CLAUDE.md`; Layer 2 BYO | BYO; AGENTS.md for Layer 1 hint |
+| 3. LEGO tools | One file per `tool()` | One file per tool; expose via MCP | One file per `@function_tool` |
+| 4. Chat Completions > Responses | N/A (SDK picks) | N/A (Claude native) | **Enforce** — use Chat Completions endpoint for gpt-5.x |
+| 5. stopWhen + step budget | `stopWhen: stepCountIs(8)` | `max_turns` option in `query()` | `max_turns` in `Runner.run()` |
+| 6. Prompt injection defense | System prompt + Zod validation | System prompt + `PreToolUse` hook validator | System prompt + guardrails |
+| 7. Cost guards | Middleware before `streamText` | `PreToolUse` hook + `get_context_usage()` budgets | Track `RunResult.usage` per user |
+| 8. MCP portability | Via `experimental_mcpClient` | **First-class** (`mcpServers` option in `query()`) | Supported via bridge |
+| 9. Streaming | `result.toDataStreamResponse()` | Async iterator over `query()` messages | `Runner.run_streamed()` |
+| 10. Eval suite | promptfoo / braintrust / Vitest | Same + Anthropic eval API | Same + OpenAI evals |
+
+**Rule of thumb:** Pick the SDK first (via [`ai-sdks.md`](./ai-sdks.md) decision tree), then read the matching column top-to-bottom for your implementation checklist.
 
 ## Agentic-ready structure (even without AI at MVP)
 

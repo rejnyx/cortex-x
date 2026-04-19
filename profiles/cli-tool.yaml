@@ -1,6 +1,11 @@
 name: cli-tool
 description: Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform
-version: 1.0.0
+version: 1.1.0
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+# Default: no AI. If CLI is AI-primary (e.g. codegen, research), override to claude-agent
+ai_sdk: none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs.
+ai_sdk_web: null
 
 stack:
   runtime: node@22
