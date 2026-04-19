@@ -1,6 +1,6 @@
 # Cortex Evolve — Self-Improvement Loop
 
-> **Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč the user's projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, the user review-uje.
+> **Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč uživatelovými projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, uživatel reviewuje.
 >
 > **Kdy spustit:** manuálně přes `paste this prompt`, nebo auto přes cron (až bude Vercel deployment hotový).
 > **Režim:** arg `daily` / `weekly` / `monthly` (default: `weekly`).
@@ -221,7 +221,7 @@ If `today >= config.audit.first_audit_date` AND last audit > 90 days ago:
   - Profiles never scaffolded
   - Insights never acted on
 
-the user uses this to prune.
+The user uses this to prune.
 
 ---
 

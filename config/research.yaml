@@ -10,7 +10,7 @@ version: 1.0.0
 # TRIGGERS — kdy auto-research spustit
 # =============================================================================
 # Research se spouští AUTOMATICKY pokud splněn aspoň 1 trigger.
-# the user může explicitně vypnout přes `--no-research` v promptu.
+# uživatel může explicitně vypnout přes `--no-research` v promptu.
 triggers:
   - name: new_project_bootstrap
     when: prompts/new-project.md is being used

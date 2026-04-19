@@ -11,9 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { redact, truncate, singleLine } = require('./_lib/redact.cjs');
 
-// ---- Silent error log (mirrors post-tool-use.cjs logErr; Rule of Three =
-// extract when a 3rd hook needs this). Self-rotating at 16KB → 4KB tail.
+// ---- Silent error log (mirrors post-tool-use.cjs, shares redact lib) ----
 const ERRLOG_MAX = 16 * 1024;
 const ERRLOG_KEEP = 4 * 1024;
 function logErr(cortexRoot, where, err) {
@@ -24,17 +24,24 @@ function logErr(cortexRoot, where, err) {
       const st = fs.statSync(file);
       if (st.size > ERRLOG_MAX) {
         const buf = fs.readFileSync(file);
-        const tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        let tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        const nl = tail.indexOf('\n');
+        if (nl >= 0 && nl < tail.length - 1) tail = tail.slice(nl + 1);
         fs.writeFileSync(file, tail, { mode: 0o600 });
       }
     } catch {}
-    const msg = err && err.message ? err.message : String(err);
-    const line = `${new Date().toISOString()} [pre-tool-use] ${where}: ${msg.slice(0, 300)}\n`;
+    const raw = err && err.message ? err.message : String(err);
+    const safe = truncate(redact(singleLine(raw)), 300);
+    const line = `${new Date().toISOString()} [pre-tool-use] ${where}: ${safe}\n`;
     fs.appendFileSync(file, line, { mode: 0o600 });
   } catch {}
 }
 
 function resolveCortexRoot() {
+  const envHome = process.env.CORTEX_HOME;
+  if (envHome) {
+    try { if (fs.statSync(envHome).isDirectory()) return envHome; } catch {}
+  }
   const candidates = [
     path.join(os.homedir(), 'cortex-x'),
     path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x'),
@@ -52,7 +59,7 @@ function hashSessionId(sessionId) {
 }
 
 let input = '';
-const MAX_INPUT = 64 * 1024; // pre-hook doesn't need tool_response, so smaller cap
+const MAX_INPUT = 64 * 1024;
 process.stdin.setEncoding('utf8');
 process.stdin.on('error', () => process.exit(0));
 process.stdin.on('data', chunk => {
@@ -65,24 +72,20 @@ process.stdin.on('end', () => {
     const toolName = data.tool_name || data.toolName || '';
     if (!toolName) { process.exit(0); return; }
 
-    // Match post-hook's silent-no-op guarantee: skip if cortex-x not installed
     if (!resolveCortexRoot()) { process.exit(0); return; }
 
     const sessionHash = hashSessionId(data.session_id || data.sessionId || '');
-    if (!sessionHash) { process.exit(0); return; } // no session ID → can't correlate anyway
+    if (!sessionHash) { process.exit(0); return; }
 
     const stateFile = path.join(os.tmpdir(), `cortex-pending-${sessionHash}.jsonl`);
     const line = JSON.stringify({ ts: Date.now(), tool: toolName }) + '\n';
 
-    // O_NOFOLLOW on Unix blocks symlink attacks; ignored on Windows.
-    // O_APPEND gives atomic append on POSIX; Windows FILE_APPEND_DATA also atomic.
     const noFollow = fs.constants.O_NOFOLLOW || 0;
     const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | noFollow;
     let fd;
     try {
       fd = fs.openSync(stateFile, flags, 0o600);
     } catch {
-      // ELOOP or EPERM from O_NOFOLLOW → assume attack or stale symlink; abort silently
       process.exit(0);
       return;
     }

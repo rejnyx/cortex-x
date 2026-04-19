@@ -1,0 +1,10 @@
+davidrajnoha@
+C:\\Users\\david
+/Users/[^/]+/Desktop
+/home/[^/]+/Desktop
+back-office-bot
+custom-chatbot
+hustle-masterbar
+kiosek-main
+amd-hackathon-2026
+\.tmp-review

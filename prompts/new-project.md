@@ -6,11 +6,11 @@
 
 ## Your task
 
-the user začíná nový projekt. Tvá práce: **nejdřív porozumět co chce stavět, pak research, pak teprve scaffold**. Nikdy neskakuj přímo do scaffoldu bez discovery (pokud the user explicitně neřekne `skip`).
+Uživatel začíná nový projekt. Tvá práce: **nejdřív porozumět co chce stavět, pak research, pak teprve scaffold**. Nikdy neskakuj přímo do scaffoldu bez discovery (pokud uživatel explicitně neřekne `skip`).
 
 ## Režimy (auto-detect)
 
-**BAIL → QUICK SCAFFOLD** (když the user už ví všechno):
+**BAIL → QUICK SCAFFOLD** (když uživatel už ví všechno):
 - Initial message obsahuje název + popis + profil ("3 questions answered")
 - Nebo obsahuje slovo `skip` / `quick`
 - Nebo initial message má ≥80 slov (the user už promyslel)
@@ -353,7 +353,7 @@ Synthesized artifacts:
 - .claude/hooks/<name>.cjs — "<purpose>" (from research finding: <cite>)
 ```
 
-**the user review-uje: pokud synthesized agent/hook vypadá overengineered → řekne "remove <name>" → smažeš + zapíšeš do `insights/` co nefungovalo (learning material pro příští scaffold).**
+**uživatel reviewuje: pokud synthesized agent/hook vypadá overengineered → řekne "remove <name>" → smažeš + zapíšeš do `insights/` co nefungovalo (learning material pro příští scaffold).**
 
 ---
 
@@ -365,7 +365,7 @@ Synthesized artifacts:
 - **Never skip cortex-x standards** — všechny projekty dědí 11 pillars
 - **Cache research** — re-scan use se vyvaruje duplicitním web callům
 - **Respect SSOT** — CLAUDE.md drží current state, research je pointer ne duplicate
-- **Čeština v Q1-Q6 + proposal** — the user's jazyk
+- **Čeština v Q1-Q6 + proposal** — uživatelův jazyk
 - **Synthesis is evidence-gated** — new agent/hook vzniká POUZE s research citation. No citation = žádná synthesis.
 - **Synthesis budget** — max 3 agenti + 2 hooky navíc k default set. Přes = overengineered.
 

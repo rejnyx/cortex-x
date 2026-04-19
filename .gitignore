@@ -54,5 +54,9 @@ yarn-debug.log*
 module.local.yaml
 .claude/
 
+# Temp review artifacts (diff files, lock files from prior sessions)
+*.diff
+.tmp-*
+
 # Internal design docs referencing maintainer's private projects — not shipped
 /docs/framework-rfc.md
