@@ -161,6 +161,41 @@ try {
   // cortex-x not installed or unreachable — silently skip
 }
 
+// Auto-orchestration: surface recent session budget if .budget.jsonl exists.
+// Helps Dave see at a glance whether yesterday's session was expensive and adjust
+// today's agent-spawning caution accordingly.
+try {
+  const os = require('os');
+  const candidates = [
+    path.join(os.homedir(), 'cortex-x'),
+    path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x'),
+    path.join(os.homedir(), '.cortex-x'),
+  ];
+  const cortexRoot = candidates.find(p => fs.existsSync(p));
+  if (cortexRoot) {
+    const { lastSessionSummary, getCapUsd } = require(
+      path.join(os.homedir(), '.claude', 'shared', 'hooks', '_lib', 'budget.cjs')
+    );
+    const summary = lastSessionSummary(cortexRoot);
+    const cap = getCapUsd();
+    const sessions = Object.entries(summary.totalBySession || {})
+      .sort((a, b) => (b[1].last_ts || '').localeCompare(a[1].last_ts || ''))
+      .slice(0, 3);
+    if (sessions.length > 0) {
+      ctx.push(`\nAuto-orchestration budget (cap $${cap.toFixed(2)}/session):`);
+      for (const [sid, totals] of sessions) {
+        const shortSid = String(sid).slice(0, 8);
+        ctx.push(
+          `  session ${shortSid}: $${totals.cost_usd.toFixed(2)} ` +
+          `(${totals.count} Agent/Task calls, ${totals.tokens.toLocaleString()} tokens)`
+        );
+      }
+    }
+  }
+} catch {
+  // budget.cjs missing or unreadable — silently skip
+}
+
 console.log(JSON.stringify({
   hookSpecificOutput: {
     hookEventName: 'SessionStart',

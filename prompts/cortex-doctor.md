@@ -83,10 +83,17 @@ ls -la ~/cortex-x/projects/
 - [ ] If insights/ has files, they have required frontmatter (date, project, confidence, type)
 - [ ] No orphaned insights (referencing deleted projects)
 
-### 9. Research cache hygiene
+### 9. Research cache hygiene (TTL per topic)
 
 - [ ] `research/` directory exists
-- [ ] No research file older than 6 months (research rots)
+- [ ] Every research file respects its per-topic TTL (see [`standards/auto-orchestration.md`](../standards/auto-orchestration.md) § Research cache TTL):
+  - Hot frameworks (Next, React, Vercel, AI SDKs, Supabase, Tailwind, shadcn, Astro, Tone) → **30 days**
+  - Specific APIs that deprecate often → 60 days
+  - Regulations (tax, GDPR, HIPAA, legal, compliance) → 180 days
+  - Architecture patterns / design principles → 365 days
+  - Default / unclassified → 180 days
+- [ ] Frontmatter `ttl_days: N` override is respected when present
+- [ ] No file older than its effective TTL (warn, don't critical)
 
 **Auto-prune action (when stale research found):**
 Research files older than 6 months are archived, not silently kept. Run:

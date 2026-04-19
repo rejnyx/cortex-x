@@ -129,11 +129,13 @@ Write-Host ""
 
 Write-Host "Hooks copied to ~/.claude/shared/hooks/:"
 Write-Host "  block-destructive.cjs   (PreToolUse matcher:Bash)"
-Write-Host "  session-start.cjs       (SessionStart)"
+Write-Host "  session-start.cjs       (SessionStart — also surfaces recent budget)"
 Write-Host "  pre-compact.cjs         (PreCompact)"
 Write-Host "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
-Write-Host "  post-tool-use.cjs       (PostToolUse all tools — journal writer)"
+Write-Host "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
+Write-Host "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
 Write-Host "  _lib/redact.cjs         (shared secret-scrubbing library)"
+Write-Host "  _lib/budget.cjs         (shared token-cost tracking library)"
 Write-Host ""
 Write-Host "Register them in ~/.claude/settings.json under ""hooks"". Example snippet:"
 @'
@@ -144,8 +146,13 @@ Write-Host "Register them in ~/.claude/settings.json under ""hooks"". Example sn
   ],
   "PostToolUse": [
     { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+  ],
+  "UserPromptSubmit": [
+    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"","timeout":3}] }
   ]
 '@ | Write-Host
+Write-Host ""
+Write-Host "Budget cap: set CORTEX_SESSION_BUDGET_USD (default `$5.00). Spend log: `$CORTEX_HOME/journal/.budget.jsonl"
 Write-Host ""
 Write-Host "Journal will be written to: $CortexRoot/journal/YYYY-MM-DD-<project-slug>.jsonl"
 Write-Host "See journal/README.md for schema + privacy contract."

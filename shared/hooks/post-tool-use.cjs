@@ -14,6 +14,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { redact, truncate, homeStrip, singleLine, validateCortexHome } = require('./_lib/redact.cjs');
+const { recordUsage } = require('./_lib/budget.cjs');
 
 const CWD = process.cwd();
 
@@ -274,6 +275,44 @@ process.stdin.on('end', () => {
     } catch (e) {
       logErr(cortexRoot, 'secureAppend', e);
     }
+
+    // Auto-orchestration budget tracking: append row to .budget.jsonl for any
+    // tool that bills tokens (Agent/Task subagents, WebSearch, WebFetch when
+    // usage metadata is exposed by Claude Code). Fail-silent if no usage
+    // surfaces — the observability layer must never break a session.
+    if (toolName === 'Agent' || toolName === 'Task' || toolName === 'WebSearch' || toolName === 'WebFetch') {
+      try {
+        const tr = data.tool_response || data.toolResponse || {};
+        const usage = tr.usage || tr.token_usage || {};
+        const inputTok =
+          Number(usage.input_tokens) ||
+          Number(usage.prompt_tokens) ||
+          Number(tr.input_tokens) ||
+          0;
+        const outputTok =
+          Number(usage.output_tokens) ||
+          Number(usage.completion_tokens) ||
+          Number(tr.output_tokens) ||
+          0;
+        const totalTok = Number(usage.total_tokens) || Number(tr.total_tokens) || 0;
+        if (inputTok || outputTok || totalTok) {
+          // If only total is exposed, assume 70/30 input/output split
+          // (approximation — Anthropic multi-agent paper cites this as typical).
+          const i = inputTok || Math.round(totalTok * 0.7);
+          const o = outputTok || Math.round(totalTok * 0.3);
+          recordUsage(cortexRoot, {
+            session_id: data.session_id || data.sessionId || 'unknown',
+            model: tr.model || usage.model || 'unknown',
+            input_tokens: i,
+            output_tokens: o,
+            operation: toolName,
+          });
+        }
+      } catch (e) {
+        logErr(cortexRoot, 'recordUsage', e);
+      }
+    }
+
     process.exit(0);
   } catch (e) {
     try { logErr(resolveCortexRoot(), 'main', e); } catch {}
