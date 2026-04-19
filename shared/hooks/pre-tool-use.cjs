@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { redact, truncate, singleLine } = require('./_lib/redact.cjs');
+const { redact, truncate, singleLine, validateCortexHome } = require('./_lib/redact.cjs');
 
 // ---- Silent error log (mirrors post-tool-use.cjs, shares redact lib) ----
 const ERRLOG_MAX = 16 * 1024;
@@ -38,10 +38,8 @@ function logErr(cortexRoot, where, err) {
 }
 
 function resolveCortexRoot() {
-  const envHome = process.env.CORTEX_HOME;
-  if (envHome) {
-    try { if (fs.statSync(envHome).isDirectory()) return envHome; } catch {}
-  }
+  const envHome = validateCortexHome(process.env.CORTEX_HOME);
+  if (envHome) return envHome;
   const candidates = [
     path.join(os.homedir(), 'cortex-x'),
     path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x'),

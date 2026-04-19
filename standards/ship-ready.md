@@ -106,12 +106,18 @@ If telemetry ever lands: explicit opt-in at first run, never default-on. Schema 
 Before any `v*` tag, this command must return zero matches in shipped dirs. The regex **lives in [`config/ship-ready-denylist.txt`](../config/ship-ready-denylist.txt)** so this doc doesn't contain the literal tokens it forbids (which would self-trigger the gate):
 
 ```bash
-# only shipped content, respects gitignore
+# Gate reads shipped (generic) + local (maintainer-specific) denylists.
+# Excludes self-documenting files + maintainer-private dirs.
+DENYLIST=$(mktemp)
+cat config/ship-ready-denylist.txt config/ship-ready-denylist.local.txt 2>/dev/null > "$DENYLIST"
 git ls-files -co --exclude-standard | \
-  grep -vE '^(standards/ship-ready\.md|CHANGELOG\.md|MIGRATIONS\.md|research/|insights/|projects/|journal/)' | \
-  xargs grep -nEf config/ship-ready-denylist.txt \
-  && echo "BLOCK: personal identifier leak" && exit 1
+  grep -vE '^(standards/ship-ready\.md|standards/coding-behavior(-examples)?\.md|config/ship-ready-denylist(\.local)?(\.txt|\.local\.txt\.example)|CHANGELOG\.md|MIGRATIONS\.md|research/|insights/|projects/|journal/)' | \
+  xargs -r grep -nEf "$DENYLIST" \
+  && echo "BLOCK: personal identifier leak" && rm -f "$DENYLIST" && exit 1
+rm -f "$DENYLIST"
 ```
+
+Shipped `config/ship-ready-denylist.txt` contains ONLY generic patterns (no maintainer-specific slugs). Maintainer's real patterns live in the gitignored sibling `config/ship-ready-denylist.local.txt` — copy `config/ship-ready-denylist.local.txt.example` to start.
 
 Exceptions (by design — not leaks):
 - `CLAUDE.md` Identity line may name the framework author if authorship matters to users — but never email, paths, or names of other private projects.
@@ -152,10 +158,11 @@ Weekly mining surfaces ship-ready regressions as priority insights. A new commit
 ## Tier relationship
 
 ```
-Rule 0 — Ship-Ready   (governance — for whom is this code?)
-Rule 1 — SSOT+Modular+Scalable   (technical invariants — is the code fit for purpose?)
-Rule 2 — Security+Testing+Observability   (quality-critical)
-Rule 3 — Process standards   (should-haves)
+Rule 0   — Ship-Ready              (governance — for whom is this code?)
+Rule 1   — SSOT+Modular+Scalable   (technical invariants — is the code fit for purpose?)
+Rule 1.5 — Coding Behavior         (how the LLM produces code — think first, surgical, goal-driven)
+Rule 2   — Security+Testing+Obs    (quality-critical)
+Rule 3   — Process standards       (should-haves)
 ```
 
 Ship-ready doesn't outrank Rule 1 technically — it precedes it. Before we ask "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with a hardcoded maintainer email fails Rule 0 before Rule 1 even runs.
@@ -163,6 +170,19 @@ Ship-ready doesn't outrank Rule 1 technically — it precedes it. Before we ask 
 ---
 
 ## Audit results (2026-04-17, initial pass)
+
+## Known deferred debt (accepted for closed-beta, must resolve before public tag)
+
+Two items identified by the review pipeline are intentionally not fixed in working-tree commits — they require one-time destructive operations or signing infrastructure:
+
+1. **Git history residue.** Commits before 2026-04-19 contain `projects/relo.md` (which names a non-consenting third party), `projects/amd-hackathon-2026.md`, `insights/2026-04-17-amd-retrofit-gaps.md`, `docs/framework-rfc.md` in blob history. Working tree is clean. **Fix before first public `git clone`-able tag:** `git filter-repo --invert-paths --path projects/relo.md --path projects/amd-hackathon-2026.md --path insights/2026-04-17-amd-retrofit-gaps.md --path docs/framework-rfc.md` + force-push (acceptable only because no external clones exist yet). Alternative: squash the repo into a fresh one at v0.0.0-beta.1 tag time.
+
+2. **Signed tags not enforced by install.sh/.ps1.** `CORTEX_CHANNEL=stable` auto-checkouts the highest semver tag. If the maintainer's GitHub account is compromised, a malicious tag ships to every beta tester on stable on their next `install.sh` run. **Fix before tag:** require `git tag -v "$LATEST" || exit 1` in install scripts; document the signing key fingerprint in `SECURITY.md`.
+
+Also flagged but NOT blockers:
+- `.hook-errors.log` mode 0600 is a no-op on Windows. Document in `SECURITY.md` that cortex-x should not be cloned under world-readable paths like `C:\Users\Public\`.
+
+## Audit trail
 
 Initial pass state → final state (2026-04-19):
 

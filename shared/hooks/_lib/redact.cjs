@@ -76,4 +76,36 @@ function singleLine(s) {
   return String(s).replace(/\s+/g, ' ').trim();
 }
 
-module.exports = { SECRET_PATTERNS, redact, truncate, homeStrip, singleLine };
+/**
+ * Validate CORTEX_HOME env var as a trustworthy cortex-x source directory.
+ * Returns canonical path if valid, null otherwise. Defenses:
+ * - Must be an absolute path that exists and is a directory (not a file/symlink-to-file).
+ * - Must contain framework signature file (standards/ship-ready.md) to prevent
+ *   pointing the hook at an attacker-controlled scratch dir.
+ * - Must be inside the current user's $HOME unless CORTEX_HOME_ALLOW_EXTERNAL=1
+ *   is also set (explicit opt-in for unusual layouts).
+ */
+function validateCortexHome(envHome) {
+  if (!envHome) return null;
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+  try {
+    const resolved = path.resolve(envHome);
+    const st = fs.statSync(resolved);
+    if (!st.isDirectory()) return null;
+    // Signature file check — rejects attacker-controlled arbitrary dir
+    if (!fs.existsSync(path.join(resolved, 'standards', 'ship-ready.md'))) return null;
+    // $HOME containment unless explicit opt-out
+    const home = os.homedir();
+    if (home && process.env.CORTEX_HOME_ALLOW_EXTERNAL !== '1') {
+      const homeRes = path.resolve(home);
+      if (!resolved.startsWith(homeRes + path.sep) && resolved !== homeRes) return null;
+    }
+    return resolved;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { SECRET_PATTERNS, redact, truncate, homeStrip, singleLine, validateCortexHome };

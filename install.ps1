@@ -41,11 +41,19 @@ if ((Test-Path $GitDir) -and (-not $env:CORTEX_NO_UPDATE)) {
                 Write-Host "No stable tag found (no v*.*.* yet); staying on current branch."
             }
         } elseif ($Channel -eq "beta") {
-            $Clean = ((git diff --quiet) -and (git diff --cached --quiet))
-            if ($LASTEXITCODE -eq 0) {
-                git fetch --quiet 2>$null
-                git checkout --quiet main 2>$null
+            # Capture each exit code explicitly — `$Clean = ... -and ...` captures stdout, not codes.
+            # Relax ErrorActionPreference around git so non-zero exits from --quiet don't throw.
+            $prevEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Continue"
+            git diff --quiet 2>$null;        $unstagedDirty = $LASTEXITCODE
+            git diff --cached --quiet 2>$null; $stagedDirty   = $LASTEXITCODE
+            if ($unstagedDirty -eq 0 -and $stagedDirty -eq 0) {
+                git fetch --quiet 2>$null | Out-Null
+                git checkout --quiet main 2>$null | Out-Null
+            } else {
+                Write-Host "Local changes detected — skipping beta auto-update. Commit or stash to resume."
             }
+            $ErrorActionPreference = $prevEAP
         }
     } finally { Pop-Location }
 }

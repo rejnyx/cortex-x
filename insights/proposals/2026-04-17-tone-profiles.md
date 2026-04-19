@@ -15,7 +15,7 @@ The maintainer uses a "máma-mode" tone in one project — an explicit style tha
 Web research ([`research/tone-adaptation-2026-04-17.md`](../../research/tone-adaptation-2026-04-17.md)) returned a clear verdict: **industry converged on declarative tone profiles, NOT behavioral inference**. Every major tool (Claude Styles, ChatGPT Custom Instructions, Cursor Rules, Copilot 3-tier) landed there. Auto-inference is the documented failure mode of GPT-4o's April 2025 rollback (sycophancy drift, arXiv 2509.12517).
 
 Without a declarative tone system, cortex-x has:
-- No first-class way for Dave to encode "talk to me like a peer with deep systems knowledge" across all projects at once
+- No first-class way for the maintainer to encode "talk to me like a peer with deep systems knowledge" across all projects at once
 - No mechanism to surface "tone mismatch" signals from journal (e.g. repeated follow-up clarifications)
 - A gap the moment a second user tries cortex-x — they'd have no way to personalize without forking standards
 

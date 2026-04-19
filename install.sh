@@ -32,7 +32,7 @@ echo
 if [ "$CHANNEL" = "stable" ] && [ -z "$CORTEX_NO_UPDATE" ]; then
   if [ -d "$CORTEX_ROOT/.git" ]; then
     cd "$CORTEX_ROOT"
-    git fetch --tags --quiet
+    git fetch --tags --quiet || echo "Warning: git fetch failed (offline?); using local tags."
     LATEST="$(git tag -l 'v*' --sort=-v:refname | grep -vE -- '-(alpha|beta|rc)' | head -1 || true)"
     if [ -n "$LATEST" ]; then
       echo "Checking out stable tag: $LATEST"
@@ -47,10 +47,11 @@ if [ "$CHANNEL" = "stable" ] && [ -z "$CORTEX_NO_UPDATE" ]; then
 elif [ "$CHANNEL" = "beta" ] && [ -z "$CORTEX_NO_UPDATE" ]; then
   if [ -d "$CORTEX_ROOT/.git" ]; then
     cd "$CORTEX_ROOT"
-    # Only fast-forward main if no local changes (safe default).
     if git diff --quiet && git diff --cached --quiet; then
-      git fetch --quiet
+      git fetch --quiet || echo "Warning: git fetch failed (offline?); using local main."
       git checkout --quiet main 2>/dev/null || true
+    else
+      echo "Local changes detected — skipping beta auto-update. Commit or stash to resume."
     fi
     cd - > /dev/null
   fi

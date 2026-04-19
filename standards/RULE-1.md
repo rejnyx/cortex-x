@@ -50,6 +50,7 @@ When two standards conflict or budget is limited, Rule 0 (governance) precedes R
 |---|---|---|---|
 | **Rule 0** | [Ship-Ready](./ship-ready.md) — no personal data in generic code, clear licensing, stranger-reproducible install | Inviolable before any distribution | Pre-ship grep gate + scaffold + evolve priority |
 | **Rule 1** | SSOT, Modular, Scalable | Inviolable | Scaffold validation + ssot-enforcer always-on + PR gate |
+| **Rule 1.5** | [Coding Behavior](./coding-behavior.md) — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution | Behavioral contract | Scaffold + hooks + review pipeline + evolve |
 | **Critical (Rule 2)** | Security, Testing, Observability | Must-have | Review pipeline flag = blocker |
 | **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns | Should-have | Review pipeline flag = warning |
 

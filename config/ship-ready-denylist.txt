@@ -1,10 +1,28 @@
-davidrajnoha@
-C:\\Users\\david
+# Pre-ship grep-gate denylist (regex patterns, one per line).
+# Referenced from standards/ship-ready.md pre-ship gate command.
+#
+# THIS FILE SHIPS. It must contain ONLY generic patterns, never maintainer-
+# specific identifiers. Private slugs/emails go in the gitignored
+# sibling file config/ship-ready-denylist.local.txt — the gate reads both.
+#
+# Forkers: add your personal patterns to the .local.txt sibling; leave this
+# generic file alone unless you're contributing new universal patterns.
+#
+# Format: grep -Ef pattern file. Lines starting with # are IGNORED by grep -f
+# ONLY because this tool treats them as patterns — so every non-regex line
+# here must still parse as "# comment" which will simply match nothing
+# unless someone writes a literal hash. The safe pattern for comments is to
+# start with # and contain no regex metacharacters in the body.
+
+# Windows absolute paths to user-profile dirs (leak surface — any user's dir)
+C:\\Users\\[^\\]+\\Desktop
+C:\\Users\\[^\\]+\\Documents\\APPs
+
+# POSIX home-scoped paths (leak surface — any user's dir)
 /Users/[^/]+/Desktop
+/Users/[^/]+/Documents
 /home/[^/]+/Desktop
-back-office-bot
-custom-chatbot
-hustle-masterbar
-kiosek-main
-amd-hackathon-2026
+/home/[^/]+/Documents
+
+# Temp review artifacts (should never ship regardless of .gitignore)
 \.tmp-review
