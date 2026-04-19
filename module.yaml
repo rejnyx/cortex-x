@@ -41,7 +41,7 @@ config:
 
   # Defaults
   default_profile: nextjs-saas
-  default_license: proprietary
+  default_license: ""        # empty = scaffold prompts user; must NEVER default to "proprietary" (Rule 0)
   default_testing: vitest+playwright
   default_deploy: vercel
 

@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-Před velkými rozhodnutími cortex **automaticky** spouští 2-5 paralelních research agentů, cachuje výsledky do `research/`, a čerpá z cache když je fresh. the user se nemusí ptát. Budget + anti-trigger chrání před noise a cost.
+Před velkými rozhodnutími cortex **automaticky** spouští 2-5 paralelních research agentů, cachuje výsledky do `research/`, a čerpá z cache když je fresh. uživatel se nemusí ptát. Budget + anti-trigger chrání před noise a cost.
 
 ---
 

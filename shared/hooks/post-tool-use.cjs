@@ -13,11 +13,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { redact, truncate, homeStrip, singleLine } = require('./_lib/redact.cjs');
 
 const CWD = process.cwd();
 
 // ---- Silent error log (observability for catch-swallowed failures) ----
-// Writes one line to {cortex_root}/.hook-errors.log on caught failures.
+// Writes one redacted line to {cortex_root}/.hook-errors.log on caught failures.
 // Rotates: truncates to last ~4KB when file exceeds 16KB. Never throws.
 const ERRLOG_MAX = 16 * 1024;
 const ERRLOG_KEEP = 4 * 1024;
@@ -29,18 +30,31 @@ function logErr(cortexRoot, where, err) {
       const st = fs.statSync(file);
       if (st.size > ERRLOG_MAX) {
         const buf = fs.readFileSync(file);
-        const tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        // Cut to last KEEP bytes, then advance to next newline so we never
+        // leave a half-line at the top (log parsers expect one entry per line).
+        let tail = buf.slice(Math.max(0, buf.length - ERRLOG_KEEP));
+        const nl = tail.indexOf('\n');
+        if (nl >= 0 && nl < tail.length - 1) tail = tail.slice(nl + 1);
         fs.writeFileSync(file, tail, { mode: 0o600 });
       }
     } catch {}
-    const msg = err && err.message ? err.message : String(err);
-    const line = `${new Date().toISOString()} [post-tool-use] ${where}: ${msg.slice(0, 300)}\n`;
+    const raw = err && err.message ? err.message : String(err);
+    // CRITICAL: redact before writing — error messages from JSON.parse etc.
+    // can contain raw tool_input with Bearer tokens, passwords, provider keys.
+    const safe = truncate(redact(singleLine(raw)), 300);
+    const line = `${new Date().toISOString()} [post-tool-use] ${where}: ${safe}\n`;
     fs.appendFileSync(file, line, { mode: 0o600 });
   } catch {}
 }
 
-// ---- cortex-x location (mirrors session-start.cjs candidates) ----
+// ---- cortex-x location ----
+// CORTEX_HOME env var honored first (ship-ready.md env var table);
+// then the canonical candidate list.
 function resolveCortexRoot() {
+  const envHome = process.env.CORTEX_HOME;
+  if (envHome) {
+    try { if (fs.statSync(envHome).isDirectory()) return envHome; } catch {}
+  }
   const candidates = [
     path.join(os.homedir(), 'cortex-x'),
     path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x'),
@@ -70,57 +84,6 @@ function getProjectSlug() {
     if (pkg && typeof pkg.name === 'string') return slugify(pkg.name);
   } catch {}
   return slugify(path.basename(CWD));
-}
-
-// ---- Redaction ----
-// Order matters: scheme-prefix tokens (Bearer/Basic/etc.) first so the value gets scrubbed
-// before the generic keyword pattern consumes just the scheme word.
-const SECRET_PATTERNS = [
-  // HTTP auth schemes — value after the scheme is the secret
-  [/\b(Bearer|Basic|Digest|Token|JWT)\s+[A-Za-z0-9._~+/=:-]{8,}/gi, '$1 <redacted>'],
-  // curl -u user:pass / --user user:pass (word-boundary doesn't fire before `-`)
-  [/((?:^|\s)-u\s+|(?:^|\s)--user[\s=]+)[^\s:]+:[^\s]+/g, '$1<redacted>'],
-  // URLs with inline credentials (postgres/mysql/mongo/redis/http(s)).
-  // Greedy `[^\s]+@` backs off to the LAST @ so passwords containing @ still get caught.
-  [/(\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|https?):\/\/[^:\s/@]+):[^\s]+@/g, '$1:<redacted>@'],
-  // URL query-string secrets
-  [/([?&](?:access[_-]?token|api[_-]?token|api[_-]?key|auth[_-]?token|authorization|secret|password)=)[^&\s"']+/gi, '$1<redacted>'],
-  // Known provider key shapes
-  [/\bsk-(?:ant-)?[a-zA-Z0-9_-]{20,}/g, '<redacted>'],
-  [/\b(sk|rk|pk)_(live|test)_[A-Za-z0-9]{16,}/g, '<redacted>'],
-  [/\b(AKIA|ASIA|ANPA|AIDA|AROA|AIPA|ABIA|ACCA)[0-9A-Z]{16}\b/g, '<redacted>'],
-  [/\bAIza[0-9A-Za-z_-]{35}\b/g, '<redacted>'],
-  [/\bghp_[a-zA-Z0-9]{20,}/g, '<redacted>'],
-  [/\bghs_[a-zA-Z0-9]{20,}/g, '<redacted>'],
-  [/\bxox[baprs]-[a-zA-Z0-9-]{10,}/g, '<redacted>'],
-  [/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, '<redacted>'],
-  // Generic keyword=value (after scheme patterns above, so Bearer/Basic already handled)
-  // Excluded from keyword list: `pwd` (collides with shell command)
-  [/\b(password|passwd|token|secret|api[-_]?key|authorization)[\s:=]+["']?([^\s"'&]+)/gi, '$1=<redacted>'],
-];
-
-function redact(str) {
-  if (!str) return '';
-  let out = String(str);
-  // URL-decode once so %3D-encoded secrets get caught
-  try { out = decodeURIComponent(out); } catch {}
-  for (const [re, repl] of SECRET_PATTERNS) {
-    out = out.replace(re, repl);
-  }
-  return out;
-}
-
-function truncate(s, n) {
-  if (!s) return '';
-  s = String(s);
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
-}
-
-function homeStrip(p) {
-  if (!p) return p;
-  const home = os.homedir();
-  if (home && p.startsWith(home)) return '~' + p.slice(home.length);
-  return p;
 }
 
 // ---- Per-tool summary extraction ----
@@ -252,7 +215,6 @@ function readPendingDuration(sessionHash, toolName) {
 
 // ---- Secure append helper (0600 perms on Unix) ----
 function secureAppend(file, data) {
-  // 'a' flag + O_CREAT + mode 0600 — on Windows mode is ignored, behavior falls back to default
   const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND;
   const fd = fs.openSync(file, flags, 0o600);
   try { fs.writeSync(fd, data); } finally { fs.closeSync(fd); }
@@ -283,10 +245,10 @@ process.stdin.on('end', () => {
     const now = new Date();
     const summary = buildSummary(toolName, ti);
     const file = extractFile(toolName, ti);
-
-    // Skip zero-signal entries (unknown tool, no file, ok-true) — pollutes evolve mining
     const ok = detectOk(data);
     const err = extractError(data);
+
+    // Skip zero-signal entries — pollutes evolve mining
     if (!summary && !file && !err && ok !== false) { process.exit(0); return; }
 
     const entry = {

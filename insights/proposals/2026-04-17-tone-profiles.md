@@ -10,7 +10,7 @@ status: pending_review
 
 ## Problem statement
 
-Dave uses "máma-mode" in the AMD hackathon project — an explicit tone that explains concepts using laypeople analogies ("each Node project is a recipe in a cookbook..."). He asked whether cortex-x should **auto-detect** a user's preferred tone from their session behavior and adapt across projects.
+The maintainer uses a "máma-mode" tone in one project — an explicit style that explains concepts through laypeople analogies ("each Node project is a recipe in a cookbook…"). The question arose whether cortex-x should **auto-detect** a user's preferred tone from session behavior and adapt across projects.
 
 Web research ([`research/tone-adaptation-2026-04-17.md`](../../research/tone-adaptation-2026-04-17.md)) returned a clear verdict: **industry converged on declarative tone profiles, NOT behavioral inference**. Every major tool (Claude Styles, ChatGPT Custom Instructions, Cursor Rules, Copilot 3-tier) landed there. Auto-inference is the documented failure mode of GPT-4o's April 2025 rollback (sycophancy drift, arXiv 2509.12517).
 
@@ -56,11 +56,11 @@ Plus `peer.yaml`, `terse.yaml`, `mentor.yaml` at same schema.
 New section under evidence_gates:
 ```yaml
 tone_signals:
-  follow_up_clarification:   # Dave re-asks same question → maybe too terse
+  follow_up_clarification:   # user re-asks same question → maybe too terse
     weight: 0.3
-  correction_rate:            # "ne, ne to, myslím..." → possible style mismatch
+  correction_rate:            # "no, not that, I mean..." → possible style mismatch
     weight: 0.5
-  session_abandonment:        # Dave stops mid-task → investigate
+  session_abandonment:        # user stops mid-task → investigate
     weight: 0.2
 min_mismatch_score: 0.6       # trigger only when strong
 ```
@@ -75,7 +75,7 @@ Content: ~8 lines citing arXiv 2509.12517, Claude Styles docs, explaining why co
 
 ## Expected impact
 
-- **For Dave now:** single line in project CLAUDE.md (`cortex.tone: peer`) replaces ad-hoc tone instructions scattered per-project. Cross-project consistency.
+- **For the maintainer now:** single line in project CLAUDE.md (`cortex.tone: peer`) replaces ad-hoc tone instructions scattered per-project. Cross-project consistency.
 - **For future multi-user cortex-x:** no retraining needed — new user picks a profile. GDPR Art. 22 profiling concern sidestepped (explicit consent via explicit choice).
 - **For evolve loop:** gives the loop a clean low-risk insight type to exercise before graduating to more consequential pattern surfacing.
 
@@ -88,8 +88,8 @@ Trivial: delete `profiles/tone/` directory. No code dependencies — tone profil
 - Journal must be populating (hook landed in this session — needs real usage)
 - Weekly evolve must have run at least once with real data before the `tone_mismatch` miner can be validated
 
-## Acceptance criteria (when Dave reviews)
+## Acceptance criteria (when the maintainer reviews)
 
-- [ ] Does Dave want 4 profiles or more/fewer? (máma/peer/terse/mentor proposed)
+- [ ] 4 profiles or more/fewer? (máma/peer/terse/mentor proposed)
 - [ ] Is `profiles/tone/` the right location, or should it be `config/tone/` (config-like) or `standards/tone/` (normative)?
 - [ ] Should `CLAUDE.md.hbs` template include a commented `cortex.tone: peer` line by default?

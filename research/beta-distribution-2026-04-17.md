@@ -2,7 +2,7 @@
 project: cortex-x
 topic: beta-distribution
 date: 2026-04-17
-trigger: major_decision — Dave plans to ship cortex-x to ~5-20 beta testers. Needs staging/prod architecture + ship-ready blockers.
+trigger: major_decision — the maintainer plans to ship cortex-x to ~5-20 beta testers. Needs staging/prod architecture + ship-ready blockers.
 agents: [competitive, technical, security]
 cache_ttl_days: 180
 cost_estimate: "~$0.25"
@@ -12,13 +12,13 @@ cost_estimate: "~$0.25"
 
 ## Trigger
 
-Dave wants to share cortex-x with a small circle of beta testers (solo devs / friends). No fixed timeline. He explicitly requested "staging and prod phases" and "as little tech debt as possible now so shipping doesn't require rewrite." Research commissioned before writing `standards/ship-ready.md`.
+the maintainer wants to share cortex-x with a small circle of beta testers (solo devs / friends). No fixed timeline. He explicitly requested "staging and prod phases" and "as little tech debt as possible now so shipping doesn't require rewrite." Research commissioned before writing `standards/ship-ready.md`.
 
 ## TL;DR
 
 - **Pattern:** GitHub tagged releases + `--prerelease` flag. One repo, one `main` branch as rolling beta, semver tags `vX.Y.Z` as stable. `install.sh/.ps1` reads `CORTEX_CHANNEL` env var. No npm, no platform, no separate repo.
 - **Biggest risk:** personal identifiers (email, full paths, private project names) leaking into templates/prompts/profiles. They embed on every user's machine permanently after install.
-- **First concrete step:** audit-grep `davidrajnoha@`, `C:\Users\david`, `back-office-bot`, `RELO`, `custom-chatbot`, `hustle-masterbar` across `templates/`, `profiles/`, `standards/`, `prompts/`. Add CI gate.
+- **First concrete step:** audit-grep `davidrajnoha@`, `C:\Users\david`, `project-a`, `project A`, `project-b`, `project-c` across `templates/`, `profiles/`, `standards/`, `prompts/`. Add CI gate.
 
 ## Key findings
 
@@ -56,8 +56,8 @@ Dave wants to share cortex-x with a small circle of beta testers (solo devs / fr
 
 ### 7. Actual ship-ready blockers (not nice-to-have)
 - **LICENSE:** `Proprietary` blocks beta testers legally. Switch to **PolyForm Noncommercial 1.0.0** — SPDX-registered, plain-English, lets testers use it without you granting OSS freedoms ([polyformproject.org](https://polyformproject.org/licenses/))
-- **Grep gate** for `davidrajnoha@gmail.com`, `C:\Users\david`, `Rejnyx`, `RELO`, `back-office-bot`, `custom-chatbot`, `hustle-masterbar` across all shipped dirs
-- **`CONTRIBUTING.md`** stub (even "closed beta, email Dave") — GitHub surfaces a warning without one
+- **Grep gate** for `<maintainer-email>`, `C:\Users\david`, `Rejnyx`, `project A`, `project-a`, `project-b`, `project-c` across all shipped dirs
+- **`CONTRIBUTING.md`** stub (even "closed beta, email the maintainer") — GitHub surfaces a warning without one
 - **`SECURITY.md`** with 1-line disclosure contact
 - **`install.sh`/`.ps1`** must not assume Windows-specific paths — test on macOS
 - **Reserve** `CORTEX_TELEMETRY_DISABLED=1` name in docs so future default-on doesn't surprise users

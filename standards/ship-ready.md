@@ -9,14 +9,14 @@
 ## The three pillars
 
 ### 1. No personal data in generic code
-Anything a stranger would never need to know about Dave must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes:
+Anything a stranger would never need to know about the maintainer must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes:
 
-- Full paths scoped to Dave's machine (`C:\Users\david\...`, `~/Desktop/APPs/cortex-x/`)
+- Full paths scoped to the maintainer's machine (e.g. `<home>/path/to/repo`, absolute Windows paths)
 - Personal email addresses, phone numbers, social handles
-- Project names Dave owns privately (RELO, Chatbot Platform, WaaS template, Kiosek, Portfolio)
+- Project names the maintainer owns privately (their other client or personal projects)
 - Internal URLs (company Slack, private Notion, private GitHub projects)
 
-**Allowed in designated personal files** (gitignored from the shipped bundle): `projects/<slug>.md` entries for Dave's private projects, `insights/<dated>.md` sessions, `journal/*.jsonl`, `research/<slug>-<date>.md` caches, `module.local.yaml` (if adopted).
+**Allowed in designated personal files** (gitignored from the shipped bundle): `projects/<slug>.md` entries for the maintainer's private projects, `insights/<dated>.md` sessions, `journal/*.jsonl`, `research/<slug>-<date>.md` caches, `module.local.yaml` (if adopted).
 
 ### 2. Clear licensing + attribution
 - `LICENSE` names a specific license with SPDX identifier
@@ -81,11 +81,13 @@ Even if unimplemented, reserve names so the future opt-in doesn't collide:
 
 | Var | Purpose | v0 behavior |
 |---|---|---|
-| `CORTEX_HOME` | Override install dir | Honored (default `~/.claude/shared`) |
-| `CORTEX_CHANNEL` | `beta` \| `stable` | Honored by install scripts |
+| `CORTEX_HOME` | Override cortex-x install root (where framework lives) | Honored — hook `resolveCortexRoot()` checks this first |
+| `CORTEX_CHANNEL` | `beta` \| `stable` — chooses rolling vs tagged install | Honored by `install.sh` / `install.ps1` |
 | `CORTEX_TELEMETRY_DISABLED` | Opt-out of future telemetry | Reserved, unused |
 | `CORTEX_OFFLINE` | Skip auto-research network calls | Already honored ([config/research.yaml](../config/research.yaml)) |
 | `CORTEX_NO_UPDATE` | Block self-update nag | Reserved |
+
+Distinction: `CORTEX_HOME` = framework source directory (`<home>/cortex-x` by default, where you cloned the repo). `~/.claude/shared/` = install target that install scripts copy hooks into; not user-overridable today.
 
 ---
 
@@ -101,18 +103,23 @@ If telemetry ever lands: explicit opt-in at first run, never default-on. Schema 
 
 ## Pre-ship grep gate (the bright line)
 
-Before any `v*` tag, this command must return zero matches in shipped dirs (everything except `.personal/`, gitignored data, and this very standard):
+Before any `v*` tag, this command must return zero matches in shipped dirs. The regex **lives in [`config/ship-ready-denylist.txt`](../config/ship-ready-denylist.txt)** so this doc doesn't contain the literal tokens it forbids (which would self-trigger the gate):
 
 ```bash
-SHIPPED_DIRS="standards templates profiles prompts agents shared docs config install.sh install.ps1 module.yaml README.md CLAUDE.md LICENSE CONTRIBUTING.md SECURITY.md MIGRATIONS.md CHANGELOG.md"
-
-grep -rnE "(davidrajnoha@|C:\\\\Users\\\\david|/Users/[a-z]+/Desktop|back-office-bot|custom-chatbot|hustle-masterbar|kiosek-main)" $SHIPPED_DIRS && echo "BLOCK: personal identifier leak" && exit 1
+# only shipped content, respects gitignore
+git ls-files -co --exclude-standard | \
+  grep -vE '^(standards/ship-ready\.md|CHANGELOG\.md|MIGRATIONS\.md|research/|insights/|projects/|journal/)' | \
+  xargs grep -nEf config/ship-ready-denylist.txt \
+  && echo "BLOCK: personal identifier leak" && exit 1
 ```
 
-Exceptions:
-- `CLAUDE.md` may reference "Dave Rajnoha" in the Identity line if the framework's authorship matters to users — but never Dave's email, paths, or other projects
-- `projects/cortex-x.md` is the framework's self-entry and OK as-is
-- `LICENSE` `Required Notice` line intentionally names the licensor
+Exceptions (by design — not leaks):
+- `CLAUDE.md` Identity line may name the framework author if authorship matters to users — but never email, paths, or names of other private projects.
+- `projects/cortex-x.md` is the framework's self-entry and OK as-is.
+- `LICENSE` `Required Notice` line intentionally names the licensor per PolyForm `§Notices`.
+- `standards/ship-ready.md` (this file) and `CHANGELOG.md` / `MIGRATIONS.md` are excluded because they discuss the denylist abstractly.
+
+Forkers: update `config/ship-ready-denylist.txt` with your own private project slugs + personal email pattern. Do not edit this standard to hardcode them.
 
 ---
 
@@ -151,24 +158,26 @@ Rule 2 — Security+Testing+Observability   (quality-critical)
 Rule 3 — Process standards   (should-haves)
 ```
 
-Ship-ready doesn't outrank Rule 1 technically — it precedes it. Before we ask "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with Dave's email hardcoded fails Rule 0 before Rule 1 even runs.
+Ship-ready doesn't outrank Rule 1 technically — it precedes it. Before we ask "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with a hardcoded maintainer email fails Rule 0 before Rule 1 even runs.
 
 ---
 
 ## Audit results (2026-04-17, initial pass)
 
-Actual state before remediation commit:
+Initial pass state → final state (2026-04-19):
 
-| Artifact | Violation | Severity | Fix |
+| Artifact | Was | Fix | Status |
 |---|---|---|---|
-| `LICENSE` | `Proprietary` blocks beta distribution | 🔴 Blocker | → PolyForm Noncommercial 1.0.0 |
-| `README.md:254` | Personal email in public docs | 🔴 Blocker | Remove or link to GitHub profile |
-| `projects/relo.md`, `projects/amd-hackathon-2026.md` | Private project entries shipped | 🔴 Blocker | Gitignore + `git rm --cached` |
-| `insights/2026-04-17-amd-retrofit-gaps.md` | Private insight shipped | 🔴 Blocker | Gitignore personal insight pattern |
-| `prompts/new-project.md:107`, `prompts/cortex-doctor.md:15` | Hardcoded `~/Desktop/APPs/cortex-x/` | 🟡 High | Use `{cortex_root}` placeholder |
-| `module.yaml` config.user_name, config.author | Dave's name as default | 🟡 High | Empty default + document override |
-| `CONTRIBUTING.md` missing | GitHub surfaces warning + no contact channel | 🟡 High | Stub added |
-| `SECURITY.md` missing | No disclosure contact | 🟡 High | Stub added |
-| `MIGRATIONS.md`, `CHANGELOG.md` missing | Can't version breaking changes | 🟠 Medium | Empty stubs |
+| `LICENSE` | `Proprietary` blocks beta | PolyForm Noncommercial 1.0.0 | ✅ done |
+| `README.md` | Personal email in public docs | Link to GitHub contact | ✅ done |
+| `projects/relo.md`, other private project entries | Private data shipped | Gitignored + `git rm --cached` | ✅ done |
+| `insights/20*-*.md` at top level | Private insights shipped | Gitignore pattern | ✅ done |
+| `prompts/new-project.md`, `prompts/cortex-doctor.md` | Hardcoded maintainer paths | `{cortex_root}` / `$CORTEX_HOME` | ✅ done |
+| `module.yaml` config.user_name / author | Maintainer name as default | Empty default + `module.local.yaml` override pattern | ✅ done |
+| `CONTRIBUTING.md`, `SECURITY.md`, `MIGRATIONS.md`, `CHANGELOG.md` | Missing | Stubs added | ✅ done |
+| Denylist in this standard itself | Self-triggering grep gate | Extracted to `config/ship-ready-denylist.txt` | ✅ done (2026-04-19) |
+| `CORTEX_HOME`/`CORTEX_CHANNEL` docs | Claimed "Honored" but unimplemented | Implemented in install scripts + `resolveCortexRoot()` | ✅ done (2026-04-19) |
+| `logErr()` in hooks | Error messages unredacted → secrets leak | Redacted via shared `_lib/redact.cjs` | ✅ done (2026-04-19) |
+| `module.yaml:44 default_license: proprietary` | Scaffolds `Proprietary` into new projects | Empty → user chooses at scaffold | ✅ done (2026-04-19) |
 
-Remediation in same commit as this standard lands. Post-remediation, grep gate must pass.
+Post-remediation grep gate passes. See `CHANGELOG.md` for commit hashes.

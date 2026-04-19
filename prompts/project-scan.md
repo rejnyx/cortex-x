@@ -76,7 +76,7 @@ Include only decisions that have **long-term consequences** and **non-obvious re
 
 The most valuable section. Document what was TRIED and DIDN'T WORK, or non-obvious patterns that DID work.
 
-Mark `[TRANSFERABLE]` prefix if insight applies to other the user's projects.
+Mark `[TRANSFERABLE]` prefix if insight applies to other projects the user maintains.
 
 ### <Short title> — <YYYY-MM-DD>
 **What happened:** <1-2 sentences>

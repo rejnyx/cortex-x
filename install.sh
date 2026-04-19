@@ -2,16 +2,59 @@
 # cortex-x installer
 # Installs shared framework to ~/.claude/ for global use across projects.
 # Safe: backs up existing ~/.claude/shared/ before overwriting.
+#
+# Env vars honored (see standards/ship-ready.md):
+#   CORTEX_CHANNEL=beta|stable  — beta = track main HEAD (default for now);
+#                                 stable = checkout highest semver tag.
+#   CORTEX_HOME=<path>          — override cortex-x source directory
+#                                 (default: script location).
+#   CORTEX_NO_UPDATE=1          — skip checkout step even if CHANNEL=stable.
 
 set -e
 
-CORTEX_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve cortex-x source directory.
+# Precedence: $CORTEX_HOME → script location.
+if [ -n "$CORTEX_HOME" ] && [ -d "$CORTEX_HOME" ]; then
+  CORTEX_ROOT="$CORTEX_HOME"
+else
+  CORTEX_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 CLAUDE_HOME="${HOME}/.claude"
+CHANNEL="${CORTEX_CHANNEL:-beta}"
 
 echo "cortex-x installer"
-echo "  from: $CORTEX_ROOT"
-echo "  to:   $CLAUDE_HOME/shared"
+echo "  from:    $CORTEX_ROOT"
+echo "  to:      $CLAUDE_HOME/shared"
+echo "  channel: $CHANNEL"
 echo
+
+# Channel resolution — check out appropriate ref before copying.
+if [ "$CHANNEL" = "stable" ] && [ -z "$CORTEX_NO_UPDATE" ]; then
+  if [ -d "$CORTEX_ROOT/.git" ]; then
+    cd "$CORTEX_ROOT"
+    git fetch --tags --quiet
+    LATEST="$(git tag -l 'v*' --sort=-v:refname | grep -vE -- '-(alpha|beta|rc)' | head -1 || true)"
+    if [ -n "$LATEST" ]; then
+      echo "Checking out stable tag: $LATEST"
+      git checkout --quiet "$LATEST"
+    else
+      echo "No stable tag found (no v*.*.* yet); staying on current branch."
+    fi
+    cd - > /dev/null
+  else
+    echo "Note: $CORTEX_ROOT is not a git repo; cannot resolve stable tag."
+  fi
+elif [ "$CHANNEL" = "beta" ] && [ -z "$CORTEX_NO_UPDATE" ]; then
+  if [ -d "$CORTEX_ROOT/.git" ]; then
+    cd "$CORTEX_ROOT"
+    # Only fast-forward main if no local changes (safe default).
+    if git diff --quiet && git diff --cached --quiet; then
+      git fetch --quiet
+      git checkout --quiet main 2>/dev/null || true
+    fi
+    cd - > /dev/null
+  fi
+fi
 
 if [ -d "$CLAUDE_HOME/shared" ]; then
   BACKUP="$CLAUDE_HOME/shared.backup-$(date +%Y%m%d-%H%M%S)"
@@ -35,6 +78,7 @@ echo "  session-start.cjs       (SessionStart)"
 echo "  pre-compact.cjs         (PreCompact)"
 echo "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
 echo "  post-tool-use.cjs       (PostToolUse all tools — journal writer)"
+echo "  _lib/redact.cjs         (shared secret-scrubbing library)"
 echo
 echo "Register them in ~/.claude/settings.json under \"hooks\". Example snippet:"
 cat <<'JSON'
@@ -50,3 +94,4 @@ JSON
 echo
 echo "Journal will be written to: $CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl"
 echo "See journal/README.md for schema + privacy contract."
+echo "See standards/ship-ready.md for CORTEX_HOME / CORTEX_CHANNEL semantics."
