@@ -28,6 +28,10 @@ ONLY:
 
 ## What to hunt
 
+Bugs visible in the diff alone. Also flag violations of **Rule 1.5 Coding Behavior** (`standards/coding-behavior.md`) visible in the diff without needing project context:
+- **Simplicity First §2** — speculative abstractions, factories/interfaces with 1 implementation, premature generality
+- **Surgical Changes §3** — pre-existing code reformatted/renamed outside the stated task scope (visible as noise-heavy hunks)
+
 Bugs visible in the diff alone:
 
 1. **Obvious logic errors** — off-by-one, inverted conditions, wrong operator
