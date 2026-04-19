@@ -134,7 +134,7 @@ If standards file is missing, note it:
 ```markdown
 ## Verdict
 🟡 **Partial audit** — no project security policy found. Using cortex-x defaults.
-**Recommendation:** `cp ~/cortex-x/standards/security.md ./docs/security.md`
+**Recommendation:** `cp ~/.claude/shared/standards/security.md ./docs/security.md`
 ```
 
 ## Philosophy

@@ -80,11 +80,18 @@ if (Test-Path $SharedTarget) {
 
 New-Item -ItemType Directory -Path $SharedTarget -Force | Out-Null
 
-# Copy shared content
+# Copy shared content (hooks, skills, standards, templates, profiles, prompts, review agents)
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "shared\*") -Destination $SharedTarget
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "standards") -Destination $SharedTarget
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "templates") -Destination $SharedTarget
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "profiles") -Destination $SharedTarget
+Copy-Item -Recurse -Path (Join-Path $CortexRoot "prompts") -Destination $SharedTarget
+Copy-Item -Recurse -Path (Join-Path $CortexRoot "agents") -Destination $SharedTarget
+
+# Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
+# Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
+# stay in source and need an absolute path baked into scaffolded files.
+"cortex_source: $CortexRoot" | Set-Content -Path (Join-Path $SharedTarget "cortex-source.yaml") -Encoding UTF8
 
 Write-Host "Done."
 Write-Host ""

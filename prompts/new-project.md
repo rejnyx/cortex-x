@@ -203,6 +203,19 @@ Tag pouze **reálná** rizika (ne všechny 4):
 
 Po `y`:
 
+### 4.0 Resolve `{{cortex_source}}` placeholder (BEFORE rendering any template)
+
+Templates reference two kinds of paths:
+- **Installed assets** (`~/.claude/shared/standards/`, `~/.claude/shared/prompts/`, `~/.claude/shared/agents/`, `~/.claude/shared/hooks/`) — resolved after `install.sh`/`install.ps1` runs. Use as-is in scaffolded files, Claude/IDE resolves tilde.
+- **Source-only dirs** (`projects/`, `research/`) — stay in the cortex-x source repo (they change constantly; not installed). Template uses `{{cortex_source}}` placeholder; scaffold-time substitution to **absolute path** required.
+
+**Resolution precedence (pick first that resolves to existing dir):**
+1. `$CORTEX_HOME` / `$env:CORTEX_HOME` env var
+2. `~/.claude/shared/cortex-source.yaml` (written by `install.sh`/`install.ps1`)
+3. The directory where this `new-project.md` currently lives (the `prompts/` sibling's parent)
+
+Bake the absolute resolved path into scaffolded output (no tilde, no placeholder). If Dave later moves cortex-x source, user re-runs `cortex-doctor` to detect and re-anchor.
+
 ### 4.1 Render scaffold
 1. Scaffold dle `profiles/<selected>.yaml` (struktura, package.json, configs, Next.js/Astro/etc.)
 2. Render templates s **daty z Phase 1 + 3** (ne generic placeholders):
@@ -338,11 +351,50 @@ Pokud **kterýkoliv gate** selže:
 4. **Nikdy** nepokračuj do 4.5 s violation
 
 ### 4.5 Finalize
-8. Link research: v `CLAUDE.md` přidat referenci na `cortex-x/research/<slug>-<date>.md`
-9. `git init` + first commit s message odrážející vision (ne generic)
-10. Report + ask about cortex library entry
+8. Link research: v `CLAUDE.md` přidat referenci na `{{cortex_source}}/research/<slug>-<date>.md` (absolute path after §4.0 resolution)
+9. **Auto-capture to cortex-x projects library** (NEW — closes the "library is stale" gap). Write `{{cortex_source}}/projects/<slug>.md` with this stub (do NOT ask user, write it silently):
 
-### 4.5 Audit output
+   ```markdown
+   ---
+   project: <slug>
+   created: <YYYY-MM-DD>
+   profile: <profile name>
+   status: new
+   ---
+
+   # <Project name>
+
+   ## Overview
+   <Q1 description, one sentence>
+
+   ## Stack
+   <framework> · <database or "n/a"> · <AI provider or "n/a">
+
+   ## MVP core
+   <Q4 answer verbatim>
+
+   ## Out of scope (not-doing)
+   <Q5 bullets>
+
+   ## Success signal
+   <Q6 measurable metric>
+
+   ## Research cache
+   - <absolute path to research/<slug>-<date>.md>
+
+   ## Synthesized reviewers
+   <list of project-specific agents from §4.3, or "none — default set covers all findings">
+
+   ## Synthesized hooks
+   <list of project-specific hooks from §4.3, or "none">
+   ```
+
+   This ensures `session-start.cjs` doesn't flag "project not in cortex library" on the very first boot.
+
+10. `git init` + first commit s message odrážející vision (ne generic)
+11. Report + ask about cortex library entry
+
+### 4.6 Audit output
 Na konci scaffoldu vypiš:
 ```
 Scaffold done. Created:

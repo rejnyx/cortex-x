@@ -86,6 +86,25 @@ git push --force origin main
 
 **Why deferred:** needs signing infrastructure + documented key rotation policy. v0.1 scope.
 
+### D-4. Residual `~/cortex-x/` refs in source docs/prompts (non-user-facing)
+
+**Status:** OPEN. Discovered 2026-04-19 during field-test feedback on morning-digest project.
+
+Path convention established 2026-04-19:
+- `~/.claude/shared/<subdir>/` — **installed read-only assets** (standards, prompts, templates, agents, hooks, profiles) after `install.sh`/`install.ps1`
+- `$CORTEX_HOME` / absolute path — **live source dir** (dynamic content: `projects/`, `research/`, `insights/`)
+
+Fixed in 2026-04-19 commit: `templates/CLAUDE.md.hbs`, `agents/cortex-thinker.md`, `agents/security-auditor.md`, `prompts/new-project.md`, `prompts/cortex-doctor.md`, `install.sh`, `install.ps1`, + retroactive `c:/Users/david/Desktop/APPs/test-more/` scaffold.
+
+**Still broken in 17 source files (~69 occurrences):**
+`prompts/cortex-doctor.md`, `prompts/code-review.md`, `prompts/project-scan.md`, `prompts/cortex-load.md`, `prompts/cortex-evolve.md`, `prompts/sprint-status.md`, `prompts/retrospective.md`, `prompts/cortex-sync.md`, `prompts/cortex-reflect.md`, `module.yaml`, `README.md`, `CHANGELOG.md`, `config/evolve.yaml`, `journal/README.md`, `evals/eval-001-scaffold-nextjs-saas.md`, `evals/README.md`, `projects/README.md`.
+
+**Impact:** not user-facing (these don't end up in scaffolded projects). Claude reading them mentally resolves tilde to the actual source dir. A new user on a fresh install where `~/cortex-x` genuinely doesn't exist would see Claude attempt paths that fail at runtime (e.g., cortex-sync trying to write `~/cortex-x/insights/`).
+
+**Fix before first public `v*` tag:** mechanical grep-and-replace per the rule above. Ideally do this in a single commit so tag history shows a clean "path convention normalized" boundary. Keep `$CORTEX_HOME` for source-internal refs (resolved at runtime from env or `~/.claude/shared/cortex-source.yaml`), `~/.claude/shared/` for installed asset refs.
+
+---
+
 ### D-3. Windows ACL on `.hook-errors.log`
 
 **Status:** OPEN. security-auditor M3, documented as advisory.
