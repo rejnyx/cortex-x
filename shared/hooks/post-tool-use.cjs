@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { redact, truncate, homeStrip, singleLine } = require('./_lib/redact.cjs');
+const { redact, truncate, homeStrip, singleLine, validateCortexHome } = require('./_lib/redact.cjs');
 
 const CWD = process.cwd();
 
@@ -51,10 +51,9 @@ function logErr(cortexRoot, where, err) {
 // CORTEX_HOME env var honored first (ship-ready.md env var table);
 // then the canonical candidate list.
 function resolveCortexRoot() {
-  const envHome = process.env.CORTEX_HOME;
-  if (envHome) {
-    try { if (fs.statSync(envHome).isDirectory()) return envHome; } catch {}
-  }
+  // CORTEX_HOME honored only if it passes signature + $HOME-containment checks.
+  const envHome = validateCortexHome(process.env.CORTEX_HOME);
+  if (envHome) return envHome;
   const candidates = [
     path.join(os.homedir(), 'cortex-x'),
     path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x'),

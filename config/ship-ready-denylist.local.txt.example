@@ -1,0 +1,21 @@
+# config/ship-ready-denylist.local.txt
+#
+# Maintainer-specific denylist patterns (NOT shipped — this file is
+# gitignored). Copy THIS file (the .example) to `ship-ready-denylist.local.txt`
+# and add your private identifiers so the pre-ship grep gate catches
+# YOUR leaks before they land in a commit.
+#
+# Format: one regex per line, grep -E syntax. Lines starting with # are
+# harmless unless they contain regex metacharacters.
+
+# Your email prefix (caught in generic code if ever hardcoded)
+#your-email@
+
+# Your Windows username subpath (replace 'yourname')
+#C:\\Users\\yourname
+
+# Your private project slugs (client repos, experiments, anything that
+# shouldn't leak into public templates/standards/prompts)
+#project-slug-one
+#project-slug-two
+#client-internal-project

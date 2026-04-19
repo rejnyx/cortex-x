@@ -53,6 +53,7 @@ yarn-debug.log*
 /.hook-errors.log
 module.local.yaml
 .claude/
+config/ship-ready-denylist.local.txt
 
 # Temp review artifacts (diff files, lock files from prior sessions)
 *.diff
