@@ -81,8 +81,10 @@ Even if unimplemented, reserve names so the future opt-in doesn't collide:
 
 | Var | Purpose | v0 behavior |
 |---|---|---|
-| `CORTEX_HOME` | Override cortex-x install root (where framework lives) | Honored — hook `resolveCortexRoot()` checks this first |
+| `CORTEX_HOME` | Override cortex-x install root (where framework lives) | Honored — hook `resolveCortexRoot()` checks this first + validates via signature file + `$HOME` containment |
+| `CORTEX_HOME_ALLOW_EXTERNAL` | Opt-out of `$HOME` containment check for `CORTEX_HOME` | Reserved — set to `1` only if you deliberately run cortex-x from outside your home dir |
 | `CORTEX_CHANNEL` | `beta` \| `stable` — chooses rolling vs tagged install | Honored by `install.sh` / `install.ps1` |
+| `CORTEX_LANGUAGE` | `en` \| `cs` \| `de` \| `fr` \| `es` — preferred communication language | Honored by installers; non-interactive installs must set it |
 | `CORTEX_TELEMETRY_DISABLED` | Opt-out of future telemetry | Reserved, unused |
 | `CORTEX_OFFLINE` | Skip auto-research network calls | Already honored ([config/research.yaml](../config/research.yaml)) |
 | `CORTEX_NO_UPDATE` | Block self-update nag | Reserved |
