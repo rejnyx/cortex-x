@@ -19,6 +19,7 @@
 | | [Git workflow](./git-workflow.md) | Should-have | Review pipeline flag = warning |
 | | [Documentation](./documentation.md) | Should-have | Review pipeline flag = warning |
 | | [AI Patterns](./ai-patterns.md) | Should-have | Should-have for non-static profiles |
+| | [AI SDKs](./ai-sdks.md) | Should-have | Required `ai_sdk:` key in every profile YAML |
 
 ## Why tiered
 

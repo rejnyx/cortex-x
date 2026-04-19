@@ -1,7 +1,11 @@
 name: nextjs-saas
 description: Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor.
-version: 2.0.0
+version: 2.1.0
 agentic_ready: true  # ← 2026 default. Opt out with 'minimal' or 'astro-static'.
+
+# AI SDK selection — see standards/ai-sdks.md for decision tree
+ai_sdk: vercel          # web tier: streaming UI, provider-agnostic, Next.js-native
+ai_sdk_web: null        # single-SDK topology (no separate web layer)
 
 stack:
   framework: next@16

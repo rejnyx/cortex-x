@@ -10,7 +10,7 @@
 
 **Opt-out explicitly.** Static blog, portfolio, landing page → `astro-static` or `minimal` profiles. Don't force AI where it's not needed.
 
-See [standards/ai-patterns.md](./standards/ai-patterns.md) for the 10 agentic patterns every project should respect.
+See [standards/ai-patterns.md](./standards/ai-patterns.md) for the 10 agentic patterns every project should respect, and [standards/ai-sdks.md](./standards/ai-sdks.md) for the decision tree across Vercel AI SDK, Claude Agent SDK, and OpenAI Agents SDK (every profile declares `ai_sdk:` explicitly).
 
 ## Core Mental Model (SSOT)
 
