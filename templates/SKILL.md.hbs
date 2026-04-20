@@ -1,0 +1,72 @@
+---
+name: {{skill_slug}}
+description: {{description}}
+version: 0.1.0
+platforms: [claude-code{{#if hermes_compat}}, hermes{{/if}}{{#if codex_compat}}, codex{{/if}}]
+{{#if tags}}tags: [{{#each tags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}]
+{{/if}}---
+
+# {{skill_name}}
+
+## When to use
+
+{{#if when_to_use}}
+{{when_to_use}}
+{{else}}
+- TODO: user intents that should trigger this skill
+- TODO: concrete phrases the agent should match on
+{{/if}}
+
+## When NOT to use
+
+{{#if when_not_to_use}}
+{{when_not_to_use}}
+{{else}}
+- TODO: adjacent scenarios that belong to other skills
+- TODO: edge cases where this skill would cause harm
+{{/if}}
+
+## Prerequisites
+
+{{#if prerequisites}}
+{{prerequisites}}
+{{else}}
+- TODO: required tools, env vars, installed dependencies
+{{/if}}
+
+## Procedure
+
+{{#if procedure}}
+{{procedure}}
+{{else}}
+1. TODO: first step
+2. TODO: second step
+3. TODO: third step
+{{/if}}
+
+## Pitfalls
+
+{{#if pitfalls}}
+{{pitfalls}}
+{{else}}
+- TODO: common ways this goes wrong (cite incident if applicable)
+- TODO: anti-patterns to explicitly avoid
+{{/if}}
+
+## Verification
+
+{{#if verification}}
+{{verification}}
+{{else}}
+- TODO: how the agent confirms the skill succeeded
+- TODO: test command, file existence check, log line, etc.
+{{/if}}
+
+## References
+
+{{#if references}}
+{{references}}
+{{else}}
+- cortex-x standards referenced: TODO
+- Project-specific docs: TODO
+{{/if}}

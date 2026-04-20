@@ -52,7 +52,7 @@ When two standards conflict or budget is limited, Rule 0 (governance) precedes R
 | **Rule 1** | SSOT, Modular, Scalable | Inviolable | Scaffold validation + ssot-enforcer always-on + PR gate |
 | **Rule 1.5** | [Coding Behavior](./coding-behavior.md) — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution | Behavioral contract | Scaffold + hooks + review pipeline + evolve |
 | **Critical (Rule 2)** | Security, Testing, Observability, **Correctness** | Must-have | Review pipeline flag = blocker |
-| **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns | Should-have | Review pipeline flag = warning |
+| **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns, **Skills** | Should-have | Review pipeline flag = warning |
 
 Rule 0 isn't technically above Rule 1 — it precedes it. Before asking "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with the author's email hardcoded fails Rule 0 before Rule 1 even runs.
 

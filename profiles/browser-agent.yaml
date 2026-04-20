@@ -1,0 +1,157 @@
+name: browser-agent
+description: Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling.
+version: 0.1.0
+extends: ai-agent
+
+# What changes vs ai-agent
+# ---
+# - Adds browser-use or browser-harness as the CDP layer
+# - Adds Supabase table for session state (cookies, screenshots) with RLS + encryption
+# - Mandates browser-specific security extensions (screenshot redaction, tool-mutation
+#   HITL, isolated Chrome profile) — see security.md § "Browser Automation Security"
+# - Adds browser-session cost tracking (cloud browsers are metered)
+
+stack:
+  framework: next@16
+  runtime: node@22
+  language: typescript
+  ai:
+    sdk: ai@6
+    providers:
+      - anthropic
+      - openai (fallback)
+    validation: zod@4
+  browser:
+    primary: browser-use  # Python lib, 88k stars, production-battle-tested (2024-10 onward)
+    minimal_harness: browser-harness  # 2026-04-17, experimental — opt-in only, not default
+    js_port: browser-harness-js  # 2026-04-18, experimental — only if Python layer impractical
+    cloud_option: browser-use-cloud  # cloud.browser-use.com — when local Chrome not feasible
+    cdp_bridge: cdp-use  # typed Python CDP wrapper
+  database:
+    provider: supabase
+    features:
+      - postgres
+      - rls
+      - pgvector  # embeddings over captured page content
+  streaming: SSE
+  deploy: vercel (frontend) + containerized worker for browser runtime
+
+# Additional structure on top of ai-agent
+structure:
+  - src/lib/browser/session.ts       # Supabase-backed browser-session state
+  - src/lib/browser/redact.ts        # screenshot + DOM-scrape redaction (credit cards, SSN, tokens)
+  - src/lib/browser/allowlist.ts     # domain allow-list enforcement
+  - src/app/api/browser/run/route.ts # POST — start browser task (HITL on destructive)
+  - src/app/api/browser/sessions/route.ts # GET — list user's sessions (RLS-scoped)
+  - infra/docker/browser-runner/     # containerized browser worker (isolated profile)
+  - supabase/migrations/NN_browser_sessions.sql  # RLS-scoped session state table
+
+# Environment variables
+env:
+  BROWSER_USE_API_KEY:       # optional — cloud.browser-use.com
+  BROWSER_HARNESS_ALLOWLIST: # comma-separated domain allow-list (required)
+  BROWSER_PROFILE_DIR:       # path to isolated Chrome profile (NEVER user's primary)
+  BROWSER_MAX_SESSION_SEC:   # hard kill-switch (default 300s)
+  BROWSER_SCREENSHOT_REDACT: # '1' to enable automatic redaction of password fields (default '1')
+
+# Agents inherited from ai-agent, plus browser-specific
+agents:
+  # From ai-agent profile:
+  - cortex-thinker
+  - blind-hunter
+  - edge-case-hunter
+  - acceptance-auditor
+  - security-auditor       # 8-layer + Layer 9 Agentic + Layer 10 Browser (see security.md)
+  - correctness-auditor
+  - ssot-enforcer
+  # Profile-specific:
+  - browser-security-auditor  # Layer 10 Browser-specific: screenshot leak, cookie exfil, cross-origin
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+  - auto-orchestrate
+  - post-tool-use
+  - tirith-scan            # context-file injection scanner (optional; no-op if tirith not installed)
+
+skills:
+  # Inherit from ai-agent
+  - tool-audit
+  - memory-audit
+  - prompt-injection-test
+  - trifecta-check
+  # Browser-specific
+  - browser-session-audit          # verifies screenshot redaction + cookie scoping + allowlist compliance
+  - browser-credential-scanner     # scans captured screenshots for password/2FA/payment-field leakage
+  - cdp-primitive-review           # if using browser-harness helpers.py / helpers.ts, reviews tool-layer PRs
+
+standards_included:
+  - ssot
+  - modular
+  - scalable
+  - security               # + § Agentic Security + § Browser Automation Security
+  - testing
+  - observability
+  - correctness
+  - skills                 # agentskills.io spec — browser skills portable across hosts
+  - ai-patterns
+
+# Agentic-security MUSTs inherited from ai-agent profile (7)
+agentic_security_musts:
+  - trust_fence
+  - trifecta_split
+  - schema_bounded_tool_args
+  - capability_scoped_auth
+  - destructive_op_hitl
+  - structured_output_validation
+  - sandboxed_code_exec
+  - unbounded_consumption_caps
+
+# Browser-specific MUSTs (adds to agentic)
+browser_security_musts:
+  - screenshot_redaction           # strip password fields, 2FA, payment inputs before LLM sees
+  - no_credential_from_screenshot  # NEVER type credentials extracted via OCR from screenshot
+  - isolated_chrome_profile        # NEVER attach agent to user's primary profile (bank, email, SSO)
+  - domain_allowlist_enforcement   # agent CAN ONLY navigate domains in BROWSER_HARNESS_ALLOWLIST
+  - tool_mutation_hitl             # if using browser-harness helpers.py pattern, edits go through PR review
+  - cookie_exfil_prevention        # no agent tool dumps cookies to arbitrary endpoint
+  - cross_origin_fetch_block       # agent JS exec cannot do credentialed cross-origin fetch
+  - session_time_limit             # hard kill-switch (BROWSER_MAX_SESSION_SEC)
+
+# Correctness MUSTs inherited from ai-agent
+correctness_musts:
+  - zod_at_every_boundary
+  - eval_suite
+  - property_tests_on_invariant_code
+  - mutation_scheduled
+
+initial_sprint:
+  phase_1: Foundation (Next.js, Supabase browser_sessions table + RLS, AI SDK setup)
+  phase_2: Browser runtime adapter (browser-use Python worker OR browser-harness-js direct)
+  phase_3: Security hardening — screenshot redaction, allowlist enforcement, isolated profile
+  phase_4: First skill — scrape or automate one concrete flow end-to-end
+  phase_5: Session state + replay (Supabase cookies/screenshots encrypted)
+  phase_6: Eval suite — 20 golden cases including jailbreak attempts + credential-leak attempts
+  phase_7: Production — container runner, cost guards, HITL confirmation UI
+
+research_topics:
+  - "browser-use library 2026 production patterns"
+  - "browser-harness agent-editable helpers pattern — security review"
+  - "Chrome DevTools Protocol capability-scoped auth"
+  - "Screenshot redaction libraries — password field detection TypeScript"
+  - "Browser agent session cost attribution"
+  - "Stagehand vs browser-use vs Anthropic Computer Use 2026 comparison"
+
+# Experimental / opt-in features
+experimental:
+  agent_editable_helpers:
+    description: |
+      browser-harness pattern — agent is authorized to live-edit helpers.py / helpers.ts
+      mid-task, adding new CDP primitives as it needs them. PRs those changes back.
+      HIGH supply-chain risk (prompt injection → rogue edit → persistent backdoor).
+    default: false
+    requires: tool_mutation_hitl MUST + code review on every helpers.ts PR
+    references:
+      - https://github.com/browser-use/browser-harness
+      - https://github.com/browser-use/browser-harness-js
