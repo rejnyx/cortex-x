@@ -51,7 +51,7 @@ When two standards conflict or budget is limited, Rule 0 (governance) precedes R
 | **Rule 0** | [Ship-Ready](./ship-ready.md) — no personal data in generic code, clear licensing, stranger-reproducible install | Inviolable before any distribution | Pre-ship grep gate + scaffold + evolve priority |
 | **Rule 1** | SSOT, Modular, Scalable | Inviolable | Scaffold validation + ssot-enforcer always-on + PR gate |
 | **Rule 1.5** | [Coding Behavior](./coding-behavior.md) — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution | Behavioral contract | Scaffold + hooks + review pipeline + evolve |
-| **Critical (Rule 2)** | Security, Testing, Observability | Must-have | Review pipeline flag = blocker |
+| **Critical (Rule 2)** | Security, Testing, Observability, **Correctness** | Must-have | Review pipeline flag = blocker |
 | **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns | Should-have | Review pipeline flag = warning |
 
 Rule 0 isn't technically above Rule 1 — it precedes it. Before asking "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with the author's email hardcoded fails Rule 0 before Rule 1 even runs.
@@ -138,11 +138,24 @@ Pragmatic > dogmatic. But once Rule 1 violation is identified, it's a blocker.
 
 ## Why Rule 1 is the meta-rule
 
-Security can be added. Testing can be retrofitted. Observability can be layered on.
+Security can be added. Testing can be retrofitted. Observability can be layered on. Correctness can be tightened.
 
 **But SSOT violation in a 50-file codebase = rewrite.** Modular violation = architectural debt that compounds. Scalable violation = works at MVP scale, dies at product-market fit.
 
 Rule 1 is the only tier you can't fix later. That's why it's tier 1.
+
+## Rule 2 (Critical) — the four must-haves
+
+Rule 1 guarantees **structural cleanliness**. Rule 2 guarantees the code **actually works correctly, securely, and observably** in production:
+
+- **[Security](./security.md)** — 8-layer defense + Agentic Security (2026) for LLM/agent systems (lethal trifecta, trust fence, 7 MUST patterns)
+- **[Testing](./testing.md)** — layered test pyramid + AI-specific tests
+- **[Observability](./observability.md)** — logs/metrics/traces + Runtime SLOs with burn-rate alerts + LLM observability stack
+- **[Correctness](./correctness.md)** — verification beyond structure: property-based tests, eval-driven dev, mutation testing, boundary validation, stateful simulation
+
+Violation of any Rule 2 standard = review pipeline blocker. Not debate.
+
+**Why Correctness is separate from Testing:** testing.md covers the *mechanics* of test pyramid + AA tests. Correctness.md covers the *methodology* for verifying business logic beyond examples — property-based invariants, eval suites as spec for non-deterministic code, mutation testing for test-quality measurement, stateful simulation for order-dependent bugs. Two layers, no overlap.
 
 ---
 

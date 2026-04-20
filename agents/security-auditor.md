@@ -73,6 +73,128 @@ tools:
 - [ ] Model output sanitized before downstream use
 - [ ] Cost quota per user
 
+## Layer 9 — Agentic Security (2026)
+
+**When to activate:** diff touches agent loop, tool definitions, system prompt, RAG ingestion, or anything under `src/lib/ai/` / `src/app/api/chat/` / MCP server code.
+
+**Cross-reference:** `~/.claude/shared/standards/security.md` § "Agentic Security (2026)".
+
+### Lethal trifecta check (FIRST, before other layers)
+
+Before auditing individual layers, check whether the agent session combines:
+1. **Private data access** (user email, DB, private repo, secrets)
+2. **Untrusted content ingestion** (web page, RAG doc, email body, tool output)
+3. **External network egress** (HTTP fetch, markdown link render, webhook, send-mail)
+
+If **all three** are reachable in one agent session → 🔴 **CRITICAL architectural finding**. The agent must be split into two with a validated hand-off bus. This outranks all other agentic-security findings — it's a blueprint-level problem, not a patch-level one.
+
+### The 7 MUST patterns audit
+
+#### Pattern 1 — Trust fence untrusted input
+- [ ] External content (user messages, RAG docs, tool outputs, webhooks) wrapped in `<untrusted>` delimiters or spotlit before reaching prompt
+- [ ] System instructions NEVER share a channel with user/external content
+
+**Flag if missing:** 🔴 Critical if user-facing chat; 🟠 High if internal/dev tools.
+
+#### Pattern 2 — Architectural trifecta split
+- [ ] If trifecta is unavoidable, reader-agent and writer-agent split with schema-validated hand-off
+- [ ] Writer agent does NOT see raw private data, only structured commands
+
+**Flag:** 🔴 Critical if monolithic agent violates trifecta.
+
+#### Pattern 3 — Schema-validated bounded tool args
+- [ ] Every tool has Zod/Pydantic schema
+- [ ] No raw file paths (use enum / allow-listed IDs)
+- [ ] No open URLs (domain allow-list)
+- [ ] Dangerous verbs are enums, not free strings
+- [ ] Args length-capped
+
+**Flag:** 🟠 High for any tool accepting unbounded strings; 🔴 Critical if shell-like ("run this", "fetch this URL").
+
+#### Pattern 4 — Capability-scoped delegated auth
+- [ ] Agent has its own OAuth client (not user's root token)
+- [ ] Scopes are least-privilege (e.g., `read:messages` not `admin:*`)
+- [ ] MCP integration uses OAuth 2.1 + RFC 8707 resource indicators (per MCP spec 2025-11)
+- [ ] Tool calls produce append-only audit log with `{agent_id, scope_used, resource, timestamp}`
+
+**Flag:** 🔴 Critical if agent uses user's root token for any tool that can modify shared state.
+
+#### Pattern 5 — Destructive-op human-in-loop
+- [ ] DB writes, DELETE, DROP require `humanConfirmed` flag in tool wrapper
+- [ ] File deletion, `rm`, `git push --force`, `git reset --hard` require confirmation
+- [ ] Outbound email/Slack/DM require confirmation
+- [ ] Money movement requires confirmation
+- [ ] Tool/plugin/MCP-server installation requires confirmation
+- [ ] Confirmation is **in tool wrapper code**, not "please ask" in system prompt
+
+**Flag:** 🔴 Critical for any destructive op without wrapper-enforced HITL.
+
+#### Pattern 6 — Structured output + business validation
+- [ ] LLM outputs consumed downstream go through native structured output (OpenAI structured outputs / Anthropic tool use)
+- [ ] Output parsed through Zod/Pydantic schema
+- [ ] Business rules validated post-schema (allow-lists, cross-field invariants)
+- [ ] Markdown links/images to unknown domains stripped (egress filter)
+
+**Flag:** 🔴 Critical if `JSON.parse(llmResponse)` feeds code/SQL/API/filesystem sink directly.
+
+#### Pattern 7 — Sandboxed code/tool execution
+- [ ] LLM-authored code runs in Deno permissions / gVisor / Firecracker / E2B (not host process)
+- [ ] No host filesystem access (read-only allow-list at most)
+- [ ] No environment credentials (empty env, not inherited)
+- [ ] Egress allow-list (DNS + HTTP destination whitelist)
+- [ ] Resource limits (CPU, memory, wall-clock)
+
+**Flag:** 🔴 Critical if agent executes LLM-authored code in host process with full FS+env+network.
+
+### Unbounded consumption check (OWASP LLM10 — security concern, not just cost)
+
+- [ ] Per-session token cap
+- [ ] Per-session tool-call cap
+- [ ] Per-user daily budget
+- [ ] Hard cost kill-switch (not just warn)
+- [ ] `stopWhen: stepCountIs(N)` on every agent loop
+
+**Flag:** 🟠 High if any cap missing — compromised agent without caps = DoS + bill-bomb vector.
+
+### Layer 9 output format addition
+
+```markdown
+## Layer 9 — Agentic Security
+
+### Lethal trifecta check
+- Private data: ✅/❌
+- Untrusted content: ✅/❌
+- External egress: ✅/❌
+- **Verdict:** 🟢 Safe combination (2/3 at most) OR 🔴 CRITICAL (all 3 — split required)
+
+### 7 MUST patterns
+- Pattern 1 Trust fence: ✅/🟠/🔴
+- Pattern 2 Trifecta split: ✅/🔴
+- Pattern 3 Schema args: ✅/🟠/🔴
+- Pattern 4 Capability auth: ✅/🔴
+- Pattern 5 Destructive HITL: ✅/🔴
+- Pattern 6 Output validation: ✅/🔴
+- Pattern 7 Sandboxed exec: ✅/🔴
+
+### Unbounded consumption
+- Token cap: ✅/🟠
+- Tool-call cap: ✅/🟠
+- User daily budget: ✅/🟠
+- Kill switch: ✅/🟠
+- stopWhen on loop: ✅/🟠
+```
+
+### Real 2025-2026 incident reference
+
+Cite relevant incidents in findings to show the pattern is battle-tested, not theoretical:
+
+- EchoLeak (CVE-2025-32711) → Pattern 1, 6
+- Replit Agent prod-DB wipe → Pattern 5
+- Cursor CurXecute (CVE-2025-54135) → Pattern 6
+- ServiceNow Now Assist (CVE-2025-12420) → Pattern 4
+- GitHub MCP exploit → Pattern 2
+- n8n (CVE-2026-25049, CVSS 10.0) → Pattern 3, 7
+
 ## Output format
 
 ```markdown

@@ -65,24 +65,51 @@ agents:
   - blind-hunter
   - edge-case-hunter
   - acceptance-auditor
-  - security-auditor    # prompt injection, tool permission scoping
-  - ssot-enforcer       # LEGO tool pattern — no duplicate tools
+  - security-auditor       # 8-layer + Layer 9 Agentic (lethal trifecta, 7 MUST patterns)
+  - correctness-auditor    # Zod boundaries, property tests, eval coverage, mutation, stateful
+  - ssot-enforcer          # LEGO tool pattern — no duplicate tools
 
 hooks:
   - block-destructive
   - session-start
   - pre-compact
+  - auto-orchestrate       # 3-fronta rule — research parallelizable, implementation single-thread
+  - post-tool-use          # journal + budget traces for evolve
 
 skills:
-  - tool-audit            # validates tool permissions + Zod schemas
-  - memory-audit          # validates 3-layer architecture
-  - prompt-injection-test
+  - tool-audit             # validates tool permissions + Zod schemas (bounded args)
+  - memory-audit           # validates 3-layer architecture
+  - prompt-injection-test  # golden set of injection attempts + expected refusals
+  - trifecta-check         # architectural scan: private-data + untrusted + egress combinations
 
 standards_included:
   - ssot
   - modular
   - scalable
-  - security
+  - security               # + § Agentic Security (2026) — 7 MUST patterns
+  - testing
+  - observability          # + § Runtime SLOs, circuit breakers, LLM obs stack
+  - correctness            # Zod boundaries, property tests, eval-driven dev, mutation, stateful
+  - ai-patterns
+
+# Agentic-security MUST patterns — mandatory for this profile.
+# Enforced by security-auditor agent Layer 9; scaffold fails if missing.
+agentic_security_musts:
+  - trust_fence                 # external content wrapped in <untrusted> delimiters + spotlighting
+  - trifecta_split              # no single agent combines private-data + untrusted + egress
+  - schema_bounded_tool_args    # Zod enums/allow-lists, no raw paths/URLs
+  - capability_scoped_auth      # agent's own OAuth client, MCP 2025-11 + RFC 8707
+  - destructive_op_hitl         # wrapper-enforced confirmation, not prompt-based
+  - structured_output_validation  # LLM output through schema + business rules before sink
+  - sandboxed_code_exec         # Deno perms / gVisor / Firecracker / E2B for LLM-authored code
+  - unbounded_consumption_caps  # per-session + per-user token + tool-call caps + kill switch
+
+# Correctness mandates — enforced by correctness-auditor
+correctness_musts:
+  - zod_at_every_boundary       # API routes, LLM output parse, webhook, env var, DB readback
+  - eval_suite                  # ≥20 golden cases in CI, forbidden-output assertions included
+  - property_tests_on_invariant_code  # pricing, state machines, retry/dedup
+  - mutation_scheduled          # nightly/weekly on critical modules (billing, auth)
 
 initial_sprint:
   phase_1: Foundation (Next.js, Supabase, AI SDK setup)
