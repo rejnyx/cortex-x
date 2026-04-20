@@ -80,7 +80,7 @@ The **3 pillars** every scaffolded project respects from day 1:
 4. **[Correctness](./standards/correctness.md)** — Zod at boundaries, property-based tests, eval-driven dev, mutation testing, stateful simulation
 
 ### Rule 3 — Process (should-have)
-Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./standards/ai-patterns.md). Review pipeline flag = warning.
+Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./standards/ai-patterns.md), [Skills](./standards/skills.md). Review pipeline flag = warning.
 
 **Mental model:** Rule 1 guarantees structure. Rule 2 guarantees the code works correctly, securely, observably. Rule 3 is polish. Rule 0 is "can you distribute it at all." Don't flatten — the tier priority matters when budgets are constrained.
 
@@ -93,12 +93,13 @@ Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./
 ## Roadmap
 
 **Phase 1 — Foundation** (current)
-- Shared hooks (block-destructive, session-start, pre-compact, auto-orchestrate, post-tool-use)
-- Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
+- Shared hooks (block-destructive, session-start, pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
+- Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 2 Critical (Security, Testing, Observability, **Correctness** — added 2026-04-20)
-- Rule 2 Security extension: § Agentic Security (lethal trifecta, 7 MUST patterns) — added 2026-04-20
+- Rule 2 Security extensions: § Agentic Security (lethal trifecta, 7 MUST patterns) + § **Browser Automation Security** (3 browser-specific MUSTs) — added 2026-04-20
 - Rule 2 Observability extension: § Runtime SLOs + circuit breakers + LLM obs — added 2026-04-20
-- First profile (nextjs-saas) + minimal fallback + `ai-agent` with 7 MUST agentic-security patterns mandated
+- Rule 3 **Skills** standard — agentskills.io SKILL.md open spec (portable Claude Code ↔ Hermes ↔ Codex ↔ Cursor) — added 2026-04-20
+- Profiles: nextjs-saas + minimal fallback + `ai-agent` (7 MUST agentic-security patterns + skills spec) + **`browser-agent`** (extends ai-agent with 3 browser-specific MUSTs)
 
 **Phase 2 — Bootstrap skill**
 - `/init-project` skill with Clack-based CLI

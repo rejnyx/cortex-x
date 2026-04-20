@@ -88,6 +88,12 @@ cp -r "$CORTEX_ROOT/profiles" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/prompts" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/agents" "$CLAUDE_HOME/shared/"
 
+# Skills directory — agentskills.io-compatible SKILL.md files.
+# Only copy if source exists (cortex-x Phase 2 may scaffold these later).
+if [ -d "$CORTEX_ROOT/skills" ]; then
+  cp -r "$CORTEX_ROOT/skills" "$CLAUDE_HOME/shared/" 2>/dev/null || true
+fi
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.
@@ -137,8 +143,18 @@ echo "  pre-compact.cjs         (PreCompact)"
 echo "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
 echo "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
 echo "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
+echo "  tirith-scan.cjs         (SessionStart — optional, no-op if tirith binary absent)"
 echo "  _lib/redact.cjs         (shared secret-scrubbing library)"
 echo "  _lib/budget.cjs         (shared token-cost tracking library)"
+
+# Optional Tirith detection hint — context-file injection scanner from Hermes Agent stack (MIT).
+if ! command -v tirith > /dev/null 2>&1; then
+  echo
+  echo "Optional: install Tirith (https://tirith.sh/) for context-file prompt-injection scanning:"
+  echo "  cargo install tirith"
+  echo "  # or download from https://github.com/NousResearch/tirith/releases"
+  echo "tirith-scan.cjs hook will auto-detect once installed. Skip if not doing agentic work."
+fi
 echo
 echo "Register them in ~/.claude/settings.json under \"hooks\". Example snippet:"
 cat <<'JSON'

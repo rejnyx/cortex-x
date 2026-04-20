@@ -75,6 +75,7 @@ hooks:
   - pre-compact
   - auto-orchestrate       # 3-fronta rule — research parallelizable, implementation single-thread
   - post-tool-use          # journal + budget traces for evolve
+  - tirith-scan            # context-file injection scanner (optional; no-op if tirith binary absent)
 
 skills:
   - tool-audit             # validates tool permissions + Zod schemas (bounded args)
@@ -90,6 +91,7 @@ standards_included:
   - testing
   - observability          # + § Runtime SLOs, circuit breakers, LLM obs stack
   - correctness            # Zod boundaries, property tests, eval-driven dev, mutation, stateful
+  - skills                 # agentskills.io SKILL.md spec — portable across Claude Code / Hermes / Codex
   - ai-patterns
 
 # Agentic-security MUST patterns — mandatory for this profile.
