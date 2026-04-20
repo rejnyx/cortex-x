@@ -193,7 +193,96 @@ function findWorkspacePackages(cwd) {
     }
   } catch (_) {}
 
+  // 5. Lerna — lerna.json at root with packages array
+  try {
+    const lernaPath = path.join(cwd, 'lerna.json');
+    if (fs.existsSync(lernaPath)) {
+      const lerna = JSON.parse(fs.readFileSync(lernaPath, 'utf8'));
+      monorepoType = monorepoType || 'lerna';
+      const patterns = Array.isArray(lerna.packages) ? lerna.packages : ['packages/*'];
+      for (const pat of patterns) expandGlob(cwd, pat, workspaces);
+    }
+  } catch (_) {}
+
+  // 6. Rush — rush.json at root with projects[] array (explicit, not globbed)
+  try {
+    const rushPath = path.join(cwd, 'rush.json');
+    if (fs.existsSync(rushPath)) {
+      // Rush uses JSONC (JSON with comments). Strip simple // and /* */ comments.
+      const raw = fs.readFileSync(rushPath, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+      const rush = JSON.parse(raw);
+      monorepoType = monorepoType || 'rush';
+      if (Array.isArray(rush.projects)) {
+        for (const proj of rush.projects) {
+          if (proj.projectFolder) {
+            const p = path.join(cwd, proj.projectFolder, 'package.json');
+            if (fs.existsSync(p)) workspaces.add(p);
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 7. Moonrepo — .moon/workspace.yml
+  try {
+    if (fs.existsSync(path.join(cwd, '.moon', 'workspace.yml'))) {
+      monorepoType = monorepoType || 'moon';
+      // Best-effort: scan common project dirs. Full parse would require YAML lib.
+      for (const base of ['apps', 'packages', 'services', 'libs']) expandGlob(cwd, `${base}/*`, workspaces);
+    }
+  } catch (_) {}
+
   return { packages: Array.from(workspaces), monorepoType };
+}
+
+// Detect non-JS language stacks. Used as a gate — if dominant language is not JS/TS,
+// we skip JS profile scoring entirely and emit a lang-only result. Prevents the detector
+// from hallucinating "nextjs-saas" matches on a Rust or Python project that happens to
+// have a stray jest.config.js sitting around.
+function detectLanguage(cwd) {
+  const markers = [
+    { lang: 'rust', files: ['Cargo.toml'] },
+    { lang: 'go', files: ['go.mod', 'go.work'] },
+    { lang: 'python', files: ['pyproject.toml', 'setup.py', 'requirements.txt', 'Pipfile'] },
+    { lang: 'ruby', files: ['Gemfile', 'Rakefile'] },
+    { lang: 'java-maven', files: ['pom.xml'] },
+    { lang: 'java-gradle', files: ['build.gradle', 'build.gradle.kts', 'settings.gradle'] },
+    { lang: 'dotnet', files: ['*.csproj', '*.fsproj', '*.sln'] },
+    { lang: 'php', files: ['composer.json'] },
+    { lang: 'deno', files: ['deno.json', 'deno.jsonc'] },
+    { lang: 'elixir', files: ['mix.exs'] },
+    { lang: 'swift', files: ['Package.swift'] },
+    { lang: 'zig', files: ['build.zig'] },
+  ];
+
+  const present = [];
+  for (const m of markers) {
+    for (const f of m.files) {
+      try {
+        if (f.includes('*')) {
+          // Simple glob for *.ext
+          const ext = f.replace('*', '');
+          const entries = fs.readdirSync(cwd);
+          if (entries.some(e => e.endsWith(ext))) { present.push(m.lang); break; }
+        } else if (fs.existsSync(path.join(cwd, f))) {
+          present.push(m.lang); break;
+        }
+      } catch (_) {}
+    }
+  }
+
+  const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
+  return {
+    non_js_languages: present,
+    has_package_json: hasPackageJson,
+    // JS-primary if package.json present AND no non-JS language marker
+    // OR package.json present AND only Python (Next.js project with a helper script is common)
+    is_js_primary: hasPackageJson && present.length === 0,
+    // Mixed-stack if both package.json + non-JS markers
+    is_mixed_stack: hasPackageJson && present.length > 0,
+  };
 }
 
 function expandGlob(cwd, pattern, resultSet) {
@@ -225,7 +314,13 @@ function readDepsFromPackageJson(pkgPath, depsSet) {
 }
 
 function collectSignals(cwd) {
-  const signals = { deps: new Set(), files: new Set(), configs: new Set(), monorepo: null, workspaceCount: 0 };
+  const signals = { deps: new Set(), files: new Set(), configs: new Set(), monorepo: null, workspaceCount: 0, language: null };
+
+  // Language gate — detect non-JS stacks first. If non-JS-primary, we'll return
+  // an empty deps set so JS profiles don't match, and surface the detected
+  // language in output for downstream consumers (Phase 0 in retrofit.md).
+  const lang = detectLanguage(cwd);
+  signals.language = lang;
 
   // Root package.json dependencies
   readDepsFromPackageJson(path.join(cwd, 'package.json'), signals.deps);
@@ -334,6 +429,7 @@ function detect(cwd, options) {
     top: ranked[0] || null,
     monorepo: signals.monorepo,
     workspaceCount: signals.workspaceCount,
+    language: signals.language,
     elapsed_ms: Date.now() - started,
     cwd,
   };

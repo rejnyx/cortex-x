@@ -17,7 +17,15 @@ Retrofit cortex-x onto an existing project. **Five phases**, strict non-destruct
 3. **Never run destructive git commands** — no `reset --hard`, no `clean -f`, no branch deletion. Only `add` + new commits.
 4. **Surface Rule 1 violations, do not fix them** — retrofit produces a *prioritized violation list*; implementation happens in follow-up sprints under user control.
 5. **Stop on any unresolvable ambiguity** — ask the user, don't guess. This is client code; stakes are high.
-6. **Never modify populated AI-context artifacts of other frameworks without explicit user approval.** If any of the following exist AND contain content, treat as **read-only**: `.claude/CLAUDE.md`, `.claude/settings.local.json`, `.claude/settings.json`, `.claude/docs/*`, `.claude/skills/*`, `.claude/agents/*` (non-cortex), `.codex/**`, `.cursor/**`, `.cursorrules`, `.mcp.json`, existing project-root `AGENTS.md`. Add cortex-x artifacts as **sibling namespace** (`.claude/cortex-x/`) or **clearly-delimited appended sections** only.
+6. **Never modify populated AI-context artifacts of other frameworks without explicit user approval.** If any of the following exist AND contain content, treat as **read-only**: `.claude/CLAUDE.md`, `.claude/settings.local.json`, `.claude/settings.json`, `.claude/docs/*`, `.claude/skills/*`, `.claude/agents/*` (non-cortex), `.codex/**`, `.cursor/**`, `.cursorrules`, `.continue/**`, `.windsurf/**`, `.windsurfrules`, `.openhands/microagents/**`, `.clinerules/**`, `.clinerules`, `.roo/**`, `.factory/droids/**`, `.kilocode/**`, `kilo.jsonc`, `.kilocodemodes`, `.augment/**`, `.augment-guidelines`, `.amazonq/rules/**`, `.gemini/**`, `.devin/wiki.json`, `.aider.conf.yml`, `CONVENTIONS.md`, `replit.md`, `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`, `.mcp.json`, existing project-root `AGENTS.md` / `AGENT.md` / `.rules`. Add cortex-x artifacts as **sibling namespace** (`.claude/cortex-x/`) or **clearly-delimited appended sections** only.
+
+7. **Never recurse into git submodules.** If `.gitmodules` exists at root, parse it, list submodule paths, and skip them during Phase 1 Agent A directory scans. Submodules are foreign repos with their own governance — retrofitting them silently = overstepping.
+
+8. **Respect `.gitignore`.** Before staging any cortex-x file in Phase 3.6 commit, check if the path is gitignored. If `.claude/` is fully gitignored (user intent: AI context stays local), only commit root-level cortex-x files (`CLAUDE.md`, `PROGRESS.md`, `MEMORY.md`, `AGENTS.md` section) — do NOT force `.claude/*` into tracking.
+
+9. **Soft-block on archived repos.** If `stage.last_commit_age_days > 365` OR README contains "DEPRECATED" / "no-maintenance-intended" / GitHub "Archived" flag, abort Phase 3 unless user passes explicit `--force-stale` override. Retrofit on dead code wastes time.
+
+10. **Never npm install / pip install / cargo build during retrofit.** Detectors are `<100ms` read-only; no package manager invocations. Preserves air-gapped / corporate-registry compatibility.
 
 ## Phase 0 — Deterministic scan (runs first, before any Agent dispatch)
 
@@ -49,18 +57,57 @@ Spawn **5 parallel Agent tasks**. Each is strict read-only. Give each the Phase 
 > "Read `git log --oneline -50`, `git log --stat -20`, `README.md`, any `CONTRIBUTING.md`. Report: (1) commit message discipline (conventional commits? chaotic?), (2) test strategy (unit/e2e presence + run command), (3) deploy flow (CI config? manual?), (4) recent pain points (reverts, hotfixes, 'fix: fix the fix'), (5) who are the active contributors and what do they touch, (6) is there a sprint/story tracking file (PROGRESS.md, issues, Notion)? If `.git` is absent (downloaded zip / fresh clone), skip git-based signals and report that explicitly. 200 words."
 
 ### Agent D — Existing AI context coexistence (MANDATORY — do not skip)
-> "Scan the project for existing AI-tool context layers that cortex-x must coexist with (never overwrite). For each of the following, list top-level contents + 1-line purpose per item + whether the file/folder is populated or empty scaffold:
-> - `.claude/` — existing Claude Code layer (CLAUDE.md, settings.json, settings.local.json, agents/, skills/, docs/)
-> - `.codex/` — existing Codex layer
-> - `.cursor/` + `.cursorrules` — existing Cursor layer
-> - `.mcp.json` — existing MCP server config
-> - `AGENTS.md` at project root — entry-point file for multiple agent frameworks
-> - `.github/copilot-instructions.md` or `*.instructions.md` — Copilot custom instructions
-> - `docs/codex/`, `docs/claude/`, `docs/agents/` — knowledge indexes for agent frameworks
+> "Scan the project for existing AI-tool context layers that cortex-x must coexist with (never overwrite). 2026 AI coding ecosystem has 20+ tools; check ALL these paths. For each, list top-level contents + 1-line purpose + whether the file/folder is populated (>30 lines content OR ≥1 non-empty file) or empty scaffold:
+>
+> **Claude family:**
+> - `.claude/` (CLAUDE.md, settings.json, settings.local.json, agents/, skills/, hooks/, rules/, commands/, docs/, memory/)
+> - `CLAUDE.md` at project root
+> - `.mcp.json` at root
+>
+> **Cross-tool shared (AGENTS.md cohort — 10+ tools read this):**
+> - `AGENTS.md` at root
+> - `AGENT.md` at root (legacy Amp)
+> - `CONVENTIONS.md` at root (Aider primary; cohort secondary)
+>
+> **Per-vendor namespaces (each definitive signal of that tool in use):**
+> - `.codex/` (Codex CLI, `.codex/config.toml`)
+> - `.cursor/rules/*.mdc` + `.cursorrules` (legacy) + `.cursor/mcp.json`
+> - `.continue/` (config.yaml, rules/, agents/, assistants/, configs/)
+> - `.windsurf/rules/*.md` + `.windsurfrules` (legacy)
+> - `.openhands/microagents/*.md`
+> - `.clinerules/*.md` + `.clinerules` (file, legacy)
+> - `.roo/rules/` + `.roo/rules-{mode}/`
+> - `.factory/droids/*.md`
+> - `.kilocode/rules/` + `kilo.jsonc` + `.kilocodemodes`
+> - `.augment/rules/` + `.augment-guidelines`
+> - `.amazonq/rules/*.md`
+> - `.gemini/styleguide.md` + `.gemini/config.yaml`
+> - `.devin/wiki.json`
+> - `.aider.conf.yml`
+> - `replit.md`
+>
+> **GitHub-family (Copilot shared team config — NEVER overwrite, owned by team):**
+> - `.github/copilot-instructions.md`
+> - `.github/instructions/*.instructions.md`
+> - `.github/prompts/*.prompt.md`
+> - `.github/chatmodes/*.chatmode.md`
+>
+> **Zed / misc:**
+> - `.rules` at root
+>
+> **Docs knowledge indexes:**
+> - `docs/codex/`, `docs/claude/`, `docs/agents/`
 >
 > Then produce a 3-column overlap matrix (cortex-x asset × existing counterpart × verdict: conflict / overlap / complement / preserve-read-only) — referenced in `~/.claude/shared/prompts/retrofit.md` § 'Coexistence decision matrix'.
 >
-> Finally recommend a retrofit path: Option 1 (no existing AI context — full scaffold), Option 2 (partial existing — append-only), Option 3 (rich existing — sibling namespace `.claude/cortex-x/` + AGENTS.md appended section, NEVER modify `.claude/CLAUDE.md` or `.claude/settings.local.json` or `.claude/docs/*`). State which option fits this project and why. 500 words max with file-path evidence."
+> Finally recommend a retrofit path:
+> - **Option 1** (no existing AI context — full scaffold)
+> - **Option 2** (partial existing — append-only, diff existing files)
+> - **Option 3** (rich existing — sibling namespace `.claude/cortex-x/` + AGENTS.md appended section, NEVER modify existing CLAUDE.md / settings.local.json / docs/* / skills/* / agents/* of other frameworks, NEVER touch populated `.github/copilot-instructions.md` — it's shared team config)
+>
+> Trigger Option 3 if ANY of: `.claude/CLAUDE.md` populated, `AGENTS.md` populated (can't know which of 10+ tools owns it), `.cursor/rules/` ≥2 files, `.continue/` populated, `.windsurf/rules/` populated, `.clinerules/` populated, `.roo/` populated, `.factory/` populated, `.augment/` populated, `.openhands/microagents/` populated, `.github/copilot-instructions.md` exists (team config, never overwrite).
+>
+> State which option fits this project and why. 500 words max with file-path evidence."
 
 ### Agent E — Rule 2 audit (Security + Correctness per 2026-04-20 standards)
 > "Apply `~/.claude/shared/standards/security.md` (8-layer defense + § Agentic Security + § Browser Automation Security) and `~/.claude/shared/standards/correctness.md` (5 practices: trust-boundary validation, property-based tests, eval-driven dev for LLM, mutation testing, stateful simulation) to this project.
@@ -231,25 +278,36 @@ Project-specific synthesis (Phase 4.3 from `new-project.md`) — SKIP on retrofi
 
 **Option 1:** create `AGENTS.md` from `~/.claude/shared/templates/AGENTS.md.hbs` (if template exists) or minimal boilerplate.
 
-**Option 2-3:** **append** a delimited section to existing `AGENTS.md`. Never rewrite. Use the exact delimiter below so future retrofit re-runs can detect + update this section without duplicating it:
+**Option 2-3:** **append** a delimited section to existing `AGENTS.md`. Never rewrite. Use the exact delimiter below. The `hash=` field is a sha256-12 of the section content — on re-run, recompute; if hash matches, skip rewrite (idempotent). The `version=` field gates upgrades across cortex-x versions:
 
 ```markdown
-<!-- BEGIN cortex-x retrofit (2026-04-20) - do not edit manually; updated by retrofit.md -->
+<!-- BEGIN cortex-x retrofit (date=2026-04-20 version=1.0 hash=<sha256-12> input-hash=<sha256-12>) -->
+<!-- Do not edit manually. Regenerate with ~/.claude/shared/prompts/retrofit.md -->
 ## cortex-x Retrofit Context
 
 cortex-x enhances this project without modifying the existing AI context layer.
 - Framework: cortex-x `<version>` (see `~/.claude/shared/standards/RULE-1.md`)
-- Coexistence mode: Option <2/3>
+- Coexistence mode: Option <1/2/3>
 - cortex-x-owned files:
   - `CLAUDE.md` / `MEMORY.md` / `PROGRESS.md` (project root, cortex-x-owned)
   - `.claude/cortex-x/**` (if Option 3; cortex-x sibling namespace)
 - Existing AI context (cortex-x treats as READ-ONLY):
   - `.claude/CLAUDE.md` / `.claude/settings.local.json` / `.claude/docs/**` / `.claude/skills/**` (existing framework IP)
-  - `.codex/**`, `.cursor/**`, `.cursorrules`, `.mcp.json` (other AI frameworks)
+  - `.codex/**`, `.cursor/**`, `.cursorrules`, `.continue/**`, `.windsurf/**`, `.openhands/**`, `.clinerules/**`, `.roo/**`, `.factory/**`, `.augment/**`, `.amazonq/**`, `.gemini/**`, `.aider.conf.yml`, `CONVENTIONS.md` (other AI frameworks — 2026 ecosystem)
+  - `.github/copilot-instructions.md`, `.github/instructions/**` (Copilot SHARED TEAM config — never touch)
 - Priority when rules conflict: Direct user request > existing `AGENTS.md` rules > existing framework skills > cortex-x standards
-- Detector output (Phase 0): profile=`<name>` (confidence=`<score>`) · stage=`<stage>` · monorepo=`<type>`
+- Detector output (Phase 0): profile=`<name>` (confidence=`<score>`) · stage=`<stage>` · monorepo=`<type>` · language=`<lang>`
 <!-- END cortex-x retrofit -->
 ```
+
+**Idempotency rule:** before rewriting the block, compute sha256 of the would-be new block body (excluding the marker comments). Compare with `hash=` in existing marker. If identical → skip (no commit). If different → update block AND commit with message `chore(retrofit): refresh cortex-x AGENTS.md section (hash <old>→<new>)`. This prevents gratuitous commits on re-runs.
+
+**Version gate:**
+- If existing `version=` in marker **< current cortex-x version** → offer migration (print changelog highlights, ask y/N before updating)
+- If existing `version=` **> current** → abort with "this project was retrofitted with a newer cortex-x (`<existing>`); upgrade your cortex-x first (`./install.sh`)"
+- If existing `version=` **== current** → idempotency check via hash (above)
+
+**Merge conflict recovery:** if parsing `AGENTS.md` finds >1 `<!-- BEGIN cortex-x retrofit -->` block (e.g., from a git merge), warn + keep the most recent (by `date=`), delete the others.
 
 ### 3.5 README pointer
 Append (don't replace) to `README.md`:
@@ -263,6 +321,32 @@ This project uses cortex-x for Claude Code integration. See `CLAUDE.md` for curr
 - One commit per subphase, never batched
 - Messages: `chore(retrofit): add CLAUDE.md from Phase 1 audit`, `chore(retrofit): register cortex-x global hooks`, etc.
 - **Never commit runtime code changes in retrofit.** If an edit outside `.claude/` or `CLAUDE.md`/`PROGRESS.md`/`MEMORY.md` appears in staged diff, STOP and ask.
+
+## Dry-run mode
+
+Invoke retrofit with `--dry-run` at the top of the initial prompt. Claude runs Phases 0-2 normally but **never applies** Phase 3 — instead produces a unified diff preview:
+
+```bash
+# User prompt: "[dry-run] retrofit this project"
+```
+
+Outputs:
+- Full Phase 2 plan with all Option-3 decisions and coexistence matrix
+- Proposed file contents for `CLAUDE.md` / `MEMORY.md` / `PROGRESS.md` / `AGENTS.md` append section
+- List of every `.claude/settings.json` merge target
+- No writes, no commits
+
+Use dry-run on sensitive client projects to **review before committing** — standard practice in Ansible/Terraform/make-install UX.
+
+## Platform-specific notes
+
+**Windows:** detectors already use `path.join` + `os.homedir()` correctly. However, template-baked `{{cortex_source}}` paths may contain backslashes — these are valid for PowerShell but can break regex/grep in scripts. When writing paths into scaffolded files, **normalize to forward-slashes** via `.replace(/\\/g, '/')` before substitution.
+
+**Yarn PnP (Zero-Installs):** `.pnp.cjs` at root indicates no `node_modules`. Note in CLAUDE.md so Claude doesn't try to `cd node_modules`. Tools resolve via `yarn node` wrapper or pnpapi.
+
+**Corporate private registry:** if `.npmrc` / `.yarnrc.yml` / `.pypirc` contain auth tokens, verify `.gitignore` covers them. Cortex-x retrofit never reads or logs credential fields.
+
+**Shallow clone:** if `.git/shallow` exists, Agent C's `git log` undercounts commits. Annotate `commit_count` as lower-bound.
 
 ## Phase 4 — Post-retrofit report
 

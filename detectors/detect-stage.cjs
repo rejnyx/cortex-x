@@ -69,8 +69,13 @@ function collectSignals(cwd) {
       has(cwd, 'Dockerfile') || has(cwd, 'docker-compose.yml') ||
       has(cwd, 'fly.toml') || has(cwd, 'railway.toml') ||
       has(cwd, 'infra') || has(cwd, 'k8s') ||
-      // Infer Docker presence from any docker-compose-*.yaml variant
-      fs.readdirSync(cwd).some(f => /^docker-compose[-.]/.test(f))
+      // Infer Docker presence from any docker-compose-*.yaml variant.
+      // Wrap readdir in try/catch — root may be unreadable on some projects
+      // (permissions, filesystem anomalies). Fail-open per auto-optimization contract.
+      (() => {
+        try { return fs.readdirSync(cwd).some(f => /^docker-compose[-.]/.test(f)); }
+        catch (_) { return false; }
+      })()
     ),
     has_claude_md: has(cwd, 'CLAUDE.md'),
     has_progress_md: has(cwd, 'PROGRESS.md'),
@@ -267,6 +272,9 @@ function detect(cwd, options) {
     return {
       stage: 'unknown',
       confidence: 0,
+      evidence: [`error:${String(err && err.message).slice(0, 100)}`],
+      signals: {},
+      suggestions: [],
       error: String(err && err.message),
       elapsed_ms: Date.now() - started,
       cwd,
@@ -287,9 +295,10 @@ if (require.main === module) {
   } else {
     console.log(`Stage detection (${result.elapsed_ms}ms):`);
     console.log(`  stage:      ${result.stage}`);
-    console.log(`  confidence: ${result.confidence.toFixed(2)}`);
-    console.log(`  evidence:   ${result.evidence.join(', ')}`);
-    if (result.suggestions.length > 0) {
+    console.log(`  confidence: ${(result.confidence || 0).toFixed(2)}`);
+    console.log(`  evidence:   ${(result.evidence || []).join(', ')}`);
+    if (result.error) console.log(`  error:      ${result.error}`);
+    if (result.suggestions && result.suggestions.length > 0) {
       console.log(`\nSuggested upgrades (${result.suggestions.length}):`);
       result.suggestions.forEach(s => console.log(`  • ${s}`));
     }

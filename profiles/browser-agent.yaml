@@ -11,6 +11,20 @@ extends: ai-agent
 #   HITL, isolated Chrome profile) — see security.md § "Browser Automation Security"
 # - Adds browser-session cost tracking (cloud browsers are metered)
 
+detect:
+  package_json:
+    dependencies:
+      - browser-use
+      - "@browser-use/cdp-use"
+      - playwright
+    devDependencies:
+      - "@playwright/test"
+  files:
+    - src/lib/browser/
+    - infra/docker/browser-runner/
+  config_files:
+    - next.config.ts
+
 stack:
   framework: next@16
   runtime: node@22
