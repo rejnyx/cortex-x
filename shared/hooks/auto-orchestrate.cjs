@@ -22,7 +22,7 @@ const path = require('path');
 const os = require('os');
 
 const { validateCortexHome } = require('./_lib/redact.cjs');
-const { sessionTotal, getCapUsd, warningLevel } = require('./_lib/budget.cjs');
+const { sessionTotal, getCapUsd, warningLevel, isBudgetDisabled } = require('./_lib/budget.cjs');
 
 const DEFAULT_TTL_DAYS = 180;
 const HOT_FRAMEWORK_TTL_DAYS = 30;
@@ -134,7 +134,35 @@ function formatCacheList(caches, maxEntries = 5) {
     .join('\n');
 }
 
-function buildGuidance(caches, budget, capUsd) {
+function buildGuidance(caches, budget, capUsd, budgetDisabled) {
+  const header = [
+    '# cortex-x auto-orchestrate',
+    '',
+    'This prompt matches a new-implementation pattern. Apply the 3-fronta rule from `~/.claude/shared/standards/auto-orchestration.md`:',
+    '',
+    '- **Research — parallelizable** (3-4 Agent subagents, general-purpose). Run BEFORE writing code if topic is unfamiliar OR cache is stale.',
+    '- **Implementation — single-thread.** Multi-agent code-writing degrades -70% on sequential/interdependent tasks (PlanCraft benchmark). Do not parallelize `Edit`/`Write`.',
+    '- **Review — parallelizable** (3-5 adversarial agents). Run AFTER implementation via `~/.claude/shared/prompts/auto-review.md`.',
+    '',
+    'Research cache (sorted by age, fresh first):',
+    formatCacheList(caches),
+    '',
+  ];
+
+  const decisionTree = [
+    '**Decision tree:**',
+    '1. Topic covered by FRESH cache above → skip research, go to implementation.',
+    '2. Unfamiliar / stale / missing → spawn 2-4 parallel Agent tasks (general-purpose), merge, then implement single-threaded.',
+    '3. Trivial scope (bug fix, rename, typo) → ignore this hint; implement directly.',
+    '4. User said `quick` / `rychle` / `skip research` → ignore this hint.',
+    '',
+    'After implementation lands, paste `~/.claude/shared/prompts/auto-review.md` (or invoke code-review.md) to run the parallel review pipeline.',
+  ];
+
+  if (budgetDisabled) {
+    return [...header, ...decisionTree].join('\n');
+  }
+
   const level = warningLevel(budget.cost_usd, capUsd);
   const pct = capUsd > 0 ? Math.round((budget.cost_usd / capUsd) * 100) : 0;
   const budgetLine = budget.count > 0
@@ -148,26 +176,10 @@ function buildGuidance(caches, budget, capUsd) {
     : '';
 
   return [
-    '# cortex-x auto-orchestrate',
-    '',
-    'This prompt matches a new-implementation pattern. Apply the 3-fronta rule from `~/.claude/shared/standards/auto-orchestration.md`:',
-    '',
-    '- **Research — parallelizable** (3-4 Agent subagents, general-purpose). Run BEFORE writing code if topic is unfamiliar OR cache is stale.',
-    '- **Implementation — single-thread.** Multi-agent code-writing degrades -70% on sequential/interdependent tasks (PlanCraft benchmark). Do not parallelize `Edit`/`Write`.',
-    '- **Review — parallelizable** (3-5 adversarial agents). Run AFTER implementation via `~/.claude/shared/prompts/auto-review.md`.',
-    '',
-    'Research cache (sorted by age, fresh first):',
-    formatCacheList(caches),
-    '',
+    ...header,
     budgetLine + overLine,
     '',
-    '**Decision tree:**',
-    '1. Topic covered by FRESH cache above → skip research, go to implementation.',
-    '2. Unfamiliar / stale / missing → spawn 2-4 parallel Agent tasks (general-purpose), merge, then implement single-threaded.',
-    '3. Trivial scope (bug fix, rename, typo) → ignore this hint; implement directly.',
-    '4. User said `quick` / `rychle` / `skip research` → ignore this hint.',
-    '',
-    'After implementation lands, paste `~/.claude/shared/prompts/auto-review.md` (or invoke code-review.md) to run the parallel review pipeline.',
+    ...decisionTree,
   ].join('\n');
 }
 
@@ -182,12 +194,13 @@ function main() {
 
   const cortexRoot = resolveCortexRoot();
   const caches = listResearchCache(cortexRoot);
-  const capUsd = getCapUsd();
-  const budget = cortexRoot
+  const budgetDisabled = isBudgetDisabled();
+  const capUsd = budgetDisabled ? 0 : getCapUsd();
+  const budget = (!budgetDisabled && cortexRoot)
     ? sessionTotal(cortexRoot, input && input.session_id)
     : { cost_usd: 0, tokens: 0, count: 0 };
 
-  const guidance = buildGuidance(caches, budget, capUsd);
+  const guidance = buildGuidance(caches, budget, capUsd, budgetDisabled);
 
   process.stdout.write(JSON.stringify({
     continue: true,
