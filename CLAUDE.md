@@ -93,13 +93,15 @@ Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./
 ## Roadmap
 
 **Phase 1 — Foundation** (current)
-- Shared hooks (block-destructive, session-start, pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
+- Shared hooks (block-destructive, session-start [+ detector integration 2026-04-20], pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
-- Rule 1 standards (SSOT, Modular, Scalable) + Rule 2 Critical (Security, Testing, Observability, **Correctness** — added 2026-04-20)
+- Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20
 - Rule 2 Security extensions: § Agentic Security (lethal trifecta, 7 MUST patterns) + § **Browser Automation Security** (3 browser-specific MUSTs) — added 2026-04-20
 - Rule 2 Observability extension: § Runtime SLOs + circuit breakers + LLM obs — added 2026-04-20
 - Rule 3 **Skills** standard — agentskills.io SKILL.md open spec (portable Claude Code ↔ Hermes ↔ Codex ↔ Cursor) — added 2026-04-20
-- Profiles: nextjs-saas + minimal fallback + `ai-agent` (7 MUST agentic-security patterns + skills spec) + **`browser-agent`** (extends ai-agent with 3 browser-specific MUSTs)
+- **`detectors/`** (NEW 2026-04-20) — deterministic profile + stage classifiers, <100ms, fail-open, feed session-start hook + cortex-doctor drift flow
+- **ai-patterns safe-tool v2** — adds loop detector + circuit breaker + per-tool retry budget (OWASP LLM10 defense) — 2026-04-20
+- Profiles: nextjs-saas + minimal fallback + `ai-agent` (7 MUST agentic-security + skills + tirith hook) + **`browser-agent`** (extends ai-agent with 3 browser MUSTs)
 
 **Phase 2 — Bootstrap skill**
 - `/init-project` skill with Clack-based CLI

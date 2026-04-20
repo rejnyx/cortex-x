@@ -95,6 +95,13 @@ if (Test-Path $SkillsSrc) {
     Copy-Item -Recurse -Path $SkillsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
 }
 
+# Detectors directory — deterministic profile/stack/stage classifiers (auto-optimization).
+# Read by session-start hook + cortex-doctor prompt. Fail-open contract.
+$DetectorsSrc = Join-Path $CortexRoot "detectors"
+if (Test-Path $DetectorsSrc) {
+    Copy-Item -Recurse -Path $DetectorsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
+}
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.

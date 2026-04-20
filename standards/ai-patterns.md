@@ -17,27 +17,68 @@ But for **every SaaS, chatbot, dashboard, builder, CRM, content tool** — agent
 
 ## The 10 agentic patterns (battle-tested across production agent projects)
 
-### 1. safe-tool wrapper (CRITICAL — port to every agent project)
+### 1. safe-tool wrapper v2 (CRITICAL — port to every agent project)
 
-Tools NEVER throw to the agent loop. Wrapper catches errors, classifies, returns `{success, data|error}`. AI self-heals with alternative tool calls.
+Tools NEVER throw to the agent loop. Wrapper catches errors, classifies, returns `{success, data|error}`. AI self-heals with alternative tool calls. **v2 adds loop detector + circuit breaker + per-tool retry budget** to prevent runaway tool-call loops (OWASP LLM10 Unbounded Consumption).
 
 ```typescript
-// ✅ Pattern
+// ✅ Pattern — safe-tool v2
 import { tool } from 'ai'
 import { z } from 'zod'
+import { createHash } from 'crypto'
+
+// Per-session state (per-user in production — store in KV / Redis / DB)
+const sessionState = new WeakMap()  // session -> { toolCounts, circuitOpen, argHistory }
+
+function fingerprint(args: unknown): string {
+  return createHash('sha256').update(JSON.stringify(args)).digest('hex').slice(0, 16)
+}
 
 function safeTool<T>(name: string, schema: z.ZodSchema, execute: (args: T) => Promise<any>) {
   return tool({
     description: `...`,
     parameters: schema,  // strip $schema for OpenAI compat
-    execute: async (args) => {
+    execute: async (args, ctx) => {
+      const session = ctx?.session ?? globalThis
+      const state = sessionState.get(session) ?? { toolCounts: {}, circuitOpen: {}, argHistory: {}, errorHistory: {} }
+      sessionState.set(session, state)
+
+      // --- Circuit breaker: 3 consecutive same-code errors disables tool for session ---
+      if (state.circuitOpen[name]) {
+        return { success: false, error: { code: 'circuit_open', message: `${name} disabled (repeated failures this session)` } }
+      }
+
+      // --- Loop detector: 5 identical calls within session = stop ---
+      const fp = fingerprint(args)
+      state.argHistory[name] ??= []
+      state.argHistory[name].push(fp)
+      const recentIdentical = state.argHistory[name].slice(-5).filter(h => h === fp).length
+      if (recentIdentical >= 5) {
+        return { success: false, error: { code: 'loop_detected', message: `${name} called 5× with identical args — halting to avoid runaway loop` } }
+      }
+
+      // --- Retry budget: 10 calls per tool per session ---
+      state.toolCounts[name] = (state.toolCounts[name] ?? 0) + 1
+      if (state.toolCounts[name] > 10) {
+        state.circuitOpen[name] = true
+        return { success: false, error: { code: 'budget_exhausted', message: `${name} retry budget exceeded (10 per session)` } }
+      }
+
       try {
         return { success: true, data: await execute(args) }
       } catch (err) {
+        const code = classifyError(err)  // timeout|auth|not_found|validation|rate_limit|unknown
+        // Circuit breaker trip after 3 consecutive same-code errors
+        state.errorHistory[name] ??= []
+        state.errorHistory[name].push(code)
+        const lastThree = state.errorHistory[name].slice(-3)
+        if (lastThree.length === 3 && lastThree.every(c => c === code)) {
+          state.circuitOpen[name] = true
+        }
         return {
           success: false,
           error: {
-            code: classifyError(err),  // timeout|auth|not_found|validation|rate_limit|unknown
+            code,
             message: userFriendly(err),
           }
         }
@@ -47,7 +88,14 @@ function safeTool<T>(name: string, schema: z.ZodSchema, execute: (args: T) => Pr
 }
 ```
 
-**Why:** Multi-step agent chains (8+ steps) crash when ONE tool throws. Safe-tool lets the loop continue with degraded functionality.
+**Why v2 matters:**
+- Multi-step agent chains (8+ steps) crash when ONE tool throws → v1 safe-tool catches this
+- Naive retry loops burn tokens/money (Cursor $47k/3d incident) → v2 loop detector + circuit breaker
+- Per-tool retry budget caps worst-case spend per session even if agent is hijacked
+
+**v1 → v2 migration:** add session state (WeakMap or KV), add loop detector (5-identical-args halt), add circuit breaker (3-consecutive-same-error halt), add per-tool retry budget (10 per session). No API change for tool authors.
+
+**Cross-reference:** [`standards/self-correction.md`](./self-correction.md) — this is Pattern #1 (endorsed). Intrinsic reflection without external verifier is Pattern #2 (conditional) — do NOT add "let the model think about whether that was right" as a default loop step.
 
 ### 2. Three-layer memory architecture
 
