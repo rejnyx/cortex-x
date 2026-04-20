@@ -41,6 +41,20 @@ function has(cwd, rel) {
   catch (_) { return false; }
 }
 
+// Count subdirectories under a given parent that contain a package.json.
+// Used as structural fallback when .git is absent (downloaded zip, archived project,
+// freshly cloned project where user hasn't run `git init` yet).
+function countPackageSubdirs(cwd, parent) {
+  try {
+    const base = path.join(cwd, parent);
+    if (!fs.statSync(base).isDirectory()) return 0;
+    return fs.readdirSync(base).filter(sub => {
+      try { return fs.statSync(path.join(base, sub, 'package.json')).isFile(); }
+      catch (_) { return false; }
+    }).length;
+  } catch (_) { return 0; }
+}
+
 function collectSignals(cwd) {
   const signals = {
     is_git: has(cwd, '.git'),
@@ -53,14 +67,25 @@ function collectSignals(cwd) {
     has_deploy_config: (
       has(cwd, 'vercel.json') || has(cwd, 'netlify.toml') ||
       has(cwd, 'Dockerfile') || has(cwd, 'docker-compose.yml') ||
-      has(cwd, 'fly.toml') || has(cwd, 'railway.toml')
+      has(cwd, 'fly.toml') || has(cwd, 'railway.toml') ||
+      has(cwd, 'infra') || has(cwd, 'k8s') ||
+      // Infer Docker presence from any docker-compose-*.yaml variant
+      fs.readdirSync(cwd).some(f => /^docker-compose[-.]/.test(f))
     ),
     has_claude_md: has(cwd, 'CLAUDE.md'),
     has_progress_md: has(cwd, 'PROGRESS.md'),
     has_memory_system: has(cwd, 'MEMORY.md') || has(cwd, '.claude/memory') || has(cwd, 'memory'),
     has_evals: has(cwd, 'evals'),
     has_monitoring: has(cwd, 'sentry.client.config.ts') || has(cwd, 'sentry.server.config.ts') || has(cwd, 'instrumentation.ts'),
+    // Structural signals — used as git-absent fallback
+    apps_count: countPackageSubdirs(cwd, 'apps'),
+    libs_count: countPackageSubdirs(cwd, 'libs'),
+    packages_count: countPackageSubdirs(cwd, 'packages'),
+    has_nx: has(cwd, 'nx.json'),
+    has_turbo: has(cwd, 'turbo.json'),
+    has_pnpm_workspace: has(cwd, 'pnpm-workspace.yaml'),
   };
+  signals.workspace_total = signals.apps_count + signals.libs_count + signals.packages_count;
 
   if (signals.is_git) {
     const countStr = safeExec('git rev-list --count HEAD', cwd);
@@ -86,14 +111,73 @@ function collectSignals(cwd) {
   return signals;
 }
 
+// Structural classifier — used when .git is missing OR commit_count is too low
+// relative to clearly-mature structural signals (monorepo with many packages + CI + deploy).
+// Prevents false "greenfield" on downloaded zips, fresh clones before git init, or
+// archived/exported project copies. Fix for 2026-04-20 field-test on admin-main.
+function classifyStructurally(signals) {
+  const evidence = [signals.is_git ? `git:yes(low-commits:${signals.commit_count})` : 'git:absent'];
+
+  // Monorepo with 5+ packages + CI + deploy = mature-by-structure
+  if (signals.workspace_total >= 5 && signals.has_ci && signals.has_deploy_config) {
+    evidence.push(`monorepo:${signals.workspace_total}-packages`);
+    if (signals.has_nx) evidence.push('nx:yes');
+    if (signals.has_turbo) evidence.push('turbo:yes');
+    evidence.push('ci:yes', 'deploy:yes');
+    return { stage: 'mature', confidence: 0.7, evidence };
+  }
+
+  // 3+ packages OR CI + deploy OR tests + deploy = growth-by-structure
+  if (signals.workspace_total >= 3 || (signals.has_ci && signals.has_deploy_config)) {
+    evidence.push(`workspace:${signals.workspace_total}`);
+    if (signals.has_tests_dir) evidence.push('tests:yes');
+    if (signals.has_ci) evidence.push('ci:yes');
+    if (signals.has_deploy_config) evidence.push('deploy:yes');
+    return { stage: 'growth', confidence: 0.6, evidence };
+  }
+
+  // Tests + CI OR tests + deploy = mvp-by-structure
+  if ((signals.has_tests_dir && signals.has_ci) || (signals.has_tests_dir && signals.has_deploy_config)) {
+    if (signals.has_tests_dir) evidence.push('tests:yes');
+    if (signals.has_ci) evidence.push('ci:yes');
+    if (signals.has_deploy_config) evidence.push('deploy:yes');
+    return { stage: 'mvp', confidence: 0.55, evidence };
+  }
+
+  // Tests OR CI alone = prototype-by-structure
+  if (signals.has_tests_dir || signals.has_ci || signals.has_deploy_config) {
+    if (signals.has_tests_dir) evidence.push('tests:yes');
+    if (signals.has_ci) evidence.push('ci:yes');
+    if (signals.has_deploy_config) evidence.push('deploy:yes');
+    return { stage: 'prototype', confidence: 0.5, evidence };
+  }
+
+  // Has scaffolding files but no infra = prototype
+  if (signals.has_claude_md || signals.has_progress_md) {
+    evidence.push('claude-scaffolded');
+    return { stage: 'prototype', confidence: 0.4, evidence };
+  }
+
+  // Nothing — greenfield
+  return { stage: 'greenfield', confidence: 0.5, evidence };
+}
+
 function classifyStage(signals) {
   const evidence = [];
 
-  // Greenfield: no git or <= 5 commits
+  // Missing git OR very low commit count BUT strong structural signals → classify structurally
+  // This handles: downloaded zips, fresh clones, exported archives, git-init-pending.
   if (!signals.is_git || signals.commit_count <= 5) {
+    const hasStructuralSignals = (
+      signals.workspace_total >= 3 ||
+      signals.has_ci ||
+      signals.has_deploy_config ||
+      signals.has_tests_dir
+    );
+    if (hasStructuralSignals) return classifyStructurally(signals);
     evidence.push(`commits:${signals.commit_count}`);
-    evidence.push(signals.is_git ? 'git:yes' : 'git:no');
-    return { stage: 'greenfield', confidence: 0.95, evidence };
+    evidence.push(signals.is_git ? 'git:yes' : 'git:absent');
+    return { stage: 'greenfield', confidence: 0.85, evidence };
   }
 
   // Mature: 1000+ commits with full infra

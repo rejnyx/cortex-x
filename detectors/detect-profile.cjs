@@ -145,19 +145,101 @@ function loadProfiles(profilesDir) {
   return profiles;
 }
 
-function collectSignals(cwd) {
-  const signals = { deps: new Set(), files: new Set(), configs: new Set() };
+// Find all workspace package.json paths for monorepos (Nx, pnpm, npm/yarn workspaces,
+// Turborepo, Cargo workspaces). Returns list of absolute paths to sub-package.json files.
+// Gracefully handles missing/malformed configs — fail-open per standards/auto-optimization.md.
+function findWorkspacePackages(cwd) {
+  const workspaces = new Set();
+  let monorepoType = null;
 
-  // package.json dependencies
+  // 1. npm/yarn/pnpm "workspaces" in root package.json
   try {
-    const pkgPath = path.join(cwd, 'package.json');
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    for (const k of ['dependencies', 'devDependencies', 'peerDependencies']) {
-      if (pkg[k] && typeof pkg[k] === 'object') {
-        for (const dep of Object.keys(pkg[k])) signals.deps.add(dep);
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8'));
+    let patterns = null;
+    if (Array.isArray(rootPkg.workspaces)) patterns = rootPkg.workspaces;
+    else if (rootPkg.workspaces && Array.isArray(rootPkg.workspaces.packages)) patterns = rootPkg.workspaces.packages;
+    if (patterns) {
+      monorepoType = 'workspaces';
+      for (const pat of patterns) expandGlob(cwd, pat, workspaces);
+    }
+  } catch (_) {}
+
+  // 2. pnpm-workspace.yaml (minimal parse — list items with glob patterns)
+  try {
+    const ws = fs.readFileSync(path.join(cwd, 'pnpm-workspace.yaml'), 'utf8');
+    const lines = ws.split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^\s*-\s*['"]?([^'"\s]+)['"]?\s*$/);
+      if (m) {
+        monorepoType = monorepoType || 'pnpm';
+        expandGlob(cwd, m[1], workspaces);
       }
     }
   } catch (_) {}
+
+  // 3. Nx — if nx.json exists, scan common apps/, libs/, packages/ directories
+  try {
+    if (fs.existsSync(path.join(cwd, 'nx.json'))) {
+      monorepoType = 'nx';
+      for (const base of ['apps', 'libs', 'packages']) expandGlob(cwd, `${base}/*`, workspaces);
+    }
+  } catch (_) {}
+
+  // 4. Turborepo — if turbo.json exists + no workspaces yet picked up, scan apps + packages
+  try {
+    if (fs.existsSync(path.join(cwd, 'turbo.json'))) {
+      monorepoType = monorepoType || 'turbo';
+      for (const base of ['apps', 'packages']) expandGlob(cwd, `${base}/*`, workspaces);
+    }
+  } catch (_) {}
+
+  return { packages: Array.from(workspaces), monorepoType };
+}
+
+function expandGlob(cwd, pattern, resultSet) {
+  try {
+    if (pattern.endsWith('/*')) {
+      const base = pattern.slice(0, -2);
+      const baseDir = path.join(cwd, base);
+      if (!fs.statSync(baseDir).isDirectory()) return;
+      for (const sub of fs.readdirSync(baseDir)) {
+        const p = path.join(baseDir, sub, 'package.json');
+        if (fs.existsSync(p)) resultSet.add(p);
+      }
+    } else {
+      const p = path.join(cwd, pattern, 'package.json');
+      if (fs.existsSync(p)) resultSet.add(p);
+    }
+  } catch (_) {}
+}
+
+function readDepsFromPackageJson(pkgPath, depsSet) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    for (const k of ['dependencies', 'devDependencies', 'peerDependencies']) {
+      if (pkg[k] && typeof pkg[k] === 'object') {
+        for (const dep of Object.keys(pkg[k])) depsSet.add(dep);
+      }
+    }
+  } catch (_) {}
+}
+
+function collectSignals(cwd) {
+  const signals = { deps: new Set(), files: new Set(), configs: new Set(), monorepo: null, workspaceCount: 0 };
+
+  // Root package.json dependencies
+  readDepsFromPackageJson(path.join(cwd, 'package.json'), signals.deps);
+
+  // Workspace-aware: if monorepo, aggregate deps from all sub-packages.
+  // This is the fix for the 2026-04-20 field-test bug: Nx/Turbo/pnpm monorepos keep
+  // runtime deps in apps/*/package.json, not root. Without this, detect-profile
+  // scored 0.00 on OrderMage and similar mature projects.
+  const { packages: wsPkgs, monorepoType } = findWorkspacePackages(cwd);
+  if (wsPkgs.length > 0) {
+    signals.monorepo = monorepoType;
+    signals.workspaceCount = wsPkgs.length;
+    for (const wsPkg of wsPkgs) readDepsFromPackageJson(wsPkg, signals.deps);
+  }
 
   // Common folder probes (lightweight — single-level stat on known paths)
   const candidateFolders = [
@@ -229,13 +311,17 @@ function detect(cwd, options) {
   const signals = collectSignals(cwd);
   const scored = profiles.map(p => {
     const s = scoreCandidate(p, signals);
+    const evidence = [...s.evidence];
+    if (signals.monorepo) {
+      evidence.unshift(`monorepo:${signals.monorepo} (${signals.workspaceCount} sub-packages aggregated)`);
+    }
     return {
       name: p.name,
       description: p.description,
       extends: p.extends,
       score: s.score,
       confidence: confidenceLevel(s.score),
-      evidence: s.evidence,
+      evidence,
       matched: s.matched,
       missed: s.missed,
     };
@@ -246,6 +332,8 @@ function detect(cwd, options) {
   return {
     candidates: ranked,
     top: ranked[0] || null,
+    monorepo: signals.monorepo,
+    workspaceCount: signals.workspaceCount,
     elapsed_ms: Date.now() - started,
     cwd,
   };
