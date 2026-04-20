@@ -14,7 +14,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { redact, truncate, homeStrip, singleLine, validateCortexHome } = require('./_lib/redact.cjs');
-const { recordUsage } = require('./_lib/budget.cjs');
+const { recordUsage, isBudgetDisabled } = require('./_lib/budget.cjs');
 
 const CWD = process.cwd();
 
@@ -280,7 +280,8 @@ process.stdin.on('end', () => {
     // tool that bills tokens (Agent/Task subagents, WebSearch, WebFetch when
     // usage metadata is exposed by Claude Code). Fail-silent if no usage
     // surfaces — the observability layer must never break a session.
-    if (toolName === 'Agent' || toolName === 'Task' || toolName === 'WebSearch' || toolName === 'WebFetch') {
+    // Skipped entirely on flat-subscription installs (CORTEX_BUDGET_DISABLED=1).
+    if (!isBudgetDisabled() && (toolName === 'Agent' || toolName === 'Task' || toolName === 'WebSearch' || toolName === 'WebFetch')) {
       try {
         const tr = data.tool_response || data.toolResponse || {};
         const usage = tr.usage || tr.token_usage || {};

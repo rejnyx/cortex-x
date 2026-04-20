@@ -138,6 +138,15 @@ function warningLevel(cost_usd, cap_usd) {
   return 'ok';
 }
 
+// Opt-out for flat-subscription users (Claude Max / Teams / Enterprise) where
+// token-cost warnings are noise — they pay a flat fee, not per token.
+// Set CORTEX_BUDGET_DISABLED=1 to suppress budget UI in auto-orchestrate,
+// session-start, and skip budget.jsonl writes in post-tool-use. The `journal/`
+// activity log (privacy-safe tool metadata) is unaffected.
+function isBudgetDisabled() {
+  return process.env.CORTEX_BUDGET_DISABLED === '1';
+}
+
 module.exports = {
   MODEL_PRICES,
   DEFAULT_PRICE,
@@ -148,5 +157,6 @@ module.exports = {
   lastSessionSummary,
   getCapUsd,
   warningLevel,
+  isBudgetDisabled,
   budgetFile,
 };
