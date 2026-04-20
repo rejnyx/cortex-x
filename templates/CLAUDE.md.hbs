@@ -19,7 +19,13 @@ RLS od day 1. Indexy na FK a query predikátech. Paginace na všech listech. Rat
 
 **Full contract:** `~/.claude/shared/standards/RULE-1.md`. Anti-patterns tam jsou automatic blockers — ne debate.
 
-### Rule 2 (Critical): `~/.claude/shared/standards/security.md` · `~/.claude/shared/standards/testing.md` · `~/.claude/shared/standards/observability.md`
+### Rule 2 (Critical): [`security.md`](../.claude/shared/standards/security.md) · [`testing.md`](../.claude/shared/standards/testing.md) · [`observability.md`](../.claude/shared/standards/observability.md) · [`correctness.md`](../.claude/shared/standards/correctness.md)
+
+- **Security** — 8-layer defense + Agentic Security (lethal trifecta, 7 MUST patterns for LLM/agent systems)
+- **Testing** — layered pyramid, 5 pillars per test file (happy / error / edge / security / integration)
+- **Observability** — structured logs + burn-rate SLOs + circuit breakers + LLM obs stack
+- **Correctness** — Zod at boundaries, property-based tests, eval suites for LLM, mutation testing, stateful simulation
+
 ### Rule 3 (Process): Performance · A11y · Error · Git · Docs · `~/.claude/shared/standards/ai-patterns.md`
 
 ---

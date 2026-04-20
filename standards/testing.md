@@ -83,6 +83,20 @@ Test file without error cases = fragile. Test file without security = negligent.
 - **Cost guard tests** — simulate token blowup, assert quota enforcement
 - **Memory system tests** — core index rebuild, activity log search, vector recall
 
+## Beyond example-based tests — see correctness.md
+
+Standard unit/integration/E2E testing catches **regressions on things you thought to test**. It does **not** catch: algorithm errors producing plausible wrong outputs, invariants that should hold across all inputs, order-dependent bugs in stateful systems, silent LLM-output regressions when prompts or models change, or stale tests that pass because they don't verify hard cases.
+
+For verification **beyond examples**:
+
+- **Property-based testing** (fast-check / Hypothesis) — invariants over generated inputs, not examples
+- **Eval-driven dev** (promptfoo / braintrust) — the spec for non-deterministic LLM/agent code
+- **Mutation testing** (Stryker / mutmut) — measures test *quality*, not just coverage
+- **Stateful simulation** (fast-check commands / Hypothesis RuleBasedStateMachine / Antithesis) — for retry/dedup/ledger/workflow code
+- **Schema validation at trust boundaries** (Zod / Pydantic) — types are compile-time; runtime validation is the proof
+
+Full methodology + 2026 tool matrix: [correctness.md](./correctness.md) (Rule 2 Critical, alongside Security / Testing / Observability).
+
 ## Coverage goals
 
 - **Unit:** 80%+ on `lib/` and business logic

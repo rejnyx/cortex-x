@@ -52,14 +52,37 @@ cortex-x/
 └── install.sh/.ps1   One-command install to ~/.claude/shared/
 ```
 
-## Principles
+## Principles — tiered rule system
 
-This framework enforces four standards in every scaffolded project:
+cortex-x doesn't flatten all standards into one list. It uses a **tier hierarchy** (see [standards/RULE-1.md](./standards/RULE-1.md)):
 
-1. **SSOT** — [standards/ssot.md](./standards/ssot.md)
-2. **Modular** — [standards/modular.md](./standards/modular.md)
-3. **Scalable** — [standards/scalable.md](./standards/scalable.md)
-4. **Security** — [standards/security.md](./standards/security.md)
+### Rule 0 — Distribution gate
+**[Ship-Ready](./standards/ship-ready.md)** — no personal data in generic code, clear licensing, stranger-reproducible install. Precedes everything else.
+
+### Rule 1 — Inviolable architectural invariants
+The **3 pillars** every scaffolded project respects from day 1:
+
+1. **SSOT** — [standards/ssot.md](./standards/ssot.md) — one authoritative source per knowledge piece
+2. **Modular** — [standards/modular.md](./standards/modular.md) — clean interfaces, swappable subsystems
+3. **Scalable** — [standards/scalable.md](./standards/scalable.md) — 10x-safe patterns from day 1
+
+**Rule 1 violations = automatic PR block.** Enforced by `ssot-enforcer` + `blind-hunter` agents.
+
+### Rule 1.5 — Coding behavior contract
+**[Coding Behavior](./standards/coding-behavior.md)** — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
+
+### Rule 2 — Critical (must-have)
+**Security + Testing + Observability + Correctness**. Review pipeline flag = blocker.
+
+1. **[Security](./standards/security.md)** — 8-layer defense + § Agentic Security 2026 (lethal trifecta, 7 MUST patterns for LLM/agent)
+2. **[Testing](./standards/testing.md)** — layered pyramid, 5 pillars per test, AI-specific tests
+3. **[Observability](./standards/observability.md)** — logs/metrics/traces + Runtime SLOs (burn-rate) + circuit breakers + LLM obs stack
+4. **[Correctness](./standards/correctness.md)** — Zod at boundaries, property-based tests, eval-driven dev, mutation testing, stateful simulation
+
+### Rule 3 — Process (should-have)
+Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./standards/ai-patterns.md). Review pipeline flag = warning.
+
+**Mental model:** Rule 1 guarantees structure. Rule 2 guarantees the code works correctly, securely, observably. Rule 3 is polish. Rule 0 is "can you distribute it at all." Don't flatten — the tier priority matters when budgets are constrained.
 
 ## Development Workflow
 
@@ -70,10 +93,12 @@ This framework enforces four standards in every scaffolded project:
 ## Roadmap
 
 **Phase 1 — Foundation** (current)
-- Shared hooks (block-destructive, session-start, pre-compact)
+- Shared hooks (block-destructive, session-start, pre-compact, auto-orchestrate, post-tool-use)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
-- Standards (SSOT, Modular, Scalable, Security)
-- First profile (nextjs-saas) + minimal fallback
+- Rule 1 standards (SSOT, Modular, Scalable) + Rule 2 Critical (Security, Testing, Observability, **Correctness** — added 2026-04-20)
+- Rule 2 Security extension: § Agentic Security (lethal trifecta, 7 MUST patterns) — added 2026-04-20
+- Rule 2 Observability extension: § Runtime SLOs + circuit breakers + LLM obs — added 2026-04-20
+- First profile (nextjs-saas) + minimal fallback + `ai-agent` with 7 MUST agentic-security patterns mandated
 
 **Phase 2 — Bootstrap skill**
 - `/init-project` skill with Clack-based CLI
