@@ -1,4 +1,71 @@
-# Cortex Doctor — Self-Healthcheck
+# Cortex Doctor — Self-Healthcheck + Drift Detection
+
+> **How to use:** Paste when cortex-x feels broken, after system migration, weekly as sanity check, OR when you want to know **if the project has outgrown its scaffold profile** and should be upgraded. Claude runs the deterministic detectors, compares current state vs originally scaffolded profile, surfaces drift + upgrade options.
+
+## Part 0 — Drift detection (NEW 2026-04-20)
+
+**Run this FIRST** — before the installation-integrity section below. Takes <1s.
+
+### 0.1 Deterministic scan
+
+Spawn a silent check:
+
+```bash
+node ~/.claude/shared/detectors/detect-profile.cjs --json
+node ~/.claude/shared/detectors/detect-stage.cjs --json
+```
+
+Read the JSON outputs. You now have:
+- `currentProfile.top.name` + `score` + `confidence`
+- `currentStage.stage` + `evidence` + `suggestions`
+
+### 0.2 Compare with scaffolded profile (SSOT for intent)
+
+Look up the project's scaffolded profile from `$CORTEX_HOME/projects/<slug>.md` frontmatter (this file is written at scaffold time by `new-project.md` §4.5).
+
+Three possible states:
+
+**✅ No drift** (currentProfile.name === scaffolded.profile AND confidence ≥0.8):
+- Report "Project matches scaffolded profile. No drift."
+- Optionally surface stage upgrade suggestions (e.g., "you're in MVP stage, consider adding eval suite")
+
+**🟡 Drift detected** (currentProfile.name !== scaffolded.profile AND currentProfile.confidence ≥0.8):
+- Report: "Scaffolded as `<scaffolded.profile>` on `<date>`, project now looks like `<currentProfile.name>` (confidence `<score>`)."
+- List evidence for the drift (new deps, new folder patterns)
+- Propose upgrade: "Want to apply `<new profile>`? This adds: `<diff summary — new agents, new standards, new hooks>`"
+- Wait for `y`/`n`. On `y`, apply additively (never overwrite user code) — same contract as `retrofit.md` (non-destructive).
+
+**🟠 Ambiguous state** (confidence <0.6):
+- Report: "Unclear profile — candidates: `<top 3 with scores>`"
+- Ask user: "What are you building now? Pick from: `<top 3>` or type a different profile name."
+
+### 0.3 Stage-based upgrade suggestions
+
+After profile resolution, surface upgrade suggestions from `currentStage.suggestions` — but **filter to relevant-only**:
+
+- Skip suggestions the project has already adopted (detectable via signals)
+- Order by blast-radius of the gap (monitoring > tests > memory system)
+- Cap at 3 top suggestions to avoid noise
+
+Example output:
+```
+Stage: mvp (127 commits, tests:yes, ci:yes)
+Suggested upgrades (2):
+  • add evals/ directory — new cortex-x correctness.md pillar (2026-04-20)
+  • add monitoring (observability.md § Runtime SLOs)
+```
+
+### 0.4 Detector health sanity
+
+If `detect-profile.cjs` itself failed or returned `elapsed_ms > 200`, note it:
+- "Detectors took 247ms — investigate (profile YAML malformed?)"
+- "`detect-profile.cjs` not installed — re-run `install.ps1` / `install.sh`"
+
+Never block on detector failure — it's augmentation, not a blocker.
+
+---
+
+## Part 1 — Installation integrity (existing flow)
 
 > **How to use:** Paste when cortex-x feels broken, after system migration, or weekly as sanity check. Claude diagnoses cortex-x installation and suggests fixes.
 

@@ -50,8 +50,8 @@ When two standards conflict or budget is limited, Rule 0 (governance) precedes R
 |---|---|---|---|
 | **Rule 0** | [Ship-Ready](./ship-ready.md) — no personal data in generic code, clear licensing, stranger-reproducible install | Inviolable before any distribution | Pre-ship grep gate + scaffold + evolve priority |
 | **Rule 1** | SSOT, Modular, Scalable | Inviolable | Scaffold validation + ssot-enforcer always-on + PR gate |
-| **Rule 1.5** | [Coding Behavior](./coding-behavior.md) — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution | Behavioral contract | Scaffold + hooks + review pipeline + evolve |
-| **Critical (Rule 2)** | Security, Testing, Observability, **Correctness** | Must-have | Review pipeline flag = blocker |
+| **Rule 1.5** | [Coding Behavior](./coding-behavior.md) — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution + [Auto-Optimization](./auto-optimization.md) — wizard philosophy (detect > suggest > auto-apply OR guide) | Behavioral contract | Scaffold + hooks + review pipeline + evolve |
+| **Critical (Rule 2)** | Security, Testing, Observability, **Correctness**, **Self-Correction** | Must-have | Review pipeline flag = blocker |
 | **Process (Rule 3)** | Accessibility, Performance, Error handling, Git, Docs, AI patterns, **Skills** | Should-have | Review pipeline flag = warning |
 
 Rule 0 isn't technically above Rule 1 — it precedes it. Before asking "is this SSOT-clean?" we first ask "is this distributable at all?" A perfectly SSOT-clean file with the author's email hardcoded fails Rule 0 before Rule 1 even runs.
@@ -144,14 +144,15 @@ Security can be added. Testing can be retrofitted. Observability can be layered 
 
 Rule 1 is the only tier you can't fix later. That's why it's tier 1.
 
-## Rule 2 (Critical) — the four must-haves
+## Rule 2 (Critical) — the five must-haves
 
-Rule 1 guarantees **structural cleanliness**. Rule 2 guarantees the code **actually works correctly, securely, and observably** in production:
+Rule 1 guarantees **structural cleanliness**. Rule 2 guarantees the code **actually works correctly, securely, observably, and without cargo-culting self-healing hype** in production:
 
-- **[Security](./security.md)** — 8-layer defense + Agentic Security (2026) for LLM/agent systems (lethal trifecta, trust fence, 7 MUST patterns)
+- **[Security](./security.md)** — 8-layer defense + Agentic Security (2026) for LLM/agent systems (lethal trifecta, trust fence, 7 MUST patterns) + Browser Automation Security (3 MUSTs)
 - **[Testing](./testing.md)** — layered test pyramid + AI-specific tests
 - **[Observability](./observability.md)** — logs/metrics/traces + Runtime SLOs with burn-rate alerts + LLM observability stack
 - **[Correctness](./correctness.md)** — verification beyond structure: property-based tests, eval-driven dev, mutation testing, boundary validation, stateful simulation
+- **[Self-Correction](./self-correction.md)** — taxonomy of what actually works (retry+classification, conditional reflection with verifier, HITL skill proposal) vs what's demo-theater (intrinsic self-critique, autonomous skill auto-creation)
 
 Violation of any Rule 2 standard = review pipeline blocker. Not debate.
 

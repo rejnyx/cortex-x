@@ -111,6 +111,55 @@ if (hasMemory) docs.push('MEMORY.md');
 if (recovery) docs.push('.claude/compact-state.md (recovery available)');
 if (docs.length > 0) ctx.push(`\nDocs: ${docs.join(', ')}`);
 
+// Auto-optimization: run deterministic detectors, surface profile + stage.
+// Detectors live in ~/.claude/shared/detectors/ (copied by install.ps1/install.sh).
+// Fail-open — any error silently skipped; detection is augmentation not blocker.
+try {
+  const os = require('os');
+  const detectorsDir = path.join(os.homedir(), '.claude', 'shared', 'detectors');
+  const profileDetector = path.join(detectorsDir, 'detect-profile.cjs');
+  const stageDetector = path.join(detectorsDir, 'detect-stage.cjs');
+
+  let profileResult = null;
+  let stageResult = null;
+
+  try {
+    if (fs.existsSync(profileDetector)) {
+      const { detect } = require(profileDetector);
+      profileResult = detect(ROOT);
+    }
+  } catch (_) {}
+
+  try {
+    if (fs.existsSync(stageDetector)) {
+      const { detect } = require(stageDetector);
+      stageResult = detect(ROOT);
+    }
+  } catch (_) {}
+
+  if (profileResult && profileResult.top && profileResult.top.score >= 0.6) {
+    const top = profileResult.top;
+    ctx.push(`\nAuto-detected profile: ${top.name} (confidence ${top.score.toFixed(2)}, ${top.confidence})`);
+    if (top.matched && top.matched.length > 0) {
+      ctx.push(`  Evidence: ${top.matched.slice(0, 3).join('; ')}`);
+    }
+  } else if (profileResult && profileResult.candidates.length > 0) {
+    const top = profileResult.candidates[0];
+    if (top && top.score >= 0.3) {
+      ctx.push(`\nProfile signal (low confidence ${top.score.toFixed(2)}): ${top.name} — ambiguous, paste /cortex-doctor for drift check`);
+    }
+  }
+
+  if (stageResult && stageResult.stage && stageResult.stage !== 'unknown') {
+    ctx.push(`Project stage: ${stageResult.stage} (${stageResult.evidence.slice(0, 2).join(', ')})`);
+    if (stageResult.suggestions && stageResult.suggestions.length > 0 && stageResult.suggestions.length <= 3) {
+      ctx.push(`  Upgrade suggestions: ${stageResult.suggestions.slice(0, 2).join(' · ')}`);
+    }
+  }
+} catch (_) {
+  // Detectors unavailable — silently skip, detection is augmentation not blocker
+}
+
 // cortex-x awareness — detect if current project has a cortex library entry
 try {
   const os = require('os');

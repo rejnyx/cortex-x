@@ -94,6 +94,12 @@ if [ -d "$CORTEX_ROOT/skills" ]; then
   cp -r "$CORTEX_ROOT/skills" "$CLAUDE_HOME/shared/" 2>/dev/null || true
 fi
 
+# Detectors directory — deterministic profile/stack/stage classifiers (auto-optimization).
+# Read by session-start hook + cortex-doctor prompt. Fail-open contract.
+if [ -d "$CORTEX_ROOT/detectors" ]; then
+  cp -r "$CORTEX_ROOT/detectors" "$CLAUDE_HOME/shared/" 2>/dev/null || true
+fi
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.
