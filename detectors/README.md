@@ -7,8 +7,9 @@ See `../standards/auto-optimization.md` for the wizard philosophy this layer imp
 ## Files
 
 - `_lib/score.cjs` — shared scoring + ranking library
-- `detect-profile.cjs` — matches CWD signals against `profiles/*.yaml` `detect:` blocks
-- `detect-stage.cjs` — classifies project maturity (greenfield / prototype / mvp / growth / mature)
+- `detect-profile.cjs` — matches CWD signals against `profiles/*.yaml` `detect:` blocks (workspace-aware: Nx/Turbo/Lerna/Rush/Moon/pnpm, language gate for non-JS stacks)
+- `detect-stage.cjs` — classifies project maturity (greenfield / prototype / mvp / growth / mature), with no-git structural fallback
+- `detect-sister-env.cjs` — scans sibling `.claude/settings.json` files for env flags present in ≥2 siblings but missing from target; surfaces as suggestions for retrofit. Prevents the failure mode from portfolio retrofit 2026-04-21 (sister-project env pattern missed).
 - (future) `detect-stack.cjs` — drills into stack subsystems (DB provider, AI provider, deploy target)
 
 ## Usage — CLI
