@@ -29,17 +29,19 @@ Retrofit cortex-x onto an existing project. **Five phases**, strict non-destruct
 
 ## Phase 0 — Deterministic scan (runs first, before any Agent dispatch)
 
-Invoke the detectors silently. They're <100ms, no LLM, no network. Output feeds into Phase 1 agents + Phase 2 plan.
+Invoke the detectors silently. They're <100ms each, no LLM, no network. Output feeds into Phase 1 agents + Phase 2 plan.
 
 ```bash
-node ~/.claude/shared/detectors/detect-profile.cjs --json --cwd <project-root>
-node ~/.claude/shared/detectors/detect-stage.cjs   --json --cwd <project-root>
+node ~/.claude/shared/detectors/detect-profile.cjs    --json --cwd <project-root>
+node ~/.claude/shared/detectors/detect-stage.cjs      --json --cwd <project-root>
+node ~/.claude/shared/detectors/detect-sister-env.cjs --json --cwd <project-root>
 ```
 
 Capture for use downstream:
 - `profile.top.name` + `score` + `monorepo` (if Nx/Turbo/pnpm workspaces detected) + `workspaceCount`
 - `stage.stage` (greenfield/prototype/mvp/growth/mature) + `evidence`
 - Note explicitly if `stage.signals.is_git === false` (downloaded zip, fresh clone, archived export) — Agent C won't have commit history and will flag this
+- `sister_env.suggested_additions` — env flags present in ≥2 sibling projects (same parent directory) but missing from target. Common case: user's personal experimental flags (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`), workspace-wide defaults, tool API keys. In Phase 3.2 settings.json merge, **surface these as suggestions with user confirmation**, never auto-apply — values may be intentionally absent (e.g., user opted out).
 
 If `profile.top.score < 0.3` and `stage.stage === 'greenfield'`, the project is truly empty. **Abort retrofit** — recommend `new-project.md` instead.
 
