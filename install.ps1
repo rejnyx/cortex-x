@@ -76,6 +76,15 @@ if (Test-Path $SharedTarget) {
     $backup = Join-Path $ClaudeHome "shared.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     Write-Host "Existing ~/.claude/shared/ found. Backing up to: $backup"
     Move-Item $SharedTarget $backup
+    # Rotate: keep only the most recent backup. The cortex-x source repo at
+    # $CortexRoot (with full git history + remote) is the canonical backup;
+    # this snapshot is just last-install rollback safety, not deep history.
+    # Without rotation these accumulate forever and pollute ~/.claude/ git status
+    # (10 backups x ~74 files = 700+ untracked observed in field 2026-05-01).
+    Get-ChildItem -Path $ClaudeHome -Directory -Filter 'shared.backup-*' -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -Skip 1 |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 New-Item -ItemType Directory -Path $SharedTarget -Force | Out-Null

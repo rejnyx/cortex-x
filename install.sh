@@ -76,6 +76,12 @@ if [ -d "$CLAUDE_HOME/shared" ]; then
   BACKUP="$CLAUDE_HOME/shared.backup-$(date +%Y%m%d-%H%M%S)"
   echo "Existing ~/.claude/shared/ found. Backing up to: $BACKUP"
   mv "$CLAUDE_HOME/shared" "$BACKUP"
+  # Rotate: keep only the most recent backup. The cortex-x source repo at
+  # $CORTEX_ROOT (with full git history + remote) is the canonical backup;
+  # this snapshot is just last-install rollback safety, not deep history.
+  # Without rotation these accumulate forever and pollute ~/.claude/ git status
+  # (10 backups × ~74 files = 700+ untracked observed in field 2026-05-01).
+  ls -1dt "$CLAUDE_HOME"/shared.backup-* 2>/dev/null | tail -n +2 | xargs -r rm -rf
 fi
 
 mkdir -p "$CLAUDE_HOME/shared"
