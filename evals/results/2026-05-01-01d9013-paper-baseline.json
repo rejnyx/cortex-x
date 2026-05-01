@@ -1,0 +1,84 @@
+{
+  "date": "2026-05-01",
+  "commit": "01d9013",
+  "type": "paper-baseline",
+  "type_explanation": "Per-task scores predicted from review of underlying prompt + standard at this commit. NOT from a real Claude session execution. Real execution baseline requires fresh Claude sessions running each eval input and human/automated rubric scoring. This paper baseline establishes a starting line for regression detection — when a future real execution drops a task >5% below paper baseline, investigate.",
+  "model_assumed": "claude-opus-4-7 (Claude Code default in 2026-05)",
+  "evaluator": "Claude (paper-baseline mode, not real run)",
+  "tasks": {
+    "eval-001": {
+      "score": 0.85,
+      "confidence": "medium",
+      "notes": "Mature prompt with §4.0 placeholder resolution + §4.5 auto-capture (from 2026-04-30 commits). Field-tested on morning-digest. Risk: residual ~/cortex-x/ source-internal refs (D-4 in MIGRATIONS.md) still present in 17 files — could leak into scaffolded output. Path fix in c66bd2d covered template + agents but not all source files."
+    },
+    "eval-002": {
+      "score": 0.65,
+      "confidence": "low",
+      "notes": "BAIL flow exists in new-project.md but is less heavily field-tested than full flow. Real risk of Claude 'being helpful' and running Phase 2 research despite skip signal. eval-002 IS the canary for this drift; expect this to be the lowest score. If real run scores ≥0.65, BAIL discipline is intact."
+    },
+    "eval-003": {
+      "score": 0.75,
+      "confidence": "medium",
+      "notes": "Slim 5-section schema documented explicitly. Anti-Tech-Stack rule in prompt. Risk: LLM 'helpfulness' adding Tech Stack/Directory sections to be thorough. Schema restraint is hardest to guarantee — score reflects this tension."
+    },
+    "eval-004": {
+      "score": 0.85,
+      "confidence": "high",
+      "notes": "4-field format explicit, anti-patterns enumerated, append-only contract clear. Strong prompt. Risk: emotional context creep (one of the listed anti-patterns) in transcript-heavy sessions."
+    },
+    "eval-005": {
+      "score": 0.85,
+      "confidence": "high",
+      "notes": "ssot-enforcer is mandatory per code-review.md. Rule 1 = BLOCKER explicit in standards/RULE-1.md. Should catch a planted 3-file duplicate. Risk: partial finding (cites 2 of 3 files), or assigning WARN instead of BLOCK."
+    },
+    "eval-006": {
+      "score": 0.85,
+      "confidence": "medium",
+      "notes": "security-auditor was extended in 9323c25 with 8-layer + Agentic Security § + Browser Automation §. Should catch SQL injection (Layer 4). RLS bypass detection (Layer 3 Authz secondary finding) is the harder-to-guarantee piece. If real run catches injection but misses service-role-key issue, score lands at 0.8."
+    },
+    "eval-007": {
+      "score": 0.85,
+      "confidence": "high",
+      "notes": "Doctor §1 explicitly checks hook registration in settings.json. Pattern is deterministic (file-existence + key-presence). Risk: copy-paste-ready fix snippet has wrong syntax (e.g., trailing comma) — minor."
+    },
+    "eval-008": {
+      "score": 0.90,
+      "confidence": "high",
+      "notes": "Parser logic lives in session-start.cjs (deterministic JS, not LLM judgment). Output prompt is well-structured. Highest-confidence eval — score should track closely between paper and real run."
+    },
+    "eval-009": {
+      "score": 0.80,
+      "confidence": "medium",
+      "notes": "4-question format + [TRANSFERABLE] tagging explicit. Risk: in long sessions LLM produces 6+ entries (fatigue territory) or skips Q4. Mock-vs-real test DB lesson — LLM might classify as project-specific instead of transferable, missing the cortex-x value."
+    },
+    "eval-010": {
+      "score": 0.90,
+      "confidence": "high",
+      "notes": "Hard gates explicit in cortex-evolve.md §B.2 with thresholds in config/evolve.yaml. Anti-hallucination is explicit, prompt forbids in-flight threshold lowering. Highest-stakes eval (proves framework honesty) and likely highest pass rate due to explicit numerical gates."
+    }
+  },
+  "summary": {
+    "total_score": 8.25,
+    "max_score": 10.0,
+    "percentage": 82.5,
+    "delta_from_baseline": "+0.0 (this IS the baseline)",
+    "delta_from_last": "n/a"
+  },
+  "weakest_task": {
+    "id": "eval-002",
+    "score": 0.65,
+    "reason": "BAIL flow respect-user-signal discipline is the least field-tested. Worth running manually first."
+  },
+  "strongest_tasks": [
+    {"id": "eval-008", "score": 0.90, "reason": "deterministic parser logic in JS"},
+    {"id": "eval-010", "score": 0.90, "reason": "explicit numerical thresholds + anti-hallucination invariants"}
+  ],
+  "next_steps": [
+    "Manual run priority order: eval-002 (weakest) → eval-010 (highest stakes) → eval-005 + eval-006 (review pipeline canaries) → others",
+    "Real execution requires fresh Claude session per eval. Until automated runner exists, run 1-2 evals per week.",
+    "After 3+ real runs, retire this paper-baseline; switch to real-baseline for delta tracking.",
+    "If any task scores >0.10 below paper baseline on real run, investigate prompt drift or rubric calibration."
+  ],
+  "advisory_status": "ADVISORY ONLY — do NOT block PR merges on this baseline. Real-execution baseline must establish before gating.",
+  "schema_version": "1.0"
+}

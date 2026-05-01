@@ -24,6 +24,18 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ### Added (continued)
 - `prompts/retrofit.md` — apply cortex-x structure to an existing (messy) project without touching runtime code. Four phases: parallel audit → retrofit plan → additive application (user-gated) → post-retrofit report. Strict non-destruction contract: no runtime edits, no overwrites without diff, no auto-fix of Rule 1 violations (those become sprints). Closes the gap between `new-project.md` (greenfield) and `project-scan.md` (library capture) for legacy/client projects
+- **Eval suite expanded from 1 → 10 canonical tasks.** Aider-style benchmark (Paul Gauthier 2024-2026) now covers all major prompt + standard surfaces:
+  - `eval-002` BAIL-flow scaffold respect (canary for scope creep in `new-project.md`)
+  - `eval-003` project-scan slim 5-section schema (canary for SSOT-drift in `project-scan.md`)
+  - `eval-004` cortex-sync architectural decision capture
+  - `eval-005` code-review SSOT violation BLOCK (Rule 1 enforcement canary)
+  - `eval-006` security-auditor SQL injection + RLS bypass (Rule 2 Critical canary)
+  - `eval-007` cortex-doctor missing-hook drift detection
+  - `eval-008` sprint-status PROGRESS.md parser correctness
+  - `eval-009` retrospective [TRANSFERABLE] tagging discipline
+  - `eval-010` evolve hard-gate enforcement (framework-honesty canary, prevents pattern hallucination)
+- `evals/runner.md` — manual + future-automated execution instructions, result schema, cadence policy (monthly full suite, per-PR for touched prompts, pre-tag full + weakest-3 manual)
+- `evals/results/2026-05-01-01d9013-paper-baseline.json` — first baseline established. Paper-baseline mode (per-task scores predicted from prompt review, NOT from real Claude session execution). Total: 8.25 / 10 (82.5%). Weakest: eval-002 (0.65). Strongest: eval-008, eval-010 (0.90). ADVISORY status until 3+ real-execution runs accumulate
 
 ### Changed
 - LICENSE from "Proprietary" to **PolyForm Noncommercial 1.0.0**. Backwards-incompatible license change; prior collaborators with any access receive the new terms on any subsequent pull.
