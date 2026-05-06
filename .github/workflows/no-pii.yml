@@ -1,25 +1,64 @@
 name: no-pii
 
+# Two-mode CI gate.
+#
+# FULL MODE — runs when the maintainer has configured the
+# SANITIZE_RULES_JSON_B64 repository secret. The secret is the base64-encoded
+# contents of scripts/sanitize-rules.json (which itself is gitignored because
+# it contains real PII used as find/replace rules + blacklist tokens). With
+# the secret in place, CI: (1) materializes the rules file, (2) syncs source
+# to a public snapshot, (3) runs validate-no-pii.mjs against the snapshot,
+# (4) runs the public ship-ready denylist scan against the snapshot.
+#
+# DEGRADED MODE — runs on forks/external PRs where the secret is unavailable.
+# Skips sync+validate-no-pii (those need the rules file). Still runs the
+# public ship-ready denylist scan directly against the source tree using
+# config/ship-ready-denylist.txt — that file is intentionally generic and
+# checked in. This catches the most common leak surfaces (Windows absolute
+# paths, POSIX home-scoped paths, .tmp-review artifacts) on every PR.
+
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  validate-public-snapshot:
-    name: Sync to public snapshot + validate no PII
+  pii-guard:
+    name: PII guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
 
+      - name: Materialize sanitize-rules.json from secret (full mode)
+        id: rules
+        env:
+          SANITIZE_RULES_JSON_B64: ${{ secrets.SANITIZE_RULES_JSON_B64 }}
+        run: |
+          if [ -n "$SANITIZE_RULES_JSON_B64" ]; then
+            echo "Full mode: decoding sanitize-rules.json from secret"
+            echo "$SANITIZE_RULES_JSON_B64" | base64 -d > scripts/sanitize-rules.json
+            if ! node -e "JSON.parse(require('fs').readFileSync('scripts/sanitize-rules.json','utf8'))" 2>/dev/null; then
+              echo "::error::Decoded sanitize-rules.json is not valid JSON"
+              exit 1
+            fi
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+          else
+            echo "Degraded mode: SANITIZE_RULES_JSON_B64 secret not set; skipping sync+validate-no-pii."
+            echo "mode=degraded" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sync to public snapshot
+        if: steps.rules.outputs.mode == 'full'
         run: |
           mkdir -p /tmp/cortex-public-snapshot
           node scripts/sync-to-public.mjs \
@@ -28,35 +67,56 @@ jobs:
             --quiet
 
       - name: Validate no PII in public snapshot
+        if: steps.rules.outputs.mode == 'full'
         run: |
           node scripts/validate-no-pii.mjs \
             --target /tmp/cortex-public-snapshot
 
-      - name: Ship-ready denylist scan (if denylist exists)
+      - name: Ship-ready denylist scan (always)
         run: |
-          if [ -f config/ship-ready-denylist.txt ]; then
-            echo "Running ship-ready denylist scan..."
-            HITS=0
-            while IFS= read -r pattern; do
-              # skip blank lines + comments
-              case "$pattern" in
-                ''|'#'*) continue ;;
-              esac
-              found=$(grep -rIn --exclude-dir=.git --exclude-dir=node_modules \
-                --exclude=ship-ready-denylist.txt \
-                --exclude=ship-ready-denylist.local.txt \
-                -- "$pattern" /tmp/cortex-public-snapshot || true)
-              if [ -n "$found" ]; then
-                echo "DENYLIST HIT for pattern: $pattern"
-                echo "$found"
-                HITS=$((HITS + 1))
-              fi
-            done < config/ship-ready-denylist.txt
-            if [ "$HITS" -gt 0 ]; then
-              echo "::error::ship-ready denylist scan: $HITS pattern(s) matched"
-              exit 1
-            fi
-            echo "ship-ready denylist scan: clean"
-          else
-            echo "No config/ship-ready-denylist.txt — skipping denylist scan"
+          if [ ! -f config/ship-ready-denylist.txt ]; then
+            echo "::warning::No config/ship-ready-denylist.txt found — skipping"
+            exit 0
           fi
+          if [ "${{ steps.rules.outputs.mode }}" = "full" ]; then
+            SCAN_TARGET=/tmp/cortex-public-snapshot
+            echo "Scanning public snapshot at $SCAN_TARGET"
+          else
+            SCAN_TARGET=.
+            echo "Scanning source tree at $SCAN_TARGET (degraded mode)"
+          fi
+          HITS=0
+          while IFS= read -r pattern; do
+            case "$pattern" in
+              ''|'#'*) continue ;;
+            esac
+            # Exclude:
+            #  - .git, node_modules — vendor/state
+            #  - projects, insights, journal, research, evals/results — gitignored or maintainer-private
+            #  - .github/workflows — workflow files contain meta-mentions of patterns
+            #  - sanitize-rules*.json — rules data contains literal find-patterns by design
+            #  - ship-ready-denylist*.txt — pattern source files
+            found=$(grep -rEIn \
+              --exclude-dir=.git \
+              --exclude-dir=node_modules \
+              --exclude-dir=projects \
+              --exclude-dir=insights \
+              --exclude-dir=journal \
+              --exclude-dir=research \
+              --exclude-dir=workflows \
+              --exclude=ship-ready-denylist.txt \
+              --exclude=ship-ready-denylist.local.txt \
+              --exclude=ship-ready-denylist.local.txt.example \
+              --exclude='sanitize-rules*.json' \
+              -e "$pattern" "$SCAN_TARGET" || true)
+            if [ -n "$found" ]; then
+              echo "DENYLIST HIT for pattern: $pattern"
+              echo "$found"
+              HITS=$((HITS + 1))
+            fi
+          done < config/ship-ready-denylist.txt
+          if [ "$HITS" -gt 0 ]; then
+            echo "::error::ship-ready denylist scan: $HITS pattern(s) matched"
+            exit 1
+          fi
+          echo "ship-ready denylist scan: clean"
