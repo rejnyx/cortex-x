@@ -22,7 +22,7 @@ cortex-x respects the user's Rule #1 (SSOT). It holds ONLY what project CLAUDE.m
 
 ## Your task
 
-Scan this project and write **5-section summary** to `$CORTEX_HOME/projects/<slug>.md`. Nothing more.
+Scan this project and write **5-section summary** to `$CORTEX_DATA_HOME/projects/<slug>.md`. Nothing more.
 
 Do NOT duplicate CLAUDE.md content. Tech Stack, Architecture, Commands — these live in project CLAUDE.md. Cortex just points to them.
 
@@ -36,7 +36,7 @@ Do NOT duplicate CLAUDE.md content. Tech Stack, Architecture, Commands — these
 
 Skip: source files, config files, test files. Those are CLAUDE.md's domain.
 
-## Step 2 — Write to `$CORTEX_HOME/projects/<slug>.md`
+## Step 2 — Write to `$CORTEX_DATA_HOME/projects/<slug>.md`
 
 **EXACTLY this structure — 5 sections only:**
 
@@ -96,7 +96,7 @@ Terms that mean something SPECIFIC in this project's domain. Skip technical term
 - **<Term>:** <what it means HERE>
 ```
 
-## Step 3 — Update `$CORTEX_HOME/projects/README.md`
+## Step 3 — Update `$CORTEX_DATA_HOME/projects/README.md`
 
 Append or update the index table with `| <name> | <slug> | <status> | <claude_md_reference> | <last_scanned> |`.
 

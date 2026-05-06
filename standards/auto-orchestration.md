@@ -48,7 +48,7 @@ The `UserPromptSubmit` hook (`~/.claude/shared/hooks/auto-orchestrate.cjs`) dete
 
 Every Agent/Task subagent invocation must respect the session cap set by `$CORTEX_SESSION_BUDGET_USD` (default `$5.00`).
 
-- Usage recorded by `post-tool-use.cjs` into `$CORTEX_HOME/journal/.budget.jsonl`
+- Usage recorded by `post-tool-use.cjs` into `$CORTEX_DATA_HOME/journal/.budget.jsonl`
 - Session total surfaced back to Claude via `auto-orchestrate.cjs` context injection
 - States: `ok` (<80%), `warning` (80–100% → reuse cache, skip redundant subagents), `over` (≥100% → ask user before spawning more)
 
@@ -72,7 +72,7 @@ Override per-file in frontmatter. `cortex-doctor` archives (not deletes) files o
 
 - ❌ **10× parallel code-writing agents** — benchmarks show multi-agent writes degrade on sequential tasks. If the task is write-heavy, single-thread.
 - ❌ **Silent auto-spawn of expensive subagents** — every user-revolt horror story from Cursor/Cline/Aider forums (2025–2026) traces back to silent escalation without consent. Keep expensive paths opt-in per turn.
-- ❌ **Research agents in a loop without cache writeback** — always write to `$CORTEX_HOME/research/<slug>-<date>.md` with frontmatter so next session reuses, not re-fetches.
+- ❌ **Research agents in a loop without cache writeback** — always write to `$CORTEX_DATA_HOME/research/<slug>-<date>.md` with frontmatter so next session reuses, not re-fetches.
 - ❌ **Parallel subagents on interdependent reasoning** — "Flappy Bird" failure mode: each subagent makes conflicting assumptions, final output is incoherent.
 - ❌ **Unlimited recursion depth** — subagents must not spawn subagents beyond 1 level without orchestrator approval (cost + observability collapse).
 

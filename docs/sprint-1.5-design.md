@@ -92,7 +92,7 @@ Take BMAD's *artifact pattern*, leave its persona ceremony. Reorganize `prompts/
 
 ### 2.3 Retrofit audit — new prompt, deep by design
 
-The existing `prompts/project-scan.md` is *correct as-is* for populating `$CORTEX_HOME/projects/<slug>.md` (5-section institutional summary). It is **wrong** for retrofit. Retrofit needs a **separate, deeper prompt**: `prompts/existing-project-audit.md`.
+The existing `prompts/project-scan.md` is *correct as-is* for populating `$CORTEX_DATA_HOME/projects/<slug>.md` (5-section institutional summary). It is **wrong** for retrofit. Retrofit needs a **separate, deeper prompt**: `prompts/existing-project-audit.md`.
 
 **12-dimension audit** (grounded in research §1; ranked by load-bearing weight):
 

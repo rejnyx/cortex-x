@@ -12,7 +12,7 @@ You are the **synthesizer agent** for cortex-x's auto-research engine. You DO NO
 
 ## Inputs
 
-- `$CORTEX_HOME/research/<slug>-stack-<date>.md` (greenfield Phase 5) OR `$CORTEX_HOME/research/<slug>-audit-<date>.md` (existing-project-audit Phase 4 output) — the raw concatenated research findings
+- `$CORTEX_DATA_HOME/research/<slug>-stack-<date>.md` (greenfield Phase 5) OR `$CORTEX_DATA_HOME/research/<slug>-audit-<date>.md` (existing-project-audit Phase 4 output) — the raw concatenated research findings
 - `cortex/discovery.md` (greenfield) OR `cortex/AUDIT.md` (existing) — the project context
 - The project's `CLAUDE.md` (current state; you'll patch it)
 - The project's `package.json` (detected stack baseline)
@@ -29,7 +29,7 @@ phase: 5-synthesis
 date: <YYYY-MM-DD>
 based_on:
   context: <cortex/discovery.md OR cortex/AUDIT.md>
-  research: <$CORTEX_HOME/research/<file>.md>
+  research: <$CORTEX_DATA_HOME/research/<file>.md>
 synthesizer: cortex-x synthesizer agent
 ---
 
@@ -72,7 +72,7 @@ cortex auto-researched your realized stack. Top items:
 - 📊 <one metric to track progress on this>
 
 Full report: cortex/recommendations.md
-Raw sources: $CORTEX_HOME/research/<slug>-<phase>-<date>.md
+Raw sources: $CORTEX_DATA_HOME/research/<slug>-<phase>-<date>.md
 ```
 
 ## Three-hop citation traceability (MANDATORY)

@@ -92,7 +92,7 @@ When triggered, injects a `hookSpecificOutput.additionalContext` block into Clau
 
 `shared/hooks/_lib/budget.cjs` library exports:
 - `estimateCostUsd(model, input_tokens, output_tokens)` — 2026 pricing table
-- `recordUsage(cortexRoot, payload)` — appends to `$CORTEX_HOME/journal/.budget.jsonl`
+- `recordUsage(cortexRoot, payload)` — appends to `$CORTEX_DATA_HOME/journal/.budget.jsonl`
 - `sessionTotal(cortexRoot, session_id)` — sums rows
 - `getCapUsd()` — reads `CORTEX_SESSION_BUDGET_USD` env, default $5
 - `warningLevel(cost, cap)` — returns `ok` / `warning` (>80%) / `over` (≥100%)

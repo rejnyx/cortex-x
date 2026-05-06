@@ -151,7 +151,7 @@ Empty folder → open Claude Code → paste ~/.claude/shared/prompts/new-project
 ### 🔍 Scan EXISTING project (populate cortex library)
 ```
 Project root → Claude Code → paste ~/.claude/shared/prompts/project-scan.md
-→ Claude scans codebase, writes $CORTEX_HOME/projects/<slug>.md
+→ Claude scans codebase, writes $CORTEX_DATA_HOME/projects/<slug>.md
 ```
 
 ### 🔄 Sync knowledge after work session
@@ -171,7 +171,7 @@ See ~/.claude/shared/prompts/cortex-load.md before starting work.
 ```
 Paste ~/.claude/shared/prompts/cortex-reflect.md → cortex-thinker subagent
 analyzes current project + library state, surfaces 0-3 grounded insights,
-writes to $CORTEX_HOME/insights/<date>.md
+writes to $CORTEX_DATA_HOME/insights/<date>.md
 ```
 
 ### 🔬 Code review (BMAD-inspired parallel adversarial pipeline)
@@ -217,7 +217,7 @@ Triggers (SSOT v $CORTEX_HOME/config/research.yaml):
 - security-sensitive prompt → 1 security-focused agent
 - explicit --research flag
 
-Cache do $CORTEX_HOME/research/<slug>-<date>.md. TTL per topic
+Cache do $CORTEX_DATA_HOME/research/<slug>-<date>.md. TTL per topic
 (tech: 90d, security: 60d, competitive: 180d, domain: 365d).
 
 Budget: max 1 research batch/session, 10/week celkem.
@@ -229,7 +229,7 @@ Protokol: ~/.claude/shared/shared/research-protocol.md
 Weekly → paste ~/.claude/shared/prompts/cortex-evolve.md "weekly"
 → Mining algoritmic (PrefixSpan + TF-IDF contrast) → hard evidence gate
   (min 3 events, ≥2 projects, >7 days spread) → LLM validation (not generation)
-  → 0-3 proposals do $CORTEX_HOME/insights/proposals/ (PR, nikdy auto-merge)
+  → 0-3 proposals do $CORTEX_DATA_HOME/insights/proposals/ (PR, nikdy auto-merge)
 
 Monthly → paste ~/.claude/shared/prompts/cortex-evolve.md "monthly"
 → Eval suite run (10 canonical tasks, Aider-style) → score delta vs baseline

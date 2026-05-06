@@ -64,7 +64,7 @@ Paste ~/.claude/shared/prompts/cortex-evolve.md with "monthly" arg
 
 ### Single task
 ```
-Paste $CORTEX_HOME/evals/eval-001-scaffold-nextjs-saas.md
+Paste $CORTEX_DATA_HOME/evals/eval-001-scaffold-nextjs-saas.md
 Execute task
 Score manually against rubric
 Record to evals/results/<date>-<commit>.json

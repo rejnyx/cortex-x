@@ -207,9 +207,19 @@ if (Test-Path $DetectorsSrc) {
 }
 
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
-# Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
-# stay in source and need an absolute path baked into scaffolded files.
-"cortex_source: $CortexRoot" | Set-Content -Path (Join-Path $SharedTarget "cortex-source.yaml") -Encoding UTF8
+# Templates reference installed assets via ~/.claude/shared/; dynamic user-data dirs (research,
+# projects, insights, journal, evals) live in $CortexDataHome (default ~/.cortex).
+#
+# Sprint 1.6: introduce cortex_data_home — user-personal data NEVER inside cortex-x source repo.
+# See MIGRATIONS.md Sprint 1.6 entry.
+$CortexDataHome = if ($env:CORTEX_DATA_HOME) { $env:CORTEX_DATA_HOME } else { Join-Path $HOME ".cortex" }
+foreach ($sub in @("research", "projects", "insights/proposals", "journal", "evals")) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $CortexDataHome $sub) | Out-Null
+}
+@"
+cortex_source: $CortexRoot
+cortex_data_home: $CortexDataHome
+"@ | Set-Content -Path (Join-Path $SharedTarget "cortex-source.yaml") -Encoding UTF8
 
 # Write/update module.local.yaml with user preference (gitignored).
 $ModuleLocal = Join-Path $CortexRoot "module.local.yaml"
@@ -352,7 +362,7 @@ cortex-x will not auto-edit your global ``~/.claude/CLAUDE.md`` (Principle 1 fro
 
 ## Budget cap
 
-Set ``CORTEX_SESSION_BUDGET_USD`` env var (default ``\$5.00``). Spend log: ``\$CORTEX_HOME/journal/.budget.jsonl``.
+Set ``CORTEX_SESSION_BUDGET_USD`` env var (default ``\$5.00``). Spend log: ``\$CORTEX_DATA_HOME/journal/.budget.jsonl``.
 Set ``CORTEX_BUDGET_DISABLED=1`` to suppress budget output entirely (e.g. flat-subscription installs).
 
 ## Optional: Tirith (context-file prompt-injection scanner)
@@ -417,6 +427,20 @@ Test-Required-Count (Join-Path $SharedTarget "agents")     5 "agents"
 Test-Required-Count (Join-Path $SharedTarget "hooks")      5 "hooks"
 Test-Required-Count (Join-Path $SharedTarget "skills")     3 "skills"
 
+# Sprint 1.6: verify CORTEX_DATA_HOME structure exists (5 user-data dirs).
+function Test-Required-Dir {
+    param([string]$Path)
+    if (-not (Test-Path $Path -PathType Container)) {
+        Write-Host "  $([char]0x2717) MISSING dir: $Path" -ForegroundColor Red
+        $script:VerifyOk = $false
+    }
+}
+Test-Required-Dir (Join-Path $CortexDataHome "research")
+Test-Required-Dir (Join-Path $CortexDataHome "projects")
+Test-Required-Dir (Join-Path $CortexDataHome "insights/proposals")
+Test-Required-Dir (Join-Path $CortexDataHome "journal")
+Test-Required-Dir (Join-Path $CortexDataHome "evals")
+
 if (-not $VerifyOk) {
     Write-Host ""
     Write-Host "  $([char]0x2717) Install verification FAILED. Critical assets are missing above." -ForegroundColor Red
@@ -434,6 +458,7 @@ Write-Host ""
 Write-Host "  ✓ cortex-x installed"
 Write-Host "    framework  ~/.claude/shared/      (hooks · agents · prompts · skills · standards)"
 Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point)"
+Write-Host "    user data  $CortexDataHome/      (research · projects · insights · journal · evals)"
 Write-Host "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 Write-Host "    language   $LangName ($Language)"
 Write-Host "    notes      $InstallNotes"

@@ -23,25 +23,35 @@ config:
   code_language: en
   ui_language: en
 
-  # Paths (cross-platform — use forward slashes, Node os.homedir() resolves)
-  # cortex_root = live source (clone target). Default matches install.sh/install.ps1
-  # CORTEX_HOME default. Override in module.local.yaml if you cloned elsewhere.
+  # ── Three independent path roots (Sprint 1.6 SoC refactor) ─────────────
+  # cortex_root        = framework SOURCE repo (clone target). Read-only at
+  #                      runtime; framework-dev only. Where `git pull` happens.
+  # cortex_assets_root = installed framework ASSETS (frozen snapshot, set by
+  #                      install.sh/install.ps1). Runtime READS read these.
+  # cortex_data_home   = user PERSONAL DATA (research caches, projects library,
+  #                      insights, journal, evals). Runtime READS+WRITES here.
+  #                      Never inside cortex-x source repo. Defaults to ~/.cortex/.
+  # See MIGRATIONS.md Sprint 1.6 entry for separation rationale.
   cortex_root: "~/cortex-x"
-  # cortex_assets_root = installed read-only assets (set by install scripts).
-  # Used for standards/, profiles/, prompts/, agents/, templates/, shared/ — see
-  # MIGRATIONS.md §D-4 for the live-vs-installed convention.
   cortex_assets_root: "~/.claude/shared"
-  projects_path: "{cortex_root}/projects"
-  standards_path: "{cortex_root}/standards"
-  profiles_path: "{cortex_root}/profiles"
-  prompts_path: "{cortex_root}/prompts"
-  agents_path: "{cortex_root}/agents"
-  templates_path: "{cortex_root}/templates"
-  insights_path: "{cortex_root}/insights"
-  proposals_path: "{cortex_root}/insights/proposals"
-  journal_path: "{cortex_root}/journal"
-  research_path: "{cortex_root}/research"
-  evals_path: "{cortex_root}/evals"
+  cortex_data_home: "~/.cortex"
+
+  # User-data paths (read-write at runtime — accumulates per user)
+  projects_path: "{cortex_data_home}/projects"
+  research_path: "{cortex_data_home}/research"
+  insights_path: "{cortex_data_home}/insights"
+  proposals_path: "{cortex_data_home}/insights/proposals"
+  journal_path: "{cortex_data_home}/journal"
+  evals_path: "{cortex_data_home}/evals"
+
+  # Framework-asset paths (read-only at runtime — copied by install)
+  standards_path: "{cortex_assets_root}/standards"
+  profiles_path: "{cortex_assets_root}/profiles"
+  prompts_path: "{cortex_assets_root}/prompts"
+  agents_path: "{cortex_assets_root}/agents"
+  templates_path: "{cortex_assets_root}/templates"
+
+  # Framework-source paths (cortex-x dev only — not used at runtime)
   evolve_config: "{cortex_root}/config/evolve.yaml"
 
   # Defaults
@@ -133,8 +143,8 @@ audit:
 evolve:
   config_path: "{cortex_root}/config/evolve.yaml"
   prompt_path: "{cortex_root}/prompts/cortex-evolve.md"
-  proposals_inbox: "{cortex_root}/insights/proposals/"
-  evals_suite: "{cortex_root}/evals/"
+  proposals_inbox: "{cortex_data_home}/insights/proposals/"
+  evals_suite: "{cortex_data_home}/evals/"
   cadence:
     daily: ingest_only
     weekly: insight_mining_plus_pr
