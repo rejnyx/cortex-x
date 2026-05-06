@@ -413,10 +413,12 @@ echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.claude/shared/bin" && PATH_HAS_BIN
 
 # Compact final summary — model: Bun, uv, Rustup. Detail lives in INSTALL_NOTES.md.
 echo
+AGENT_COUNT=$(ls -1 "$CLAUDE_HOME/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')
 echo "  ✓ cortex-x installed"
-echo "    framework  ~/.claude/shared/                  (hooks · agents · prompts · skills · standards)"
-echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point)"
-echo "    user data  $CORTEX_DATA_HOME/                  (research · projects · insights · journal · evals)"
+echo "    framework  ~/.claude/shared/                  (cortex-x assets · prompts · standards · skills · staging)"
+echo "    agents     ~/.claude/agents/                  ($AGENT_COUNT default agents — auto-discovered by Claude Code)"
+echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point — type /cortex-init in any project)"
+echo "    user data  $CORTEX_DATA_HOME/                  (research · projects · insights · journal · evals — your own knowledge graph)"
 echo "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 echo "    language   $LANG_NAME ($CORTEX_LANGUAGE)"
 echo "    notes      $INSTALL_NOTES"

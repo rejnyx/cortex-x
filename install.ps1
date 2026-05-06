@@ -477,10 +477,12 @@ $PathEntries = $env:PATH -split [IO.Path]::PathSeparator
 $PathHasBin = $PathEntries -contains $BinDir
 
 Write-Host ""
+$AgentCount = (Get-ChildItem -Path (Join-Path $ClaudeHome "agents") -Filter "*.md" -File -ErrorAction SilentlyContinue | Measure-Object).Count
 Write-Host "  ✓ cortex-x installed"
-Write-Host "    framework  ~/.claude/shared/      (hooks · agents · prompts · skills · standards)"
-Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point)"
-Write-Host "    user data  $CortexDataHome/      (research · projects · insights · journal · evals)"
+Write-Host "    framework  ~/.claude/shared/      (cortex-x assets · prompts · standards · skills · staging)"
+Write-Host "    agents     ~/.claude/agents/      ($AgentCount default agents — auto-discovered by Claude Code)"
+Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point — type /cortex-init in any project)"
+Write-Host "    user data  $CortexDataHome/      (research · projects · insights · journal · evals — your own knowledge graph)"
 Write-Host "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 Write-Host "    language   $LangName ($Language)"
 Write-Host "    notes      $InstallNotes"
