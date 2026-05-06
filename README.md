@@ -88,19 +88,19 @@ Three core prompts (paste into Claude Code):
 
 ### 🌱 Start NEW project
 ```
-Empty folder → open Claude Code → paste ~/cortex-x/prompts/new-project.md
+Empty folder → open Claude Code → paste ~/.claude/shared/prompts/new-project.md
 → answer 3 questions → full project scaffolded in ~3 minutes
 ```
 
 ### 🔍 Scan EXISTING project (populate cortex library)
 ```
-Project root → Claude Code → paste ~/cortex-x/prompts/project-scan.md
-→ Claude scans codebase, writes ~/cortex-x/projects/<slug>.md
+Project root → Claude Code → paste ~/.claude/shared/prompts/project-scan.md
+→ Claude scans codebase, writes $CORTEX_HOME/projects/<slug>.md
 ```
 
 ### 🔄 Sync knowledge after work session
 ```
-End of sprint → paste ~/cortex-x/prompts/cortex-sync.md
+End of sprint → paste ~/.claude/shared/prompts/cortex-sync.md
 → Claude captures decisions, lessons, cross-project insights
 ```
 
@@ -108,19 +108,19 @@ End of sprint → paste ~/cortex-x/prompts/cortex-sync.md
 Add to project's `CLAUDE.md`:
 ```markdown
 ## Cross-project context
-See ~/cortex-x/prompts/cortex-load.md before starting work.
+See ~/.claude/shared/prompts/cortex-load.md before starting work.
 ```
 
 ### 🧠 Deep reflection (when something feels off)
 ```
-Paste ~/cortex-x/prompts/cortex-reflect.md → cortex-thinker subagent
+Paste ~/.claude/shared/prompts/cortex-reflect.md → cortex-thinker subagent
 analyzes current project + library state, surfaces 0-3 grounded insights,
-writes to ~/cortex-x/insights/<date>.md
+writes to $CORTEX_HOME/insights/<date>.md
 ```
 
 ### 🔬 Code review (BMAD-inspired parallel adversarial pipeline)
 ```
-After feature work, paste ~/cortex-x/prompts/code-review.md
+After feature work, paste ~/.claude/shared/prompts/code-review.md
 → spawns 5 agents in parallel with DIFFERENTIATED context scoping:
    - blind-hunter (diff ONLY — catches what contextual reviewers rationalize)
    - edge-case-hunter (diff + project — boundary condition enumeration)
@@ -132,20 +132,20 @@ After feature work, paste ~/cortex-x/prompts/code-review.md
 
 ### 🩺 Healthcheck
 ```
-Paste ~/cortex-x/prompts/cortex-doctor.md → diagnose cortex-x installation,
+Paste ~/.claude/shared/prompts/cortex-doctor.md → diagnose cortex-x installation,
 identify drift, suggest fixes. Run weekly or after system migration.
 ```
 
 ### 📊 Sprint status
 ```
-Paste ~/cortex-x/prompts/sprint-status.md → parse PROGRESS.md,
+Paste ~/.claude/shared/prompts/sprint-status.md → parse PROGRESS.md,
 surface active sprint, next actionable story, drift detection.
 Fast (<5s), runs at session start.
 ```
 
 ### 📝 Retrospective
 ```
-End of sprint → paste ~/cortex-x/prompts/retrospective.md
+End of sprint → paste ~/.claude/shared/prompts/retrospective.md
 → 4 questions, distill TRANSFERABLE lessons into cortex library.
 Only path that compounds institutional memory across 6+ projects.
 ```
@@ -154,33 +154,33 @@ Only path that compounds institutional memory across 6+ projects.
 ```
 Cortex sám spouští web research před velkými rozhodnutími — bez tvého zásahu.
 
-Triggers (SSOT v ~/cortex-x/config/research.yaml):
+Triggers (SSOT v $CORTEX_HOME/config/research.yaml):
 - new project bootstrap → 4 paralelní agenti
 - unknown domain → 2 agenti
 - stale cache (>180 dní) → refresh
 - security-sensitive prompt → 1 security-focused agent
 - explicit --research flag
 
-Cache do ~/cortex-x/research/<slug>-<date>.md. TTL per topic
+Cache do $CORTEX_HOME/research/<slug>-<date>.md. TTL per topic
 (tech: 90d, security: 60d, competitive: 180d, domain: 365d).
 
 Budget: max 1 research batch/session, 10/week celkem.
-Protokol: ~/cortex-x/shared/research-protocol.md
+Protokol: ~/.claude/shared/shared/research-protocol.md
 ```
 
 ### 🧬 Evolve (self-improvement loop)
 ```
-Weekly → paste ~/cortex-x/prompts/cortex-evolve.md "weekly"
+Weekly → paste ~/.claude/shared/prompts/cortex-evolve.md "weekly"
 → Mining algoritmic (PrefixSpan + TF-IDF contrast) → hard evidence gate
   (min 3 events, ≥2 projects, >7 days spread) → LLM validation (not generation)
-  → 0-3 proposals do ~/cortex-x/insights/proposals/ (PR, nikdy auto-merge)
+  → 0-3 proposals do $CORTEX_HOME/insights/proposals/ (PR, nikdy auto-merge)
 
-Monthly → paste ~/cortex-x/prompts/cortex-evolve.md "monthly"
+Monthly → paste ~/.claude/shared/prompts/cortex-evolve.md "monthly"
 → Eval suite run (10 canonical tasks, Aider-style) → score delta vs baseline
   → if regression: auto-attribute → rollback proposal PR.
 
 Framework se zlepšuje sám, ale NIKDY nepřepisuje standards/prompts/profiles —
-jen navrhuje diffy přes PR. Viz ~/cortex-x/docs/self-improvement-rfc.md.
+jen navrhuje diffy přes PR. Viz $CORTEX_HOME/docs/self-improvement-rfc.md.
 ```
 
 ## The Thinking Layer

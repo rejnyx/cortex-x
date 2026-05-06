@@ -1,0 +1,62 @@
+name: no-pii
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate-public-snapshot:
+    name: Sync to public snapshot + validate no PII
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Sync to public snapshot
+        run: |
+          mkdir -p /tmp/cortex-public-snapshot
+          node scripts/sync-to-public.mjs \
+            --source . \
+            --target /tmp/cortex-public-snapshot \
+            --quiet
+
+      - name: Validate no PII in public snapshot
+        run: |
+          node scripts/validate-no-pii.mjs \
+            --target /tmp/cortex-public-snapshot
+
+      - name: Ship-ready denylist scan (if denylist exists)
+        run: |
+          if [ -f config/ship-ready-denylist.txt ]; then
+            echo "Running ship-ready denylist scan..."
+            HITS=0
+            while IFS= read -r pattern; do
+              # skip blank lines + comments
+              case "$pattern" in
+                ''|'#'*) continue ;;
+              esac
+              found=$(grep -rIn --exclude-dir=.git --exclude-dir=node_modules \
+                --exclude=ship-ready-denylist.txt \
+                --exclude=ship-ready-denylist.local.txt \
+                -- "$pattern" /tmp/cortex-public-snapshot || true)
+              if [ -n "$found" ]; then
+                echo "DENYLIST HIT for pattern: $pattern"
+                echo "$found"
+                HITS=$((HITS + 1))
+              fi
+            done < config/ship-ready-denylist.txt
+            if [ "$HITS" -gt 0 ]; then
+              echo "::error::ship-ready denylist scan: $HITS pattern(s) matched"
+              exit 1
+            fi
+            echo "ship-ready denylist scan: clean"
+          else
+            echo "No config/ship-ready-denylist.txt — skipping denylist scan"
+          fi

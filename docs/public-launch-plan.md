@@ -68,9 +68,10 @@ Avoid for v0.1: hobbyists (won't pay), enterprise procurement (too heavy for sol
 | **`hermes-agent` profile** | **Greenfield** | Hard blocker for the new pitch |
 | **Git history personal data** (D-1) | **Documented in MIGRATIONS.md, not yet purged** | 🔴 Critical — must fix before flipping repo public |
 | **GPG-signed tags** (D-2) | Not implemented | High — install.sh trusts unsigned tags |
-| **Residual `~/cortex-x/` refs** (D-4) | 17 source files, ~69 occurrences | Medium — non-user-facing but inconsistent |
-| **Windows ACL warning** (D-3) | Not in SECURITY.md | Low — advisory only |
-| **CODE_OF_CONDUCT.md** | Missing | Low — required for community signaling |
+| **Residual `~/cortex-x/` refs** (D-4) | ✅ RESOLVED 2026-05-06 (14 files, 55 lines, "path convention normalized" commit) | — |
+| **Windows ACL warning** (D-3) | ✅ RESOLVED 2026-05-06 — added to SECURITY.md Platform Notes | — |
+| **CODE_OF_CONDUCT.md** | ✅ ADDED 2026-05-06 — Contributor Covenant 2.1 (canonical text via curl) | — |
+| **CI gate (no-PII)** | ✅ ADDED 2026-05-06 — `.github/workflows/no-pii.yml` runs `validate-no-pii.mjs` on every PR | — |
 
 ---
 
@@ -109,12 +110,12 @@ Avoid for v0.1: hobbyists (won't pay), enterprise procurement (too heavy for sol
 
 - [ ] **D-1: `git filter-repo` purge** — explicitly destructive; requires user execution (commands in MIGRATIONS.md §D-1). Backup branch first. Force-push. Document in CHANGELOG.
 - [ ] **D-2: GPG signing infra** — generate key, publish fingerprint in SECURITY.md, sign all `v*` tags, add `git tag -v` check to install.sh + install.ps1
-- [ ] **D-4: mass rename** — `~/cortex-x/` → `~/.claude/shared/` (installed assets) or `$CORTEX_HOME` (live source). 17 files, single commit, "path convention normalized" tag boundary.
-- [ ] **D-3: Windows ACL warning** in SECURITY.md (this is done in this plan's commit)
-- [ ] **CODE_OF_CONDUCT.md** — Contributor Covenant 2.1 (this is done in this plan's commit)
+- [x] **D-4: mass rename** — RESOLVED 2026-05-06 via `scripts/fix-d4-paths.mjs` (14 files, 55 lines)
+- [x] **D-3: Windows ACL warning** — RESOLVED 2026-05-06 (Platform Notes added to SECURITY.md)
+- [x] **CODE_OF_CONDUCT.md** — ADDED 2026-05-06 (Contributor Covenant 2.1, canonical text)
+- [x] **CI gate** — ADDED 2026-05-06 (`.github/workflows/no-pii.yml` — sync to public snapshot + validate-no-pii.mjs + ship-ready denylist scan on every PR/push)
 - [ ] **Eval baseline run** — execute eval-001-scaffold-nextjs-saas, log baseline scores so post-launch trend is visible
-- [ ] **Final grep audit** — `davidrajnoha`, `C:\Users\david`, `Desktop/APPs`, third-party names
-- [ ] **CI gate** — GitHub Action that fails PRs containing personal data patterns (per ship-ready.md §Rule 0)
+- [ ] **Final grep audit** — `davidrajnoha`, `C:\Users\david`, `Desktop/APPs`, third-party names (post-D-4 verification)
 
 ### Sprint 2 — Hermes Agent profile (2 weeks)
 

@@ -70,3 +70,6 @@ config/ship-ready-denylist.local.txt
 
 # Internal design docs referencing maintainer's private projects — not shipped
 /docs/framework-rfc.md
+# Maintainer interview prep / job-search docs — never shipped, never tracked.
+# Pattern matches sanitize-rules.json fileExclusions for "docs/pohovor-*.md".
+/docs/pohovor-*.md

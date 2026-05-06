@@ -9,7 +9,7 @@ version: 1.0
 
 ## Input
 
-Empty folder. Paste `~/cortex-x/prompts/new-project.md`. Respond to Phase 1 questions:
+Empty folder. Paste `~/.claude/shared/prompts/new-project.md`. Respond to Phase 1 questions:
 
 - Q1: "SaaS pro property managery aby tracky-li pronájmy a payments"
 - Q2: "Včera jsem viděl přítele jak to řeší v Excelu, stěžoval si že ztrácí přehled"

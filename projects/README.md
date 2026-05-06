@@ -4,17 +4,19 @@
 
 ## How to use
 
-**To scan a new project:** paste `~/cortex-x/prompts/project-scan.md` into a Claude Code session at project root.
+**To scan a new project:** paste `~/.claude/shared/prompts/project-scan.md` into a Claude Code session at project root.
 
-**To update after work:** paste `~/cortex-x/prompts/cortex-sync.md` at end of session when something notable happened.
+**To update after work:** paste `~/.claude/shared/prompts/cortex-sync.md` at end of session when something notable happened.
 
-**To load context at start of session:** project's `CLAUDE.md` references `~/cortex-x/prompts/cortex-load.md`.
+**To load context at start of session:** project's `CLAUDE.md` references `~/.claude/shared/prompts/cortex-load.md`.
 
 ## Index
 
 | Project | Slug | Status | Tech | Last Scanned |
 |---------|------|--------|------|--------------|
 | [RELO (Back Office Bot)](./relo.md) | relo | production | Next.js 16 + Supabase + OpenAI | 2026-04-17 |
+| [lasertgame-funos](./lasertgame-funos.md) | lasertgame-funos | active-dev | Vite + React + Supabase (Lovable origin) | 2026-04-26 |
+| [remove-bg](./remove-bg.md) | remove-bg | greenfield | Next.js 16 + transformers.js + WebGPU | 2026-04-27 |
 | *(awaiting: chatbot-platform)* | chatbot-platform | production | Next.js + Supabase + 5 adapters | — |
 | *(awaiting: waas-template)* | waas-template | production | Next.js 16 + Tailwind 4 + GSAP | — |
 | *(awaiting: kiosek)* | kiosek | active-dev | Next.js + React | — |
@@ -56,7 +58,7 @@ Future cortex features:
 - **`cortex diff <a> <b>`** — compare two projects
 - **`cortex transferable`** — list all [TRANSFERABLE] insights across projects
 
-For now: grep across `~/cortex-x/projects/*.md`.
+For now: grep across `$CORTEX_HOME/projects/*.md`.
 
 ## Philosophy
 

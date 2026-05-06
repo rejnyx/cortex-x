@@ -17,14 +17,14 @@ Before starting work:
    - Key files
    - Stats
 
-2. **Read `~/cortex-x/projects/<slug>.md` for institutional wisdom** — this holds:
+2. **Read `$CORTEX_HOME/projects/<slug>.md` for institutional wisdom** — this holds:
    - Identity (one-liner + URL + stakeholders)
    - Key Decisions (ADR-lite, why things are the way they are)
    - Lessons Learned (what was tried, what failed, what transfers)
    - Cross-Project Dependencies
    - Glossary (domain terms)
 
-   **Note:** If `<slug>.md` doesn't exist, suggest running `~/cortex-x/prompts/project-scan.md`.
+   **Note:** If `<slug>.md` doesn't exist, suggest running `~/.claude/shared/prompts/project-scan.md`.
 
 3. **Trust CLAUDE.md for current state, cortex for institutional memory.** If they ever conflict, CLAUDE.md wins — it's the live code truth. Update cortex on next re-scan.
 
@@ -39,7 +39,7 @@ Use **explicit** mentions only when relevant:
 
 ## When to update cortex
 
-After work sessions where something notable happened — paste `~/cortex-x/prompts/cortex-sync.md`. Updates go to Lessons Learned, Key Decisions, or Cross-Project Dependencies. **Never** tech stack or commands (those live in project CLAUDE.md).
+After work sessions where something notable happened — paste `~/.claude/shared/prompts/cortex-sync.md`. Updates go to Lessons Learned, Key Decisions, or Cross-Project Dependencies. **Never** tech stack or commands (those live in project CLAUDE.md).
 
 ## SSOT guarantee
 

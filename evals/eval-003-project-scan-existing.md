@@ -9,7 +9,7 @@ version: 1.0
 
 ## Input
 
-Open Claude Code session at the **cortex-x repo itself** (`c:/Users/david/Desktop/APPs/cortex-x`). Paste `~/.claude/shared/prompts/project-scan.md`.
+Open Claude Code session at the **cortex-x repo itself** (`$CORTEX_HOME`, default `~/cortex-x`). Paste `~/.claude/shared/prompts/project-scan.md`.
 
 Cortex-x is a known existing project with: package.json (no, this is markdown framework), CLAUDE.md, MEMORY.md, standards/, prompts/, profiles/, agents/, hooks/, ~30 commits. Realistic surface for scanner.
 

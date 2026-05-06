@@ -6,12 +6,12 @@
 
 ## Your task
 
-Invoke the `cortex-thinker` subagent (see `~/cortex-x/agents/cortex-thinker.md`) to perform a **deep reflection** across:
+Invoke the `cortex-thinker` subagent (see `~/.claude/shared/agents/cortex-thinker.md`) to perform a **deep reflection** across:
 
 1. **Current project state** — what's in git, what's in PROGRESS.md, what's in CLAUDE.md
-2. **Cortex library** — all the user's projects in `~/cortex-x/projects/`
-3. **Standards compliance** — how does current project measure up to `~/cortex-x/standards/`
-4. **Recent insights** — what's been flagged in `~/cortex-x/insights/`
+2. **Cortex library** — all the user's projects in `$CORTEX_HOME/projects/`
+3. **Standards compliance** — how does current project measure up to `~/.claude/shared/standards/`
+4. **Recent insights** — what's been flagged in `$CORTEX_HOME/insights/`
 5. **Open questions** — what's the user stuck on? (from PROGRESS.md blocked items, recent conversation)
 
 ## Output: 3 sections
@@ -40,7 +40,7 @@ Write clear yes/no or multiple-choice questions. No fishing expeditions.
 
 ## After output
 
-If you surfaced 1+ insights, write them to `~/cortex-x/insights/<YYYY-MM-DD>-<slug>.md` for future reference (use `cortex-thinker.md` output format).
+If you surfaced 1+ insights, write them to `$CORTEX_HOME/insights/<YYYY-MM-DD>-<slug>.md` for future reference (use `cortex-thinker.md` output format).
 
 ## Rules
 

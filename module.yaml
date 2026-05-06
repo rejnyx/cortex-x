@@ -24,8 +24,13 @@ config:
   ui_language: en
 
   # Paths (cross-platform — use forward slashes, Node os.homedir() resolves)
-  cortex_root: "~/Desktop/APPs/cortex-x"
-  cortex_root_alt: "~/cortex-x"
+  # cortex_root = live source (clone target). Default matches install.sh/install.ps1
+  # CORTEX_HOME default. Override in module.local.yaml if you cloned elsewhere.
+  cortex_root: "~/cortex-x"
+  # cortex_assets_root = installed read-only assets (set by install scripts).
+  # Used for standards/, profiles/, prompts/, agents/, templates/, shared/ — see
+  # MIGRATIONS.md §D-4 for the live-vs-installed convention.
+  cortex_assets_root: "~/.claude/shared"
   projects_path: "{cortex_root}/projects"
   standards_path: "{cortex_root}/standards"
   profiles_path: "{cortex_root}/profiles"
