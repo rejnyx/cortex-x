@@ -32,26 +32,42 @@ The doc is grounded in two research passes run 2026-05-06 (BMAD-METHOD architect
 
 ### 2.1 Install-time mode question (the missing UX)
 
-Add a single interactive prompt to `install.sh` / `install.ps1` (after asset copy, before exit):
+**Constraint discovered via Claude Code CLI research (2026-05-06):** Claude Code does not expose a `--skill` or `--invoke` CLI flag. There is no way for `install.sh` to subprocess-launch `claude` *with a skill pre-armed*. Hooks also cannot directly prompt the user for input mid-session — interactive elicitation only works while Claude is already running, and even then via the `AskUserQuestion` tool, not from hooks.
+
+**Correct pattern: shell asks → marker file + env var → SessionStart hook reads → primes Claude.**
+
+Add an interactive prompt to `install.sh` / `install.ps1` (after asset copy, before exit):
 
 ```
 cortex-x installed.
 
-What are you building right now?
+What are you doing in your CURRENT directory?
 
-  [N] New project — empty folder, walk me through brief → architect → scaffold
-  [R] Retrofit existing — audit this codebase deeply, then propose fits
-  [F] Framework only — I'll paste prompts manually as needed (legacy default)
+  [N] New project        — empty / near-empty folder; walk me through brief → architect → scaffold
+  [R] Retrofit existing  — established codebase; deep audit then propose fits
+  [F] Framework only     — I'll paste prompts manually (legacy default)
 
 Choice [N/R/F]:
 ```
 
 **Branching behavior:**
-- **N** → emits a one-line shell hint: `Run: claude code . then say "/start"` (the slash-skill `/start` resolves to `prompts/new-project.md` per existing skill registry).
-- **R** → emits: `Run: cd <your-project> && claude code . then say "/audit"` — `/audit` resolves to the **new** `prompts/deep-retrofit-audit.md`.
-- **F** → emits the README "available prompts" list. Identical to today's behavior.
+- **N** → write `$PWD/.cortex-bootstrap-pending` containing `mode=new\nat=<ISO timestamp>\n`; emit hint: `Now run: claude` (in this directory).
+- **R** → write `$PWD/.cortex-bootstrap-pending` with `mode=retrofit\n…`; emit same hint.
+- **F** → no marker file written; emit the README "available prompts" list. Identical to today's behavior.
 
-**Implementation:** ~30 minutes. One read-input loop, one branch, one echo of next-step instructions. The slash skills `/start` and `/audit` already register inside Claude Code via `.claude/skills/` after install — don't need a CLI binary for v0.1.
+**SessionStart hook integration** (extends existing `~/.claude/shared/hooks/session-start.cjs`):
+- On every session start, check `$PWD/.cortex-bootstrap-pending`. If present, parse mode + timestamp.
+- If mode is `new` and timestamp is < 1 hour old: append additional context to the SessionStart hook output: *"User just ran `cortex-x install` and selected NEW PROJECT. The skill `/start` (cortex new-project) is available — invoke it after greeting the user, unless they say otherwise."*
+- If mode is `retrofit`: same pattern with `/audit` (deep-retrofit-audit).
+- After the bootstrap skill runs to completion, the skill itself deletes `.cortex-bootstrap-pending` (one-shot semantics).
+
+**Skill discovery:** per Claude Code docs, skills in `.claude/skills/<name>/SKILL.md` are auto-discovered — no allowlist needed. Cortex-x ships `start.skill.md` and `audit.skill.md` as part of the install (copied by install.sh from the source repo into `.claude/skills/` of the **target project**, not into the framework's own dir). The skills carry `disable-model-invocation: false` so Claude can both auto-invoke (when the SessionStart hook primes them) and respond to explicit `/start` / `/audit`.
+
+**Cross-platform fallback:** if the user's shell can't read input (non-tty, e.g. `curl … | bash` piped install), the installer prints the three modes + how to set `CORTEX_BOOTSTRAP_MODE=new|retrofit` env var manually, then exits. SessionStart hook also reads the env var as alternative source.
+
+**Implementation:** ~3 hours. install.sh + install.ps1 input loop (~1h), SessionStart hook extension (~1h), `.cortex-bootstrap-pending` parser + skill registration (~1h). All testable on Win11 PowerShell + Git Bash + Linux/macOS.
+
+**Why not subprocess `claude`?** Because there's no flag to auto-load a skill. Subprocessing Claude Code from a script gives a session that does nothing until the user types — strictly worse UX than the marker-file pattern (which gives Claude *real context* about what just happened so it can volunteer the next step naturally).
 
 ### 2.2 Greenfield onboarding upgrade — 5 phases, NOT 6 personas
 
@@ -123,23 +139,35 @@ P6  ADR       propose 3-7 retroactive ADRs (opt-in via flag --backfill-adrs)
 
 **Implementation:** ~22 hours total (M1 repo-map 8h, M2 audit prompt + 4-agent split 6h, M3 hot-spots 4h, M4 ADR backfill 4h).
 
-### 2.4 Auto-bootstrap of project artifacts (the missing install glue)
+### 2.4 Auto-bootstrap of project artifacts
 
-After `install.sh` mode question (§2.1), if the user chose **N** or **R**, the install script should not just print "next: paste this prompt." It should **invoke Claude Code with the right slash-skill auto-loaded**, so the bootstrap runs *immediately* without manual paste.
+The user's request: *"after install, cortex should automatically create all needed things — CLAUDE.md, MEMORY.md, PROGRESS.md, hooks, agents."* That is **two layers of work**, not one:
 
-**The key observation:** `install.sh` runs in a shell. It can:
-1. Detect if Claude Code CLI is installed (`which claude || command -v claude`).
-2. If yes, offer: `Auto-launch Claude Code now and run /start? [Y/n]`.
-3. If user accepts: `claude code "$PWD" --skill start` (spawned as foreground process; user takes over the session in their terminal).
-4. If no Claude CLI or user declines: print the manual paste hint as today.
+**Layer A — shell-time skeleton (install.sh):** when the user picks mode **N** or **R**, install.sh writes *non-AI-generated skeletons* into `$PWD` immediately:
+- `CLAUDE.md` — minimal placeholder ("Filled by `/start` or `/audit`. Project type: pending.") + tech-stack section as `<!-- pending -->`.
+- `PROGRESS.md` — Sprint-0 placeholder per `templates/PROGRESS.md.hbs`.
+- `MEMORY.md` — empty index per `templates/MEMORY.md.hbs`.
+- `.claude/settings.json` — copies `templates/settings.json.hbs` (hooks already point to `~/.claude/shared/hooks/*.cjs`; nothing project-specific).
+- `.claude/hooks/` — empty dir; project-level hooks (if any) added later by `/start` Phase 4 based on profile.
+- `.claude/agents/` — empty dir; same logic.
+- `.claude/skills/start.skill.md` + `.claude/skills/audit.skill.md` — copied from cortex source so the slash-commands resolve from session 1.
+- `.cortex-bootstrap-pending` — marker file per §2.1.
 
-**For mode R** (retrofit), the same flow with `--skill audit`.
+This means: **after `install.sh` returns control, the project already has structure on disk.** No "empty folder" feeling. Files exist, even if they say "pending."
 
-**Why this matters:** today the user has to (a) clone, (b) install, (c) cd into project, (d) launch Claude Code, (e) paste a prompt. Five steps, four context switches. After this change: (a) clone, (b) install + auto-launch, (c) answer one question. Two steps, one context switch.
+**Layer B — first-session AI fill (greenfield Phase 4 / retrofit Phase 5):** when Claude opens and the SessionStart hook detects `.cortex-bootstrap-pending`, it primes Claude to invoke `/start` (or `/audit`). The skill's Phase 4/5 then *replaces* the skeleton CLAUDE.md/MEMORY.md/PROGRESS.md with profile-aware, research-aware content, AND populates `.claude/agents/` and any project-specific hooks.
 
-**Implementation gotcha:** Claude Code CLI's slash-skill auto-load via `--skill` flag exists today (per cortex-x's existing `.claude/skills/` registry pattern). If it doesn't actually exist as a CLI flag yet, the fallback is `claude code "$PWD"` then user types `/start` manually — still better than today.
+**Why two layers?** Because the shell installer cannot reason about "what profile is this, what tech stack, what AI-readiness." It can only emit deterministic skeletons. The intelligent fill is Claude's job. But splitting these means: (a) the user sees structure immediately (= trust signal), (b) if the user *never* runs `/start`, the skeletons are still useful starting points (not bare repo).
 
-**Implementation:** ~2-3 hours for the install-script branching + Claude-CLI detection + skill-launch invocation, plus testing on Win11 PowerShell + Git Bash + Linux/macOS.
+**What does NOT get auto-bootstrapped at install time:**
+- `package.json` / build config / dependency installs — profile-driven, comes from Phase 4 Scaffold
+- Any code under `src/` — same
+- README.md — Phase 4 writes one based on profile + discovery answers; install.sh leaves it alone if it exists, generates a stub if not
+- Tests, eslint, etc. — Phase 4
+
+**Implementation:** ~3 hours for install.sh to drop skeletons + copy skill files + write marker file. Cross-platform: PowerShell version of install.ps1 mirrors the same logic (`New-Item`, `Copy-Item`).
+
+**Risk:** if user already has `CLAUDE.md` (e.g. they're retrofitting a project that already has cortex-x or similar), don't overwrite. install.sh should detect existence and skip OR back-up-then-replace based on mode (`R` retrofit always preserves; `N` new should never see existing files anyway because the folder is supposed to be empty/near-empty).
 
 ### 2.5 Auto-research after install (the differentiator)
 
@@ -288,7 +316,8 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 |---|---|---|---|
 | Tree-sitter binding breaks on Windows | Medium | High | Fail-open in `detectors/repo-map.cjs`; degrade to file-list-only mode; document in `standards/repo-map.md` |
 | Auto-research hallucinates, writes wrong recommendations | Medium | High | `min_sources_per_claim: 2` + URL-verification fetch + `recommendations.md` cited line-by-line; `cortex-doctor` flags drift |
-| Claude-CLI `--skill` flag doesn't exist as expected | Medium | Medium | Fallback: `claude code "$PWD"` + manual `/start` paste; M1 detects + degrades |
+| `.cortex-bootstrap-pending` marker not consumed (skill never runs) | Medium | Low | Marker has timestamp; SessionStart hook ignores markers > 1h old. Doctor command flags stale markers. |
+| User runs `claude` from wrong directory after install (marker not in $PWD) | Medium | Low | Install hint explicitly says "now run `claude` in **this directory**." SessionStart hook walks up 3 parent dirs as fallback; if no marker found, no-op. |
 | 5-phase restructure regresses existing eval-001 score | Low | Medium | Re-run eval-001 after M2; if regress, revert to single-phase prompt |
 | Auto-research blows the token budget on retrofit of huge repos | Medium | Medium | `max_research_per_session: 1` cap (already configured); RepoMap PageRank O(V+E) is fine; audit agents fan-out is the cost driver — cap at 5 |
 | Repo-map staleness on every doctor run | Low | Low | Cursor's chunk-hash cache pattern: hash file mtimes; only re-parse changed files |
@@ -343,3 +372,4 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 - **2026-05-06** — Aider RepoMap chosen over Cursor indexing for cortex-x retrofit. Reason: zero-infra (tree-sitter portable, no embedding service, no vector DB). Aider's `tags.scm` files are MIT-licensed.
 - **2026-05-06** — Auto-research will use existing `config/research.yaml` infrastructure plus a new `post_install_adaptation` trigger. Anthropic multi-agent paper cited: 90.2% lift on breadth-first queries, 15× cost — cap at 5 agents (matches existing `max_count: 5`).
 - **2026-05-06** — Three-hop citation traceability adopted as SSOT extension: claim → finding ID → source URL. `cortex-doctor` enforces.
+- **2026-05-06** — Claude Code CLI primitives researched (third pass). Confirmed: no `--skill` / `--invoke` flag for auto-launching skills; hooks cannot prompt user mid-session; skills auto-discover from `.claude/skills/` (no allowlist). §2.1 + §2.4 revised to use the **marker-file + env-var + SessionStart-hook** pattern instead of subprocess invocation. Lower magic, more robust, reuses primitives Claude Code already documents.
