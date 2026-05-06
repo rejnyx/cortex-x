@@ -115,7 +115,24 @@ Avoid for v0.1: hobbyists (won't pay), enterprise procurement (too heavy for sol
 - [x] **CODE_OF_CONDUCT.md** — ADDED 2026-05-06 (Contributor Covenant 2.1, canonical text)
 - [x] **CI gate** — ADDED 2026-05-06 (`.github/workflows/no-pii.yml` — sync to public snapshot + validate-no-pii.mjs + ship-ready denylist scan on every PR/push)
 - [ ] **Eval baseline run** — execute eval-001-scaffold-nextjs-saas, log baseline scores so post-launch trend is visible
-- [ ] **Final grep audit** — `davidrajnoha`, `C:\Users\david`, `Desktop/APPs`, third-party names (post-D-4 verification)
+- [x] **Final grep audit** — RESOLVED 2026-05-06. Public snapshot 104 files, validate-no-pii clean, denylist scan green.
+
+### Sprint 1.5 — BMAD-spirit onboarding upgrade + 12-dim audit + auto-research (NEW 2026-05-06)
+
+Per [`docs/sprint-1.5-design.md`](./sprint-1.5-design.md). Maintainer locked all open questions 2026-05-06; implementation landed in commit `c66b1ec`.
+
+- [x] **M1: Install UX** — `bin/cortex-bootstrap{,.ps1}` per-project mode selector ([N]ew/[E]xisting/[F]ramework). `install.sh`/`install.ps1` copy to `~/.claude/shared/bin/`. Marker file + 1h TTL + SessionStart auto-prime.
+- [x] **M1b: SessionStart hook reads markers** — `.cortex-bootstrap-pending` (auto-prime) + `cortex/.adapt-pending` (recovery if Phase 5 interrupted).
+- [x] **M1c: Slash skills** — `shared/skills/start/SKILL.md` + `audit/SKILL.md` auto-discovered.
+- [x] **M2: Greenfield 5 phases** — `prompts/new-project.md` restructured into Discover → Research → Architect → Scaffold → Adapt with saved artifacts (`cortex/discovery.md`, `cortex/proposal.md`, `cortex/recommendations.md`) + structured `[a/e/r/q]` approval gate + dual-link standards + on_complete instruction.
+- [x] **M5: Existing-project audit** — `prompts/existing-project-audit.md` 12-dim deep audit (P0–P6, 4 parallel agents owning 3 dims each, 5 irreducible human questions, planner-driven research, ADR backfill opt-in).
+- [x] **M5b: retrofit.md thin wrapper** — defers to `/audit` if `cortex/AUDIT.md` not present.
+- [x] **M6: Auto-research engine** — `agents/planner.md` + `agents/synthesizer.md` + `config/research.yaml` triggers (`post_install_adaptation` + `existing_project_audit`).
+- [x] **M7: Post-scaffold reality check** — Claude Code does not expose a PostScaffold event; Phase 5 dispatch is in-prompt; SessionStart hook handles recovery via `cortex/.adapt-pending` marker.
+- [x] **M8: cortex-doctor extensions** — §14 three-hop citation drift check + §15 canonical-references freshness check.
+- [ ] **M3: detectors/repo-map.cjs** (deferred — audit prompt has degraded grep+find fallback) — tree-sitter + per-language tags.scm + PageRank renderer; Node default + Rust opt-in via `module.yaml: repo_map.engine`.
+- [ ] **M4: detectors/hotspots.cjs** (deferred) — `git log --numstat` × LOC-delta complexity proxy → Tornhill hotspots ranking.
+- [ ] **M9: Field-test** — full greenfield flow on a fresh empty folder; existing-project-audit dogfood on cortex-x repo itself; report in `journal/`.
 
 ### Sprint 2 — Hermes Agent profile (2 weeks)
 
