@@ -177,11 +177,7 @@ fi
 # stay in source and need an absolute path baked into scaffolded files.
 printf 'cortex_source: %s\n' "$CORTEX_ROOT" > "$CLAUDE_HOME/shared/cortex-source.yaml"
 
-echo "Done."
-echo
-
-# Write/update module.local.yaml with user preference
-# (gitignored — user-specific overrides)
+# Write/update module.local.yaml with user preference (gitignored).
 MODULE_LOCAL="$CORTEX_ROOT/module.local.yaml"
 cat > "$MODULE_LOCAL" <<YAML
 # Per-user override (gitignored). See module.yaml for defaults.
@@ -190,11 +186,7 @@ cat > "$MODULE_LOCAL" <<YAML
 config:
   communication_language: $CORTEX_LANGUAGE
 YAML
-echo "Wrote user prefs to: $MODULE_LOCAL (gitignored)"
 
-# Print language directive for user to add to their ~/.claude/CLAUDE.md
-# (we don't auto-edit the user's global CLAUDE.md — Principle 1 "ask, don't
-#  silently modify user files" per standards/coding-behavior.md §1)
 case "$CORTEX_LANGUAGE" in
   cs) LANG_NAME="Czech (čeština)" ;;
   de) LANG_NAME="German (Deutsch)" ;;
@@ -202,95 +194,115 @@ case "$CORTEX_LANGUAGE" in
   es) LANG_NAME="Spanish (español)" ;;
   *)  LANG_NAME="English" ;;
 esac
-echo
-echo "To enforce the language preference, add this block to ~/.claude/CLAUDE.md:"
-echo
-echo "---"
-echo "<!-- BEGIN cortex-x — communication language -->"
-echo "## cortex-x language"
-echo "When working in a cortex-x-scaffolded project or invoking cortex-x prompts,"
-echo "respond in: **$LANG_NAME** (code: $CORTEX_LANGUAGE). Never switch languages mid-reply."
-echo "<!-- END cortex-x -->"
-echo "---"
-echo
 
-# Install cortex-bootstrap helper to ~/.claude/shared/bin/ (per-project mode selector).
-# This is the second-step UX: install.sh installs the framework once,
-# cortex-bootstrap is run in each TARGET project to write the marker file
-# that primes the SessionStart hook to auto-launch /start or /audit.
-mkdir -p "$CLAUDE_HOME/shared/bin"
-if [ -f "$CORTEX_ROOT/bin/cortex-bootstrap" ]; then
-  cp "$CORTEX_ROOT/bin/cortex-bootstrap" "$CLAUDE_HOME/shared/bin/cortex-bootstrap"
-  chmod +x "$CLAUDE_HOME/shared/bin/cortex-bootstrap"
-fi
-if [ -f "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" ]; then
-  cp "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" "$CLAUDE_HOME/shared/bin/cortex-bootstrap.ps1"
+# Install cortex-bootstrap helper to ~/.claude/shared/bin/.
+mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
+[ -f "$CORTEX_ROOT/bin/cortex-bootstrap" ]      && { cp "$CORTEX_ROOT/bin/cortex-bootstrap"      "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-bootstrap"; }
+[ -f "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" ]  && cp "$CORTEX_ROOT/bin/cortex-bootstrap.ps1"   "$CLAUDE_HOME/shared/bin/"
+[ -f "$CORTEX_ROOT/bin/cortex-bootstrap.cjs" ]  && cp "$CORTEX_ROOT/bin/cortex-bootstrap.cjs"   "$CLAUDE_HOME/shared/bin/"
+[ -f "$CORTEX_ROOT/bin/_lib/select.cjs" ]       && cp "$CORTEX_ROOT/bin/_lib/select.cjs"        "$CLAUDE_HOME/shared/bin/_lib/"
+
+# Install user-level slash-skill /cortex-init at ~/.claude/skills/cortex-init/.
+# This is the RECOMMENDED post-install entry point — user just opens claude in
+# any project dir and types /cortex-init. The skill asks N/E/F via Claude's
+# native AskUserQuestion tool, writes the marker, chains to /start or /audit.
+mkdir -p "$CLAUDE_HOME/skills/cortex-init"
+if [ -f "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" ]; then
+  cp "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" "$CLAUDE_HOME/skills/cortex-init/SKILL.md"
 fi
 
-echo
-echo "============================================================"
-echo "cortex-bootstrap helper installed to: $CLAUDE_HOME/shared/bin/"
-echo
-echo "NEXT STEP — go to your TARGET project directory and run:"
-echo
-echo "  $CLAUDE_HOME/shared/bin/cortex-bootstrap"
-echo
-echo "It asks:  [N]ew / [E]xisting / [F]ramework-only — writes a one-shot"
-echo "marker file. Then 'claude' in the same dir auto-primes the right skill"
-echo "(/start for new, /audit for existing). Marker has 1h TTL."
-echo
-echo "Add to PATH for convenience:"
-echo "  export PATH=\"\$HOME/.claude/shared/bin:\$PATH\""
-echo "============================================================"
-echo
+# Generate INSTALL_NOTES.md with all the verbose detail. Keep terminal output
+# tight — users who want detail can read the file. (Pattern from Bun, Deno.)
+INSTALL_NOTES="$CLAUDE_HOME/shared/INSTALL_NOTES.md"
+cat > "$INSTALL_NOTES" <<NOTES
+# cortex-x install notes
 
-echo "Hooks copied to ~/.claude/shared/hooks/:"
-echo "  block-destructive.cjs   (PreToolUse matcher:Bash)"
-echo "  session-start.cjs       (SessionStart — also surfaces recent budget)"
-echo "  pre-compact.cjs         (PreCompact)"
-echo "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
-echo "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
-echo "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
-echo "  tirith-scan.cjs         (SessionStart — optional, no-op if tirith binary absent)"
-echo "  _lib/redact.cjs         (shared secret-scrubbing library)"
-echo "  _lib/budget.cjs         (shared token-cost tracking library)"
+Generated by \`install.sh\` on $(date '+%Y-%m-%d %H:%M:%S').
 
-# Optional Tirith detection hint — context-file injection scanner from Hermes Agent stack (MIT).
-if ! command -v tirith > /dev/null 2>&1; then
-  echo
-  echo "Optional: install Tirith (https://tirith.sh/) for context-file prompt-injection scanning:"
-  echo "  cargo install tirith"
-  echo "  # or download from https://github.com/NousResearch/tirith/releases"
-  echo "tirith-scan.cjs hook will auto-detect once installed. Skip if not doing agentic work."
-fi
-echo
-echo "Register them in ~/.claude/settings.json under \"hooks\". Example snippet:"
-cat <<'JSON'
+- Source:    $CORTEX_ROOT
+- Installed: $CLAUDE_HOME/shared/
+- Channel:   $CHANNEL
+- Language:  $LANG_NAME (\`$CORTEX_LANGUAGE\`)
+
+## Hooks (in \`hooks/\`)
+
+| File | Event |
+|---|---|
+| \`block-destructive.cjs\` | PreToolUse matcher:Bash |
+| \`session-start.cjs\` | SessionStart — sprint state, git context, budget surface, bootstrap-marker reader |
+| \`pre-compact.cjs\` | PreCompact |
+| \`pre-tool-use.cjs\` | PreToolUse all tools — journal companion |
+| \`post-tool-use.cjs\` | PostToolUse all tools — journal + budget writer |
+| \`auto-orchestrate.cjs\` | UserPromptSubmit — 3-fronta hint + budget warn |
+| \`tirith-scan.cjs\` | SessionStart — optional, no-op if tirith binary absent |
+| \`_lib/redact.cjs\` | Shared secret-scrubbing library |
+| \`_lib/budget.cjs\` | Shared token-cost tracking library |
+
+## Register hooks in \`~/.claude/settings.json\`
+
+\`\`\`json
+"hooks": {
   "PreToolUse": [
     { "matcher": "Bash",
-      "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/block-destructive.cjs\"","timeout":5}] },
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/pre-tool-use.cjs\"","timeout":3}] }
+      "hooks": [{ "type": "command", "command": "node \"\$HOME/.claude/shared/hooks/block-destructive.cjs\"", "timeout": 5 }] },
+    { "hooks": [{ "type": "command", "command": "node \"\$HOME/.claude/shared/hooks/pre-tool-use.cjs\"", "timeout": 3 }] }
   ],
   "PostToolUse": [
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+    { "hooks": [{ "type": "command", "command": "node \"\$HOME/.claude/shared/hooks/post-tool-use.cjs\"", "timeout": 5 }] }
   ],
   "UserPromptSubmit": [
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"","timeout":3}] }
+    { "hooks": [{ "type": "command", "command": "node \"\$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"", "timeout": 3 }] }
+  ],
+  "SessionStart": [
+    { "hooks": [{ "type": "command", "command": "node \"\$HOME/.claude/shared/hooks/session-start.cjs\"", "timeout": 5 }] }
   ]
-JSON
-echo
-echo "Budget cap: set CORTEX_SESSION_BUDGET_USD (default \$5.00). Spend log: \$CORTEX_HOME/journal/.budget.jsonl"
-echo
-echo "Journal will be written to: $CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl"
-echo "See journal/README.md for schema + privacy contract."
-echo "See standards/ship-ready.md for CORTEX_HOME / CORTEX_CHANNEL semantics."
+}
+\`\`\`
 
-# Final PATH-add advice — surface this AFTER all the hook detail so it's the
-# last thing the user sees. Auto-detect shell + propose the right rcfile line.
-echo
-echo "============================================================"
-echo "FINAL STEP — add cortex-bootstrap to your PATH"
-echo "============================================================"
+## Language preference (optional)
+
+Add this block to \`~/.claude/CLAUDE.md\` so Claude responds in \`$LANG_NAME\` for cortex-x sessions:
+
+\`\`\`markdown
+<!-- BEGIN cortex-x — communication language -->
+## cortex-x language
+When working in a cortex-x-scaffolded project or invoking cortex-x prompts,
+respond in: **$LANG_NAME** (code: \`$CORTEX_LANGUAGE\`). Never switch languages mid-reply.
+<!-- END cortex-x -->
+\`\`\`
+
+cortex-x will not auto-edit your global \`~/.claude/CLAUDE.md\` (Principle 1 from standards/coding-behavior.md).
+
+## Budget cap
+
+Set \`CORTEX_SESSION_BUDGET_USD\` env var (default \$5.00). Spend log: \`\$CORTEX_HOME/journal/.budget.jsonl\`.
+Set \`CORTEX_BUDGET_DISABLED=1\` to suppress budget output entirely (e.g. for flat-subscription installs).
+
+## Journal
+
+Tool-call traces (privacy-redacted) write to: \`$CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl\`. See \`journal/README.md\` for schema + privacy contract.
+
+## Optional: Tirith (context-file prompt-injection scanner)
+
+\`\`\`bash
+cargo install tirith
+# or download from https://github.com/NousResearch/tirith/releases
+\`\`\`
+
+\`tirith-scan.cjs\` hook auto-detects once installed. Skip if not doing agentic work.
+
+## Re-running
+
+Re-run \`install.sh\` after pulling cortex-x updates. Existing \`~/.claude/shared/\` is backed up to \`shared.backup-YYYYMMDD-HHMMSS\`. Only the most recent backup is kept.
+
+## See also
+
+- \`standards/ship-ready.md\` — \`CORTEX_HOME\` / \`CORTEX_CHANNEL\` semantics
+- \`docs/sprint-1.5-design.md\` — onboarding architecture
+- \`MIGRATIONS.md\` — pre-public-tag debt and version migrations
+NOTES
+
+# Detect shell + PATH state for the final action line.
 SHELL_NAME="$(basename "${SHELL:-bash}")"
 case "$SHELL_NAME" in
   zsh)  RC_FILE="$HOME/.zshrc" ;;
@@ -298,22 +310,37 @@ case "$SHELL_NAME" in
   fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
   *)    RC_FILE="$HOME/.profile" ;;
 esac
+PATH_HAS_BIN=0
+echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.claude/shared/bin" && PATH_HAS_BIN=1
 
-if echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.claude/shared/bin"; then
-  echo "PATH already contains $HOME/.claude/shared/bin — you're set."
+# Compact final summary — model: Bun, uv, Rustup. Detail lives in INSTALL_NOTES.md.
+echo
+echo "  ✓ cortex-x installed"
+echo "    framework  ~/.claude/shared/                  (hooks · agents · prompts · skills · standards)"
+echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point)"
+echo "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
+echo "    language   $LANG_NAME ($CORTEX_LANGUAGE)"
+echo "    notes      $INSTALL_NOTES"
+echo
+echo "  Next step (recommended) — open Claude Code in any project dir:"
+echo
+echo "    claude"
+echo "    /cortex-init"
+echo
+echo "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
+echo "    writes the marker, chains to the right cortex-x workflow."
+echo
+echo "  Shell-only alternative (power users / scripts):"
+if [ "$PATH_HAS_BIN" = "1" ]; then
+  echo "    cortex-bootstrap     # already on PATH"
 else
-  echo "Run this once to add bin/ to PATH:"
+  echo "    ~/.claude/shared/bin/cortex-bootstrap"
   echo
+  echo "  Add bin/ to PATH (one-time, optional):"
   if [ "$SHELL_NAME" = "fish" ]; then
-    echo "  fish_add_path \"\$HOME/.claude/shared/bin\""
+    echo "    fish_add_path \"\$HOME/.claude/shared/bin\""
   else
-    echo "  echo 'export PATH=\"\$HOME/.claude/shared/bin:\$PATH\"' >> $RC_FILE"
-    echo "  source $RC_FILE   # or open a new terminal"
+    echo "    echo 'export PATH=\"\$HOME/.claude/shared/bin:\$PATH\"' >> $RC_FILE && source $RC_FILE"
   fi
 fi
 echo
-echo "Then per-project:"
-echo "  cd ~/your-project"
-echo "  cortex-bootstrap     # interactive [N]ew / [E]xisting / [F]ramework"
-echo "  claude               # auto-primes /start (new) or /audit (existing)"
-echo "============================================================"
