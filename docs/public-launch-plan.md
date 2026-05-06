@@ -278,7 +278,7 @@ Per [`MIGRATIONS.md` §D-4](../MIGRATIONS.md#d-4-residual-cortex-x-refs-in-sourc
 **Sprint 1 work (planned, not yet done in main):**
 - Add `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1)
 - Add D-3 Windows ACL advisory to `SECURITY.md`
-- Remove residual hardcoded `c:/Users/david/Desktop/APPs/cortex-x/` references from `projects/cortex-x.md` (lines 8, 21)
+- Remove residual hardcoded local-clone path references from `projects/cortex-x.md` (lines 8, 21) — replace with `$CORTEX_HOME` placeholder per D-4 convention
 
 **Sprint 1 work requiring user execution (destructive):** D-1 history purge, D-2 GPG infrastructure.
 
