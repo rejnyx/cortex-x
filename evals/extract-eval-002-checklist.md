@@ -17,7 +17,7 @@ List everything that exists. Don't skip dotfiles.
 ### 2. Phase 2 research — ANO/NE?
 **How:** scroll back in the eval-002 session transcript. Look for:
 - Any `Agent` tool calls (with `subagent_type: general-purpose`) spawned in **parallel** (multiple in one assistant message)
-- Files written to `c:/Users/david/Desktop/APPs/cortex-x/research/` during the session
+- Files written to `$CORTEX_HOME/research/` during the session
 - Mentions of "Phase 2" / "spawning research" / "parallel agents" in Claude's text output
 
 If yes → list which agents (descriptions) and what topics

@@ -87,12 +87,12 @@ Run a systematic healthcheck of the user's cortex-x setup. Identify what's missi
 - [ ] `~/.claude/settings.json` has global hooks registered
 - [ ] `~/.claude/CLAUDE.md` references cortex-x
 
-**If missing:** run `~/cortex-x/install.sh` or `install.ps1`.
+**If missing:** run `$CORTEX_HOME/install.sh` or `install.ps1`.
 
 ### 2. Profiles health
 
 ```bash
-ls ~/cortex-x/profiles/*.yaml
+ls ~/.claude/shared/profiles/*.yaml
 ```
 
 - [ ] At least `nextjs-saas.yaml` + `minimal.yaml` present
@@ -137,7 +137,7 @@ cd ~/cortex-x && git status
 ### 7. Projects library freshness
 
 ```bash
-ls -la ~/cortex-x/projects/
+ls -la $CORTEX_HOME/projects/
 ```
 
 - [ ] At least 1 project scanned
@@ -183,7 +183,7 @@ Archive (not delete) because stale research still has historical value for `cort
 
 ### 10. Session-start hook liveness
 
-Run a test: check if `node ~/cortex-x/shared/hooks/session-start.cjs` outputs valid JSON when run from any project directory.
+Run a test: check if `node ~/.claude/shared/shared/hooks/session-start.cjs` outputs valid JSON when run from any project directory.
 
 - [ ] Hook executes without error
 - [ ] Output is valid JSON with `hookSpecificOutput` field

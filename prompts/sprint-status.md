@@ -14,7 +14,7 @@ Parse current project's `PROGRESS.md` + recent git activity, produce actionable 
 cat PROGRESS.md 2>/dev/null
 ```
 
-If missing: "⚠️ No PROGRESS.md found. Run `~/cortex-x/prompts/new-project.md` or create manually."
+If missing: "⚠️ No PROGRESS.md found. Run `~/.claude/shared/prompts/new-project.md` or create manually."
 
 ## Step 2 — Identify active sprint
 

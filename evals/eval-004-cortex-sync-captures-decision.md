@@ -11,7 +11,7 @@ version: 1.0
 
 Simulate a session that ended with a real architectural decision. Set up state:
 
-1. Open Claude Code at `c:/Users/david/Desktop/APPs/cortex-x` (or any project with a `cortex-x/projects/<slug>.md` library entry)
+1. Open Claude Code at `$CORTEX_HOME` (default `~/cortex-x`, or any project with a `$CORTEX_HOME/projects/<slug>.md` library entry)
 2. Inject session context (prior turn) describing a concrete decision:
    > "Rozhodli jsme se použít Trigger.dev místo Vercel Cron pro digest job. Důvod: Vercel Cron má 300s limit, náš scrape+score job trvá 2-5 min. Failover plán: pokud Trigger.dev selže, máme manual cron fallback přes GitHub Actions. Commit `e1b231a` aplikuje volbu."
 3. Paste `~/.claude/shared/prompts/cortex-sync.md`

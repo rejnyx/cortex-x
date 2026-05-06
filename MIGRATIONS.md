@@ -88,20 +88,17 @@ git push --force origin main
 
 ### D-4. Residual `~/cortex-x/` refs in source docs/prompts (non-user-facing)
 
-**Status:** OPEN. Discovered 2026-04-19 during field-test feedback on morning-digest project.
+**Status:** RESOLVED 2026-05-06. Mechanical rewrite via `scripts/fix-d4-paths.mjs` — 14 files, 55 lines, single commit "path convention normalized."
 
-Path convention established 2026-04-19:
-- `~/.claude/shared/<subdir>/` — **installed read-only assets** (standards, prompts, templates, agents, hooks, profiles) after `install.sh`/`install.ps1`
-- `$CORTEX_HOME` / absolute path — **live source dir** (dynamic content: `projects/`, `research/`, `insights/`)
+Path convention enforced:
+- `~/.claude/shared/<subdir>/` — **installed read-only assets** (`prompts`, `standards`, `agents`, `profiles`, `templates`, `shared`, `skills`, `detectors`, `hooks`) after `install.sh`/`install.ps1`
+- `$CORTEX_HOME/<subdir>/` — **live source dir** (`projects`, `insights`, `research`, `journal`, `evals`, `config`, `docs`)
 
-Fixed in 2026-04-19 commit: `templates/CLAUDE.md.hbs`, `agents/cortex-thinker.md`, `agents/security-auditor.md`, `prompts/new-project.md`, `prompts/cortex-doctor.md`, `install.sh`, `install.ps1`, + retroactive `c:/Users/david/Desktop/APPs/test-more/` scaffold.
+Files rewritten: `README.md`, `projects/README.md`, `config/evolve.yaml`, `prompts/{sprint-status,cortex-sync,cortex-evolve,cortex-load,cortex-reflect,project-scan,retrospective,code-review,cortex-doctor}.md`, `evals/eval-001-scaffold-nextjs-saas.md`, `evals/README.md`.
 
-**Still broken in 17 source files (~69 occurrences):**
-`prompts/cortex-doctor.md`, `prompts/code-review.md`, `prompts/project-scan.md`, `prompts/cortex-load.md`, `prompts/cortex-evolve.md`, `prompts/sprint-status.md`, `prompts/retrospective.md`, `prompts/cortex-sync.md`, `prompts/cortex-reflect.md`, `module.yaml`, `README.md`, `CHANGELOG.md`, `config/evolve.yaml`, `journal/README.md`, `evals/eval-001-scaffold-nextjs-saas.md`, `evals/README.md`, `projects/README.md`.
+Files intentionally NOT rewritten — they document the migration or contain legacy diagnostic mentions: `MIGRATIONS.md` (this file), `CHANGELOG.md`, `docs/public-launch-plan.md`, `evals/results/2026-05-01-01d9013-paper-baseline.json`, and the four lines in `prompts/cortex-doctor.md` that describe the legacy-broken-prefix detector (preserved by the script's `doctorPreserveLines` allow-list).
 
-**Impact:** not user-facing (these don't end up in scaffolded projects). Claude reading them mentally resolves tilde to the actual source dir. A new user on a fresh install where `~/cortex-x` genuinely doesn't exist would see Claude attempt paths that fail at runtime (e.g., cortex-sync trying to write `~/cortex-x/insights/`).
-
-**Fix before first public `v*` tag:** mechanical grep-and-replace per the rule above. Ideally do this in a single commit so tag history shows a clean "path convention normalized" boundary. Keep `$CORTEX_HOME` for source-internal refs (resolved at runtime from env or `~/.claude/shared/cortex-source.yaml`), `~/.claude/shared/` for installed asset refs.
+**Pre-resolution context:** original 2026-04-19 fix landed in `templates/CLAUDE.md.hbs`, `agents/cortex-thinker.md`, `agents/security-auditor.md`, `prompts/new-project.md`, partial `prompts/cortex-doctor.md`, `install.sh`, `install.ps1`. The 14 source files above were missed in that pass; without this rewrite, fresh-install users with no `~/cortex-x/` directory would have hit runtime path-resolution failures (e.g. cortex-sync trying to write `~/cortex-x/insights/`).
 
 ---
 

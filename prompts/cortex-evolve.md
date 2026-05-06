@@ -31,21 +31,21 @@ Zjisti režim:
 
 ### A.1 Scan journal
 ```
-For each file in ~/cortex-x/journal/ matching YYYY-MM-DD-*.jsonl:
+For each file in $CORTEX_HOME/journal/ matching YYYY-MM-DD-*.jsonl:
   - Verify schema (ts, project, tool, duration_ms, ok, summary)
   - Count events per project
   - Flag malformed entries to insights/proposals/schema-violations-<date>.md
 ```
 
 ### A.2 Update L1 core index per project
-Pro každý aktivní projekt v `~/cortex-x/projects/`:
+Pro každý aktivní projekt v `$CORTEX_HOME/projects/`:
 - Rebuild compact cheat sheet (≤500 tokens)
 - Struktura: Identity (1 line), Active decisions (last 3), Open questions (last 3), Cross-deps (links)
-- Write to `~/cortex-x/projects/<slug>.index.md`
+- Write to `$CORTEX_HOME/projects/<slug>.index.md`
 
 ### A.3 Mtime tracking
 ```
-For each file in ~/cortex-x/projects/ + insights/ + research/:
+For each file in $CORTEX_HOME/projects/ + insights/ + research/:
   - Record last_modified + last_accessed
   - Flag stale candidates (per config/evolve.yaml thresholds)
   - DO NOT remove anything — only flag for Phase B review
@@ -80,7 +80,7 @@ Split journal entries by `ok: true/false`. For failures:
 - Top-20 discriminators = candidate failure patterns
 
 #### B.1.3 Cross-project pattern transfer
-For each standard in `~/cortex-x/standards/`:
+For each standard in `~/.claude/shared/standards/`:
 - Find projects that implement the pattern (grep for referenced files)
 - Find projects that DON'T — but have similar structure
 - If pattern success rate is high in group A and group B would benefit → transferable insight
@@ -178,7 +178,7 @@ Otherwise: save as `insights/proposals/PENDING-<date>.md` and instruct the user 
 
 ### C.1 Run eval suite
 
-Read `~/cortex-x/evals/eval-*.md`. For each eval:
+Read `$CORTEX_HOME/evals/eval-*.md`. For each eval:
 - Execute the specified task against current cortex-x version
 - Score against `expected` + `scoring_rubric`
 - Record to `evals/results/<YYYY-MM-DD>-<commit>.json`
@@ -214,7 +214,7 @@ For tasks scoring <80%:
 ### C.5 3-month audit reminder
 
 If `today >= config.audit.first_audit_date` AND last audit > 90 days ago:
-- Remind the user to run `~/cortex-x/docs/3-month-audit.md` checklist
+- Remind the user to run `$CORTEX_HOME/docs/3-month-audit.md` checklist
 - Generate usage report: `docs/audit-usage-<date>.md` with:
   - Files never read in last 90 days
   - Prompts never invoked

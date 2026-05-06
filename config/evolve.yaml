@@ -19,7 +19,7 @@ cadence:
     cron: "0 4 * * 0"  # Sunday 04:00 UTC
   monthly:
     what: [eval_suite_rerun, prompt_refinement_proposal, 3month_audit_reminder]
-    trigger: manual  # the user runs ~/cortex-x/prompts/cortex-evolve.md with "monthly" arg
+    trigger: manual  # the user runs ~/.claude/shared/prompts/cortex-evolve.md with "monthly" arg
 
 # =============================================================================
 # ANTI-HALLUCINATION RULES (hard gates — if violated, discard insight)

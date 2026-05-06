@@ -46,7 +46,7 @@ Goal: force explicit cross-project thinking.
 
 ## Step 3 — Distill into Lessons Learned entries
 
-For each [TRANSFERABLE] insight, draft in the project's `~/cortex-x/projects/<slug>.md` format:
+For each [TRANSFERABLE] insight, draft in the project's `$CORTEX_HOME/projects/<slug>.md` format:
 
 ```markdown
 ### [TRANSFERABLE] <Short title> — <YYYY-MM-DD>
@@ -86,7 +86,7 @@ If yes, append to Glossary.
 
 ## Step 7 — Write + commit
 
-1. Read current `~/cortex-x/projects/<slug>.md`
+1. Read current `$CORTEX_HOME/projects/<slug>.md`
 2. Append new Lessons (preserve existing — this is the institutional memory)
 3. Update Key Decisions + Cross-Project Deps + Glossary if anything changed
 4. Commit:
@@ -169,7 +169,7 @@ That's a 15-minute investment per sprint for institutional memory that compounds
 ## Integration points
 
 - **Triggered by:** end of sprint (sprint-status detects 90%+ completion)
-- **Outputs to:** `~/cortex-x/projects/<slug>.md` Lessons Learned + Key Decisions + Cross-Project Deps + Glossary
+- **Outputs to:** `$CORTEX_HOME/projects/<slug>.md` Lessons Learned + Key Decisions + Cross-Project Deps + Glossary
 - **Informs:** next `new-project.md` for similar projects (the user starts ahead because lessons exist)
 
 ## Philosophy
