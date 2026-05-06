@@ -30,6 +30,19 @@ The default-highlighted choice should match what Step 1 detected. Make the quest
 
 ## Step 3 — Branch on the choice
 
+### Path resolution contract (read this first)
+
+The chained prompts live at `~/.claude/shared/prompts/<name>.md`. Some Claude Code versions don't auto-expand `~` for the Read tool — resolve to an **absolute path** before calling Read:
+
+- **Unix/macOS/WSL/Git Bash:** `/home/<user>/.claude/shared/prompts/<name>.md` (or use `$HOME`)
+- **Windows native:** `C:\Users\<user>\.claude\shared\prompts\<name>.md`
+
+**Do NOT** fall back to the cortex-x source repo (`$CORTEX_HOME/prompts/`) if the installed path is missing — that masks an install regression. If Read fails on the installed path, **stop and tell the user**:
+
+> ⚠ *"`~/.claude/shared/prompts/<name>.md` is missing. The cortex-x install is incomplete. Run `/doctor` to diagnose, or re-run `install.sh` / `install.ps1` from `$CORTEX_HOME`."*
+
+Then exit `/cortex-init`. Do not continue with stale assets.
+
 ### If "New project"
 
 1. Use the `Write` tool to create `.cortex-bootstrap-pending` in `$PWD` with content:
@@ -37,12 +50,12 @@ The default-highlighted choice should match what Step 1 detected. Make the quest
    mode=new
    at=<current ISO timestamp, e.g. 2026-05-06T20:30:00Z>
    ```
-2. Read `~/.claude/shared/prompts/new-project.md` and execute it from Phase 1 (Discover). Do not ask the user "do you want to start?" — they already chose; just begin Phase 1's first question.
+2. Read `~/.claude/shared/prompts/new-project.md` (resolved to absolute path per contract above) and execute it from Phase 1 (Discover). Do not ask the user "do you want to start?" — they already chose; just begin Phase 1's first question.
 
 ### If "Existing project"
 
 1. Write `.cortex-bootstrap-pending` with `mode=existing` + timestamp.
-2. Read `~/.claude/shared/prompts/existing-project-audit.md` and execute from Phase 0 (Detect). Begin immediately.
+2. Read `~/.claude/shared/prompts/existing-project-audit.md` (resolved to absolute path per contract above) and execute from Phase 0 (Detect). Begin immediately.
 
 ### If "Framework only"
 

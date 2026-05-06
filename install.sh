@@ -160,11 +160,9 @@ cp -r "$CORTEX_ROOT/profiles" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/prompts" "$CLAUDE_HOME/shared/"
 cp -r "$CORTEX_ROOT/agents" "$CLAUDE_HOME/shared/"
 
-# Skills directory — agentskills.io-compatible SKILL.md files.
-# Only copy if source exists (cortex-x Phase 2 may scaffold these later).
-if [ -d "$CORTEX_ROOT/skills" ]; then
-  cp -r "$CORTEX_ROOT/skills" "$CLAUDE_HOME/shared/" 2>/dev/null || true
-fi
+# Skills already copied via $CORTEX_ROOT/shared/. above (shared/skills/ is the
+# canonical location). Root-level $CORTEX_ROOT/skills/ is reserved for future
+# top-level cortex-x skills and currently empty — no separate copy needed.
 
 # Detectors directory — deterministic profile/stack/stage classifiers (auto-optimization).
 # Read by session-start hook + cortex-doctor prompt. Fail-open contract.
@@ -301,6 +299,49 @@ Re-run \`install.sh\` after pulling cortex-x updates. Existing \`~/.claude/share
 - \`docs/sprint-1.5-design.md\` — onboarding architecture
 - \`MIGRATIONS.md\` — pre-public-tag debt and version migrations
 NOTES
+
+# ── Post-copy verification — fail loudly if critical assets missing.
+# Catches: partial copies (network/perm), stale source repo state, Windows
+# file-locking, bugs in `cp -r` expansion. Runs ALL checks before exiting so
+# the user sees the full failure surface, not just the first miss.
+VERIFY_OK=1
+verify_file() {
+  if [ ! -f "$1" ]; then
+    printf '  \033[31m✗ MISSING file: %s\033[0m\n' "$1" >&2
+    VERIFY_OK=0
+  fi
+}
+verify_count() {
+  local dir="$1" min="$2" label="$3" actual
+  actual=$(ls -1 "$dir" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$actual" -lt "$min" ]; then
+    printf '  \033[31m✗ %s: %d items in %s (expected ≥ %d)\033[0m\n' "$label" "$actual" "$dir" "$min" >&2
+    VERIFY_OK=0
+  fi
+}
+verify_file "$CLAUDE_HOME/shared/cortex-source.yaml"
+verify_file "$CLAUDE_HOME/shared/prompts/new-project.md"
+verify_file "$CLAUDE_HOME/shared/prompts/existing-project-audit.md"
+verify_file "$CLAUDE_HOME/shared/prompts/cortex-doctor.md"
+verify_file "$CLAUDE_HOME/shared/skills/cortex-init/SKILL.md"
+verify_file "$CLAUDE_HOME/skills/cortex-init/SKILL.md"
+verify_file "$CLAUDE_HOME/shared/standards/RULE-1.md"
+verify_file "$CLAUDE_HOME/shared/agents/synthesizer.md"
+verify_file "$CLAUDE_HOME/shared/agents/planner.md"
+verify_file "$CLAUDE_HOME/shared/hooks/session-start.cjs"
+verify_count "$CLAUDE_HOME/shared/standards" 20 "standards"
+verify_count "$CLAUDE_HOME/shared/prompts"   10 "prompts"
+verify_count "$CLAUDE_HOME/shared/agents"     5 "agents"
+verify_count "$CLAUDE_HOME/shared/hooks"      5 "hooks"
+verify_count "$CLAUDE_HOME/shared/skills"     3 "skills"
+
+if [ "$VERIFY_OK" = "0" ]; then
+  echo >&2
+  echo "  ✗ Install verification FAILED. Critical assets are missing above." >&2
+  echo "    Try: re-run install.sh, or open an issue at" >&2
+  echo "         https://github.com/Rejnyx/cortex-x/issues" >&2
+  exit 1
+fi
 
 # Detect shell + PATH state for the final action line.
 SHELL_NAME="$(basename "${SHELL:-bash}")"
