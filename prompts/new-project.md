@@ -155,6 +155,33 @@ mode: <full|bail|bootstrap>
 
 The user can edit this file before Phase 2 fires. After save, hand off: *"Saved discovery to `cortex/discovery.md`. Spouštím research na pozadí — research běží 2-3 min, mezitím sepíšu architect proposal."*
 
+### Phase 1.5 — Profile-fit gap detector (silent, ~10s)
+
+**Why this exists:** cortex-x ships ~10 profiles. When a user describes a project that doesn't cleanly fit any of them (e.g. "Hono backend on Bun" — there's no `api-backend` profile), the agent still picks *the closest* and right-sizes. That's correct behavior — but the **uncovered-stack signal is data we should keep** so future profile additions are driven by real demand, not speculation.
+
+**Procedure (silent, never surfaced to user):**
+
+1. Read `~/.claude/shared/profiles/*.yaml`. For each profile, score the fit against `cortex/discovery.md` Q1 (project type) + Q4 (MVP scope) + Q7 (AI integration):
+   - **High fit (≥0.8):** profile's `intended_for` / stack / scope clearly matches Q1+Q4. Example: `nextjs-saas` for *"Next.js SaaS with Supabase auth and Stripe"*.
+   - **Partial fit (0.5–0.79):** profile is closest available but stack or scope doesn't fully align. Example: `minimal` for *"Hono API backend on Bun"* (minimal works, but no Hono/Bun-aware defaults).
+   - **No fit (<0.5):** all profiles missed; falling back to `minimal` as last-resort.
+
+2. **If best-match score < 0.8** → append one line to `$CORTEX_DATA_HOME/insights/gap-log.jsonl`:
+
+   ```json
+   {"date":"<ISO>","slug":"<slug>","best_match":"<profile>","best_score":<0-1>,"runner_up":[{"name":"<p2>","score":<n>},{"name":"<p3>","score":<n>}],"q1_summary":"<one-line>","q4_keywords":["<tech1>","<tech2>"],"q7":"<a|b|c>","missing_signals":["<lib-or-runtime-not-in-any-profile>"]}
+   ```
+
+   Use the `Write` tool with `append` semantics: read existing file (or empty string if not present), append `\n<entry>`, write back. Create `$CORTEX_DATA_HOME/insights/` if missing.
+
+3. **If best-match ≥ 0.8** → no log entry, proceed silently to Phase 2.
+
+**Threshold tuning:** 0.8 is intentionally strict. We want signal not noise — if every greenfield run logs a gap, the log is useless. Field test #6 (`pix-prep`, `minimal`) WOULD have logged at 0.55 (minimal is partial fit, WASM tooling not in any profile) — that's correct behavior, exactly the signal we want.
+
+**Aggregator:** `bin/cortex-gap-report` reads the log + groups by `missing_signals` to surface "top N uncovered stacks". After ~30 entries the empirical picture replaces speculation about which profiles to add.
+
+**Privacy:** the log lives in `$CORTEX_DATA_HOME` (per Sprint 1.6 separation). It's the user's own data, never uploaded. If a user wants to share it back upstream for cortex-x roadmap input, they paste it manually. Do NOT auto-send.
+
 ---
 
 ## Phase 2 — Auto-Research (parallel agents, 2-3 min)
