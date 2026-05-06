@@ -79,15 +79,45 @@ Run a systematic healthcheck of the user's cortex-x setup. Identify what's missi
 
 ### 1. Installation integrity
 
-- [ ] `$CORTEX_HOME` (default `~/cortex-x/` or `~/.cortex-x/`) exists
-- [ ] `cortex-x/shared/hooks/block-destructive.cjs` exists
-- [ ] `cortex-x/shared/hooks/session-start.cjs` exists
-- [ ] `cortex-x/shared/hooks/pre-compact.cjs` exists
-- [ ] `~/.claude/shared/hooks/*` are synced from cortex-x (copies or symlinks)
+Run this **first** — it's the most common failure mode. The install scripts copy
+~150 files from `$CORTEX_HOME/` to `~/.claude/shared/` and `~/.claude/skills/`.
+A partial copy (network/perm/locking) leaves `/cortex-init` broken in subtle ways
+that look like skill-discovery bugs but are install regressions.
+
+**Source repo (`$CORTEX_HOME` defaults to `~/cortex-x/` or `~/.cortex-x/`):**
+- [ ] `$CORTEX_HOME` exists and contains `install.sh` + `install.ps1`
+- [ ] `$CORTEX_HOME/shared/hooks/{block-destructive,session-start,pre-compact}.cjs` exist
+- [ ] `$CORTEX_HOME/shared/skills/cortex-init/SKILL.md` exists (source of user-skill)
+
+**Installed assets (`~/.claude/shared/`):**
+- [ ] `~/.claude/shared/cortex-source.yaml` exists (records source repo path)
+- [ ] `~/.claude/shared/hooks/{block-destructive,session-start,pre-compact}.cjs` synced
+- [ ] `~/.claude/shared/prompts/{new-project,existing-project-audit,cortex-doctor}.md` exist
+- [ ] `~/.claude/shared/standards/RULE-1.md` exists
+- [ ] `~/.claude/shared/agents/{synthesizer,planner}.md` exist (Phase 5 Adapt prerequisites)
+- [ ] `~/.claude/shared/skills/{cortex-init,start,audit}/SKILL.md` all three present
+- [ ] `~/.claude/shared/bin/cortex-bootstrap{,.cjs,.ps1}` + `_lib/select.cjs` present
+
+**User-level slash-skill (RECOMMENDED entry point — most-fragile install step):**
+- [ ] `~/.claude/skills/cortex-init/SKILL.md` exists (auto-discovered by Claude Code)
+  > ⚠ If missing, `/cortex-init` will silently fall through to default behavior.
+  > This was the root cause of the 2026-05-06 field-test failure.
+
+**Asset count gates** (catch partial-copy regressions):
+- [ ] `~/.claude/shared/standards/` has ≥ 20 files
+- [ ] `~/.claude/shared/prompts/` has ≥ 10 files
+- [ ] `~/.claude/shared/agents/` has ≥ 5 files
+- [ ] `~/.claude/shared/hooks/` has ≥ 5 files
+- [ ] `~/.claude/shared/skills/` has ≥ 3 directories
+
+**Settings + CLAUDE.md wiring:**
 - [ ] `~/.claude/settings.json` has global hooks registered
 - [ ] `~/.claude/CLAUDE.md` references cortex-x
 
-**If missing:** run `$CORTEX_HOME/install.sh` or `install.ps1`.
+**install.ps1 sanity (Windows-only):**
+- [ ] First 3 bytes of `$CORTEX_HOME/install.ps1` are UTF-8 BOM (`EF BB BF`) — Windows PowerShell 5.1 misreads non-ASCII without BOM and breaks the parser.
+
+**If anything missing:** run `$CORTEX_HOME/install.sh` or `install.ps1`. Both have a built-in verification block that fails loudly with the missing list.
 
 ### 2. Profiles health
 

@@ -87,6 +87,34 @@ If hop 2 or 3 breaks, the claim is INVALID. Drop it. Don't fabricate. Don't para
 
 `cortex-doctor` periodically verifies the chain. Broken chains get flagged. So write defensively.
 
+### Self-check — pair-citation enforcer (run after writing recommendations.md)
+
+Before reporting "synthesis complete," run this bash check against `cortex/recommendations.md`:
+
+```bash
+# Extract every line containing a citation; check it has BOTH [src:] AND [research:]
+python3 - <<'PY'
+import re, sys, pathlib
+p = pathlib.Path("cortex/recommendations.md").read_text(encoding="utf-8")
+orphans = []
+for i, line in enumerate(p.splitlines(), 1):
+    has_src = bool(re.search(r'\[src:', line))
+    has_research = bool(re.search(r'\[(research|audit):', line))
+    # OPEN QUESTIONS section may use [src A] vs [src B] without research tags — exempt
+    if has_src and not has_research and "vs [src" not in line and "OPEN QUESTION" not in line:
+        orphans.append((i, line.strip()[:100]))
+if orphans:
+    print(f"ORPHAN CITATIONS ({len(orphans)}):")
+    for ln, txt in orphans: print(f"  L{ln}: {txt}")
+    sys.exit(1)
+print("citation chain ✓")
+PY
+```
+
+**If orphans found:** rewrite the offending lines with `[research: <topic>]` tags before claiming completion. **Do not ship recommendations.md with orphan citations** — it breaks downstream `cortex-doctor §14` verification and silently spreads unverifiable claims into CLAUDE.md.
+
+The field-test on 2026-05-06 generated `cortex/proposal.md` with **all** citations as orphans (`[src: cssz.cz]` direct, no `[research: domain-cz-tax-2026]`). Doctor flagged this in retrospect. Catch at synthesis time, not weeks later.
+
 ## Synthesis rules
 
 ### Priority assignment

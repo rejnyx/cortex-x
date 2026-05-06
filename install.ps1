@@ -1,4 +1,4 @@
-# cortex-x installer (PowerShell)
+﻿# cortex-x installer (PowerShell)
 # Installs shared framework to ~/.claude/ for global use across projects.
 #
 # Two execution modes:
@@ -20,6 +20,11 @@
 #   $env:CORTEX_NO_UPDATE = '1'              — skip checkout even if CHANNEL=stable.
 
 $ErrorActionPreference = "Stop"
+
+# Force UTF-8 console output so non-ASCII strings (em-dash, čeština, français,
+# español) render correctly on Windows PowerShell 5.1 — its default OEM codepage
+# would otherwise mangle them. PS Core 7+ already defaults to UTF-8.
+try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() } catch { }
 
 # Stream detection — when invoked via `iwr | iex`, $PSScriptRoot is empty
 # because there is no script file on disk. Self-clone the repo first, then
@@ -190,12 +195,9 @@ Copy-Item -Recurse -Path (Join-Path $CortexRoot "profiles") -Destination $Shared
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "prompts") -Destination $SharedTarget
 Copy-Item -Recurse -Path (Join-Path $CortexRoot "agents") -Destination $SharedTarget
 
-# Skills directory — agentskills.io-compatible SKILL.md files.
-# Only copy if source exists (cortex-x Phase 2 may scaffold these later).
-$SkillsSrc = Join-Path $CortexRoot "skills"
-if (Test-Path $SkillsSrc) {
-    Copy-Item -Recurse -Path $SkillsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
-}
+# Skills already copied via "shared\*" above (shared/skills/ is the canonical
+# location). Root-level skills/ is reserved for future top-level cortex-x skills
+# and currently empty — no separate copy needed.
 
 # Detectors directory — deterministic profile/stack/stage classifiers (auto-optimization).
 # Read by session-start hook + cortex-doctor prompt. Fail-open contract.
@@ -373,6 +375,55 @@ Re-run ``install.ps1`` after pulling cortex-x updates. Existing ``~/.claude/shar
 - ``MIGRATIONS.md`` — pre-public-tag debt and version migrations
 "@
 $NotesContent | Set-Content -Path $InstallNotes -Encoding UTF8
+
+# ── Post-copy verification — fail loudly if critical assets missing.
+# Catches: partial copies (network/perm), stale source repo state, file-locking,
+# bugs in Copy-Item expansion. Runs ALL checks before exiting so the user sees
+# the full failure surface, not just the first miss.
+$VerifyOk = $true
+function Test-Required-File {
+    param([string]$Path)
+    if (-not (Test-Path $Path -PathType Leaf)) {
+        Write-Host "  $([char]0x2717) MISSING file: $Path" -ForegroundColor Red
+        $script:VerifyOk = $false
+    }
+}
+function Test-Required-Count {
+    param([string]$Dir, [int]$Min, [string]$Label)
+    if (-not (Test-Path $Dir -PathType Container)) {
+        Write-Host "  $([char]0x2717) MISSING dir: $Dir" -ForegroundColor Red
+        $script:VerifyOk = $false
+        return
+    }
+    $actual = (Get-ChildItem -Path $Dir -Force | Measure-Object).Count
+    if ($actual -lt $Min) {
+        Write-Host "  $([char]0x2717) ${Label}: $actual items in $Dir (expected $([char]0x2265) $Min)" -ForegroundColor Red
+        $script:VerifyOk = $false
+    }
+}
+Test-Required-File (Join-Path $SharedTarget "cortex-source.yaml")
+Test-Required-File (Join-Path $SharedTarget "prompts/new-project.md")
+Test-Required-File (Join-Path $SharedTarget "prompts/existing-project-audit.md")
+Test-Required-File (Join-Path $SharedTarget "prompts/cortex-doctor.md")
+Test-Required-File (Join-Path $SharedTarget "skills/cortex-init/SKILL.md")
+Test-Required-File (Join-Path $ClaudeHome "skills/cortex-init/SKILL.md")
+Test-Required-File (Join-Path $SharedTarget "standards/RULE-1.md")
+Test-Required-File (Join-Path $SharedTarget "agents/synthesizer.md")
+Test-Required-File (Join-Path $SharedTarget "agents/planner.md")
+Test-Required-File (Join-Path $SharedTarget "hooks/session-start.cjs")
+Test-Required-Count (Join-Path $SharedTarget "standards") 20 "standards"
+Test-Required-Count (Join-Path $SharedTarget "prompts")   10 "prompts"
+Test-Required-Count (Join-Path $SharedTarget "agents")     5 "agents"
+Test-Required-Count (Join-Path $SharedTarget "hooks")      5 "hooks"
+Test-Required-Count (Join-Path $SharedTarget "skills")     3 "skills"
+
+if (-not $VerifyOk) {
+    Write-Host ""
+    Write-Host "  $([char]0x2717) Install verification FAILED. Critical assets are missing above." -ForegroundColor Red
+    Write-Host "    Try: re-run install.ps1, or open an issue at" -ForegroundColor Red
+    Write-Host "         https://github.com/Rejnyx/cortex-x/issues" -ForegroundColor Red
+    exit 1
+}
 
 # Compact final summary — model: Bun, uv, Rustup. Detail in INSTALL_NOTES.md.
 $BinDir = Join-Path $SharedTarget "bin"

@@ -29,12 +29,20 @@
 
 ---
 
-## Phase 1 — Discover (6 questions, conversational, in user's preferred language)
+## Phase 1 — Discover (7 questions, conversational, in user's preferred language)
 
 > **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](../standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask.
 
-**Opener:**
-> "Pojď si to rozmyslet. Projdu tě 6 otázkama — když na něco neznáš odpověď, řekni 'nevím' a jedu dál. Když už víš všechno a chceš scaffoldovat, napiš **skip** a přeskočím na konec."
+### Asking style (default: sequential, with batch override)
+
+**Default — sequential:** Ask Q1 first, wait for the user's answer, then Q2, etc. This matches BMAD's elicitation pattern and surfaces ambiguity one question at a time. The user can answer terse ("appka co X") and you proceed.
+
+**Override — batch:** If the user's first message after the opener already contains structured answers (numbered Q1-Q7, or paragraphs covering each topic) OR they explicitly type *"daj mi všechny otázky najednou"* / *"give me all questions at once"*, present all 7 questions in a single message and let them answer in one paste. This is faster for users who already have the brief in their head.
+
+**Hybrid:** if the user batch-answers but missed one question, ask only the missing one(s) — don't re-ask everything.
+
+**Opener (sequential default):**
+> "Pojď si to rozmyslet. Projdu tě 7 otázkama — jednu po druhé. Když na něco neznáš odpověď, řekni 'nevím' a jedu dál. Když už víš všechno a chceš všech 7 najednou, napiš **batch**. Když chceš rovnou scaffoldovat, **skip**."
 
 ### Q1 — Seed (always)
 > "Popiš mi jednou větou, co ten projekt dělá. Klidně syrově — 'appka co X', 'nástroj pro Y'."
@@ -74,6 +82,21 @@
 | User typed `skip` at any Q | Jump to Phase 2 with current info |
 | User answered `nevím` at Q6 | Propose 2 measurable criteria, user picks |
 | Q3 = "já sám" | Tag as `dogfood`, raise bar on Q6 |
+
+### Slug confirmation (before save)
+
+The slug ends up in `cortex/discovery.md` frontmatter, in `package.json` name field, in `$CORTEX_HOME/research/<slug>-<date>.md`, in `$CORTEX_HOME/projects/<slug>.md`, and in git history. Changing it later means rewriting all those — get it right now.
+
+Derive 1-3 candidates from Q1 (kebab-case, ≤ 30 chars, ASCII only). Ask:
+
+> "Slug pro tenhle projekt? Návrhy:
+> - **`<candidate-1>`** *(odvozeno z Q1, descriptive)*
+> - **`<candidate-2>`** *(brand-friendly variant, pokud relevantní)*
+> - **`<candidate-3>`** *(user's literal question form, pokud Q2 implikuje)*
+>
+> Napiš číslo nebo vlastní slug (kebab-case). Default: `<candidate-1>`."
+
+If user types `1`/`2`/`3` use that. If user types a custom string, validate kebab-case + sanitize, confirm. If user says "default" or just hits enter → use candidate-1.
 
 ### Phase 1 hand-off — save `cortex/discovery.md`
 
@@ -129,7 +152,13 @@ Spawn **3 parallel research agents** (subagent_type: general-purpose) via the Ag
 
 ### Agent 1 — Domain research
 Query based on Q1 + Q3:
-> "Research 2026 best practices for `<Q1 project type>` targeting `<Q3 user>`. What are the common features, architectural patterns, pitfalls to avoid? Top 3 existing products and what they do well/poorly. 300-word report with URLs."
+> "Research 2026 best practices for `<Q1 project type>` targeting `<Q3 user>`. What are the common features, architectural patterns, pitfalls to avoid? Top 3 existing products and what they do well/poorly. 300-word report with URLs.
+>
+> **Numerical-claim contract (mandatory):** Any concrete number, threshold, rate, or limit you cite (e.g., tax %, advance amounts, regulatory thresholds, pricing tiers) MUST come from a URL you actually fetched via WebFetch — not from training-data recall. For each number, include a 1-line **quote** from the fetched page exactly as it appeared, plus the URL it came from. Example:
+>
+> > Minimum monthly social advance 2026: **4 759 CZK** — *"Minimální záloha na pojistné na důchodové pojištění pro hlavní činnost činí 4 759 Kč měsíčně"* — [cssz.cz/web/cz/osvc-zalohy](https://www.cssz.cz/web/cz/osvc-zalohy)
+>
+> **If you cannot find a quotable source for a number, omit the number entirely.** A research report with 3 well-sourced numbers beats one with 12 plausible-but-unverifiable numbers. Domain math drives downstream code — wrong numbers ship wrong calculators."
 
 ### Agent 2 — Technical research
 Query based on pre-selected profile (derived from Q1):
@@ -178,6 +207,44 @@ agents: [domain, technical, competitive, ai]
 ## Key insights (1-3 bullets synthesizing all agents)
 - ...
 ```
+
+### URL HEAD-verifier (mandatory before Phase 3 fires)
+
+LLM research agents hallucinate URLs — the hosts often don't exist (e.g., `platform.claude.com` instead of `docs.claude.com`) or the slug is wrong. Each agent received a "verify via HEAD, drop 404" instruction; **enforce it post-hoc** because agents don't always comply.
+
+Run this bash one-liner against the cached research file. It extracts all `https://` URLs, runs HEAD against each, and reports any non-2xx/3xx:
+
+```bash
+RESEARCH_FILE="$CORTEX_HOME/research/<slug>-<date>.md"
+grep -oE 'https?://[^ )"`<>]+' "$RESEARCH_FILE" | sort -u | while read url; do
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -L -A 'Mozilla/5.0' -I "$url" 2>/dev/null || echo "000")
+  if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+    printf '  ✗ %s  %s\n' "$code" "$url"
+  fi
+done > /tmp/cortex-url-check.log
+TOTAL=$(grep -oE 'https?://[^ )"`<>]+' "$RESEARCH_FILE" | sort -u | wc -l)
+FAILED=$(wc -l < /tmp/cortex-url-check.log)
+echo "URLs: $TOTAL total, $FAILED failed HEAD"
+```
+
+**Decision gate:**
+- `FAILED == 0` → proceed to Phase 3 silently
+- `FAILED <= 20% of TOTAL` → annotate the failed URLs in the cache with `[unverified]` flag, proceed
+- `FAILED > 20% of TOTAL` → **block Phase 3**. Tell the user: *"Research má {FAILED}/{TOTAL} dead links — kvalita citation je pod gate. Možnosti: [r]e-run research / [c]ontinue anyway / [q]uit."* Wait for choice.
+
+Append the verifier output as a `## URL verification` section to the research cache so the audit trail survives.
+
+**Why this matters:** the field-test on 2026-05-06 caught `platform.claude.com/docs/...` and `developers.openai.com/api/docs/...` URLs — both hallucinated hosts that an agent confidently cited. Without HEAD verification, those propagate into `cortex/proposal.md` and `CLAUDE.md`'s Stack reality check, breaking the doctor §14 three-hop citation contract downstream.
+
+### Phase 2 closing report (when all agents return)
+
+After the last research agent completes (and HEAD-verifier passes), print a one-line cost report so users on metered API access can decide whether to proceed:
+
+```
+Phase 2 done — 4 agents · ~Xk in/out tokens · ~$Y est. · cache: $CORTEX_HOME/research/<slug>-<date>.md
+```
+
+Estimate using `$3/M input + $15/M output` (Sonnet rate, conservative). If `$CORTEX_BUDGET_DISABLED=1` is set in env, suppress the cost line entirely (Dave's Max-x20 case — flat subscription, cost is noise).
 
 ---
 
@@ -256,11 +323,32 @@ Tag only **real** risks (not all 4):
 | 1.5 | <first measurable outcome from Q6> | pending |
 ```
 
+### Pre-approval scope diff (MANDATORY — surface before the gate)
+
+The proposal often expands on discovery (research adds capabilities, profile defaults add scaffolding). Users skim. Don't make them re-read 200 lines to spot scope creep — surface the deltas explicitly **before** the `a/e/r/q` prompt.
+
+After saving `cortex/proposal.md`, print this 5-line diff summary:
+
+```
+Discovery → Proposal diff:
+  Profile:        <chosen profile>  (reason: <one-line>; alternatives considered: <list>)
+  Scope additions:
+    - <thing in proposal that wasn't explicit in Q4> (justification: <why>)
+    - <…>  (or "none" if proposal exactly matches Q4 MVP scope)
+  Q5 NOT-doing items: ✓ honored  (or list the ones the proposal accidentally re-introduced)
+  Profile-driven additions: <e.g. "5 AI-ready stub files added (Q7=b)">
+  Risks newly flagged: <list any Cagan risks added that weren't in user's Q1-Q7>
+```
+
+**Rule:** if any line above is empty/non-trivial, the user gets to see it. The point is to make scope-creep VISIBLE so the user can `r` (rewrite) early instead of catching it 30 minutes into Phase 4 scaffolding.
+
+Field-test 2026-05-06: user's Q4 said *"jeden formulář, 4 čísla, vše v localStorage"*. Proposal Story 1.4 expanded to *"12 měsíčních inputs"* + spring-reconciliation toggle. Both are arguably good; both should have been visible at gate-time.
+
 ### Approval gate (structured, not free-form)
 
-After saving, ask:
+After printing the diff, ask:
 
-> "**Proposal je v `cortex/proposal.md`** — otevři si v editoru, zkontroluj.
+> "**Proposal je v `cortex/proposal.md`** — diff je výše, otevři si soubor v editoru pokud chceš celý kontext.
 >
 > Co dál?
 > - **`a`** — accept; jdu na Phase 4 Scaffold
@@ -492,9 +580,29 @@ If **any gate** fails:
 
    This ensures `session-start.cjs` doesn't flag "project not in cortex library" on the very first boot.
 
-10. `git init` + first commit with message reflecting vision (not generic)
-11. **Delete `.cortex-bootstrap-pending`** if it exists in `$PWD` (one-shot semantics — install marker is consumed).
-12. **Write `cortex/.adapt-pending`** with one line `phase=5 at=<ISO timestamp>` to mark scaffold-done-but-Phase-5-not-yet. This is a recovery marker for the SessionStart hook in case the session is interrupted before Phase 5 completes. Phase 5 §5.5 deletes it on completion.
+10. **Build sanity check (BEFORE git init).** Run a 3-stage gate. If any stage fails, fix before committing — a broken scaffold poisoned at commit zero infects everything downstream:
+
+    ```bash
+    # Stage A: dependencies install cleanly
+    npm install --no-audit --no-fund 2>&1 | tail -5
+    # Expect exit 0. Failure → version mismatch, missing dep in package.json, registry hiccup.
+
+    # Stage B: TypeScript compiles
+    npx tsc --noEmit 2>&1 | tail -10
+    # Expect exit 0 + 0 errors. Failure → tsconfig misconfig, stub file with bad imports.
+
+    # Stage C: unit tests pass (golden-set should be green from §4.1)
+    npx vitest run --reporter=basic 2>&1 | tail -10
+    # Expect exit 0. If no tests yet, skip. Otherwise failure = scaffold logic bug.
+    ```
+
+    **What you do NOT need to test:** `npm run dev` (long-running server), `npm run build` (slow, often passes if tsc passes), Playwright E2E (browser deps). Save those for the user's first interactive run.
+
+    On any failure: report the failing stage, surface the relevant log lines, propose a fix. Do NOT proceed to step 11 with a broken scaffold.
+
+11. `git init` + first commit with message reflecting vision (not generic)
+12. **Delete `.cortex-bootstrap-pending`** if it exists in `$PWD` (one-shot semantics — install marker is consumed).
+13. **Write `cortex/.adapt-pending`** with one line `phase=5 at=<ISO timestamp>` to mark scaffold-done-but-Phase-5-not-yet. This is a recovery marker for the SessionStart hook in case the session is interrupted before Phase 5 completes. Phase 5 §5.5 deletes it on completion.
 
 ### 4.6 Audit output
 
@@ -521,7 +629,7 @@ After §4.5 finalize, **before** §4.6 audit output, fire the post-scaffold auto
 
 The prompt drives Phase 5 directly (Claude Code does not expose a PostScaffold hook event — keeping this in-prompt avoids fictional hook dependencies). Sequence:
 
-1. Phase 4 §4.5 step 12 (`Write cortex/.adapt-pending`) marks the project as "scaffold done, Phase 5 not yet run." This is a **recovery marker**: if the session is interrupted between Phase 4 and 5, on the next SessionStart the hook surfaces the marker so Claude can offer to resume.
+1. Phase 4 §4.5 step 13 (`Write cortex/.adapt-pending`) marks the project as "scaffold done, Phase 5 not yet run." This is a **recovery marker**: if the session is interrupted between Phase 4 and 5, on the next SessionStart the hook surfaces the marker so Claude can offer to resume.
 2. The prompt then proceeds to §5.2 in the SAME session — dispatch planner agent immediately. The user sees scaffold complete + research kicked off as one continuous flow.
 3. After §5.4 synthesizer writes both artifacts, §5.5 deletes `cortex/.adapt-pending`.
 
