@@ -4,6 +4,13 @@
 >
 > **Works even when another AI framework already lives in the project.** If `.claude/`, `.codex/`, `.cursor/`, `.mcp.json`, `AGENTS.md`, or `.cursorrules` are already populated (Claude Code, Codex, Cursor, other AI tools), Phase 0 detects them and Phase 1 Agent D plans **coexistence** — cortex-x adds a sibling sub-directory + appends clearly-delimited sections, never overwrites existing AI context. See § "Coexistence decision matrix."
 
+> **2026-05-06 — relationship with `/audit` (existing-project-audit.md):** This prompt **applies** cortex-x patterns. The new `/audit` skill (`prompts/existing-project-audit.md`) is the **deeper diagnostic** that runs FIRST when you want to truly understand a project. Recommended flow:
+>
+> 1. Run `/audit` first → produces `cortex/AUDIT.md` (12 dimensions, 5 human questions, recommendations.md)
+> 2. Run `/retrofit` (this prompt) second → uses AUDIT.md as input, applies cortex-x patterns where they fit per the audit findings
+>
+> If `cortex/AUDIT.md` is **not present** when this prompt runs, suggest the user run `/audit` first ("get the diagnostic before applying treatment"). They can override and proceed retrofit-only by saying `proceed without audit` — the safety contract still applies, but the fit-quality is lower because retrofit guesses what `/audit` would have measured.
+
 ---
 
 ## Your task

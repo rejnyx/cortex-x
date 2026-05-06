@@ -248,6 +248,69 @@ if (process.env.CORTEX_BUDGET_DISABLED !== '1') {
   }
 }
 
+// cortex/.adapt-pending — written by new-project.md Phase 4 §4.5 (greenfield)
+// or existing-project-audit.md Phase 4 (existing). Indicates Phase 5 (Adapt /
+// Synthesis) did NOT complete (user quit, agent timeout, error). On next
+// SessionStart we surface this so Claude can offer to resume.
+// See docs/sprint-1.5-design.md §2.5.
+try {
+  const adaptMarkerPath = path.join(ROOT, 'cortex', '.adapt-pending');
+  if (fs.existsSync(adaptMarkerPath)) {
+    const raw = fs.readFileSync(adaptMarkerPath, 'utf8').trim();
+    ctx.push('');
+    ctx.push('=== cortex/.adapt-pending detected ===');
+    ctx.push("A previous /start or /audit session wrote scaffold/audit artifacts but");
+    ctx.push("did not complete Phase 5 (Adapt / Synthesis — auto-research + recommendations).");
+    if (raw) ctx.push(`Marker contents: ${raw.slice(0, 200)}`);
+    ctx.push("Offer to resume: 'Mám dokončit Phase 5 — spustit auto-research + napsat");
+    ctx.push("cortex/recommendations.md? [y/n]'. The synthesizer agent at");
+    ctx.push("~/.claude/shared/agents/synthesizer.md handles the merge once research is done.");
+  }
+} catch {
+  // Adapt marker unreadable — silently skip.
+}
+
+// cortex-bootstrap marker — written by `cortex-bootstrap` helper in the
+// project dir. One-shot: TTL 1 hour. If present and fresh, prime the next
+// claude session to invoke /start (new) or /audit (existing).
+// See docs/sprint-1.5-design.md §2.1.
+try {
+  const markerPath = path.join(ROOT, '.cortex-bootstrap-pending');
+  if (fs.existsSync(markerPath)) {
+    const raw = fs.readFileSync(markerPath, 'utf8');
+    const modeMatch = raw.match(/^mode=(new|existing)\s*$/m);
+    const atMatch = raw.match(/^at=(\S+)/m);
+    if (modeMatch && atMatch) {
+      const mode = modeMatch[1];
+      const atIso = atMatch[1];
+      const ageMs = Date.now() - Date.parse(atIso);
+      const TTL_MS = 60 * 60 * 1000;  // 1 hour
+      if (ageMs >= 0 && ageMs < TTL_MS) {
+        ctx.push('');
+        ctx.push('=== cortex-bootstrap pending ===');
+        if (mode === 'new') {
+          ctx.push("This directory was flagged by `cortex-bootstrap` for a NEW PROJECT.");
+          ctx.push("Invoke the `/start` skill (~/.claude/shared/prompts/new-project.md)");
+          ctx.push("after greeting the user, unless they explicitly redirect.");
+          ctx.push("The skill itself will delete .cortex-bootstrap-pending on completion.");
+        } else {
+          ctx.push("This directory was flagged by `cortex-bootstrap` for an EXISTING PROJECT AUDIT.");
+          ctx.push("Invoke the `/audit` skill (~/.claude/shared/prompts/existing-project-audit.md)");
+          ctx.push("after greeting the user, unless they explicitly redirect.");
+          ctx.push("The skill itself will delete .cortex-bootstrap-pending on completion.");
+        }
+      } else if (ageMs >= TTL_MS) {
+        ctx.push('');
+        ctx.push('=== cortex-bootstrap marker (stale, ignored) ===');
+        ctx.push(`Marker is ${Math.round(ageMs / 60000)}min old (TTL 60min); ignoring.`);
+        ctx.push("To re-arm: re-run `cortex-bootstrap` in this directory.");
+      }
+    }
+  }
+} catch {
+  // Marker unreadable — silently skip; bootstrap is augmentation, not blocker.
+}
+
 console.log(JSON.stringify({
   hookSpecificOutput: {
     hookEventName: 'SessionStart',

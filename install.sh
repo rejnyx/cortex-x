@@ -148,6 +148,36 @@ echo "<!-- END cortex-x -->"
 echo "---"
 echo
 
+# Install cortex-bootstrap helper to ~/.claude/shared/bin/ (per-project mode selector).
+# This is the second-step UX: install.sh installs the framework once,
+# cortex-bootstrap is run in each TARGET project to write the marker file
+# that primes the SessionStart hook to auto-launch /start or /audit.
+mkdir -p "$CLAUDE_HOME/shared/bin"
+if [ -f "$CORTEX_ROOT/bin/cortex-bootstrap" ]; then
+  cp "$CORTEX_ROOT/bin/cortex-bootstrap" "$CLAUDE_HOME/shared/bin/cortex-bootstrap"
+  chmod +x "$CLAUDE_HOME/shared/bin/cortex-bootstrap"
+fi
+if [ -f "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" ]; then
+  cp "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" "$CLAUDE_HOME/shared/bin/cortex-bootstrap.ps1"
+fi
+
+echo
+echo "============================================================"
+echo "cortex-bootstrap helper installed to: $CLAUDE_HOME/shared/bin/"
+echo
+echo "NEXT STEP — go to your TARGET project directory and run:"
+echo
+echo "  $CLAUDE_HOME/shared/bin/cortex-bootstrap"
+echo
+echo "It asks:  [N]ew / [E]xisting / [F]ramework-only — writes a one-shot"
+echo "marker file. Then 'claude' in the same dir auto-primes the right skill"
+echo "(/start for new, /audit for existing). Marker has 1h TTL."
+echo
+echo "Add to PATH for convenience:"
+echo "  export PATH=\"\$HOME/.claude/shared/bin:\$PATH\""
+echo "============================================================"
+echo
+
 echo "Hooks copied to ~/.claude/shared/hooks/:"
 echo "  block-destructive.cjs   (PreToolUse matcher:Bash)"
 echo "  session-start.cjs       (SessionStart — also surfaces recent budget)"

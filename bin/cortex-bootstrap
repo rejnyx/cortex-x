@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# cortex-bootstrap — per-project mode selector for cortex-x onboarding.
+#
+# Run this in your TARGET project directory (not in cortex-x source). It asks
+# what you're doing here, writes a one-shot marker file (.cortex-bootstrap-pending),
+# and tells you to launch claude. The cortex-x SessionStart hook reads the
+# marker on the next claude session and primes the appropriate skill (/start,
+# /audit, or none).
+#
+# Usage:
+#   cd ~/my-new-project
+#   cortex-bootstrap
+#
+# Non-interactive (CI / scripts):
+#   CORTEX_BOOTSTRAP_MODE=new cortex-bootstrap
+
+set -e
+
+MODE="${CORTEX_BOOTSTRAP_MODE:-}"
+MARKER="$PWD/.cortex-bootstrap-pending"
+
+print_intro() {
+  cat <<EOF
+
+cortex-bootstrap — what are you doing in this directory?
+
+  [N]  New project        — empty / near-empty folder; walk through brief → architect → scaffold
+  [E]  Existing project   — established codebase; deep audit + recommendations
+  [F]  Framework only     — I'll paste prompts manually as needed (no marker, no auto-prime)
+
+Marker file: $MARKER
+EOF
+}
+
+if [ -z "$MODE" ]; then
+  if [ ! -t 0 ]; then
+    echo "Non-interactive shell. Set CORTEX_BOOTSTRAP_MODE=new|existing|framework and re-run."
+    exit 2
+  fi
+  print_intro
+  printf '\nChoice [N/E/F]: '
+  read -r CHOICE || true
+  case "$CHOICE" in
+    [Nn]*) MODE=new ;;
+    [Ee]*) MODE=existing ;;
+    [Ff]*) MODE=framework ;;
+    *)
+      echo "Unknown choice. Run again and pick N, E, or F."
+      exit 2
+      ;;
+  esac
+fi
+
+case "$MODE" in
+  new|existing)
+    NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    cat > "$MARKER" <<MARKEREOF
+mode=$MODE
+at=$NOW
+MARKEREOF
+    echo
+    echo "Wrote: $MARKER"
+    echo "  mode=$MODE"
+    echo "  at=$NOW (1h TTL)"
+    echo
+    if [ "$MODE" = "new" ]; then
+      echo "Next: run 'claude' in this directory."
+      echo "  cortex-x will auto-prime the /start skill (new-project bootstrap)."
+    else
+      echo "Next: run 'claude' in this directory."
+      echo "  cortex-x will auto-prime the /audit skill (12-dimension existing-project audit)."
+    fi
+    ;;
+  framework)
+    echo
+    echo "Framework-only mode — no marker written."
+    echo "Available prompts when you launch claude:"
+    echo "  /start          new-project bootstrap (Discover → Research → Architect → Scaffold → Adapt)"
+    echo "  /audit          existing-project deep audit (12 dimensions)"
+    echo "  /sync           end-of-session knowledge capture"
+    echo "  /doctor         healthcheck"
+    echo "  /retrofit       apply cortex-x patterns to an existing project (after /audit)"
+    ;;
+  *)
+    echo "Unknown CORTEX_BOOTSTRAP_MODE='$MODE'. Use new|existing|framework."
+    exit 2
+    ;;
+esac

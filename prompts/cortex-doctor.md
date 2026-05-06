@@ -224,6 +224,70 @@ grep -oE '(~/\.claude/shared/[^`]+|~/cortex-x/[^`]+)' "$P/CLAUDE.md" | sort -u
 
 **Note — renumbering:** pre-2026-04-19 the Audit scheduling section was #12. Now #13 (#12 is Scaffolded project cross-refs). Reports from older doctor runs may show the old numbering; treat as informational.
 
+### 14. Three-hop citation drift (NEW 2026-05-06)
+
+This check enforces the SSOT-extension rule from `docs/sprint-1.5-design.md` §10: every claim in `CLAUDE.md` § "Stack reality check" or `cortex/recommendations.md` MUST trace through three hops:
+
+1. **Claim** in synthesized doc (CLAUDE.md or cortex/recommendations.md)
+2. → **Finding ID** in raw research file (matched by topic name from planner output)
+3. → **Source URL** in the finding (HTTP-fetchable; HEAD-verify)
+
+Procedure for each scaffolded project's `CLAUDE.md` (discoverable via `git log` / user-told paths):
+
+```
+For each project P with $P/CLAUDE.md and $P/cortex/recommendations.md:
+  1. Extract every "[src: <URL>]" and "[research: <topic>]" reference.
+  2. For each [research: <topic>], verify the topic name appears in
+     $CORTEX_HOME/research/<P-slug>-stack-*.md OR -audit-*.md.
+     - Missing topic → 🔴 broken hop 2.
+  3. For each [src: <URL>], do a HEAD request (fail-open on offline).
+     - 404 → 🔴 broken hop 3.
+     - 4xx/5xx other than 404 → 🟡 warning (server-side issue, claim
+       might still be valid).
+     - 2xx → ✅ chain intact.
+  4. If raw research file is missing entirely → 🔴 P5 Adapt never ran;
+     suggest paste new-project.md or /audit again.
+```
+
+Report format:
+- ✅ All claims in N projects trace cleanly through three hops
+- 🟡 K claims have unverifiable sources (offline / 4xx other than 404)
+- 🔴 J claims have broken hop 2 (missing topic in research) or hop 3 (404)
+
+If 🔴 found: list project + claim + which hop broke. Recommend re-running Phase 5 (greenfield) or `/audit` (existing) to refresh the research cache.
+
+### 15. Canonical-references freshness (NEW 2026-05-06)
+
+Standards live upstream in cortex-x repo. Projects carry POINTERS in CLAUDE.md (per `prompts/new-project.md` §4.1a dual-link pattern):
+
+```
+Local path:    ~/.claude/shared/standards/<file>.md       (read at runtime)
+Canonical URL: https://github.com/Rejnyx/cortex-x/blob/main/standards/<file>.md
+```
+
+This check verifies the local file hasn't drifted significantly behind upstream:
+
+```
+For each standards/* pointer in any scaffolded project's CLAUDE.md:
+  1. Compute SHA-256 of the local file (~/.claude/shared/standards/<file>.md).
+  2. WebFetch the GitHub raw URL → SHA-256 of upstream.
+  3. If hashes match: ✅
+  4. If hashes differ: WebFetch the file's most recent commit date via
+     gh api or by parsing GitHub's HTML "last updated" indicator.
+     - Upstream changed within last 30 days: 🟡 (likely just an update;
+       suggest re-running install.sh to refresh local).
+     - Upstream changed > 30 days ago and local still differs: 🔴
+       (local has drifted long-term; install.sh hasn't been run since).
+  5. Offline / GitHub unreachable: skip (fail-open; this is augmentation).
+```
+
+Report format:
+- ✅ N standards files in sync with upstream
+- 🟡 K files differ but upstream changed recently (run install.sh to refresh)
+- 🔴 J files have stale local copies (run install.sh; consider reading the upstream changelog before re-installing if you've made local edits)
+
+**Exclude `module.local.yaml` and other gitignored override files** — those are user-customized by design.
+
 ## Output format
 
 ```markdown
