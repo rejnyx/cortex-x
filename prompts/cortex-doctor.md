@@ -21,7 +21,7 @@ Read the JSON outputs. You now have:
 
 ### 0.2 Compare with scaffolded profile (SSOT for intent)
 
-Look up the project's scaffolded profile from `$CORTEX_HOME/projects/<slug>.md` frontmatter (this file is written at scaffold time by `new-project.md` §4.5).
+Look up the project's scaffolded profile from `$CORTEX_DATA_HOME/projects/<slug>.md` frontmatter (this file is written at scaffold time by `new-project.md` §4.5).
 
 Three possible states:
 
@@ -167,7 +167,7 @@ cd ~/cortex-x && git status
 ### 7. Projects library freshness
 
 ```bash
-ls -la $CORTEX_HOME/projects/
+ls -la $CORTEX_DATA_HOME/projects/
 ```
 
 - [ ] At least 1 project scanned
@@ -197,7 +197,7 @@ Research files older than 6 months are archived, not silently kept. Run:
 
 ```bash
 # macOS/Linux
-find "$CORTEX_HOME/research" -maxdepth 1 -name '*.md' -type f -mtime +180 \
+find "$CORTEX_DATA_HOME/research" -maxdepth 1 -name '*.md' -type f -mtime +180 \
   -exec sh -c 'mkdir -p "$(dirname "$1")/archive/$(date -r "$1" +%Y)" && mv "$1" "$(dirname "$1")/archive/$(date -r "$1" +%Y)/"' _ {} \;
 
 # Windows PowerShell
@@ -268,7 +268,7 @@ Procedure for each scaffolded project's `CLAUDE.md` (discoverable via `git log` 
 For each project P with $P/CLAUDE.md and $P/cortex/recommendations.md:
   1. Extract every "[src: <URL>]" and "[research: <topic>]" reference.
   2. For each [research: <topic>], verify the topic name appears in
-     $CORTEX_HOME/research/<P-slug>-stack-*.md OR -audit-*.md.
+     $CORTEX_DATA_HOME/research/<P-slug>-stack-*.md OR -audit-*.md.
      - Missing topic → 🔴 broken hop 2.
   3. For each [src: <URL>], do a HEAD request (fail-open on offline).
      - 404 → 🔴 broken hop 3.

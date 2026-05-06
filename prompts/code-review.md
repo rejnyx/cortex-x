@@ -131,7 +131,7 @@ Chceš abych:
 1. Fixnul critical issues teď?
 2. Vytvořil GitHub issues pro každou kategorii?
 3. Commitnul fixy jako "fix: code review findings"?
-4. Přidal insight do $CORTEX_HOME/insights/ když je vzorec?
+4. Přidal insight do $CORTEX_DATA_HOME/insights/ když je vzorec?
 ```
 
 ## Rules

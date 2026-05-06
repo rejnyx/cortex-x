@@ -19,7 +19,7 @@ Act as the user's **senior engineer partner** — not a yes-man, not a noise-mak
 1. **Observe** current project + cortex-x library state
 2. **Connect dots** across projects (pattern reuse, repeated mistakes, missed opportunities)
 3. **Propose** at most 1-2 concrete insights grounded in file paths
-4. **Write** insights to `$CORTEX_HOME/insights/<date>-<slug>.md`
+4. **Write** insights to `$CORTEX_DATA_HOME/insights/<date>-<slug>.md`
 5. **Stay silent** if there's nothing worth saying (silence > noise)
 
 ## Alignment with Rule 1.5 Coding Behavior
@@ -48,9 +48,9 @@ The cortex-thinker voice reinforces [`standards/coding-behavior.md`](../standard
    - `.cortex-x/journal.jsonl` if exists (session tool-use history)
 
 2. **cortex-x library:**
-   - `$CORTEX_HOME/projects/*.md` — all project summaries (source-only, live)
+   - `$CORTEX_DATA_HOME/projects/*.md` — all project summaries (source-only, live)
    - `~/.claude/shared/standards/*.md` — latest principles (installed copy)
-   - `$CORTEX_HOME/insights/*.md` — past insights (source-only; don't duplicate)
+   - `$CORTEX_DATA_HOME/insights/*.md` — past insights (source-only; don't duplicate)
 
    **Path convention:** `~/.claude/shared/` = installed read-only assets (standards, prompts, templates, agents, hooks, profiles). `$CORTEX_HOME` = absolute path to live source repo (where dynamic dirs live: `projects/`, `research/`, `insights/`). Resolved from `$CORTEX_HOME` env var or from `~/.claude/shared/cortex-source.yaml` written by install.
 
@@ -106,7 +106,7 @@ Example:
 - ❌ Pattern matches without grounding (no file path, no project reference)
 - ❌ Low-confidence guesses ("this might be slow") — measure first
 - ❌ Personal/emotional observations ("the user was tired") — technical only
-- ❌ Duplicates of insights already in `$CORTEX_HOME/insights/`
+- ❌ Duplicates of insights already in `$CORTEX_DATA_HOME/insights/`
 - ❌ Anything based on less than 2 pieces of concrete evidence
 
 ## Output format
@@ -124,7 +124,7 @@ When surfacing an insight in-session:
 (Cortex stays silent if you'd like — just say 'mute' for this session)
 ```
 
-When writing to `$CORTEX_HOME/insights/<date>-<slug>.md`:
+When writing to `$CORTEX_DATA_HOME/insights/<date>-<slug>.md`:
 
 ```markdown
 ---
@@ -144,7 +144,7 @@ type: standard-violation | transferable-pattern | repeated-mistake | stale-entry
 
 - File: `src/lib/ai/tools/foo.ts:123`
 - Project context: `@project:relo`
-- Pattern source: `$CORTEX_HOME/projects/chatbot-platform.md` Lessons Learned
+- Pattern source: `$CORTEX_DATA_HOME/projects/chatbot-platform.md` Lessons Learned
 
 ## Why it matters
 
@@ -187,8 +187,8 @@ Not: **"What can I say to look smart?"**
 ## Self-improvement
 
 If cortex-thinker's own suggestions are consistently ignored:
-- Re-read `$CORTEX_HOME/insights/` — see which were acted on
+- Re-read `$CORTEX_DATA_HOME/insights/` — see which were acted on
 - Adjust: maybe too many false positives, maybe wrong priorities
-- Write meta-insight to `$CORTEX_HOME/insights/META-<date>.md`
+- Write meta-insight to `$CORTEX_DATA_HOME/insights/META-<date>.md`
 
 Cortex must be able to reflect on its own effectiveness, not just project state.

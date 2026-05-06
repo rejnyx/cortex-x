@@ -20,7 +20,29 @@
 
 ## Current
 
-_No migrations. First entry will land with v0.1.0 or the first breaking-change tag, whichever comes first._
+### Sprint 1.6 — `$CORTEX_DATA_HOME` separation (2026-05-06)
+
+#### Breaking (for pre-Sprint-1.6 dev installs only — no released version yet)
+- **What changed:** user-personal data dirs (`research/`, `projects/`, `insights/`, `journal/`, `evals/`) moved out of the cortex-x source repo into `$CORTEX_DATA_HOME` (default `~/.cortex/`). Path placeholders changed across all prompts/agents from `$CORTEX_HOME/<dir>/` to `$CORTEX_DATA_HOME/<dir>/`.
+- **Why:** field test #5 (osvc-tax-helper, then test-phase-5) surfaced that mixing framework distribution with user data violates SoC. For other users post-public-flip the design breaks: `git status` permanently dirty, `git pull` conflicts with their own data, reinstall = data loss, multi-machine sync impossible. Fix: three independent path roots — `cortex_root` (source), `cortex_assets_root` (installed read-only), `cortex_data_home` (user read-write).
+- **Migrate:**
+  ```bash
+  bash $CORTEX_HOME/install.sh         # creates ~/.cortex/{research,projects,insights/proposals,journal,evals}
+  bash $CORTEX_HOME/bin/cortex-migrate-data.sh    # moves existing dirs
+  # or on Windows:
+  & "$Env:CORTEX_HOME\install.ps1"
+  & "$Env:CORTEX_HOME\bin\cortex-migrate-data.ps1"
+  ```
+  Migration script is idempotent (safe to re-run), skips empty dirs, renames conflicts to `<file>.pre-sprint-1-6` instead of overwriting.
+- **Verify:** `ls ~/.cortex/{research,projects}/` should contain previously-accumulated `*.md` files. `git status` in cortex-x source should show clean (or only your own dev changes).
+- **Rollback:** `mv ~/.cortex/research/*.md $CORTEX_HOME/research/` (etc.) — but you'd then need to revert path placeholders in prompts/agents too.
+
+#### Deprecated
+- Legacy `~/cortex-x/projects/` fallback in `shared/hooks/session-start.cjs` — kept for one release cycle, removable after Sprint 1.7. Targets pre-Sprint-1.6 installs that haven't run the migration script.
+
+---
+
+_Released migrations land below this line at first `v*` tag._
 
 ---
 

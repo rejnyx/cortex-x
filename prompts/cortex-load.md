@@ -17,7 +17,7 @@ Before starting work:
    - Key files
    - Stats
 
-2. **Read `$CORTEX_HOME/projects/<slug>.md` for institutional wisdom** — this holds:
+2. **Read `$CORTEX_DATA_HOME/projects/<slug>.md` for institutional wisdom** — this holds:
    - Identity (one-liner + URL + stakeholders)
    - Key Decisions (ADR-lite, why things are the way they are)
    - Lessons Learned (what was tried, what failed, what transfers)

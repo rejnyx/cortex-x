@@ -3,7 +3,7 @@
 > **How to use:** Create empty (or near-empty) folder, open Claude Code, paste this prompt. Claude vede the user through five explicit phases:
 >
 > 1. **Discover** — 6 questions, save to `cortex/discovery.md`
-> 2. **Research** — 3-4 parallel agents, save to `$CORTEX_HOME/research/<slug>-<date>.md`
+> 2. **Research** — 3-4 parallel agents, save to `$CORTEX_DATA_HOME/research/<slug>-<date>.md`
 > 3. **Architect** — proposal saved to `cortex/proposal.md` with structured approval gate
 > 4. **Scaffold** — generate filesystem (CLAUDE.md, PROGRESS.md, MEMORY.md, .claude/{hooks,agents,skills})
 > 5. **Adapt** — post-scaffold auto-research on actually-realized stack → `cortex/recommendations.md` + `## Stack reality check` in CLAUDE.md
@@ -66,11 +66,18 @@
 
 ### Q7 — AI integration (2026 default, not optional)
 > "Jak AI zapadne do tohoto projektu? 3 možnosti:
-> a) **AI-heavy** — je to agentic tool / chatbot / AI-powered feature jako core value prop (použij profil `ai-agent` nebo `chatbot-platform`)
-> b) **AI-ready** — MVP bez AI, ale struktura připravená na budoucí AI features (safe-tool wrapper, memory scaffold, /api/chat endpoint reserved) — **tohle je 2026 default pro SaaS**
-> c) **No AI** — skutečně nepotřebuje AI (static blog, landing page, portfolio) — použij profil `astro-static` nebo `minimal`
+> **a) AI-heavy** — AI je samotná podstata produktu. Bez LLM by to nebyl smysluplný produkt. (chatbot, agentic asistent, dokument-summary tool, atd.)
+> **b) AI-ready** *(2026 default)* — MVP zatím funguje deterministicky, ale později plánuješ přidat AI feature. Připravím ti od commitu zero tichou kostru, kterou later naplníš (chat endpoint v reservě, místo na user profile, ochrana před runaway tokenem).
+> **c) Bez AI** — opravdu nepotřebuje. Statický web, blog, landing page, portfolio.
 >
-> Výchozí hodnota: **b) AI-ready**. Pokud řekneš 'nevím', default je b."
+> Když řekneš 'nevím', default je **b)**. Profil + interní detail vyřeším za scénou."
+
+**Internal reasoning (don't show user):**
+- a) → resolve to profile `ai-agent` (default) or `chatbot-platform` (multi-tenant chat) or `browser-agent` (web automation)
+- b) → resolve to `nextjs-saas` with AI scaffolding stubs
+- c) → resolve to `astro-static` (content) or `minimal` (utility)
+
+Profile names jsou interní cortex-x koncept. **Nikdy je nelíčuj v prompt textu uživateli** — žádný senior dev (target persona) je nezná, leak = matení. Obecný popis stačí; konkrétní profil pak surface v Phase 3 proposal Stack section, kde už user vidí context.
 
 **Skip if:** Q1 + Q3 clearly indicates AI-heavy (e.g., "AI assistant", "chatbot", "autonomous agent") → auto-assume `a) AI-heavy`.
 **Skip if:** profile is already `astro-static` / `minimal` → auto-assume `c) No AI`.
@@ -83,20 +90,28 @@
 | User answered `nevím` at Q6 | Propose 2 measurable criteria, user picks |
 | Q3 = "já sám" | Tag as `dogfood`, raise bar on Q6 |
 
-### Slug confirmation (before save)
+### Krátké jméno projektu (před uložením)
 
-The slug ends up in `cortex/discovery.md` frontmatter, in `package.json` name field, in `$CORTEX_HOME/research/<slug>-<date>.md`, in `$CORTEX_HOME/projects/<slug>.md`, and in git history. Changing it later means rewriting all those — get it right now.
+**Plain-language gate, ne "slug confirmation".** Důvod: "slug" + "kebab-case" jsou programátorský žargon, kterému rozumí ne každý senior dev. Vysvětli to jako *"krátké jméno"* a vyřeš formátování za scénou.
 
-Derive 1-3 candidates from Q1 (kebab-case, ≤ 30 chars, ASCII only). Ask:
+Z Q1 odvoď 2-3 kandidáty (lowercase, slova spojená pomlčkou, max 30 znaků, jen ASCII). Validuj sám — uživateli ukaž jen výsledné stringy. Zeptej se v jazyce sezení:
 
-> "Slug pro tenhle projekt? Návrhy:
-> - **`<candidate-1>`** *(odvozeno z Q1, descriptive)*
-> - **`<candidate-2>`** *(brand-friendly variant, pokud relevantní)*
-> - **`<candidate-3>`** *(user's literal question form, pokud Q2 implikuje)*
+> "Jak budeš tenhle projekt zkráceně pojmenovávat? Krátké jméno se objeví ve složkách projektu, v souborech a v adrese repozitáře — měnit potom = přepsat na pár místech, takže ho chceme rovnou dobře.
 >
-> Napiš číslo nebo vlastní slug (kebab-case). Default: `<candidate-1>`."
+> Pár návrhů:
+> - **<candidate-1>** — popisně, jak jsi to vystihl v Q1
+> - **<candidate-2>** — brand-friendly varianta
+> - **<candidate-3>** — *(volitelně) jiný úhel*
+>
+> Napiš **1**, **2**, **3**, **vlastní jméno**, nebo **vyber sám** ať to rozhodnu za tebe."
 
-If user types `1`/`2`/`3` use that. If user types a custom string, validate kebab-case + sanitize, confirm. If user says "default" or just hits enter → use candidate-1.
+**Behavior:**
+- `1`/`2`/`3` → použij toho kandidáta
+- vlastní string → sanitize (lowercase, replace spaces/underscores → `-`, strip non-ASCII), confirm: *"použiju `<sanitized>`, OK?"*
+- `vyber sám` / `default` / prázdná odpověď → vezmi candidate-1 a tiše pokračuj
+- nečitelný input → re-ask jednou; pak fallback candidate-1
+
+**Skryj formát.** Nepiš uživateli "slug", "kebab-case", "ASCII", "frontmatter". Tyhle pojmy patří do agent-internal reasoning, ne do conversation. *Field test 2026-05-06: Dave nepochopil otázku napsanou původně programátorsky a musel mě požádat ať vyberu sám.*
 
 ### Phase 1 hand-off — save `cortex/discovery.md`
 
@@ -146,7 +161,7 @@ The user can edit this file before Phase 2 fires. After save, hand off: *"Saved 
 
 **NEVER ask "do you want research?" — always do it.** Research is cortex-x's killer feature, silent by default.
 
-**Protocol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `$CORTEX_HOME/research/<slug>-<date>.md`. Opt-out: `--no-research` in initial prompt.
+**Protocol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `$CORTEX_DATA_HOME/research/<slug>-<date>.md`. Opt-out: `--no-research` in initial prompt.
 
 Spawn **3 parallel research agents** (subagent_type: general-purpose) via the Agent tool. Add a 4th agent if Q7 ≠ `c) No AI`. Queries derived from `cortex/discovery.md`:
 
@@ -181,7 +196,7 @@ Query based on Q1 + Q7:
 
 ### Cache research
 
-Save to `$CORTEX_HOME/research/<slug>-<YYYY-MM-DD>.md`:
+Save to `$CORTEX_DATA_HOME/research/<slug>-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
@@ -215,7 +230,7 @@ LLM research agents hallucinate URLs — the hosts often don't exist (e.g., `pla
 Run this bash one-liner against the cached research file. It extracts all `https://` URLs, runs HEAD against each, and reports any non-2xx/3xx:
 
 ```bash
-RESEARCH_FILE="$CORTEX_HOME/research/<slug>-<date>.md"
+RESEARCH_FILE="$CORTEX_DATA_HOME/research/<slug>-<date>.md"
 grep -oE 'https?://[^ )"`<>]+' "$RESEARCH_FILE" | sort -u | while read url; do
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -L -A 'Mozilla/5.0' -I "$url" 2>/dev/null || echo "000")
   if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
@@ -241,7 +256,7 @@ Append the verifier output as a `## URL verification` section to the research ca
 After the last research agent completes (and HEAD-verifier passes), print a one-line cost report so users on metered API access can decide whether to proceed:
 
 ```
-Phase 2 done — 4 agents · ~Xk in/out tokens · ~$Y est. · cache: $CORTEX_HOME/research/<slug>-<date>.md
+Phase 2 done — 4 agents · ~Xk in/out tokens · ~$Y est. · cache: $CORTEX_DATA_HOME/research/<slug>-<date>.md
 ```
 
 Estimate using `$3/M input + $15/M output` (Sonnet rate, conservative). If `$CORTEX_BUDGET_DISABLED=1` is set in env, suppress the cost line entirely (Dave's Max-x20 case — flat subscription, cost is noise).
@@ -259,7 +274,7 @@ date: <YYYY-MM-DD>
 slug: <kebab-case>
 sources:
   discovery: cortex/discovery.md
-  research: $CORTEX_HOME/research/<slug>-<YYYY-MM-DD>.md
+  research: $CORTEX_DATA_HOME/research/<slug>-<YYYY-MM-DD>.md
 ---
 
 # Architect proposal — <project name>
@@ -372,7 +387,7 @@ After printing the diff, ask:
 
 Templates reference two kinds of paths:
 - **Installed assets** (`~/.claude/shared/standards/`, `~/.claude/shared/prompts/`, `~/.claude/shared/agents/`, `~/.claude/shared/hooks/`) — resolved after `install.sh`/`install.ps1` runs. Use as-is in scaffolded files; tilde resolved by Claude/IDE.
-- **Live source dirs** (`$CORTEX_HOME/projects/`, `$CORTEX_HOME/research/`, `$CORTEX_HOME/insights/`) — stay in the cortex-x source repo. Bake the absolute resolved path into scaffolded output.
+- **Live source dirs** (`$CORTEX_DATA_HOME/projects/`, `$CORTEX_DATA_HOME/research/`, `$CORTEX_DATA_HOME/insights/`) — stay in the cortex-x source repo. Bake the absolute resolved path into scaffolded output.
 
 **Resolution precedence (pick first that resolves to existing dir):**
 1. `$CORTEX_HOME` / `$env:CORTEX_HOME` env var
@@ -540,8 +555,8 @@ If **any gate** fails:
 4. **Never** proceed to §4.5 with a violation
 
 ### 4.5 Finalize
-8. Link research: in `CLAUDE.md` add reference to `$CORTEX_HOME/research/<slug>-<date>.md` (absolute path after §4.0 resolution)
-9. **Auto-capture to cortex-x projects library.** Write `$CORTEX_HOME/projects/<slug>.md` (do NOT ask the user, write silently):
+8. Link research: in `CLAUDE.md` add reference to `$CORTEX_DATA_HOME/research/<slug>-<date>.md` (absolute path after §4.0 resolution)
+9. **Auto-capture to cortex-x projects library.** Write `$CORTEX_DATA_HOME/projects/<slug>.md` (do NOT ask the user, write silently):
 
    ```markdown
    ---
@@ -569,7 +584,7 @@ If **any gate** fails:
    <Q6 measurable metric>
 
    ## Research cache
-   - <absolute path to $CORTEX_HOME/research/<slug>-<date>.md>
+   - <absolute path to $CORTEX_DATA_HOME/research/<slug>-<date>.md>
 
    ## Synthesized reviewers
    <list of project-specific agents from §4.3, or "none — default set covers all findings">
@@ -617,7 +632,7 @@ Synthesized artifacts:
 - .claude/hooks/<name>.cjs — "<purpose>" (from research finding: <cite>)
 ```
 
-The user reviews; if a synthesized agent/hook looks overengineered → "remove `<name>`" → delete + log to `$CORTEX_HOME/insights/` what didn't fit (learning material for next scaffold).
+The user reviews; if a synthesized agent/hook looks overengineered → "remove `<name>`" → delete + log to `$CORTEX_DATA_HOME/insights/` what didn't fit (learning material for next scaffold).
 
 ---
 
@@ -654,7 +669,7 @@ Example output (planner emits a JSON list):
 
 ### 5.3 Parallel dispatch
 
-Spawn the picked topics as **parallel** general-purpose agents (max 5, matches `config/research.yaml: max_count: 5`). Each agent: 300-word report with citations, write to a per-topic finding file `$CORTEX_HOME/research/<slug>-stack-<date>.md` (single file with all findings concatenated, frontmatter `phase: 5-adapt`).
+Spawn the picked topics as **parallel** general-purpose agents (max 5, matches `config/research.yaml: max_count: 5`). Each agent: 300-word report with citations, write to a per-topic finding file `$CORTEX_DATA_HOME/research/<slug>-stack-<date>.md` (single file with all findings concatenated, frontmatter `phase: 5-adapt`).
 
 Each finding must satisfy `min_sources_per_claim: 2`. Verify each cited URL via a HEAD request — 404 → reject the claim.
 
@@ -668,7 +683,7 @@ The `synthesizer` agent (`~/.claude/shared/agents/synthesizer.md`) reads all fin
 ---
 phase: 5-adapt
 date: <YYYY-MM-DD>
-based_on: $CORTEX_HOME/research/<slug>-stack-<date>.md
+based_on: $CORTEX_DATA_HOME/research/<slug>-stack-<date>.md
 ---
 
 # For YOUR project — <project name>, <date>
@@ -699,7 +714,7 @@ cortex auto-researched your realized stack. Top items:
 - 🔍 <one open question to resolve>
 
 Full report: cortex/recommendations.md
-Raw sources: $CORTEX_HOME/research/<slug>-stack-<date>.md
+Raw sources: $CORTEX_DATA_HOME/research/<slug>-stack-<date>.md
 ```
 
 ### 5.5 Cleanup
@@ -737,7 +752,7 @@ This is the BMAD-spirit `on_complete` instruction — every prompt should end by
 - **Never ask "do you want research?"** — always run Phase 2 in parallel. Research is silent + automatic.
 - **Never use generic placeholders** — every file must be personalized by Phase 1 answers.
 - **Never skip cortex-x standards** — every project inherits via dual-link.
-- **Always save phase artifacts** — `cortex/discovery.md` (P1), `$CORTEX_HOME/research/<slug>-<date>.md` (P2), `cortex/proposal.md` (P3), `cortex/recommendations.md` (P5). The chat is not the source of truth; the files are.
+- **Always save phase artifacts** — `cortex/discovery.md` (P1), `$CORTEX_DATA_HOME/research/<slug>-<date>.md` (P2), `cortex/proposal.md` (P3), `cortex/recommendations.md` (P5). The chat is not the source of truth; the files are.
 - **Respect SSOT** — CLAUDE.md holds current state, research is a pointer not a duplicate.
 - **Czech in Q1-Q6 + proposal** — user's language.
 - **Synthesis is evidence-gated** — new agent/hook only with research citation. No citation = no synthesis.

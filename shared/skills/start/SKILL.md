@@ -12,7 +12,7 @@ prompt at `~/.claude/shared/prompts/new-project.md` from start to finish.
 ## Phase summary
 
 1. **Discover** — 6 questions (Czech), save to `cortex/discovery.md`
-2. **Research** — 3-4 parallel agents, save to `$CORTEX_HOME/research/<slug>-<date>.md`
+2. **Research** — 3-4 parallel agents, save to `$CORTEX_DATA_HOME/research/<slug>-<date>.md`
 3. **Architect** — proposal saved to `cortex/proposal.md`, structured `[a/e/r/q]` approval gate
 4. **Scaffold** — render filesystem (CLAUDE.md, PROGRESS.md, MEMORY.md, .claude/, package.json, …)
 5. **Adapt** — post-scaffold auto-research on realized stack → `cortex/recommendations.md` + `## Stack reality check` in CLAUDE.md

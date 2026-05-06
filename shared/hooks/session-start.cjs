@@ -161,15 +161,31 @@ try {
 }
 
 // cortex-x awareness — detect if current project has a cortex library entry
+// Sprint 1.6: user-data lives in $CORTEX_DATA_HOME (default ~/.cortex/), NOT in
+// the cortex-x source repo. Resolve precedence: env var → cortex-source.yaml →
+// legacy ~/cortex-x/projects/ fallback (pre-Sprint-1.6 installs).
 try {
   const os = require('os');
-  // Check standard locations for cortex-x install (cross-platform)
-  const candidates = [
+  let dataHome = process.env.CORTEX_DATA_HOME;
+  if (!dataHome) {
+    try {
+      const sourceYamlPath = path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml');
+      const yaml = fs.readFileSync(sourceYamlPath, 'utf8');
+      const m = yaml.match(/^cortex_data_home:\s*(.+)$/m);
+      if (m) dataHome = m[1].trim().replace(/^["']|["']$/g, '');
+    } catch { /* yaml missing — fall through */ }
+  }
+  if (!dataHome) dataHome = path.join(os.homedir(), '.cortex');
+
+  // Legacy fallback: pre-Sprint-1.6 installs kept projects/ inside cortex-x repo.
+  const legacyCandidates = [
     path.join(os.homedir(), 'cortex-x', 'projects'),
     path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x', 'projects'),
     path.join(os.homedir(), '.cortex-x', 'projects'),
   ];
-  const projectsDir = candidates.find(p => fs.existsSync(p));
+  const projectsDir = fs.existsSync(path.join(dataHome, 'projects'))
+    ? path.join(dataHome, 'projects')
+    : legacyCandidates.find(p => fs.existsSync(p));
 
   if (projectsDir) {
     // Derive slug from project name — matches projects/<slug>.md convention
@@ -179,18 +195,18 @@ try {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'unknown';
     const entryPath = path.join(projectsDir, `${slug}.md`);
-    const cortexRoot = path.dirname(projectsDir);
+    const dataRoot = path.dirname(projectsDir);
 
     if (fs.existsSync(entryPath)) {
       ctx.push(`\ncortex-x library: entry exists (${slug}.md)`);
       ctx.push('  Claude: reference it for cross-project context when relevant');
     } else {
       ctx.push(`\ncortex-x library: no entry for '${slug}'`);
-      ctx.push(`  Suggest: paste ${path.join(cortexRoot, 'prompts', 'project-scan.md')} to populate`);
+      ctx.push(`  Suggest: paste ~/.claude/shared/prompts/project-scan.md to populate`);
     }
 
-    // Check for pending insights
-    const insightsDir = path.join(cortexRoot, 'insights');
+    // Check for pending insights (in same data root — siblings of projects/)
+    const insightsDir = path.join(dataRoot, 'insights');
     if (fs.existsSync(insightsDir)) {
       const insights = fs.readdirSync(insightsDir)
         .filter(f => f.endsWith('.md') && f !== 'README.md')

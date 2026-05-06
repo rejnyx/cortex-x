@@ -2,7 +2,7 @@
 
 > **How to use:** Open Claude Code at the root of an established project, paste this prompt (or run the `/audit` skill, which is auto-loaded after `install.sh` mode `[E]`). Claude does a senior-consultant-grade audit before proposing any cortex-x patterns. ~30-45 min for a typical 30K-LOC repo.
 >
-> This prompt is the **deep** audit. For a quick 5-section institutional summary (used to populate `$CORTEX_HOME/projects/<slug>.md`), use `~/.claude/shared/prompts/project-scan.md` instead — different scope.
+> This prompt is the **deep** audit. For a quick 5-section institutional summary (used to populate `$CORTEX_DATA_HOME/projects/<slug>.md`), use `~/.claude/shared/prompts/project-scan.md` instead — different scope.
 
 ---
 
@@ -29,7 +29,7 @@
 | **P1 — Repo map** | What's the symbol-level shape? | `cortex/MEMORY/repo-map.md` (top-N ranked symbols, token-budgeted) |
 | **P2 — Audit (4 parallel agents, 12 dims)** | Where are the bones, hot spots, gaps? | `cortex/AUDIT.md` (12-section senior consultant deliverable) |
 | **P3 — Human gate** | What CAN'T be derived from code | 5 questions, answers folded into `cortex/AUDIT.md` |
-| **P4 — Auto-research** | What does 2026 say about this stack? | `$CORTEX_HOME/research/<slug>-audit-<date>.md` |
+| **P4 — Auto-research** | What does 2026 say about this stack? | `$CORTEX_DATA_HOME/research/<slug>-audit-<date>.md` |
 | **P5 — Synthesis** | What should we DO? | `cortex/recommendations.md` + `CLAUDE.md` patches |
 | **P6 — ADR backfill (opt-in)** | What past decisions deserve documentation? | `cortex/decisions/ADR-NNN-*.md` |
 
@@ -272,7 +272,7 @@ Topic naming: `{stack-or-profile}-{concern}-{year}`. Examples:
 - `supabase-rls-pitfalls-2026`
 - `vercel-ai-sdk-v6-streaming-perf-2026`
 
-Spawn the picked topics as parallel general-purpose agents (max 5). Each: 300-word report, citations, write to `$CORTEX_HOME/research/<slug>-audit-<date>.md` (single concatenated file, frontmatter `phase: 4-research`).
+Spawn the picked topics as parallel general-purpose agents (max 5). Each: 300-word report, citations, write to `$CORTEX_DATA_HOME/research/<slug>-audit-<date>.md` (single concatenated file, frontmatter `phase: 4-research`).
 
 **Hallucination guards (mandatory):**
 - `min_sources_per_claim: 2` (already in `config/research.yaml`)
@@ -285,7 +285,7 @@ Spawn the picked topics as parallel general-purpose agents (max 5). Each: 300-wo
 
 The synthesizer agent (`~/.claude/shared/agents/synthesizer.md`) reads:
 - `cortex/AUDIT.md` (12 dims + human input)
-- `$CORTEX_HOME/research/<slug>-audit-<date>.md` (P4 findings)
+- `$CORTEX_DATA_HOME/research/<slug>-audit-<date>.md` (P4 findings)
 
 Writes **three artifacts**:
 
@@ -297,7 +297,7 @@ phase: 5-synthesis
 date: <YYYY-MM-DD>
 based_on:
   audit: cortex/AUDIT.md
-  research: $CORTEX_HOME/research/<slug>-audit-<date>.md
+  research: $CORTEX_DATA_HOME/research/<slug>-audit-<date>.md
 ---
 
 # Recommendations — <project name>, <date>
@@ -393,7 +393,7 @@ Existing-project audit done. Created in this directory:
 - cortex/decisions/ADR-*.md   — retroactive ADRs (only if --backfill-adrs)
 
 Plus in cortex source:
-- $CORTEX_HOME/research/<slug>-audit-<date>.md — raw research cache
+- $CORTEX_DATA_HOME/research/<slug>-audit-<date>.md — raw research cache
 
 Co dál?
 - Začni s `DO this week` v cortex/recommendations.md
@@ -410,7 +410,7 @@ Co dál?
 - **Never overwrite the user's existing files** without explicit approval. CLAUDE.md, .claude/agents/, .claude/hooks/, package.json — all propose-don't-apply.
 - **Never block on detector failure** — fail-open and proceed with degraded mode.
 - **Always cite findings** — file:line, commit hash, or research URL. Findings without citations are invalid.
-- **Three-hop traceability** — every claim in `cortex/recommendations.md` traces to a finding in `cortex/AUDIT.md` (or `$CORTEX_HOME/research/`), which traces to a source URL or commit hash. cortex-doctor enforces.
+- **Three-hop traceability** — every claim in `cortex/recommendations.md` traces to a finding in `cortex/AUDIT.md` (or `$CORTEX_DATA_HOME/research/`), which traces to a source URL or commit hash. cortex-doctor enforces.
 - **Respect the social map** — if the user said in Q4 that area X is off-limits, do not propose changes there even if the audit found issues. Surface as "FYI: <issues> in off-limits area X — flagged but not actionable per Phase 3 Q4."
 - **Synthesis is evidence-gated** — same rule as `new-project.md` §4.3. No citation = no synthesis.
 

@@ -1,12 +1,12 @@
 # Cortex Sync Prompt
 
-> **How to use:** Paste this at the END of a work session when something notable happened (major decision, failed experiment, pattern worth remembering). Claude will update `$CORTEX_HOME/projects/<slug>.md` with the fresh insight.
+> **How to use:** Paste this at the END of a work session when something notable happened (major decision, failed experiment, pattern worth remembering). Claude will update `$CORTEX_DATA_HOME/projects/<slug>.md` with the fresh insight.
 
 ---
 
 ## Your task
 
-This session produced new knowledge about the current project. Update the corresponding `$CORTEX_HOME/projects/<slug>.md` entry so future sessions (and other projects) can benefit.
+This session produced new knowledge about the current project. Update the corresponding `$CORTEX_DATA_HOME/projects/<slug>.md` entry so future sessions (and other projects) can benefit.
 
 ## What to capture
 

@@ -173,7 +173,28 @@ fi
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.
-printf 'cortex_source: %s\n' "$CORTEX_ROOT" > "$CLAUDE_HOME/shared/cortex-source.yaml"
+#
+# Sprint 1.6: also record CORTEX_DATA_HOME (default ~/.cortex). User-personal
+# data — research caches, projects library, insights, journal, evals — lives
+# here, NOT inside the cortex-x source repo. See MIGRATIONS.md Sprint 1.6.
+CORTEX_DATA_HOME="${CORTEX_DATA_HOME:-$HOME/.cortex}"
+mkdir -p "$CORTEX_DATA_HOME"/{research,projects,insights/proposals,journal,evals}
+
+# Convert MSYS/Git-Bash paths (/c/Users/...) to Windows mixed-style (C:/Users/...)
+# so Windows-native Node — used by hooks and bin/cortex-bootstrap.cjs — can
+# resolve them via path.join. Native Linux/macOS paths pass through unchanged.
+to_node_path() {
+  if command -v cygpath > /dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+CORTEX_ROOT_NP=$(to_node_path "$CORTEX_ROOT")
+CORTEX_DATA_HOME_NP=$(to_node_path "$CORTEX_DATA_HOME")
+printf 'cortex_source: %s\ncortex_data_home: %s\n' \
+  "$CORTEX_ROOT_NP" "$CORTEX_DATA_HOME_NP" \
+  > "$CLAUDE_HOME/shared/cortex-source.yaml"
 
 # Write/update module.local.yaml with user preference (gitignored).
 MODULE_LOCAL="$CORTEX_ROOT/module.local.yaml"
@@ -273,7 +294,7 @@ cortex-x will not auto-edit your global \`~/.claude/CLAUDE.md\` (Principle 1 fro
 
 ## Budget cap
 
-Set \`CORTEX_SESSION_BUDGET_USD\` env var (default \$5.00). Spend log: \`\$CORTEX_HOME/journal/.budget.jsonl\`.
+Set \`CORTEX_SESSION_BUDGET_USD\` env var (default \$5.00). Spend log: \`\$CORTEX_DATA_HOME/journal/.budget.jsonl\`.
 Set \`CORTEX_BUDGET_DISABLED=1\` to suppress budget output entirely (e.g. for flat-subscription installs).
 
 ## Journal
@@ -335,6 +356,19 @@ verify_count "$CLAUDE_HOME/shared/agents"     5 "agents"
 verify_count "$CLAUDE_HOME/shared/hooks"      5 "hooks"
 verify_count "$CLAUDE_HOME/shared/skills"     3 "skills"
 
+# Sprint 1.6: verify CORTEX_DATA_HOME structure exists (5 user-data dirs).
+verify_dir() {
+  if [ ! -d "$1" ]; then
+    printf '  \033[31m✗ MISSING dir: %s\033[0m\n' "$1" >&2
+    VERIFY_OK=0
+  fi
+}
+verify_dir "$CORTEX_DATA_HOME/research"
+verify_dir "$CORTEX_DATA_HOME/projects"
+verify_dir "$CORTEX_DATA_HOME/insights/proposals"
+verify_dir "$CORTEX_DATA_HOME/journal"
+verify_dir "$CORTEX_DATA_HOME/evals"
+
 if [ "$VERIFY_OK" = "0" ]; then
   echo >&2
   echo "  ✗ Install verification FAILED. Critical assets are missing above." >&2
@@ -359,6 +393,7 @@ echo
 echo "  ✓ cortex-x installed"
 echo "    framework  ~/.claude/shared/                  (hooks · agents · prompts · skills · standards)"
 echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point)"
+echo "    user data  $CORTEX_DATA_HOME/                  (research · projects · insights · journal · evals)"
 echo "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 echo "    language   $LANG_NAME ($CORTEX_LANGUAGE)"
 echo "    notes      $INSTALL_NOTES"

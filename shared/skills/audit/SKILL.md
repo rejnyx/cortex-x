@@ -18,7 +18,7 @@ finish.
 | P1 — Repo map | What's the symbol-level shape? | `cortex/MEMORY/repo-map.md` |
 | P2 — Audit (4 parallel agents, 12 dims) | Where are the bones, hot spots, gaps? | `cortex/AUDIT.md` |
 | P3 — Human gate | What CAN'T be derived from code | 5 questions, folded into AUDIT.md |
-| P4 — Auto-research | What does 2026 say about this stack? | `$CORTEX_HOME/research/<slug>-audit-<date>.md` |
+| P4 — Auto-research | What does 2026 say about this stack? | `$CORTEX_DATA_HOME/research/<slug>-audit-<date>.md` |
 | P5 — Synthesis | What should we DO? | `cortex/recommendations.md` + CLAUDE.md patches |
 | P6 — ADR backfill (opt-in) | What past decisions deserve documentation? | `cortex/decisions/ADR-*.md` |
 
@@ -36,7 +36,7 @@ finish.
 
 ## Don't confuse with
 
-- `~/.claude/shared/prompts/project-scan.md` — quick 5-section institutional summary, populates `$CORTEX_HOME/projects/<slug>.md`. Different scope.
+- `~/.claude/shared/prompts/project-scan.md` — quick 5-section institutional summary, populates `$CORTEX_DATA_HOME/projects/<slug>.md`. Different scope.
 - `~/.claude/shared/prompts/retrofit.md` — APPLIES cortex-x patterns. Best run AFTER `/audit` so it has `cortex/AUDIT.md` to ground decisions.
 
 ## Reference

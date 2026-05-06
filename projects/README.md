@@ -58,7 +58,7 @@ Future cortex features:
 - **`cortex diff <a> <b>`** — compare two projects
 - **`cortex transferable`** — list all [TRANSFERABLE] insights across projects
 
-For now: grep across `$CORTEX_HOME/projects/*.md`.
+For now: grep across `$CORTEX_DATA_HOME/projects/*.md`.
 
 ## Philosophy
 
