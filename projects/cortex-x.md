@@ -5,7 +5,7 @@ status: active-dev
 last_scanned: 2026-04-17
 scan_version: 1
 scanned_by: Claude Opus 4.7
-claude_md_reference: c:/Users/david/Desktop/APPs/cortex-x/CLAUDE.md
+claude_md_reference: $CORTEX_HOME/CLAUDE.md
 ---
 
 # cortex-x — AI-Agentic-First Claude Code Framework
@@ -18,7 +18,7 @@ claude_md_reference: c:/Users/david/Desktop/APPs/cortex-x/CLAUDE.md
 - **Owner / Stakeholders:** Dave (David Rajnoha). Single-user today; architected to scale to team/community without rewrite
 - **Status context:** Phase 1 foundation + Phase 5 self-improvement loop v1 shipped. Journal substrate just landed (2026-04-17) — first data flowing
 
-For Tech Stack / Architecture / Commands / Repo Structure → **read `c:/Users/david/Desktop/APPs/cortex-x/CLAUDE.md` live**.
+For Tech Stack / Architecture / Commands / Repo Structure → **read `$CORTEX_HOME/CLAUDE.md` live**.
 
 ## 2. Key Decisions (ADR-lite)
 

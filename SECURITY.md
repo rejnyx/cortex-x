@@ -32,3 +32,21 @@ Expected acknowledgement window: **5 business days**. Full triage within **14 da
 Coordinated disclosure preferred. After triage:
 - **Fix within 30 days** for high/critical
 - **Public advisory** published only after fix is tagged + released, or after 90 days (whichever comes first)
+
+## Platform notes
+
+### Windows installations
+
+cortex-x writes a hook error log at `~/.claude/shared/.hook-errors.log` and creates the error file with mode `0o600`. **POSIX permission bits are honored on Linux/macOS but are a no-op on Windows** — on Windows the file inherits the parent directory's ACL.
+
+**Do not install cortex-x under a world-readable shared path** such as `C:\Users\Public\`, a shared OneDrive folder, a network share, or any directory whose ACL grants read access to other accounts on the host. The error log can capture tool-call metadata that, while redaction-protected, you still don't want exposed cross-account.
+
+**Recommended install location on Windows:** under your own profile (typically `C:\Users\<you>\`), where the default ACL restricts access to your account + administrators. If you need to verify, run:
+
+```powershell
+Get-Acl ~/.claude/shared/.hook-errors.log | Format-List
+```
+
+The `Access` list should show only your user (or the `Users` SID inheriting from `%USERPROFILE%`) and built-in administrators — not `Everyone` or `Authenticated Users`.
+
+This is advisory, not enforced by the install scripts. A future release may add a path-ACL probe to `install.ps1` that refuses to install under world-readable directories.

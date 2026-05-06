@@ -55,6 +55,15 @@ module.local.yaml
 .claude/
 config/ship-ready-denylist.local.txt
 
+# Maintainer redactor map — real-name → placeholder map used by
+# scripts/sync-to-public.mjs. The sync script itself ships; the rule data
+# (which by definition contains real PII) MUST NOT. Use *.example.json
+# for shipped templates.
+/scripts/sanitize-rules.json
+/scripts/sanitize-rules.*.json
+!/scripts/sanitize-rules.example.json
+/scripts/*-private.json
+
 # Temp review artifacts (diff files, lock files from prior sessions)
 *.diff
 .tmp-*
