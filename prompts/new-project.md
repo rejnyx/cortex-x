@@ -397,12 +397,16 @@ Templates reference two kinds of paths:
 Bake the absolute resolved path into scaffolded output. If Dave later moves cortex-x source, the user re-runs `cortex-doctor` to detect and re-anchor.
 
 ### 4.1 Render scaffold
-1. Scaffold per `profiles/<selected>.yaml` (structure, package.json, configs, Next.js/Astro/etc.)
+1. Scaffold per `profiles/<selected>.yaml` (structure, package.json, configs, Next.js/Astro/etc.) — apply §4.1d profile right-sizing first.
 2. Render templates with **data from `cortex/discovery.md` + `cortex/proposal.md`** (not generic placeholders):
    - `CLAUDE.md` — project-specific description, stack, architecture from proposal — **dual-link standards** per §4.1a below
    - `PROGRESS.md` — 5 stories from proposal §First sprint, project-specific
-   - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` with Q1-Q7 answers
+   - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` with Q1-Q7 answers — for AI-heavy projects (Q7=a) `memory/user_profile.md` MUST include the §4.1e talking-point hooks matrix
    - `README.md` — one-sentence description from Q1
+3. **Build-system robustness defaults** (apply for any profile that scaffolds tests):
+   - `package.json` test script: include **`--passWithNoTests`** flag (e.g. `"test": "vitest run --passWithNoTests"`). Without it, the §4.5 Stage C build sanity gate fails with `exit code 1` on a fresh scaffold that has no tests yet — agent must self-correct, which wastes a turn. Field test #5 (interview-brief, 2026-05-07) hit this; bake the flag in.
+   - **`.gitattributes`** at repo root with `* text=auto eol=lf` — silences Windows CRLF warnings on `git add` and prevents per-platform diff noise. Without it, every Windows `git add` emits ~25 warnings.
+   - **One placeholder unit test** at `tests/unit/sanity.test.ts` containing `import { expect, test } from 'vitest'; test('vitest harness wires correctly', () => expect(1+1).toBe(2));` — this catches a broken Vitest config on day zero (faster than waiting for Story 1.x to fail). Combined with `--passWithNoTests`, you get belt-and-suspenders; pick one if minimizing files matters more than coverage.
 
 #### 4.1a Dual-link standards in scaffolded `CLAUDE.md`
 
@@ -430,6 +434,47 @@ Skip pointers a project doesn't need. `astro-static` projects can drop AI patter
 ```
 
 `cortex-doctor` periodically compares each local file's hash to the canonical URL's content hash; warns if drift > 30 days.
+
+#### 4.1d Profile right-sizing (NEW — formalized 2026-05-07 from field-test #5)
+
+Profiles ship with the **enterprise-flavor full kit** because the cost of leaving something out and needing it Sprint 3 is higher than the cost of stripping it now. But MVPs differ from the kit. Before scaffolding, do a **right-sizing pass**:
+
+1. **Load** `profiles/<chosen>.yaml` and enumerate everything it ships (DB layer, auth layer, queue, observability, memory tiers, MCP exposure, etc.)
+2. **Cross-check against Q4 (MVP scope) + Q5 (NOT-doing) + the proposal's "Doporučený stack"** — every profile feature must trace to a present need. If it doesn't, **drop it**.
+3. **Surface the strip in §4.6 audit output** — print *"Profile-trim: stripped X/Y/Z because Q4 said …, Q5 said …"* so the user sees what was removed and why. Don't strip silently.
+
+Common strips by profile:
+
+| Profile | Strip when … | Keep |
+|---|---|---|
+| `nextjs-saas` | Q5 says "no auth" / "no DB" / "no users yet" | Next.js shell, Tailwind, testing |
+| `ai-agent` | Q4 is "single-feature web tool, localStorage only", Q5 says "no multi-tenancy" | safe-tool, cost-guard, Think-Plan-Execute, Agentic Security MUSTs — drop Supabase/pgvector/MCP/3-layer memory |
+| `chatbot-platform` | Q3 = "já sám" (no real multi-tenant ops yet) | chat UI, channel adapter pattern — drop tenant-isolation infra until 2nd customer |
+| `browser-agent` | Q4 doesn't require login-walled targets | Playwright, schema-bounded URLs — drop Browserbase paid plan |
+
+**Anti-pattern:** silently shipping the full profile because it's "easier than thinking". Field test #5 caught this — agent stripped `ai-agent` from full enterprise (Supabase/pgvector/MCP/3-layer memory) to MVP-appropriate (safe-tool + cost-guard + Think-Plan-Execute + Agentic Security MUSTs) because Q4 said *"single input field, localStorage only"*. **The strip was the right call. Make it visible.**
+
+**Output discipline:** print *"Profile <name> right-sized: kept {X, Y, Z}, dropped {A, B, C} because <Q4/Q5 ref>"* before §4.1 step 1 fires.
+
+#### 4.1e Talking-point hooks matrix (AI-heavy projects only — Q7=a)
+
+For projects where the LLM personalizes output to the user's profile (interview-brief, pitch-prep, content-prep, anything that mixes user CV + external data), the synthesizer's quality is **bottlenecked by the structure of `memory/user_profile.md`**. Bake the hooks matrix into the template:
+
+```markdown
+## Talking-point hooks (synthesizer reads this matrix)
+
+When the LLM produces personalized output it cross-references user profile sections to external content. Pre-declare the mapping so the synthesizer knows what to leverage:
+
+| External topic mentions … | Cite from user profile … |
+|---|---|
+| <stack tech 1, e.g. TypeScript> | <relevant projects bullets, e.g. RELO + WaaS + Chatbot Platform> |
+| <stack tech 2, e.g. AI/agents> | <Anthropic SDK depth, cortex-x, RELO 27-tool architecture> |
+| <domain area, e.g. multi-tenant SaaS> | <relevant scale evidence, e.g. Chatbot Platform 5 adapters + 5669 testů> |
+| <design / UX> | <17 let grafiky, portfolio link> |
+| <autonomy / IC role> | <solo delivery + production live evidence> |
+```
+
+**Why this works:** the synthesizer is loaded with `memory/user_profile.md` as cached system prompt (1h TTL). Without the matrix it has to re-derive *"which user-profile bullets are relevant to this external content?"* from scratch every brief. With the matrix it's a lookup. Field test #5 (interview-brief) shipped this pattern; propagate to all AI-heavy projects scaffolded going forward.
 
 ### 4.2 Copy DEFAULT hooks + agents (baseline)
 3. Copy hooks from `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact, post-tool-use, post-scaffold)
