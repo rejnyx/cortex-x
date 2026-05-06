@@ -216,6 +216,13 @@ $CortexDataHome = if ($env:CORTEX_DATA_HOME) { $env:CORTEX_DATA_HOME } else { Jo
 foreach ($sub in @("research", "projects", "insights/proposals", "journal", "evals")) {
     New-Item -ItemType Directory -Force -Path (Join-Path $CortexDataHome $sub) | Out-Null
 }
+
+# Seed insights/README.md on first install only — never overwrite user content.
+$InsightsReadme = Join-Path $CortexDataHome "insights/README.md"
+$InsightsReadmeSrc = Join-Path $CortexRoot "templates/cortex-data-insights-readme.md"
+if ((-not (Test-Path $InsightsReadme)) -and (Test-Path $InsightsReadmeSrc)) {
+    Copy-Item -Path $InsightsReadmeSrc -Destination $InsightsReadme -Force
+}
 @"
 cortex_source: $CortexRoot
 cortex_data_home: $CortexDataHome
@@ -266,6 +273,11 @@ $BootstrapFiles = @(
     @{ Src = "bin/cortex-bootstrap";       Dst = "cortex-bootstrap" }
     @{ Src = "bin/cortex-bootstrap.ps1";   Dst = "cortex-bootstrap.ps1" }
     @{ Src = "bin/cortex-bootstrap.cjs";   Dst = "cortex-bootstrap.cjs" }
+    @{ Src = "bin/cortex-gap-report";       Dst = "cortex-gap-report" }
+    @{ Src = "bin/cortex-gap-report.ps1";   Dst = "cortex-gap-report.ps1" }
+    @{ Src = "bin/cortex-gap-report.cjs";   Dst = "cortex-gap-report.cjs" }
+    @{ Src = "bin/cortex-migrate-data.sh";  Dst = "cortex-migrate-data.sh" }
+    @{ Src = "bin/cortex-migrate-data.ps1"; Dst = "cortex-migrate-data.ps1" }
 )
 foreach ($f in $BootstrapFiles) {
     $srcPath = Join-Path $CortexRoot $f.Src

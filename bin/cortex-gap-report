@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# cortex-gap-report — thin shim invoking the Node aggregator. See
+# bin/cortex-gap-report.cjs for the actual implementation.
+
+set -e
+
+if ! command -v node > /dev/null 2>&1; then
+  echo "ERROR: node is required but not found on PATH." >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec node "$SCRIPT_DIR/cortex-gap-report.cjs" "$@"

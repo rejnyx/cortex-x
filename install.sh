@@ -180,6 +180,11 @@ fi
 CORTEX_DATA_HOME="${CORTEX_DATA_HOME:-$HOME/.cortex}"
 mkdir -p "$CORTEX_DATA_HOME"/{research,projects,insights/proposals,journal,evals}
 
+# Seed insights/README.md on first install only — never overwrite user content.
+if [ ! -f "$CORTEX_DATA_HOME/insights/README.md" ] && [ -f "$CORTEX_ROOT/templates/cortex-data-insights-readme.md" ]; then
+  cp "$CORTEX_ROOT/templates/cortex-data-insights-readme.md" "$CORTEX_DATA_HOME/insights/README.md"
+fi
+
 # Convert MSYS/Git-Bash paths (/c/Users/...) to Windows mixed-style (C:/Users/...)
 # so Windows-native Node — used by hooks and bin/cortex-bootstrap.cjs — can
 # resolve them via path.join. Native Linux/macOS paths pass through unchanged.
@@ -220,6 +225,12 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 [ -f "$CORTEX_ROOT/bin/cortex-bootstrap.ps1" ]  && cp "$CORTEX_ROOT/bin/cortex-bootstrap.ps1"   "$CLAUDE_HOME/shared/bin/"
 [ -f "$CORTEX_ROOT/bin/cortex-bootstrap.cjs" ]  && cp "$CORTEX_ROOT/bin/cortex-bootstrap.cjs"   "$CLAUDE_HOME/shared/bin/"
 [ -f "$CORTEX_ROOT/bin/_lib/select.cjs" ]       && cp "$CORTEX_ROOT/bin/_lib/select.cjs"        "$CLAUDE_HOME/shared/bin/_lib/"
+[ -f "$CORTEX_ROOT/bin/cortex-gap-report" ]     && { cp "$CORTEX_ROOT/bin/cortex-gap-report"     "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-gap-report"; }
+[ -f "$CORTEX_ROOT/bin/cortex-gap-report.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-gap-report.ps1"  "$CLAUDE_HOME/shared/bin/"
+[ -f "$CORTEX_ROOT/bin/cortex-gap-report.cjs" ] && cp "$CORTEX_ROOT/bin/cortex-gap-report.cjs"  "$CLAUDE_HOME/shared/bin/"
+[ -f "$CORTEX_ROOT/bin/cortex-migrate-data" ]   && { cp "$CORTEX_ROOT/bin/cortex-migrate-data"   "$CLAUDE_HOME/shared/bin/" 2>/dev/null || true; }
+[ -f "$CORTEX_ROOT/bin/cortex-migrate-data.sh" ] && { cp "$CORTEX_ROOT/bin/cortex-migrate-data.sh" "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-migrate-data.sh"; }
+[ -f "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" "$CLAUDE_HOME/shared/bin/"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
