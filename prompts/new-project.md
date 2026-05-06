@@ -740,18 +740,37 @@ If **any gate** fails:
 
 ### 4.6 Audit output
 
-```
-Scaffold done. Created:
-- N files total
-- K default agents + L synthesized agents (grounded in research)
-- M default hooks + P synthesized hooks (grounded in research)
+The audit output **must** preempt the "is this broken?" reaction a fresh user gets from a sparse `.claude/`. State explicitly: how many agents and hooks run at runtime, where the defaults live, what's project-specific.
 
-Synthesized artifacts:
-- .claude/agents/<name>.md — "<purpose>" (from research finding: <cite>)
-- .claude/hooks/<name>.cjs — "<purpose>" (from research finding: <cite>)
+Print exactly this shape:
+
+```
+Scaffold done.
+
+Project files:    N total (src/, config/, tests/, cortex/, memory/, .claude/, configs)
+
+Review pipeline at runtime:
+  Agents — K total (X default + Y synthesized)
+    Default (auto-discovered z ~/.claude/agents/):
+      cortex-thinker · blind-hunter · edge-case-hunter · acceptance-auditor ·
+      security-auditor · ssot-enforcer · correctness-auditor · planner · synthesizer
+    Synthesized (.claude/agents/, project-specific):
+      <name> — "<one-line purpose>"  [research: <topic-name> · src: <URL>]
+      ... or "none — research found no project-specific gap beyond defaults"
+  Hooks — M total (registered in .claude/settings.json)
+    Default (~/.claude/shared/hooks/):
+      session-start · block-destructive · post-tool-use · pre-compact
+    Synthesized (.claude/hooks/, project-specific):
+      <name>.cjs — "<one-line purpose>"  [research: <topic-name>]
+      ... or "none — defaults cover the runtime invariants"
+
+Where things live:
+  Source:        $PWD                                   (this project)
+  User data:     $CORTEX_DATA_HOME/projects/<slug>.md   (cortex library entry)
+  Research:      $CORTEX_DATA_HOME/research/<slug>-<date>.md
 ```
 
-The user reviews; if a synthesized agent/hook looks overengineered → "remove `<name>`" → delete + log to `$CORTEX_DATA_HOME/insights/` what didn't fit (learning material for next scaffold).
+**If the user says "remove `<name>`"** → delete + log to `$CORTEX_DATA_HOME/insights/` what didn't fit (learning material for next scaffold).
 
 ---
 
