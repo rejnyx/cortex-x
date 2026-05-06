@@ -476,10 +476,41 @@ When the LLM produces personalized output it cross-references user profile secti
 
 **Why this works:** the synthesizer is loaded with `memory/user_profile.md` as cached system prompt (1h TTL). Without the matrix it has to re-derive *"which user-profile bullets are relevant to this external content?"* from scratch every brief. With the matrix it's a lookup. Field test #5 (interview-brief) shipped this pattern; propagate to all AI-heavy projects scaffolded going forward.
 
-### 4.2 Copy DEFAULT hooks + agents (baseline)
-3. Copy hooks from `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact, post-tool-use, post-scaffold)
-4. Copy agents from `~/.claude/shared/agents/*.md` → `.claude/agents/` (set from profile YAML `agents:` list)
-   - Default: `cortex-thinker`, `blind-hunter`, `edge-case-hunter`, `acceptance-auditor`, `security-auditor`, `ssot-enforcer`
+### 4.2 Wire DEFAULT hooks + verify user-level agents (baseline)
+
+**Two different mechanisms — don't confuse them:**
+
+#### 4.2.a Hooks — wire via `.claude/settings.json` (no copy needed)
+
+Claude Code hooks are **command paths registered in settings.json**, not auto-discovered files. Reference the installed copies directly:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{"hooks":[{"type":"command","command":"node ~/.claude/shared/hooks/session-start.cjs"}]}],
+    "PreToolUse":   [
+      {"matcher":"Bash","hooks":[{"type":"command","command":"node ~/.claude/shared/hooks/block-destructive.cjs"}]}
+    ],
+    "PostToolUse":  [{"hooks":[{"type":"command","command":"node ~/.claude/shared/hooks/post-tool-use.cjs"}]}],
+    "PreCompact":   [{"hooks":[{"type":"command","command":"node ~/.claude/shared/hooks/pre-compact.cjs"}]}]
+  }
+}
+```
+
+`.claude/hooks/<name>.cjs` exists ONLY for project-specific synthesized hooks (see §4.3).
+
+#### 4.2.b Agents — verify user-level discovery (no copy needed; install does it)
+
+Claude Code **auto-discovers agents** from `~/.claude/agents/<name>.md` (user-level, applies to all projects) AND `.claude/agents/<name>.md` (project-level, overrides user). It does **NOT** check `~/.claude/shared/agents/` — that path is cortex-x-internal staging only.
+
+`install.sh` / `install.ps1` copies the default adversarial set to `~/.claude/agents/`:
+- `cortex-thinker` · `blind-hunter` · `edge-case-hunter` · `acceptance-auditor` · `security-auditor` · `ssot-enforcer` · `correctness-auditor` · `planner` · `synthesizer`
+
+**Verify before scaffolding:** `ls ~/.claude/agents/*.md | wc -l` should be ≥ 5. If empty → install regression, run `/doctor`.
+
+`.claude/agents/<name>.md` exists ONLY for project-specific synthesized agents (see §4.3) or for project-level overrides of a default (e.g. stricter `security-auditor` for fintech). Do not duplicate defaults per project — that creates stale copies.
+
+**Field test #5 (interview-brief, 2026-05-07) caught the bug** when `~/.claude/agents/` didn't exist (install never created it) but `.claude/agents/` had only the 1 synthesized agent. Default pipeline was invisible at runtime.
 
 ### 4.3 SYNTHESIZE project-specific agents + hooks (research-driven)
 

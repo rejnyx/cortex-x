@@ -221,6 +221,25 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 [ -f "$CORTEX_ROOT/bin/cortex-bootstrap.cjs" ]  && cp "$CORTEX_ROOT/bin/cortex-bootstrap.cjs"   "$CLAUDE_HOME/shared/bin/"
 [ -f "$CORTEX_ROOT/bin/_lib/select.cjs" ]       && cp "$CORTEX_ROOT/bin/_lib/select.cjs"        "$CLAUDE_HOME/shared/bin/_lib/"
 
+# Install default agents to ~/.claude/agents/ for Claude Code discovery.
+#
+# Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and
+# .claude/agents/ (project-level). It does NOT check ~/.claude/shared/agents/
+# — that path is cortex-x-internal staging. Without this copy, every cortex-x
+# project's default adversarial pipeline (cortex-thinker, blind-hunter,
+# edge-case-hunter, acceptance-auditor, security-auditor, ssot-enforcer,
+# correctness-auditor, planner, synthesizer) is invisible at runtime.
+#
+# Field test #5 (interview-brief, 2026-05-07) caught this: scaffolded project
+# wired hooks via settings.json but had only 1 synthesized agent in
+# .claude/agents/, leaving the project agent-less for the default pipeline.
+#
+# Per-project .claude/agents/ remains for synthesized + project overrides only.
+mkdir -p "$CLAUDE_HOME/agents"
+if [ -d "$CORTEX_ROOT/agents" ]; then
+  cp -f "$CORTEX_ROOT"/agents/*.md "$CLAUDE_HOME/agents/" 2>/dev/null || true
+fi
+
 # Install user-level slash-skill /cortex-init at ~/.claude/skills/cortex-init/.
 # This is the RECOMMENDED post-install entry point — user just opens claude in
 # any project dir and types /cortex-init. The skill asks N/E/F via Claude's
@@ -350,9 +369,13 @@ verify_file "$CLAUDE_HOME/shared/standards/RULE-1.md"
 verify_file "$CLAUDE_HOME/shared/agents/synthesizer.md"
 verify_file "$CLAUDE_HOME/shared/agents/planner.md"
 verify_file "$CLAUDE_HOME/shared/hooks/session-start.cjs"
+# Default agents must be discoverable by Claude Code at user level.
+verify_file "$CLAUDE_HOME/agents/blind-hunter.md"
+verify_file "$CLAUDE_HOME/agents/security-auditor.md"
 verify_count "$CLAUDE_HOME/shared/standards" 20 "standards"
 verify_count "$CLAUDE_HOME/shared/prompts"   10 "prompts"
-verify_count "$CLAUDE_HOME/shared/agents"     5 "agents"
+verify_count "$CLAUDE_HOME/shared/agents"     5 "agents (staging)"
+verify_count "$CLAUDE_HOME/agents"            5 "agents (user-discoverable)"
 verify_count "$CLAUDE_HOME/shared/hooks"      5 "hooks"
 verify_count "$CLAUDE_HOME/shared/skills"     3 "skills"
 

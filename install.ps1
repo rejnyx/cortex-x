@@ -279,6 +279,24 @@ if (Test-Path $LibSelectSrc) {
     Copy-Item -Path $LibSelectSrc -Destination (Join-Path $BinLibTarget "select.cjs") -Force
 }
 
+# Install default agents to ~/.claude/agents/ for Claude Code discovery.
+#
+# Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and
+# .claude/agents/ (project-level). It does NOT check ~/.claude/shared/agents/
+# — that path is cortex-x-internal staging. Without this copy, every cortex-x
+# project's default adversarial pipeline is invisible at runtime.
+#
+# Field test #5 (interview-brief, 2026-05-07) caught this. Per-project
+# .claude/agents/ remains for synthesized + project overrides only.
+$UserAgentsDir = Join-Path $ClaudeHome "agents"
+New-Item -ItemType Directory -Force -Path $UserAgentsDir | Out-Null
+$AgentsSrc = Join-Path $CortexRoot "agents"
+if (Test-Path $AgentsSrc) {
+    Get-ChildItem -Path $AgentsSrc -Filter "*.md" -File | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $UserAgentsDir $_.Name) -Force
+    }
+}
+
 # Install user-level slash-skill /cortex-init at ~/.claude/skills/cortex-init/.
 # This is the RECOMMENDED post-install entry point — user just opens claude in
 # any project dir and types /cortex-init. The skill asks N/E/F via Claude's
@@ -421,9 +439,13 @@ Test-Required-File (Join-Path $SharedTarget "standards/RULE-1.md")
 Test-Required-File (Join-Path $SharedTarget "agents/synthesizer.md")
 Test-Required-File (Join-Path $SharedTarget "agents/planner.md")
 Test-Required-File (Join-Path $SharedTarget "hooks/session-start.cjs")
+# Default agents must be discoverable by Claude Code at user level.
+Test-Required-File (Join-Path $ClaudeHome "agents/blind-hunter.md")
+Test-Required-File (Join-Path $ClaudeHome "agents/security-auditor.md")
 Test-Required-Count (Join-Path $SharedTarget "standards") 20 "standards"
 Test-Required-Count (Join-Path $SharedTarget "prompts")   10 "prompts"
-Test-Required-Count (Join-Path $SharedTarget "agents")     5 "agents"
+Test-Required-Count (Join-Path $SharedTarget "agents")     5 "agents (staging)"
+Test-Required-Count (Join-Path $ClaudeHome "agents")       5 "agents (user-discoverable)"
 Test-Required-Count (Join-Path $SharedTarget "hooks")      5 "hooks"
 Test-Required-Count (Join-Path $SharedTarget "skills")     3 "skills"
 
