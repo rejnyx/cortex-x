@@ -3,14 +3,68 @@
 # Installs shared framework to ~/.claude/ for global use across projects.
 # Safe: backs up existing ~/.claude/shared/ before overwriting.
 #
+# Two execution modes:
+#
+#   1) curl | bash (recommended for fresh users):
+#        curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash
+#      The script self-detects pipe execution and clones cortex-x to ~/cortex-x
+#      (or $CORTEX_HOME), then re-execs the local install.sh from that clone.
+#
+#   2) Local execution (after manual git clone):
+#        git clone https://github.com/Rejnyx/cortex-x ~/cortex-x
+#        ~/cortex-x/install.sh
+#      Standard install path; copies framework assets to ~/.claude/shared/.
+#
 # Env vars honored (see standards/ship-ready.md):
 #   CORTEX_CHANNEL=beta|stable  — beta = track main HEAD (default for now);
 #                                 stable = checkout highest semver tag.
 #   CORTEX_HOME=<path>          — override cortex-x source directory
-#                                 (default: script location).
+#                                 (default: script location, or ~/cortex-x in
+#                                 curl|bash mode).
 #   CORTEX_NO_UPDATE=1          — skip checkout step even if CHANNEL=stable.
 
 set -e
+
+# Stream detection — when invoked via `curl | bash`, $BASH_SOURCE is empty or
+# points to a non-existent location. Self-clone the repo first, then re-exec
+# the local install.sh from the clone. This is the modern install pattern
+# used by Bun, Deno, Rustup, uv, fnm, mise, oh-my-zsh, Homebrew.
+SCRIPT_PATH="${BASH_SOURCE[0]:-}"
+if [ -z "$SCRIPT_PATH" ] || [ ! -f "$SCRIPT_PATH" ]; then
+  CORTEX_CLONE_DIR="${CORTEX_HOME:-$HOME/cortex-x}"
+  echo "cortex-x bootstrap (curl | bash mode)"
+  echo "  source: https://github.com/Rejnyx/cortex-x"
+  echo "  clone:  $CORTEX_CLONE_DIR"
+  echo
+  if ! command -v git > /dev/null 2>&1; then
+    echo "ERROR: git is required but not found on PATH." >&2
+    echo "  Install git first, then re-run." >&2
+    exit 1
+  fi
+  if [ -d "$CORTEX_CLONE_DIR/.git" ]; then
+    echo "  existing clone found — fetching origin/main"
+    cd "$CORTEX_CLONE_DIR"
+    if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
+      git fetch --quiet origin main 2>/dev/null || echo "  warning: fetch failed (offline?), using current HEAD"
+      git checkout --quiet main 2>/dev/null || true
+      git pull --ff-only --quiet origin main 2>/dev/null || echo "  warning: pull failed, using current HEAD"
+    else
+      echo "  local changes detected in $CORTEX_CLONE_DIR — skipping update"
+      echo "  to manually update: cd $CORTEX_CLONE_DIR && git pull --ff-only origin main"
+    fi
+    cd - > /dev/null
+  else
+    mkdir -p "$(dirname "$CORTEX_CLONE_DIR")"
+    git clone --quiet https://github.com/Rejnyx/cortex-x "$CORTEX_CLONE_DIR" || {
+      echo "ERROR: git clone failed" >&2
+      exit 1
+    }
+    echo "  cloned successfully"
+  fi
+  echo "  re-executing $CORTEX_CLONE_DIR/install.sh"
+  echo "============================================================"
+  exec bash "$CORTEX_CLONE_DIR/install.sh" "$@"
+fi
 
 # Resolve cortex-x source directory.
 # Precedence: $CORTEX_HOME → script location.
@@ -218,3 +272,36 @@ echo
 echo "Journal will be written to: $CORTEX_ROOT/journal/YYYY-MM-DD-<project-slug>.jsonl"
 echo "See journal/README.md for schema + privacy contract."
 echo "See standards/ship-ready.md for CORTEX_HOME / CORTEX_CHANNEL semantics."
+
+# Final PATH-add advice — surface this AFTER all the hook detail so it's the
+# last thing the user sees. Auto-detect shell + propose the right rcfile line.
+echo
+echo "============================================================"
+echo "FINAL STEP — add cortex-bootstrap to your PATH"
+echo "============================================================"
+SHELL_NAME="$(basename "${SHELL:-bash}")"
+case "$SHELL_NAME" in
+  zsh)  RC_FILE="$HOME/.zshrc" ;;
+  bash) RC_FILE="$HOME/.bashrc" ;;
+  fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
+  *)    RC_FILE="$HOME/.profile" ;;
+esac
+
+if echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.claude/shared/bin"; then
+  echo "PATH already contains $HOME/.claude/shared/bin — you're set."
+else
+  echo "Run this once to add bin/ to PATH:"
+  echo
+  if [ "$SHELL_NAME" = "fish" ]; then
+    echo "  fish_add_path \"\$HOME/.claude/shared/bin\""
+  else
+    echo "  echo 'export PATH=\"\$HOME/.claude/shared/bin:\$PATH\"' >> $RC_FILE"
+    echo "  source $RC_FILE   # or open a new terminal"
+  fi
+fi
+echo
+echo "Then per-project:"
+echo "  cd ~/your-project"
+echo "  cortex-bootstrap     # interactive [N]ew / [E]xisting / [F]ramework"
+echo "  claude               # auto-primes /start (new) or /audit (existing)"
+echo "============================================================"

@@ -1,6 +1,18 @@
 # cortex-x installer (PowerShell)
 # Installs shared framework to ~/.claude/ for global use across projects.
 #
+# Two execution modes:
+#
+#   1) iwr | iex (recommended for fresh users):
+#        iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex
+#      The script self-detects pipe execution and clones cortex-x to ~/cortex-x
+#      (or $env:CORTEX_HOME), then re-executes the local install.ps1.
+#
+#   2) Local execution (after manual git clone):
+#        git clone https://github.com/Rejnyx/cortex-x ~/cortex-x
+#        ~/cortex-x/install.ps1
+#      Standard install path; copies framework assets to ~/.claude/shared/.
+#
 # Env vars honored (see standards/ship-ready.md):
 #   $env:CORTEX_CHANNEL = 'beta' | 'stable'  — beta = track main HEAD (default);
 #                                              stable = checkout highest semver tag.
@@ -8,6 +20,60 @@
 #   $env:CORTEX_NO_UPDATE = '1'              — skip checkout even if CHANNEL=stable.
 
 $ErrorActionPreference = "Stop"
+
+# Stream detection — when invoked via `iwr | iex`, $PSScriptRoot is empty
+# because there is no script file on disk. Self-clone the repo first, then
+# re-execute the local install.ps1 from the clone. Same pattern as the
+# bash install.sh self-clone block; matches Bun, Deno, Rustup install UX.
+if (-not $PSScriptRoot -or -not (Test-Path $PSScriptRoot)) {
+    $CortexCloneDir = if ($env:CORTEX_HOME) { $env:CORTEX_HOME } else { Join-Path $HOME "cortex-x" }
+    Write-Host "cortex-x bootstrap (iwr | iex mode)"
+    Write-Host "  source: https://github.com/Rejnyx/cortex-x"
+    Write-Host "  clone:  $CortexCloneDir"
+    Write-Host ""
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Write-Host "ERROR: git is required but not found on PATH." -ForegroundColor Red
+        Write-Host "  Install git first, then re-run." -ForegroundColor Red
+        exit 1
+    }
+    $ExistingGitDir = Join-Path $CortexCloneDir ".git"
+    if (Test-Path $ExistingGitDir) {
+        Write-Host "  existing clone found — fetching origin/main"
+        Push-Location $CortexCloneDir
+        try {
+            git diff --quiet 2>$null
+            $unstaged = $LASTEXITCODE -ne 0
+            git diff --cached --quiet 2>$null
+            $staged = $LASTEXITCODE -ne 0
+            if (-not $unstaged -and -not $staged) {
+                git fetch --quiet origin main 2>$null
+                git checkout --quiet main 2>$null
+                git pull --ff-only --quiet origin main 2>$null
+            } else {
+                Write-Host "  local changes detected in $CortexCloneDir — skipping update"
+                Write-Host "  to manually update: cd $CortexCloneDir; git pull --ff-only origin main"
+            }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        $ParentDir = Split-Path -Parent $CortexCloneDir
+        if ($ParentDir -and -not (Test-Path $ParentDir)) {
+            New-Item -ItemType Directory -Force -Path $ParentDir | Out-Null
+        }
+        git clone --quiet https://github.com/Rejnyx/cortex-x $CortexCloneDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: git clone failed" -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "  cloned successfully"
+    }
+    $LocalInstaller = Join-Path $CortexCloneDir "install.ps1"
+    Write-Host "  re-executing $LocalInstaller"
+    Write-Host "============================================================"
+    & $LocalInstaller
+    exit $LASTEXITCODE
+}
 
 # Resolve cortex-x source directory.
 if ($env:CORTEX_HOME -and (Test-Path $env:CORTEX_HOME)) {
@@ -220,3 +286,29 @@ Write-Host ""
 Write-Host "Journal will be written to: $CortexRoot/journal/YYYY-MM-DD-<project-slug>.jsonl"
 Write-Host "See journal/README.md for schema + privacy contract."
 Write-Host "See standards/ship-ready.md for CORTEX_HOME / CORTEX_CHANNEL semantics."
+
+# Final PATH-add advice — surface this AFTER all the hook detail so it's the
+# last thing the user sees. PowerShell profile location varies by host.
+Write-Host ""
+Write-Host "============================================================"
+Write-Host "FINAL STEP -- add cortex-bootstrap to your PATH"
+Write-Host "============================================================"
+$BinDir = Join-Path $SharedTarget "bin"
+$PathEntries = $env:PATH -split [IO.Path]::PathSeparator
+if ($PathEntries -contains $BinDir) {
+    Write-Host "PATH already contains $BinDir -- you're set."
+} else {
+    Write-Host "Run this once to add bin/ to PATH (in PowerShell `$PROFILE):"
+    Write-Host ""
+    Write-Host "  Add-Content `$PROFILE '`$env:PATH = `"$BinDir;`" + `$env:PATH'"
+    Write-Host "  . `$PROFILE   # or open a new PowerShell window"
+    Write-Host ""
+    Write-Host "If `$PROFILE doesn't exist yet:"
+    Write-Host "  New-Item -ItemType File -Path `$PROFILE -Force"
+}
+Write-Host ""
+Write-Host "Then per-project:"
+Write-Host "  Set-Location ~\your-project"
+Write-Host "  cortex-bootstrap     # interactive [N]ew / [E]xisting / [F]ramework"
+Write-Host "  claude               # auto-primes /start (new) or /audit (existing)"
+Write-Host "============================================================"

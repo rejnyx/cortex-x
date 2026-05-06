@@ -74,13 +74,42 @@ cortex-x/
 
 ## Installation
 
+### One-liner (recommended)
+
+**Linux / macOS / WSL / Git Bash:**
+
 ```bash
-git clone https://github.com/Rejnyx/cortex-x.git ~/cortex-x
-cd ~/cortex-x
-./install.sh    # Unix / Git Bash / WSL
-# or
-.\install.ps1   # Windows PowerShell
+curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash
 ```
+
+**Windows PowerShell:**
+
+```powershell
+iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex
+```
+
+The installer self-clones to `~/cortex-x` (override with `CORTEX_HOME=...`),
+copies framework assets to `~/.claude/shared/`, and prints the final
+PATH-add line for your shell. After install, every project gets cortex-x
+via three commands:
+
+```bash
+cd ~/your-project
+cortex-bootstrap      # interactive: [N]ew / [E]xisting / [F]ramework
+claude                # auto-primes /start (new) or /audit (existing)
+```
+
+### Manual install (after a clone)
+
+```bash
+git clone https://github.com/Rejnyx/cortex-x ~/cortex-x
+~/cortex-x/install.sh        # Unix / Git Bash / WSL
+# or
+~/cortex-x/install.ps1       # Windows PowerShell
+```
+
+This is the path to take when you want to read the source before running
+it, or when contributing patches.
 
 ## Usage — no CLI needed, Claude IS the CLI
 
