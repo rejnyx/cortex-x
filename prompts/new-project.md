@@ -512,6 +512,49 @@ Claude Code **auto-discovers agents** from `~/.claude/agents/<name>.md` (user-le
 
 **Field test #5 (interview-brief, 2026-05-07) caught the bug** when `~/.claude/agents/` didn't exist (install never created it) but `.claude/agents/` had only the 1 synthesized agent. Default pipeline was invisible at runtime.
 
+#### 4.2.c Self-explaining READMEs in `.claude/{agents,hooks}/` (MANDATORY scaffold step)
+
+**Always create these two files, even if the dirs would otherwise be empty.** Field test #6 (pix-prep, 2026-05-07) caught the UX gap: user opened scaffolded `.claude/agents/`, saw 1 file, asked *"je tam 1 agents a 0 hooks, co to je?"*. The defaults are at user level, but a sparse project-local dir reads as "broken" without context.
+
+`.claude/agents/README.md` template:
+```markdown
+# `.claude/agents/` — project-specific subagents
+
+Claude Code discovers agents from **two locations** and merges them:
+
+1. **User-level** (`~/.claude/agents/*.md`) — default cortex-x adversarial pipeline,
+   shared across all projects on this machine. Currently <N> agents:
+   `ls ~/.claude/agents/ | wc -l` to verify.
+2. **Project-level** (this directory) — synthesized for THIS project's specific
+   risks (research-driven), or local overrides of a default agent.
+
+**Currently in this directory:** <list synthesized files with one-line purpose
+or "none — research found no project-specific gap beyond the default set">
+
+If this directory looks "empty" but you expected agents — that's by design.
+The 9 default agents are auto-discovered from `~/.claude/agents/`. Run
+`/doctor` if you suspect the user-level install is broken.
+```
+
+`.claude/hooks/README.md` template (always create the dir, even if empty of `.cjs` files):
+```markdown
+# `.claude/hooks/` — project-specific Claude Code hooks
+
+Hooks are different from agents — they're registered in `.claude/settings.json`
+as **command paths**, not auto-discovered files. Default hooks live at
+`~/.claude/shared/hooks/*.cjs` and are wired via `settings.json` (see file).
+
+**Currently in this directory:** <list synthesized .cjs files with purpose
+or "none — research found no project-specific runtime invariant beyond defaults
+(block-destructive + session-start + pre-compact + post-tool-use are wired
+in settings.json)">
+
+If this dir is empty, the project has no project-specific runtime hooks —
+the 4 default hooks still run via settings.json wiring.
+```
+
+**Why this matters:** users who never used cortex-x before see a sparse `.claude/` and panic. The README is a 30-second self-recovery.
+
 ### 4.3 SYNTHESIZE project-specific agents + hooks (research-driven)
 
 **This is the killer feature.** Default agents cover generic risks. This step adds **PROJECT-SPECIFIC guardians** based on research findings from Phase 2 and the proposal from Phase 3.
