@@ -92,7 +92,7 @@ Take BMAD's *artifact pattern*, leave its persona ceremony. Reorganize `prompts/
 
 ### 2.3 Retrofit audit — new prompt, deep by design
 
-The existing `prompts/project-scan.md` is *correct as-is* for populating `$CORTEX_HOME/projects/<slug>.md` (5-section institutional summary). It is **wrong** for retrofit. Retrofit needs a **separate, deeper prompt**: `prompts/deep-retrofit-audit.md`.
+The existing `prompts/project-scan.md` is *correct as-is* for populating `$CORTEX_HOME/projects/<slug>.md` (5-section institutional summary). It is **wrong** for retrofit. Retrofit needs a **separate, deeper prompt**: `prompts/existing-project-audit.md`.
 
 **12-dimension audit** (grounded in research §1; ranked by load-bearing weight):
 
@@ -111,7 +111,7 @@ The existing `prompts/project-scan.md` is *correct as-is* for populating `$CORTE
 | 11 | Tech-debt inventory | 9-dim scan (architectural decay, type rot, doc drift, …) | business priority |
 | 12 | Performance hygiene | bundle analyzer, lighthouse CI, N+1 AST patterns | SLO targets |
 
-**Phase order inside `deep-retrofit-audit.md`:**
+**Phase order inside `existing-project-audit.md`:**
 
 ```
 P0  detect    profile / stage / sister-env / monorepo  (existing detectors/, fail-open)
@@ -124,7 +124,7 @@ P6  ADR       propose 3-7 retroactive ADRs (opt-in via flag --backfill-adrs)
 ```
 
 **New files to add:**
-- `prompts/deep-retrofit-audit.md`
+- `prompts/existing-project-audit.md`
 - `detectors/repo-map.cjs` (tree-sitter wrapper, fail-open if binding unavailable)
 - `detectors/hotspots.cjs` (`git log --numstat` parser + complexity sampler)
 - `templates/AUDIT.md.hbs`
@@ -207,6 +207,34 @@ synthesizer agent merges → research/<slug>-stack-<date>.md (cache, immutable)
 
 **Citation discipline:** every claim in `CLAUDE.md` § Stack reality check links to a finding ID in `research/<slug>-stack-<date>.md`, which links to a source URL. **Three-hop traceability.** If chain breaks, `cortex-doctor` flags as drift. This is the existing SSOT principle applied to research.
 
+### 2.5b Canonical references vs. per-project recommendations (SSOT separation)
+
+Two artifacts, two purposes — must not conflate:
+
+| Artifact | Where it lives | Lifetime | Audience | Updated by |
+|---|---|---|---|---|
+| **Canonical references** — `standards/`, `profiles/`, `ai-patterns.md`, `security.md`, … | cortex-x repo (single SSOT) | Years | All projects | Maintainer + cortex-evolve loop |
+| **Per-project recommendations** — `cortex/recommendations.md` | Inside the project | Weeks–months (re-runs auto-research) | This project's maintainers | Auto-research synthesizer agent (Phase 5) |
+
+**Dual-link pattern in scaffolded `CLAUDE.md`** (locked decision per Q2):
+
+```md
+## Standards (read these before non-trivial work)
+
+- Security:        ~/.claude/shared/standards/security.md
+                   ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/security.md
+- Testing:         ~/.claude/shared/standards/testing.md
+                   ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/testing.md
+- AI patterns:     ~/.claude/shared/standards/ai-patterns.md
+                   ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/ai-patterns.md
+```
+
+Local path = runtime read (offline-safe, fast, what Claude Code resolves first). Canonical URL = SSOT pointer for human readers + a freshness check the `cortex-doctor` healthcheck can run periodically (compare local file hash against GitHub raw URL hash; alert when local drifts > 30d behind upstream).
+
+**This means cortex-x does what the maintainer's idea anticipated:** projects don't carry their own copy of standards in their repo. They carry pointers. SSOT lives upstream. When standards/security.md updates, every project benefits on the next `git pull` of cortex-x source — no per-project copy-paste sync.
+
+**Per-project recommendations.md is the OTHER half:** what's true GENERALLY (canonical) vs. what's true FOR THIS project's stack + domain (recommendations). Both belong, both linked from CLAUDE.md.
+
 **Trigger config addition** (extends existing `config/research.yaml`):
 
 ```yaml
@@ -247,7 +275,7 @@ synthesizer agent merges → research/<slug>-stack-<date>.md (cache, immutable)
 ### 4.1 New files (Sprint 1.5 commits)
 
 ```
-prompts/deep-retrofit-audit.md              ← retrofit entry point
+prompts/existing-project-audit.md              ← retrofit entry point
 detectors/repo-map.cjs                       ← tree-sitter + PageRank, fail-open
 detectors/hotspots.cjs                       ← git churn × complexity
 templates/AUDIT.md.hbs                       ← 12-dim audit output
@@ -295,7 +323,7 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 | M2 | `prompts/new-project.md` 5-phase restructure with `_cortex/proposal.md` review gate | 6 | — | eval-001 re-run, baseline delta |
 | M3 | `detectors/repo-map.cjs` (tree-sitter + PageRank) | 8 | — | dogfood on cortex-x repo itself |
 | M4 | `detectors/hotspots.cjs` (churn × complexity) | 4 | — | dogfood on RELO repo |
-| M5 | `prompts/deep-retrofit-audit.md` (P0–P5, ADR backfill optional) | 8 | M3, M4 | dogfood on portfolio + RELO |
+| M5 | `prompts/existing-project-audit.md` (P0–P5, ADR backfill optional) | 8 | M3, M4 | dogfood on portfolio + RELO |
 | M6 | `agents/planner.md` + `agents/synthesizer.md` (auto-research engine) | 8 | M2 | unit test against frozen `nextjs-saas` topic_matrix |
 | M7 | `shared/hooks/post-scaffold.cjs` async trigger | 4 | M6 | end-to-end: install → scaffold → auto-research → CLAUDE.md patched |
 | M8 | `cortex-doctor` three-hop citation drift check | 2 | M7 | unit test |
@@ -325,25 +353,33 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 
 ---
 
-## 7. Open questions (decide before M1 starts)
+## 7. Decisions (locked 2026-05-06 by maintainer)
 
-1. **Repo-map producer: in-process Node tree-sitter (slower, zero-deps) vs. shell-out to Rust binary like `RepoMapper` (faster, optional dep)?**
-   - **Recommendation:** start with in-process Node (`tree-sitter` + per-language `tags.scm` from Aider, MIT-forkable). Allow `RepoMapper` as opt-in for projects > 50k LOC via a `repo_map.engine: rust|node` config in `module.yaml`.
+1. **Repo-map producer:** **C — hybrid.** In-process Node `tree-sitter` + per-language `tags.scm` (forked MIT from Aider) is the default; opt-in shell-out to Rust binary (`RepoMapper`-class) for projects > 50K LOC, configured via `module.yaml`:
+   ```yaml
+   repo_map:
+     engine: node          # node (default) | rust
+     loc_threshold: 50000  # auto-suggest rust above this
+   ```
+   Enterprise rationale: graceful degradation (always works) + performance ceiling (rust path) + zero hard infra dep.
 
-2. **`recommendations.md` location: project root (visible) or `cortex/` subdir (out-of-the-way)?**
-   - **Recommendation:** `cortex/recommendations.md` with a one-line pointer in `CLAUDE.md`. Visible enough to find; doesn't pollute project root with framework artifacts.
+2. **`recommendations.md` location:** **B — `cortex/recommendations.md`** subdir, with a one-line pointer at the top of `CLAUDE.md`. Plus a clarifying separation in §2.5b below — `cortex/recommendations.md` is the per-project, dated, AI-generated artifact; canonical references (standards/, profiles/, ai-patterns.md) stay in the cortex repo and are linked dual-track from CLAUDE.md (local path for runtime + GitHub URL for canonical SSOT).
 
-3. **Retrofit ADR backfill (Phase 6): opt-in or mandatory?**
-   - **Recommendation:** opt-in via `--backfill-adrs` flag, but ALWAYS surface in the audit summary: "We detected N implicit decisions worth documenting. Run `/audit --backfill-adrs` to draft them." User chooses; never silent.
+3. **ADR backfill:** **B — opt-in via `--backfill-adrs` flag.** The audit summary ALWAYS surfaces *"Detekoval jsem N implicitních rozhodnutí, spusť `/audit --backfill-adrs` pro draft."* — never silent.
 
-4. **`_cortex/` directory name: keep it, or use `cortex/` (no underscore)?**
-   - **Recommendation:** `cortex/` (no underscore). Cleaner. Prefix-free. The `_cortex/` underscore is a BMAD pattern for "internal/hidden" — cortex-x doesn't need to hide; it should be visible and editable by the user.
+4. **Mezi-artifact directory naming:** **B — `cortex/`** (no underscore). Visible, editable, prefix-free.
 
-5. **Phase 3 Architect step UX: structured Y/N prompt or free-form approval?**
-   - **Recommendation:** structured. Output `_cortex/proposal.md` then ask: "Review proposal at `cortex/proposal.md`. Type `[a]ccept` / `[e]dit` / `[r]ewrite` / `[q]uit`." Free-form approval drifts.
+5. **Architect approval UX (Phase 3):** **A — structured `[a]ccept / [e]dit / [r]ewrite / [q]uit`.** Free-form approval drifts; structured is explicit hand-off.
 
-6. **Hermes profile (Sprint 2) — ship before or after Sprint 1.5?**
-   - **Recommendation:** **after**. Sprint 1.5 makes cortex-x adopt-able for greenfield + retrofit *without* Hermes. Hermes is the "agentic-heavy" multiplier on top of an already-strong base. Shipping Hermes first means people install cortex-x for Hermes and discover the onboarding is meh — wrong order.
+6. **Hermes profile timing:** **B — Sprint 1.5 first, Hermes after.** Solid onboarding/retrofit base must precede the marketing differentiator. Otherwise users install for Hermes, find onboarding meh, churn.
+
+7. **User-facing naming — "retrofit" is dev jargon (decision added 2026-05-06):**
+   - User-facing strings (install.sh, hint output, prompt headers) use **"existing project"** not **"retrofit"**.
+   - **CZ:** `[E] Existující projekt — audit + doporučení`
+   - **EN:** `[E] Existing project — audit + recommendations`
+   - **Internal prompt name:** `prompts/existing-project-audit.md` (replaces the §2.3 working title `existing-project-audit.md`).
+   - **Slash skill:** `/audit` (unchanged).
+   - **Existing `prompts/retrofit.md`** stays as a thin wrapper that defers to `/audit` if no `MEMORY/repo-map.md` exists, else proceeds to integrate cortex patterns into the audited project. Don't break the existing entrypoint.
 
 ---
 
@@ -373,3 +409,4 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 - **2026-05-06** — Auto-research will use existing `config/research.yaml` infrastructure plus a new `post_install_adaptation` trigger. Anthropic multi-agent paper cited: 90.2% lift on breadth-first queries, 15× cost — cap at 5 agents (matches existing `max_count: 5`).
 - **2026-05-06** — Three-hop citation traceability adopted as SSOT extension: claim → finding ID → source URL. `cortex-doctor` enforces.
 - **2026-05-06** — Claude Code CLI primitives researched (third pass). Confirmed: no `--skill` / `--invoke` flag for auto-launching skills; hooks cannot prompt user mid-session; skills auto-discover from `.claude/skills/` (no allowlist). §2.1 + §2.4 revised to use the **marker-file + env-var + SessionStart-hook** pattern instead of subprocess invocation. Lower magic, more robust, reuses primitives Claude Code already documents.
+- **2026-05-06** — All §7 questions LOCKED by maintainer. Hybrid Node+Rust repo-map (Q1=C). Per-project `cortex/recommendations.md` + dual-linked canonical references (Q2=B + new §2.5b). Opt-in ADR backfill (Q3=B). `cortex/` no underscore (Q4=B). Structured architect approval (Q5=A). Sprint 1.5 before Hermes (Q6=B). Plus: rename "retrofit" → "existing project audit" in user-facing strings (Q7 added). Internal prompt name `existing-project-audit.md` replaces working title `deep-retrofit-audit.md` throughout the design.
