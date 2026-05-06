@@ -209,10 +209,7 @@ if (Test-Path $DetectorsSrc) {
 # stay in source and need an absolute path baked into scaffolded files.
 "cortex_source: $CortexRoot" | Set-Content -Path (Join-Path $SharedTarget "cortex-source.yaml") -Encoding UTF8
 
-Write-Host "Done."
-Write-Host ""
-
-# Write/update module.local.yaml with user preference (gitignored)
+# Write/update module.local.yaml with user preference (gitignored).
 $ModuleLocal = Join-Path $CortexRoot "module.local.yaml"
 @"
 # Per-user override (gitignored). See module.yaml for defaults.
@@ -220,7 +217,6 @@ $ModuleLocal = Join-Path $CortexRoot "module.local.yaml"
 config:
   communication_language: $Language
 "@ | Set-Content -Path $ModuleLocal -Encoding UTF8
-Write-Host "Wrote user prefs to: $ModuleLocal (gitignored)"
 
 # Print directive for user to add to ~/.claude/CLAUDE.md
 # (don't auto-edit user's global file — Principle 1 from coding-behavior.md)
@@ -244,98 +240,168 @@ Write-Host "---"
 Write-Host ""
 
 # Install cortex-bootstrap helper to ~/.claude/shared/bin/ (per-project mode selector).
+# Files installed:
+#   cortex-bootstrap        — bash shim (calls node)
+#   cortex-bootstrap.ps1    — pwsh shim (calls node)
+#   cortex-bootstrap.cjs    — actual Node implementation with arrow-key TUI
+#   _lib/select.cjs         — zero-dep arrow-key select prompt utility
 $BinTarget = Join-Path $SharedTarget "bin"
+$BinLibTarget = Join-Path $BinTarget "_lib"
 New-Item -ItemType Directory -Force -Path $BinTarget | Out-Null
-$BootstrapPs = Join-Path $CortexRoot "bin/cortex-bootstrap.ps1"
-$BootstrapSh = Join-Path $CortexRoot "bin/cortex-bootstrap"
-if (Test-Path $BootstrapPs) {
-    Copy-Item -Path $BootstrapPs -Destination (Join-Path $BinTarget "cortex-bootstrap.ps1") -Force
-}
-if (Test-Path $BootstrapSh) {
-    Copy-Item -Path $BootstrapSh -Destination (Join-Path $BinTarget "cortex-bootstrap") -Force
+New-Item -ItemType Directory -Force -Path $BinLibTarget | Out-Null
+
+$BootstrapFiles = @(
+    @{ Src = "bin/cortex-bootstrap";       Dst = "cortex-bootstrap" }
+    @{ Src = "bin/cortex-bootstrap.ps1";   Dst = "cortex-bootstrap.ps1" }
+    @{ Src = "bin/cortex-bootstrap.cjs";   Dst = "cortex-bootstrap.cjs" }
+)
+foreach ($f in $BootstrapFiles) {
+    $srcPath = Join-Path $CortexRoot $f.Src
+    if (Test-Path $srcPath) {
+        Copy-Item -Path $srcPath -Destination (Join-Path $BinTarget $f.Dst) -Force
+    }
 }
 
-Write-Host ""
-Write-Host "============================================================"
-Write-Host "cortex-bootstrap helper installed to: $BinTarget"
-Write-Host ""
-Write-Host "NEXT STEP -- go to your TARGET project directory and run:"
-Write-Host ""
-Write-Host "  & '$BinTarget\cortex-bootstrap.ps1'"
-Write-Host ""
-Write-Host "It asks:  [N]ew / [E]xisting / [F]ramework-only -- writes a one-shot"
-Write-Host "marker file. Then 'claude' in the same dir auto-primes the right skill"
-Write-Host "(/start for new, /audit for existing). Marker has 1h TTL."
-Write-Host ""
-Write-Host "Add to PATH for convenience (in `$PROFILE):"
-Write-Host "  `$env:PATH = `"`$HOME\.claude\shared\bin;`$env:PATH`""
-Write-Host "============================================================"
-Write-Host ""
-
-Write-Host "Hooks copied to ~/.claude/shared/hooks/:"
-Write-Host "  block-destructive.cjs   (PreToolUse matcher:Bash)"
-Write-Host "  session-start.cjs       (SessionStart — also surfaces recent budget)"
-Write-Host "  pre-compact.cjs         (PreCompact)"
-Write-Host "  pre-tool-use.cjs        (PreToolUse all tools — journal companion)"
-Write-Host "  post-tool-use.cjs       (PostToolUse all tools — journal + budget writer)"
-Write-Host "  auto-orchestrate.cjs    (UserPromptSubmit — 3-fronta hint + budget warn)"
-Write-Host "  tirith-scan.cjs         (SessionStart — optional, no-op if tirith binary absent)"
-Write-Host "  _lib/redact.cjs         (shared secret-scrubbing library)"
-Write-Host "  _lib/budget.cjs         (shared token-cost tracking library)"
-
-# Optional Tirith detection hint — context-file prompt-injection scanner from Hermes Agent stack (MIT).
-$tirithCheck = Get-Command tirith -ErrorAction SilentlyContinue
-if (-not $tirithCheck) {
-    Write-Host ""
-    Write-Host "Optional: install Tirith (https://tirith.sh/) for context-file prompt-injection scanning:"
-    Write-Host "  cargo install tirith"
-    Write-Host "  # or download from https://github.com/NousResearch/tirith/releases"
-    Write-Host "tirith-scan.cjs hook will auto-detect once installed. Skip if not doing agentic work."
+$LibSelectSrc = Join-Path $CortexRoot "bin/_lib/select.cjs"
+if (Test-Path $LibSelectSrc) {
+    Copy-Item -Path $LibSelectSrc -Destination (Join-Path $BinLibTarget "select.cjs") -Force
 }
-Write-Host ""
-Write-Host "Register them in ~/.claude/settings.json under ""hooks"". Example snippet:"
-@'
+
+# Install user-level slash-skill /cortex-init at ~/.claude/skills/cortex-init/.
+# This is the RECOMMENDED post-install entry point — user just opens claude in
+# any project dir and types /cortex-init. The skill asks N/E/F via Claude's
+# native AskUserQuestion tool, writes the marker, chains to /start or /audit.
+$UserSkillsDir = Join-Path $ClaudeHome "skills/cortex-init"
+New-Item -ItemType Directory -Force -Path $UserSkillsDir | Out-Null
+$CortexInitSkillSrc = Join-Path $CortexRoot "shared/skills/cortex-init/SKILL.md"
+if (Test-Path $CortexInitSkillSrc) {
+    Copy-Item -Path $CortexInitSkillSrc -Destination (Join-Path $UserSkillsDir "SKILL.md") -Force
+}
+
+# Generate INSTALL_NOTES.md with all the verbose detail. Keep terminal output
+# tight — users who want detail can read the file.
+$InstallNotes = Join-Path $SharedTarget "INSTALL_NOTES.md"
+$LangName = switch ($Language) {
+    "cs" { "Czech (čeština)" }
+    "de" { "German (Deutsch)" }
+    "fr" { "French (français)" }
+    "es" { "Spanish (español)" }
+    default { "English" }
+}
+$Now = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+$NotesContent = @"
+# cortex-x install notes
+
+Generated by `install.ps1` on $Now.
+
+- Source:    $CortexRoot
+- Installed: $SharedTarget
+- Channel:   $Channel
+- Language:  $LangName (``$Language``)
+
+## Hooks (in ``hooks/``)
+
+| File | Event |
+|---|---|
+| ``block-destructive.cjs`` | PreToolUse matcher:Bash |
+| ``session-start.cjs`` | SessionStart — sprint state, git context, budget surface, bootstrap-marker reader |
+| ``pre-compact.cjs`` | PreCompact |
+| ``pre-tool-use.cjs`` | PreToolUse all tools — journal companion |
+| ``post-tool-use.cjs`` | PostToolUse all tools — journal + budget writer |
+| ``auto-orchestrate.cjs`` | UserPromptSubmit — 3-fronta hint + budget warn |
+| ``tirith-scan.cjs`` | SessionStart — optional, no-op if tirith binary absent |
+| ``_lib/redact.cjs`` | Shared secret-scrubbing library |
+| ``_lib/budget.cjs`` | Shared token-cost tracking library |
+
+## Register hooks in ``~/.claude/settings.json``
+
+``````json
+"hooks": {
   "PreToolUse": [
     { "matcher": "Bash",
-      "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/block-destructive.cjs\"","timeout":5}] },
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/pre-tool-use.cjs\"","timeout":3}] }
+      "hooks": [{ "type": "command", "command": "node \"`$HOME/.claude/shared/hooks/block-destructive.cjs\"", "timeout": 5 }] },
+    { "hooks": [{ "type": "command", "command": "node \"`$HOME/.claude/shared/hooks/pre-tool-use.cjs\"", "timeout": 3 }] }
   ],
   "PostToolUse": [
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/post-tool-use.cjs\"","timeout":5}] }
+    { "hooks": [{ "type": "command", "command": "node \"`$HOME/.claude/shared/hooks/post-tool-use.cjs\"", "timeout": 5 }] }
   ],
   "UserPromptSubmit": [
-    { "hooks": [{"type":"command","command":"node \"$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"","timeout":3}] }
+    { "hooks": [{ "type": "command", "command": "node \"`$HOME/.claude/shared/hooks/auto-orchestrate.cjs\"", "timeout": 3 }] }
+  ],
+  "SessionStart": [
+    { "hooks": [{ "type": "command", "command": "node \"`$HOME/.claude/shared/hooks/session-start.cjs\"", "timeout": 5 }] }
   ]
-'@ | Write-Host
-Write-Host ""
-Write-Host "Budget cap: set CORTEX_SESSION_BUDGET_USD (default `$5.00). Spend log: `$CORTEX_HOME/journal/.budget.jsonl"
-Write-Host ""
-Write-Host "Journal will be written to: $CortexRoot/journal/YYYY-MM-DD-<project-slug>.jsonl"
-Write-Host "See journal/README.md for schema + privacy contract."
-Write-Host "See standards/ship-ready.md for CORTEX_HOME / CORTEX_CHANNEL semantics."
+}
+``````
 
-# Final PATH-add advice — surface this AFTER all the hook detail so it's the
-# last thing the user sees. PowerShell profile location varies by host.
-Write-Host ""
-Write-Host "============================================================"
-Write-Host "FINAL STEP -- add cortex-bootstrap to your PATH"
-Write-Host "============================================================"
+## Language preference (optional)
+
+Add this block to ``~/.claude/CLAUDE.md`` so Claude responds in $LangName for cortex-x sessions:
+
+``````markdown
+<!-- BEGIN cortex-x — communication language -->
+## cortex-x language
+When working in a cortex-x-scaffolded project or invoking cortex-x prompts,
+respond in: **$LangName** (code: ``$Language``). Never switch languages mid-reply.
+<!-- END cortex-x -->
+``````
+
+cortex-x will not auto-edit your global ``~/.claude/CLAUDE.md`` (Principle 1 from standards/coding-behavior.md).
+
+## Budget cap
+
+Set ``CORTEX_SESSION_BUDGET_USD`` env var (default ``\$5.00``). Spend log: ``\$CORTEX_HOME/journal/.budget.jsonl``.
+Set ``CORTEX_BUDGET_DISABLED=1`` to suppress budget output entirely (e.g. flat-subscription installs).
+
+## Optional: Tirith (context-file prompt-injection scanner)
+
+``````bash
+cargo install tirith
+# or download from https://github.com/NousResearch/tirith/releases
+``````
+
+``tirith-scan.cjs`` hook auto-detects once installed.
+
+## Re-running
+
+Re-run ``install.ps1`` after pulling cortex-x updates. Existing ``~/.claude/shared/`` is backed up to ``shared.backup-yyyyMMdd-HHmmss``. Only the most recent backup is kept.
+
+## See also
+
+- ``standards/ship-ready.md`` — ``CORTEX_HOME`` / ``CORTEX_CHANNEL`` semantics
+- ``docs/sprint-1.5-design.md`` — onboarding architecture
+- ``MIGRATIONS.md`` — pre-public-tag debt and version migrations
+"@
+$NotesContent | Set-Content -Path $InstallNotes -Encoding UTF8
+
+# Compact final summary — model: Bun, uv, Rustup. Detail in INSTALL_NOTES.md.
 $BinDir = Join-Path $SharedTarget "bin"
 $PathEntries = $env:PATH -split [IO.Path]::PathSeparator
-if ($PathEntries -contains $BinDir) {
-    Write-Host "PATH already contains $BinDir -- you're set."
+$PathHasBin = $PathEntries -contains $BinDir
+
+Write-Host ""
+Write-Host "  ✓ cortex-x installed"
+Write-Host "    framework  ~/.claude/shared/      (hooks · agents · prompts · skills · standards)"
+Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point)"
+Write-Host "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
+Write-Host "    language   $LangName ($Language)"
+Write-Host "    notes      $InstallNotes"
+Write-Host ""
+Write-Host "  Next step (recommended) — open Claude Code in any project dir:"
+Write-Host ""
+Write-Host "    claude"
+Write-Host "    /cortex-init"
+Write-Host ""
+Write-Host "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
+Write-Host "    writes the marker, chains to the right cortex-x workflow."
+Write-Host ""
+Write-Host "  Shell-only alternative (power users / scripts):"
+if ($PathHasBin) {
+    Write-Host "    cortex-bootstrap     # already on PATH"
 } else {
-    Write-Host "Run this once to add bin/ to PATH (in PowerShell `$PROFILE):"
+    Write-Host "    & '$BinDir\cortex-bootstrap.ps1'"
     Write-Host ""
-    Write-Host "  Add-Content `$PROFILE '`$env:PATH = `"$BinDir;`" + `$env:PATH'"
-    Write-Host "  . `$PROFILE   # or open a new PowerShell window"
-    Write-Host ""
-    Write-Host "If `$PROFILE doesn't exist yet:"
-    Write-Host "  New-Item -ItemType File -Path `$PROFILE -Force"
+    Write-Host "  Add bin/ to PATH (one-time, optional):"
+    Write-Host "    Add-Content `$PROFILE '`$env:PATH = `"$BinDir;`" + `$env:PATH'"
 }
 Write-Host ""
-Write-Host "Then per-project:"
-Write-Host "  Set-Location ~\your-project"
-Write-Host "  cortex-bootstrap     # interactive [N]ew / [E]xisting / [F]ramework"
-Write-Host "  claude               # auto-primes /start (new) or /audit (existing)"
-Write-Host "============================================================"
