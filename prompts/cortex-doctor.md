@@ -103,6 +103,14 @@ that look like skill-discovery bugs but are install regressions.
   > ⚠ If missing, `/cortex-init` will silently fall through to default behavior.
   > This was the root cause of the 2026-05-06 field-test failure.
 
+**User-level default agents (Claude Code discovers from `~/.claude/agents/`):**
+- [ ] `~/.claude/agents/` exists with ≥ 5 `*.md` files
+- [ ] `~/.claude/agents/blind-hunter.md` + `security-auditor.md` + `cortex-thinker.md` present
+  > ⚠ If missing, every cortex-x project has empty default adversarial pipeline at runtime.
+  > `~/.claude/shared/agents/` (cortex-x staging) is NOT in Claude Code's discovery path —
+  > the user-level copy is mandatory. Field-test #5 (2026-05-07) caught this: scaffolded
+  > project's `.claude/agents/` had only the 1 synthesized agent, defaults invisible.
+
 **Asset count gates** (catch partial-copy regressions):
 - [ ] `~/.claude/shared/standards/` has ≥ 20 files
 - [ ] `~/.claude/shared/prompts/` has ≥ 10 files
