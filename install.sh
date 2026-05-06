@@ -55,11 +55,23 @@ if [ -z "$SCRIPT_PATH" ] || [ ! -f "$SCRIPT_PATH" ]; then
     cd - > /dev/null
   else
     mkdir -p "$(dirname "$CORTEX_CLONE_DIR")"
-    git clone --quiet https://github.com/Rejnyx/cortex-x "$CORTEX_CLONE_DIR" || {
-      echo "ERROR: git clone failed" >&2
+    # Clone strategy: try anonymous HTTPS first (works for public repos).
+    # Fall back to gh-cli (works for private repos when user is gh-auth'd) or
+    # to GITHUB_TOKEN-authenticated HTTPS.
+    if git clone --quiet https://github.com/Rejnyx/cortex-x "$CORTEX_CLONE_DIR" 2>/dev/null; then
+      echo "  cloned successfully (public)"
+    elif [ -n "$GITHUB_TOKEN" ] && git clone --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/Rejnyx/cortex-x" "$CORTEX_CLONE_DIR" 2>/dev/null; then
+      echo "  cloned successfully (GITHUB_TOKEN)"
+    elif command -v gh > /dev/null 2>&1 && gh auth status > /dev/null 2>&1 && gh repo clone Rejnyx/cortex-x "$CORTEX_CLONE_DIR" -- --quiet 2>/dev/null; then
+      echo "  cloned successfully (gh-cli)"
+    else
+      echo "ERROR: git clone failed." >&2
+      echo "  If cortex-x is still in closed beta, you need either:" >&2
+      echo "    1) gh CLI authenticated:  gh auth login" >&2
+      echo "    2) a GITHUB_TOKEN env var with read access to Rejnyx/cortex-x" >&2
+      echo "  Then re-run this installer." >&2
       exit 1
-    }
-    echo "  cloned successfully"
+    fi
   fi
   echo "  re-executing $CORTEX_CLONE_DIR/install.sh"
   echo "============================================================"

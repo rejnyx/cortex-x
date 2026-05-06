@@ -61,12 +61,39 @@ if (-not $PSScriptRoot -or -not (Test-Path $PSScriptRoot)) {
         if ($ParentDir -and -not (Test-Path $ParentDir)) {
             New-Item -ItemType Directory -Force -Path $ParentDir | Out-Null
         }
-        git clone --quiet https://github.com/Rejnyx/cortex-x $CortexCloneDir
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "ERROR: git clone failed" -ForegroundColor Red
+        # Clone strategy: anonymous HTTPS first (works for public repos), then
+        # GITHUB_TOKEN-authenticated HTTPS, then gh-cli for private-repo
+        # closed-beta access.
+        $cloned = $false
+        git clone --quiet https://github.com/Rejnyx/cortex-x $CortexCloneDir 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  cloned successfully (public)"
+            $cloned = $true
+        } elseif ($env:GITHUB_TOKEN) {
+            git clone --quiet "https://x-access-token:$($env:GITHUB_TOKEN)@github.com/Rejnyx/cortex-x" $CortexCloneDir 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  cloned successfully (GITHUB_TOKEN)"
+                $cloned = $true
+            }
+        }
+        if (-not $cloned -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+            gh auth status 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                gh repo clone Rejnyx/cortex-x $CortexCloneDir -- --quiet 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "  cloned successfully (gh-cli)"
+                    $cloned = $true
+                }
+            }
+        }
+        if (-not $cloned) {
+            Write-Host "ERROR: git clone failed." -ForegroundColor Red
+            Write-Host "  If cortex-x is still in closed beta, you need either:" -ForegroundColor Red
+            Write-Host "    1) gh CLI authenticated:  gh auth login" -ForegroundColor Red
+            Write-Host "    2) a GITHUB_TOKEN env var with read access to Rejnyx/cortex-x" -ForegroundColor Red
+            Write-Host "  Then re-run this installer." -ForegroundColor Red
             exit 1
         }
-        Write-Host "  cloned successfully"
     }
     $LocalInstaller = Join-Path $CortexCloneDir "install.ps1"
     Write-Host "  re-executing $LocalInstaller"
