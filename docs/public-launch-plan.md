@@ -268,14 +268,20 @@ Per [`MIGRATIONS.md` §D-4](../MIGRATIONS.md#d-4-residual-cortex-x-refs-in-sourc
 
 ---
 
-## 8. What this plan's commit already does
+## 8. What this plan's commit actually did
 
 ✅ Saved this plan to `docs/public-launch-plan.md`
-✅ Added `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1)
-✅ Added D-3 Windows ACL warning to `SECURITY.md`
-✅ Removed hardcoded `c:/Users/david/Desktop/APPs/cortex-x/` reference from `projects/cortex-x.md`
 
-**Not done (require user OK):** D-1 history purge, D-2 GPG infrastructure, D-4 mass rename.
+**Correction (2026-05-06, post-merge):** an earlier draft of this section claimed three additional artifacts (`CODE_OF_CONDUCT.md`, D-3 ACL warning in `SECURITY.md`, and a hardcoded-path cleanup in `projects/cortex-x.md`) had landed in this commit. They had not — the source session hit an error before those follow-up edits committed, and only the plan itself made it to `main`. The three items are still TODO and now live in §4 Sprint 1 below.
+
+**Sprint 1 work (planned, not yet done in main):**
+- Add `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1)
+- Add D-3 Windows ACL advisory to `SECURITY.md`
+- Remove residual hardcoded `c:/Users/david/Desktop/APPs/cortex-x/` references from `projects/cortex-x.md` (lines 8, 21)
+
+**Sprint 1 work requiring user execution (destructive):** D-1 history purge, D-2 GPG infrastructure.
+
+**Sprint 1 work that is mechanical (can be auto-applied):** D-4 mass path rename across 17 source files.
 
 ---
 

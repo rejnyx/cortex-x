@@ -28,12 +28,12 @@ _No migrations. First entry will land with v0.1.0 or the first breaking-change t
 
 These items are **intentionally not fixed** in working-tree commits — they require one-time destructive git operations or signing infrastructure that needs separate approval.
 
-### D-1. Git history purge (Vojta Žižka PII + private project data)
+### D-1. Git history purge (third-party PII + private project data)
 
 **Status:** OPEN. Last review pipeline flagged as 🔴 Critical (security-auditor C1).
 
 Commits before 2026-04-19 contain these files in blob history:
-- `projects/relo.md` — **names a non-consenting third party** ("Vojta Žižka, confirmed realtor") + stakeholder counts + business context
+- `projects/relo.md` — **contains a third-party personal identifier** (real name + role; mapping held only in gitignored `scripts/sanitize-rules.json`, never in source-tree narrative docs) plus stakeholder counts + business context
 - `projects/amd-hackathon-2026.md` — hackathon strategy, prize target, infrastructure plan
 - `insights/2026-04-17-amd-retrofit-gaps.md` — framework meta-analysis with private project references
 - `docs/framework-rfc.md` — original design doc citing private client repos (back-office-bot, custom-chatbot, kiosek-main)
