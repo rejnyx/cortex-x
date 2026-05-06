@@ -74,7 +74,7 @@ cortex-x/
 
 ## Installation
 
-### One-liner (recommended)
+### Public install (after v0.1.0 — when this repo is public)
 
 **Linux / macOS / WSL / Git Bash:**
 
@@ -89,9 +89,36 @@ iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex
 ```
 
 The installer self-clones to `~/cortex-x` (override with `CORTEX_HOME=...`),
-copies framework assets to `~/.claude/shared/`, and prints the final
-PATH-add line for your shell. After install, every project gets cortex-x
-via three commands:
+copies framework assets to `~/.claude/shared/`, prints the final PATH-add
+line for your shell.
+
+### Closed-beta install (current — repo is private)
+
+Public `raw.githubusercontent.com` URLs return 404 for private repos. Beta
+testers should use either of these:
+
+**Option 1 — `gh` CLI (recommended; you're probably already authed):**
+
+```bash
+gh repo clone Rejnyx/cortex-x ~/cortex-x
+~/cortex-x/install.sh        # or ~/cortex-x/install.ps1 on Windows
+```
+
+The installer's stream-detection block also tries `gh repo clone` and
+`GITHUB_TOKEN`-authenticated HTTPS as fallbacks if anonymous clone 404s,
+so the curl|bash one-liner *does* work for closed-beta testers who have
+`gh` authenticated — but starting from a manual `gh repo clone` is simpler.
+
+**Option 2 — `GITHUB_TOKEN` env var:**
+
+```bash
+export GITHUB_TOKEN=ghp_yourtoken
+curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash
+```
+
+(Token needs `repo` read scope on `Rejnyx/cortex-x`.)
+
+### After install — three commands per project
 
 ```bash
 cd ~/your-project
