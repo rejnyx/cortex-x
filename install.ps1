@@ -150,6 +150,35 @@ Write-Host "<!-- END cortex-x -->"
 Write-Host "---"
 Write-Host ""
 
+# Install cortex-bootstrap helper to ~/.claude/shared/bin/ (per-project mode selector).
+$BinTarget = Join-Path $SharedTarget "bin"
+New-Item -ItemType Directory -Force -Path $BinTarget | Out-Null
+$BootstrapPs = Join-Path $CortexRoot "bin/cortex-bootstrap.ps1"
+$BootstrapSh = Join-Path $CortexRoot "bin/cortex-bootstrap"
+if (Test-Path $BootstrapPs) {
+    Copy-Item -Path $BootstrapPs -Destination (Join-Path $BinTarget "cortex-bootstrap.ps1") -Force
+}
+if (Test-Path $BootstrapSh) {
+    Copy-Item -Path $BootstrapSh -Destination (Join-Path $BinTarget "cortex-bootstrap") -Force
+}
+
+Write-Host ""
+Write-Host "============================================================"
+Write-Host "cortex-bootstrap helper installed to: $BinTarget"
+Write-Host ""
+Write-Host "NEXT STEP -- go to your TARGET project directory and run:"
+Write-Host ""
+Write-Host "  & '$BinTarget\cortex-bootstrap.ps1'"
+Write-Host ""
+Write-Host "It asks:  [N]ew / [E]xisting / [F]ramework-only -- writes a one-shot"
+Write-Host "marker file. Then 'claude' in the same dir auto-primes the right skill"
+Write-Host "(/start for new, /audit for existing). Marker has 1h TTL."
+Write-Host ""
+Write-Host "Add to PATH for convenience (in `$PROFILE):"
+Write-Host "  `$env:PATH = `"`$HOME\.claude\shared\bin;`$env:PATH`""
+Write-Host "============================================================"
+Write-Host ""
+
 Write-Host "Hooks copied to ~/.claude/shared/hooks/:"
 Write-Host "  block-destructive.cjs   (PreToolUse matcher:Bash)"
 Write-Host "  session-start.cjs       (SessionStart — also surfaces recent budget)"

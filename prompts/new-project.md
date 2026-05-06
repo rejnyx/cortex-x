@@ -1,29 +1,37 @@
-# New Project — Discovery + Auto-Research + Scaffold
+# New Project — Discovery + Auto-Research + Architect + Scaffold + Adapt
 
-> **How to use:** Create empty folder, open Claude Code, paste this prompt. Claude vede the user přes discovery → automatický web research → proposal → scaffold. Kompletní flow ~15 min.
-
----
-
-## Your task
-
-Uživatel začíná nový projekt. Tvá práce: **nejdřív porozumět co chce stavět, pak research, pak teprve scaffold**. Nikdy neskakuj přímo do scaffoldu bez discovery (pokud uživatel explicitně neřekne `skip`).
-
-## Režimy (auto-detect)
-
-**BAIL → QUICK SCAFFOLD** (když uživatel už ví všechno):
-- Initial message obsahuje název + popis + profil ("3 questions answered")
-- Nebo obsahuje slovo `skip` / `quick`
-- Nebo initial message má ≥80 slov (the user už promyslel)
-→ Přeskoč Phase 1, jdi na Phase 2 (research) a Phase 4 (scaffold)
-
-**FULL FLOW (default):**
-Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (scaffold)
+> **How to use:** Create empty (or near-empty) folder, open Claude Code, paste this prompt. Claude vede the user through five explicit phases:
+>
+> 1. **Discover** — 6 questions, save to `cortex/discovery.md`
+> 2. **Research** — 3-4 parallel agents, save to `$CORTEX_HOME/research/<slug>-<date>.md`
+> 3. **Architect** — proposal saved to `cortex/proposal.md` with structured approval gate
+> 4. **Scaffold** — generate filesystem (CLAUDE.md, PROGRESS.md, MEMORY.md, .claude/{hooks,agents,skills})
+> 5. **Adapt** — post-scaffold auto-research on actually-realized stack → `cortex/recommendations.md` + `## Stack reality check` in CLAUDE.md
+>
+> Total flow: ~15 min. Each phase persists an artifact the user can review/edit.
 
 ---
 
-## Phase 1 — Discovery (6 otázek, česky, konverzační)
+## Mode auto-detect
 
-> **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](../standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask. The six questions below ARE this principle at bootstrap time.
+**BAIL → QUICK SCAFFOLD** (the user already knows everything):
+- Initial message contains name + description + profile ("3 questions answered")
+- Or contains the word `skip` / `quick`
+- Or the initial message has ≥80 words (the user already thought it through)
+→ Skip Phase 1, jump to Phase 2 (research) and Phase 3 (proposal). Phase 1 artifact gets a stub `cortex/discovery.md` with whatever was extractable from the initial message.
+
+**BOOTSTRAP MARKER → AUTO-START** (set by `install.sh` mode = new):
+- A file `.cortex-bootstrap-pending` exists in `$PWD` with `mode=new`
+- Auto-start at Phase 1 with greeting that acknowledges the install just ran
+- Skill itself deletes the marker file after Phase 4 completes (one-shot semantics)
+
+**FULL FLOW (default):** Phase 1 → 2 → 3 → 4 → 5
+
+---
+
+## Phase 1 — Discover (6 questions, conversational, in user's preferred language)
+
+> **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](../standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask.
 
 **Opener:**
 > "Pojď si to rozmyslet. Projdu tě 6 otázkama — když na něco neznáš odpověď, řekni 'nevím' a jedu dál. Když už víš všechno a chceš scaffoldovat, napiš **skip** a přeskočím na konec."
@@ -57,25 +65,67 @@ Phase 1 (discovery) → Phase 2 (research) → Phase 3 (proposal) → Phase 4 (s
 > Výchozí hodnota: **b) AI-ready**. Pokud řekneš 'nevím', default je b."
 
 **Skip if:** Q1 + Q3 clearly indicates AI-heavy (e.g., "AI assistant", "chatbot", "autonomous agent") → auto-assume `a) AI-heavy`.
-**Skip if:** profile je už `astro-static` / `minimal` → auto-assume `c) No AI`.
+**Skip if:** profile is already `astro-static` / `minimal` → auto-assume `c) No AI`.
 
 ### Branching rules
 
 | Trigger | Action |
 |---|---|
 | User typed `skip` at any Q | Jump to Phase 2 with current info |
-| User answered `nevím` to Q6 | Propose 2 measurable criteria, user picks |
+| User answered `nevím` at Q6 | Propose 2 measurable criteria, user picks |
 | Q3 = "já sám" | Tag as `dogfood`, raise bar on Q6 |
+
+### Phase 1 hand-off — save `cortex/discovery.md`
+
+**This is the new contract — do not skip.** Before transitioning to Phase 2, write `cortex/discovery.md` (create the `cortex/` directory if missing). Format:
+
+```markdown
+---
+phase: 1-discovery
+date: <YYYY-MM-DD>
+slug: <kebab-case-from-Q1>
+mode: <full|bail|bootstrap>
+---
+
+# Discovery — <project name draft>
+
+## Q1 — Seed
+<verbatim answer>
+
+## Q2 — Pain
+<verbatim answer or "skipped: covered by Q1">
+
+## Q3 — User
+<verbatim answer>
+
+## Q4 — MVP scope
+<verbatim answer>
+
+## Q5 — Not-doing
+<verbatim answer or "skipped: tight scope from Q4">
+
+## Q6 — Success signal
+<verbatim answer or "proposed: <criterion>" if user said nevím>
+
+## Q7 — AI integration
+**Choice:** <a | b | c>
+**Reasoning:** <one sentence why>
+
+## One-line vision
+<single sentence the user (or you, if user gave 'nevím') would put on a landing page>
+```
+
+The user can edit this file before Phase 2 fires. After save, hand off: *"Saved discovery to `cortex/discovery.md`. Spouštím research na pozadí — research běží 2-3 min, mezitím sepíšu architect proposal."*
 
 ---
 
 ## Phase 2 — Auto-Research (parallel agents, 2-3 min)
 
-**NEVER ask "chceš research?" — always do it.** Research je cortex-x killer feature, silent by default.
+**NEVER ask "do you want research?" — always do it.** Research is cortex-x's killer feature, silent by default.
 
-**Protokol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `research/<slug>-<date>.md`. Opt-out: `--no-research` v initial prompt.
+**Protocol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `$CORTEX_HOME/research/<slug>-<date>.md`. Opt-out: `--no-research` in initial prompt.
 
-Spawn **3 parallel research agents** via Agent tool (subagent_type: general-purpose). Queries derived from Phase 1 answers:
+Spawn **3 parallel research agents** (subagent_type: general-purpose) via the Agent tool. Add a 4th agent if Q7 ≠ `c) No AI`. Queries derived from `cortex/discovery.md`:
 
 ### Agent 1 — Domain research
 Query based on Q1 + Q3:
@@ -89,7 +139,7 @@ Query based on pre-selected profile (derived from Q1):
 Query based on Q4 + Q5 (MVP + out-of-scope):
 > "Research existing solutions that do `<Q4 MVP core>` specifically NOT doing `<Q5 out-of-scope>`. Who's in this space? What's their weakness the user could exploit as differentiator? 300-word report with URLs."
 
-### Agent 4 — AI integration research (NEW, 2026 default)
+### Agent 4 — AI integration research (skipped only when Q7 = c)
 Query based on Q1 + Q7:
 > "Research AI integration points for `<Q1 project type>` in 2026. What AI features are:
 > - **Table stakes** (competitors have them, users expect them) — must-have for parity
@@ -98,176 +148,230 @@ Query based on Q1 + Q7:
 > - **Technical patterns** specific to this project type (memory architecture, tool design, streaming UX)
 > 300-word report with specific model recommendations (OpenAI/Anthropic/Gemini/local) and agentic architecture suggestions. Cite 2026 examples."
 
-**Skip Agent 4 if** Q7 = `c) No AI`.
-
-**While agents run:** continue Phase 3 drafting in parallel, merge research when it arrives.
+**While agents run:** Phase 3 drafting in parallel; merge research findings as they arrive.
 
 ### Cache research
 
-After agents return, save to:
-```
-{cortex_root}/research/<slug>-<YYYY-MM-DD>.md
-```
+Save to `$CORTEX_HOME/research/<slug>-<YYYY-MM-DD>.md`:
 
-Structure:
 ```markdown
 ---
 project: <slug>
 date: <YYYY-MM-DD>
-agents: [domain, technical, competitive]
+agents: [domain, technical, competitive, ai]
 ---
 
 # Research: <project name>
 
 ## Domain (2026 best practices)
-<300 words from Agent 1>
+<300 words from Agent 1 + URLs>
 
 ## Technical (<stack> patterns)
-<300 words from Agent 2>
+<300 words from Agent 2 + URLs>
 
 ## Competitive landscape
-<300 words from Agent 3>
+<300 words from Agent 3 + URLs>
 
-## Key insights (1-3 bullets from all 3)
+## AI integration (skipped if Q7 = c)
+<300 words from Agent 4 + URLs>
+
+## Key insights (1-3 bullets synthesizing all agents)
 - ...
 ```
 
 ---
 
-## Phase 3 — Proposal (research-backed)
+## Phase 3 — Architect proposal (saved to `cortex/proposal.md`, structured approval gate)
 
-Shrň co slyšíš + co research našel:
+**Before asking the user anything, write the full proposal to `cortex/proposal.md`.** The user can open it in their editor in parallel — that's the BMAD-spirit "review the artifact, not the chat scrollback" pattern.
 
 ```markdown
+---
+phase: 3-architect
+date: <YYYY-MM-DD>
+slug: <kebab-case>
+sources:
+  discovery: cortex/discovery.md
+  research: $CORTEX_HOME/research/<slug>-<YYYY-MM-DD>.md
+---
+
+# Architect proposal — <project name>
+
 ## Shrnutí
 
 **PROJEKT:** <3 name candidates, kebab-case>
 **UŽIVATEL:** <Q3, one sentence>
-**PROBLÉM:** <from Q2, one sentence>
-**MVP JÁDRO:** <from Q4, max 5 bullets>
-**EXPLICITNĚ MIMO:** <from Q5>
-**DEFINITION OF DONE (sprint 1):** <from Q6, measurable>
+**PROBLÉM:** <Q2, one sentence>
+**MVP JÁDRO:** <Q4, max 5 bullets>
+**EXPLICITNĚ MIMO:** <Q5>
+**DEFINITION OF DONE (sprint 1):** <Q6, measurable>
 
 ## Doporučený stack (profile: <cortex-x profile name>)
 
-<1-line reason pro profil>
+<one-line reason for the profile choice>
 - Framework: <e.g., Next.js 16>
 - DB: <e.g., Supabase>
 - Styling: <e.g., Tailwind 4 + shadcn/ui>
 - Testing: <e.g., Vitest + Playwright>
+- Deploy: <e.g., Vercel>
 
-## 🔍 Co říká research (CRITICAL)
+## Co říká research (CRITICAL)
 
 **Domain:**
-- <insight 1 z Agent 1>
-- <insight 2 z Agent 1>
+- <insight 1 from Agent 1, with citation>
+- <insight 2 from Agent 1>
 
 **Technical:**
-- <insight 1 z Agent 2>
-- <insight 2 z Agent 2>
+- <insight 1 from Agent 2>
+- <insight 2 from Agent 2>
 
 **Competitive:**
-- <insight 1 z Agent 3>
+- <insight 1 from Agent 3>
 - <differentiator — what to leverage>
 
-**→ Doporučení z research:**
-- <concrete action item 1 — e.g., "add feature X from day 1, it's table stakes">
-- <concrete action item 2 — e.g., "avoid common mistake Y">
+**AI integration (if Q7 ≠ c):**
+- <insight 1 from Agent 4>
+- <insight 2 from Agent 4>
 
-## Rizika (Cagan 4 big risks)
+**→ Concrete recommendations from research:**
+- <action item 1 — e.g., "add feature X from day 1, it's table stakes [src: …]">
+- <action item 2 — e.g., "avoid common mistake Y [src: …]">
 
-Tag pouze **reálná** rizika (ne všechny 4):
+## Risks (Cagan 4 big risks)
+
+Tag only **real** risks (not all 4):
 - 🟡 **VALUE:** <if value proposition unclear — from Q2>
 - 🟡 **USABILITY:** <if UX is risky — from Q3>
 - 🟡 **FEASIBILITY:** <if tech is risky — from research>
 - 🟡 **VIABILITY:** <if business model is risky — from Q6>
 
-## První sprint (5 stories, každá ≤1 den)
+## First sprint (5 stories, each ≤1 day)
 
-| # | Popis | Stav |
-|---|-------|------|
+| # | Description | Status |
+|---|-------------|--------|
 | 1.1 | <foundation story> | pending |
 | 1.2 | <...> | pending |
 | 1.3 | <...> | pending |
 | 1.4 | <...> | pending |
 | 1.5 | <first measurable outcome from Q6> | pending |
-
----
-
-**Pokračovat scaffoldem?** [y / uprav X / začni znovu / přejmenuj projekt na X]
 ```
 
+### Approval gate (structured, not free-form)
+
+After saving, ask:
+
+> "**Proposal je v `cortex/proposal.md`** — otevři si v editoru, zkontroluj.
+>
+> Co dál?
+> - **`a`** — accept; jdu na Phase 4 Scaffold
+> - **`e`** — edit; otevři proposal v editoru, řekni 'hotovo' až dopíšeš, načtu znovu a pokračuju
+> - **`r`** — rewrite; co konkrétně zarazit / přeformulovat (chci feedback, ne celý nový brief)
+> - **`q`** — quit; nech `cortex/discovery.md` a `cortex/proposal.md` na disku, vrátíme se příště"
+
+**Behavior per choice:**
+- `a` → proceed to Phase 4 with current `cortex/proposal.md`
+- `e` → wait for the user; on resume, re-read `cortex/proposal.md` (it may have been edited externally), proceed to Phase 4
+- `r` → take the user's feedback as a delta, regenerate proposal, write again, ask again
+- `q` → save state, exit cleanly (artifacts persist; user can re-paste this prompt later and skip Phases 1-2)
+
+**Free-form input handling:** if the user types something other than `a`/`e`/`r`/`q` (e.g. "ano scaffold ale change DB to PostgreSQL not Supabase"), interpret as **`r` with delta** and regenerate the proposal with that change baked in.
+
 ---
 
-## Phase 4 — Scaffold (when confirmed)
+## Phase 4 — Scaffold (when `a` confirmed)
 
-Po `y`:
-
-### 4.0 Resolve `{{cortex_source}}` placeholder (BEFORE rendering any template)
+### 4.0 Resolve `$CORTEX_HOME` (BEFORE rendering any template)
 
 Templates reference two kinds of paths:
-- **Installed assets** (`~/.claude/shared/standards/`, `~/.claude/shared/prompts/`, `~/.claude/shared/agents/`, `~/.claude/shared/hooks/`) — resolved after `install.sh`/`install.ps1` runs. Use as-is in scaffolded files, Claude/IDE resolves tilde.
-- **Source-only dirs** (`projects/`, `research/`) — stay in the cortex-x source repo (they change constantly; not installed). Template uses `{{cortex_source}}` placeholder; scaffold-time substitution to **absolute path** required.
+- **Installed assets** (`~/.claude/shared/standards/`, `~/.claude/shared/prompts/`, `~/.claude/shared/agents/`, `~/.claude/shared/hooks/`) — resolved after `install.sh`/`install.ps1` runs. Use as-is in scaffolded files; tilde resolved by Claude/IDE.
+- **Live source dirs** (`$CORTEX_HOME/projects/`, `$CORTEX_HOME/research/`, `$CORTEX_HOME/insights/`) — stay in the cortex-x source repo. Bake the absolute resolved path into scaffolded output.
 
 **Resolution precedence (pick first that resolves to existing dir):**
 1. `$CORTEX_HOME` / `$env:CORTEX_HOME` env var
 2. `~/.claude/shared/cortex-source.yaml` (written by `install.sh`/`install.ps1`)
 3. The directory where this `new-project.md` currently lives (the `prompts/` sibling's parent)
 
-Bake the absolute resolved path into scaffolded output (no tilde, no placeholder). If Dave later moves cortex-x source, user re-runs `cortex-doctor` to detect and re-anchor.
+Bake the absolute resolved path into scaffolded output. If Dave later moves cortex-x source, the user re-runs `cortex-doctor` to detect and re-anchor.
 
 ### 4.1 Render scaffold
-1. Scaffold dle `profiles/<selected>.yaml` (struktura, package.json, configs, Next.js/Astro/etc.)
-2. Render templates s **daty z Phase 1 + 3** (ne generic placeholders):
-   - `CLAUDE.md` — vlastní popis, stack, architektura zmíněná v Phase 3
-   - `PROGRESS.md` — 5 stories z Phase 3, konkrétní k jeho projektu
-   - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` s Q1-Q6 odpověďmi
-   - `README.md` — jednovětná description z Q1
+1. Scaffold per `profiles/<selected>.yaml` (structure, package.json, configs, Next.js/Astro/etc.)
+2. Render templates with **data from `cortex/discovery.md` + `cortex/proposal.md`** (not generic placeholders):
+   - `CLAUDE.md` — project-specific description, stack, architecture from proposal — **dual-link standards** per §4.1a below
+   - `PROGRESS.md` — 5 stories from proposal §First sprint, project-specific
+   - `MEMORY.md` + `memory/user_profile.md` + `memory/project_overview.md` with Q1-Q7 answers
+   - `README.md` — one-sentence description from Q1
+
+#### 4.1a Dual-link standards in scaffolded `CLAUDE.md`
+
+Standards live upstream in cortex-x repo (canonical SSOT). Projects carry POINTERS, not copies. Render this section in CLAUDE.md:
+
+```markdown
+## Standards (read before non-trivial work)
+
+These are pointers. Local path is what Claude Code reads at runtime; canonical
+URL is the upstream SSOT for human readers and `cortex-doctor` freshness checks.
+
+- **Security:** ~/.claude/shared/standards/security.md
+  ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/security.md
+- **Testing:** ~/.claude/shared/standards/testing.md
+  ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/testing.md
+- **Observability:** ~/.claude/shared/standards/observability.md
+  ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/observability.md
+- **Correctness:** ~/.claude/shared/standards/correctness.md
+  ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/correctness.md
+- **AI patterns:** ~/.claude/shared/standards/ai-patterns.md  (relevant when AI is part of the value prop)
+  ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/ai-patterns.md
+
+Skip pointers a project doesn't need. `astro-static` projects can drop AI patterns;
+`hermes-agent` profile adds `~/.claude/shared/standards/agentic-security.md`.
+```
+
+`cortex-doctor` periodically compares each local file's hash to the canonical URL's content hash; warns if drift > 30 days.
 
 ### 4.2 Copy DEFAULT hooks + agents (baseline)
-3. Copy hooks z `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact, post-tool-use)
-4. Copy agents z `{cortex_root}/agents/*.md` → `.claude/agents/` (sada z profile YAML `agents:` listu)
+3. Copy hooks from `~/.claude/shared/hooks/` (block-destructive, session-start, pre-compact, post-tool-use, post-scaffold)
+4. Copy agents from `~/.claude/shared/agents/*.md` → `.claude/agents/` (set from profile YAML `agents:` list)
    - Default: `cortex-thinker`, `blind-hunter`, `edge-case-hunter`, `acceptance-auditor`, `security-auditor`, `ssot-enforcer`
 
 ### 4.3 SYNTHESIZE project-specific agents + hooks (research-driven)
 
-**This is the killer feature.** Default agents pokrývají generic risks. Tenhle krok přidá **PROJECT-SPECIFIC strážce** na základě research findings z Phase 2 a proposalu z Phase 3.
+**This is the killer feature.** Default agents cover generic risks. This step adds **PROJECT-SPECIFIC guardians** based on research findings from Phase 2 and the proposal from Phase 3.
 
 #### 4.3.1 Gap analysis
-Přečti:
-- Phase 2 research (domain/technical/competitive/AI výstupy)
+Read:
+- Phase 2 research (domain/technical/competitive/AI outputs)
 - Phase 3 proposal (stack, risks, MVP core)
-- `{cortex_root}/agents/*.md` (co už pokrývají default agenti)
-- `{cortex_root}/shared/hooks/*.cjs` (co už pokrývají default hooky)
+- `~/.claude/shared/agents/*.md` (what default agents already cover)
+- `~/.claude/shared/hooks/*.cjs` (what default hooks already cover)
 
-Urči **gaps** — project-specific invariants, které default set NEPOKRYJE. Příklady:
+Identify **gaps** — project-specific invariants the default set does NOT cover. Examples:
 
 | Project type | Research finding | Synthesize |
 |---|---|---|
-| Deterministic agent runtime (ReplayAgent) | "same seed must produce same output byte-exactly" | `determinism-auditor` agent + `pre-commit-seed-check` hook |
-| Fraud detection (MirrorPay) | "PII must never leak into logs or traces" | `pii-leak-auditor` agent + `block-pii-in-commit` hook |
+| Deterministic agent runtime | "same seed must produce same output byte-exactly" | `determinism-auditor` agent + `pre-commit-seed-check` hook |
+| Fraud detection | "PII must never leak into logs or traces" | `pii-leak-auditor` agent + `block-pii-in-commit` hook |
 | Website-as-a-Service multi-tenant | "tenant isolation is business-critical" | `tenant-isolation-auditor` agent + `rls-policy-validator` hook |
-| Kiosek touch PWA | "must work offline; service worker critical" | `offline-first-auditor` agent + `sw-registration-validator` hook |
+| Restaurant kiosk PWA | "must work offline; service worker critical" | `offline-first-auditor` agent + `sw-registration-validator` hook |
 | AMD ROCm workload | "ROCm + Ubuntu 22.04, not 24.04" | `rocm-env-validator` hook (pre-deploy check) |
 | CLI tool on npm | "supply chain security (postinstall scripts)" | `postinstall-audit` hook |
 
-**Pravidlo:** Synthesize **POUZE** když:
-- Research explicitně identifikoval constraint/risk
-- Default set to nepokrývá
-- Constraint je domain-specific (ne generic)
+**Rule:** Synthesize **ONLY** when:
+- Research explicitly identified a constraint/risk
+- Default set does not cover it
+- The constraint is domain-specific (not generic)
 
-Minimum: 0 nových agentů/hooků (pokud research nic nepřinesl nad rámec defaults).
-Maximum: 3 nové agenty + 2 nové hooks (přes = overengineered).
+Minimum: 0 new agents/hooks (if research yielded nothing beyond defaults).
+Maximum: 3 new agents + 2 new hooks (more = overengineered).
 
-#### 4.3.2 Agent synthesis (pokud gap = behavioral audit)
+#### 4.3.2 Agent synthesis (gap = behavioral audit)
 
-Pro každý agent gap, generuj soubor `.claude/agents/<slug>.md` s frontmatter pattern z `{cortex_root}/agents/blind-hunter.md` (template). Struktura:
+Per agent gap, generate `.claude/agents/<slug>.md` using the frontmatter pattern from `~/.claude/shared/agents/blind-hunter.md` (template):
 
 ```markdown
 ---
 name: <slug>
 description: One-sentence purpose. Invoke via Task tool when <trigger>.
-model: sonnet  # default; opus pro kritické audity
+model: sonnet  # default; opus for critical audits
 ---
 
 # <Name>
@@ -276,12 +380,12 @@ model: sonnet  # default; opus pro kritické audity
 <What this agent checks — specific to this project>
 
 ## Context needed
-<What files/dirs to read before auditing>
+<Files/dirs to read before auditing>
 
 ## Detection rules
 1. <Concrete rule 1 with example>
 2. <Concrete rule 2 with example>
-...
+…
 
 ## Evidence requirements
 <Every finding must cite: file:line, expected vs actual, severity (blocker/warning/info)>
@@ -294,65 +398,62 @@ model: sonnet  # default; opus pro kritické audity
 - Phase 3 decision: {ADR reference}
 ```
 
-#### 4.3.3 Hook synthesis (pokud gap = deterministic pre/post-check)
+#### 4.3.3 Hook synthesis (gap = deterministic pre/post-check)
 
-Pro každý hook gap, generuj `.claude/hooks/<slug>.cjs`. Pattern z `{cortex_root}/shared/hooks/block-destructive.cjs`:
-- CommonJS, cross-platform (používej `os.homedir()`, `path.join()`)
-- Return hook JSON output se správným `hookEventName`
-- Log rozhodnutí (allow/deny/warn) do stderr
-- **Nikdy** neblokuj bez jasného důvodu — research citation v komentáři
+Per hook gap, generate `.claude/hooks/<slug>.cjs`. Pattern from `~/.claude/shared/hooks/block-destructive.cjs`:
+- CommonJS, cross-platform (use `os.homedir()`, `path.join()`)
+- Return hook JSON output with the correct `hookEventName`
+- Log decision (allow/deny/warn) to stderr
+- **Never** block without a clear reason — research citation in the comment
 
-Registrace v `.claude/settings.json` pod správným event name (PreToolUse, PostToolUse, SessionStart, atd.).
+Register in `.claude/settings.json` under the right event name (PreToolUse, PostToolUse, SessionStart, …).
 
 #### 4.3.4 Documentation
-Vytvoř `.claude/README.md`:
+Create `.claude/README.md`:
 ```markdown
 # .claude — Project-specific Claude Code config
 
 ## Agents (default + synthesized)
-- **Default** (z cortex-x/agents/): cortex-thinker, blind-hunter, ...
+- **Default** (from cortex-x/agents/): cortex-thinker, blind-hunter, …
 - **Synthesized** (project-specific, based on Phase 2 research):
   - `<name>` — <one-liner>. Grounded in: <research citation>
 
 ## Hooks
-- **Default** (z ~/.claude/shared/hooks/): block-destructive, session-start, ...
+- **Default** (from ~/.claude/shared/hooks/): block-destructive, session-start, …
 - **Synthesized**:
   - `<name>` — <one-liner>. Grounded in: <research citation>
-
-## Kdy co použít
-<quick guide>
 ```
 
 ### 4.4 Rule 1 validation (BLOCKER — scaffold fails if violated)
 
-Před finalizací ověř scaffold vs [`standards/RULE-1.md`](../standards/RULE-1.md) checklist. Pokud **kterékoliv** selže → regeneruj, ne push dál.
+Before finalizing, verify scaffold against [`standards/RULE-1.md`](../standards/RULE-1.md) checklist. If **any** check fails → regenerate, do not push forward.
 
 **SSOT gate:**
-- [ ] Existuje jedno `config/` (ne `src/config/` + `src/settings/` + `app/config/`)
-- [ ] Design tokens mají SSOT soubor (`config/design-tokens.ts` nebo ekvivalent)
-- [ ] Žádný string literal duplikovaný ≥2× v scaffoldu (labels, URLs, constants)
-- [ ] DB schema je SSOT (migrace) — žádné hand-written types co drift-nou
+- [ ] One `config/` only (not `src/config/` + `src/settings/` + `app/config/`)
+- [ ] Design tokens have an SSOT file (`config/design-tokens.ts` or equivalent)
+- [ ] No string literal duplicated ≥2× in scaffold (labels, URLs, constants)
+- [ ] DB schema is SSOT (migrations) — no hand-written types that drift
 
 **Modular gate:**
-- [ ] Feature folders struktura `src/features/<slug>/` nebo jasný module boundary
-- [ ] Adapter folder pro externí SDKs (`src/lib/<service>/`, ne přímý import v UI)
-- [ ] Žádný kruhový import (grep nebo dep cruiser check)
+- [ ] Feature folder structure `src/features/<slug>/` or clear module boundary
+- [ ] Adapter folder for external SDKs (`src/lib/<service>/`, no direct imports in UI)
+- [ ] No circular imports (grep or dep-cruiser check)
 
-**Scalable gate (pro profiles s backend):**
-- [ ] RLS enabled na všech user-facing tabulkách (i v MVP)
-- [ ] Indexy na FK + query predikátech v initial migraci
-- [ ] Rate-limit stub existuje (`src/lib/rate-limit.ts`)
-- [ ] Paginace pattern v API route template (neposílat vše)
+**Scalable gate (for profiles with backend):**
+- [ ] RLS enabled on all user-facing tables (even in MVP)
+- [ ] Indexes on FK + query predicates in initial migration
+- [ ] Rate-limit stub exists (`src/lib/rate-limit.ts`)
+- [ ] Pagination pattern in API route template (don't return everything)
 
-Pokud **kterýkoliv gate** selže:
-1. Loguj detail do stdout (který, proč)
-2. Regeneruj dotčenou část
-3. Re-validuj
-4. **Nikdy** nepokračuj do 4.5 s violation
+If **any gate** fails:
+1. Log detail to stdout (which gate, why)
+2. Regenerate the affected part
+3. Re-validate
+4. **Never** proceed to §4.5 with a violation
 
 ### 4.5 Finalize
-8. Link research: v `CLAUDE.md` přidat referenci na `{{cortex_source}}/research/<slug>-<date>.md` (absolute path after §4.0 resolution)
-9. **Auto-capture to cortex-x projects library** (NEW — closes the "library is stale" gap). Write `{{cortex_source}}/projects/<slug>.md` with this stub (do NOT ask user, write it silently):
+8. Link research: in `CLAUDE.md` add reference to `$CORTEX_HOME/research/<slug>-<date>.md` (absolute path after §4.0 resolution)
+9. **Auto-capture to cortex-x projects library.** Write `$CORTEX_HOME/projects/<slug>.md` (do NOT ask the user, write silently):
 
    ```markdown
    ---
@@ -380,7 +481,7 @@ Pokud **kterýkoliv gate** selže:
    <Q6 measurable metric>
 
    ## Research cache
-   - <absolute path to research/<slug>-<date>.md>
+   - <absolute path to $CORTEX_HOME/research/<slug>-<date>.md>
 
    ## Synthesized reviewers
    <list of project-specific agents from §4.3, or "none — default set covers all findings">
@@ -391,11 +492,12 @@ Pokud **kterýkoliv gate** selže:
 
    This ensures `session-start.cjs` doesn't flag "project not in cortex library" on the very first boot.
 
-10. `git init` + first commit s message odrážející vision (ne generic)
-11. Report + ask about cortex library entry
+10. `git init` + first commit with message reflecting vision (not generic)
+11. **Delete `.cortex-bootstrap-pending`** if it exists in `$PWD` (one-shot semantics — install marker is consumed).
+12. **Write `cortex/.adapt-pending`** with one line `phase=5 at=<ISO timestamp>` to mark scaffold-done-but-Phase-5-not-yet. This is a recovery marker for the SessionStart hook in case the session is interrupted before Phase 5 completes. Phase 5 §5.5 deletes it on completion.
 
 ### 4.6 Audit output
-Na konci scaffoldu vypiš:
+
 ```
 Scaffold done. Created:
 - N files total
@@ -407,44 +509,161 @@ Synthesized artifacts:
 - .claude/hooks/<name>.cjs — "<purpose>" (from research finding: <cite>)
 ```
 
-**uživatel reviewuje: pokud synthesized agent/hook vypadá overengineered → řekne "remove <name>" → smažeš + zapíšeš do `insights/` co nefungovalo (learning material pro příští scaffold).**
+The user reviews; if a synthesized agent/hook looks overengineered → "remove `<name>`" → delete + log to `$CORTEX_HOME/insights/` what didn't fit (learning material for next scaffold).
+
+---
+
+## Phase 5 — Adapt (post-install auto-research, NEW)
+
+After §4.5 finalize, **before** §4.6 audit output, fire the post-scaffold auto-research engine. This catches the gap between *predicted-stack* research (Phase 2 — based on user's intention) and *actually-realized-stack* findings (Phase 5 — based on what scaffold installed: package.json versions, profile-locked libraries, profile-default deploy target).
+
+### 5.1 Trigger
+
+The prompt drives Phase 5 directly (Claude Code does not expose a PostScaffold hook event — keeping this in-prompt avoids fictional hook dependencies). Sequence:
+
+1. Phase 4 §4.5 step 12 (`Write cortex/.adapt-pending`) marks the project as "scaffold done, Phase 5 not yet run." This is a **recovery marker**: if the session is interrupted between Phase 4 and 5, on the next SessionStart the hook surfaces the marker so Claude can offer to resume.
+2. The prompt then proceeds to §5.2 in the SAME session — dispatch planner agent immediately. The user sees scaffold complete + research kicked off as one continuous flow.
+3. After §5.4 synthesizer writes both artifacts, §5.5 deletes `cortex/.adapt-pending`.
+
+### 5.2 Planner agent
+
+The `planner` agent (`~/.claude/shared/agents/planner.md`) reads:
+- Realized `package.json` (versions matter — Next.js 16.0.3 vs 16.1.0 may have different gotchas)
+- Selected profile YAML
+- Phase 1 `cortex/discovery.md` (domain words for context)
+
+It computes `topic_matrix = {profile_or_stack} × {concern}` where concerns ∈ `{security, performance, testing, observability, deployment, ecosystem-gotchas}`. It picks **3-5 most relevant** topics for THIS project — not all 6 concerns × all stack components, just the ones with non-trivial 2026 surface area.
+
+Example output (planner emits a JSON list):
+```json
+[
+  {"topic": "nextjs16-server-actions-csrf-2026", "concern": "security", "priority": 1},
+  {"topic": "supabase-rls-pitfalls-2026", "concern": "security", "priority": 2},
+  {"topic": "vercel-ai-sdk-v6-streaming-perf-2026", "concern": "performance", "priority": 3},
+  {"topic": "tailwind4-migration-traps-2026", "concern": "ecosystem-gotchas", "priority": 4}
+]
+```
+
+### 5.3 Parallel dispatch
+
+Spawn the picked topics as **parallel** general-purpose agents (max 5, matches `config/research.yaml: max_count: 5`). Each agent: 300-word report with citations, write to a per-topic finding file `$CORTEX_HOME/research/<slug>-stack-<date>.md` (single file with all findings concatenated, frontmatter `phase: 5-adapt`).
+
+Each finding must satisfy `min_sources_per_claim: 2`. Verify each cited URL via a HEAD request — 404 → reject the claim.
+
+### 5.4 Synthesizer agent
+
+The `synthesizer` agent (`~/.claude/shared/agents/synthesizer.md`) reads all findings and writes **two artifacts**:
+
+**a) `cortex/recommendations.md`** (this is the per-project AI output):
+
+```markdown
+---
+phase: 5-adapt
+date: <YYYY-MM-DD>
+based_on: $CORTEX_HOME/research/<slug>-stack-<date>.md
+---
+
+# For YOUR project — <project name>, <date>
+
+Stack: <detected from package.json>
+Domain context: <one sentence from discovery>
+
+## DO (cited)
+- <action item> [src: <URL>]
+- <action item> [src: <URL>]
+
+## SKIP (cited)
+- <"don't do X for your stack/scale, here's why"> [src: <URL>]
+
+## OPEN QUESTION (sources disagree)
+- <"two authoritative sources contradict on X — decide before MVP"> [src A] vs [src B]
+```
+
+**b) Append `## Stack reality check` to the project's `CLAUDE.md`:**
+
+```markdown
+## Stack reality check (Phase 5 Adapt, <date>)
+
+cortex auto-researched your realized stack. Top items:
+
+- ✅ <key positive finding>
+- ⚠️ <key caution finding>
+- 🔍 <one open question to resolve>
+
+Full report: cortex/recommendations.md
+Raw sources: $CORTEX_HOME/research/<slug>-stack-<date>.md
+```
+
+### 5.5 Cleanup
+
+- Delete `cortex/.adapt-pending` marker (one-shot)
+- Run cortex-doctor's three-hop citation check on `CLAUDE.md` § Stack reality check — fail loud if any claim has no traceable URL
+
+### 5.6 Skip conditions
+
+- `--no-research` flag in initial prompt
+- Profile is `astro-static` or `minimal` (no AI, lightweight stacks; auto-research over-delivers)
+- `cortex/.adapt-pending` already exists from a previous run that completed (idempotent guard)
+
+---
+
+## Phase 6 — Final on_complete
+
+After Phase 5 (or after §4.6 if Phase 5 was skipped), end with this exact closing line so the user knows what's next:
+
+```
+Hotovo. Co dál?
+- Začít první story: otevři PROGRESS.md, vyber 1.1
+- Cortex sync na konci sezení: paste ~/.claude/shared/prompts/cortex-sync.md
+- Pokud začneš modifikovat existující codebase mimo scaffold (např. v existujícím projektu): paste ~/.claude/shared/prompts/audit-existing.md (skill /audit)
+- Něco se zamotá: paste ~/.claude/shared/prompts/cortex-doctor.md
+```
+
+This is the BMAD-spirit `on_complete` instruction — every prompt should end by telling the user what comes next.
 
 ---
 
 ## Rules
 
-- **Never skip discovery** unless auto-bail triggers (user explicit skip / already has all 3 questions / ≥80 word first message)
-- **Never ask "chceš research?"** — vždy run Phase 2 parallel. Research je silent + automatic.
-- **Never use generic placeholders** — každý soubor musí být personalized by Phase 1 answers
-- **Never skip cortex-x standards** — všechny projekty dědí 11 pillars
-- **Cache research** — re-scan use se vyvaruje duplicitním web callům
-- **Respect SSOT** — CLAUDE.md drží current state, research je pointer ne duplicate
-- **Čeština v Q1-Q6 + proposal** — uživatelův jazyk
-- **Synthesis is evidence-gated** — new agent/hook vzniká POUZE s research citation. No citation = žádná synthesis.
-- **Synthesis budget** — max 3 agenti + 2 hooky navíc k default set. Přes = overengineered.
+- **Never skip discovery** unless auto-bail triggers (user explicit skip / already has all 3 questions / ≥80 word first message).
+- **Never ask "do you want research?"** — always run Phase 2 in parallel. Research is silent + automatic.
+- **Never use generic placeholders** — every file must be personalized by Phase 1 answers.
+- **Never skip cortex-x standards** — every project inherits via dual-link.
+- **Always save phase artifacts** — `cortex/discovery.md` (P1), `$CORTEX_HOME/research/<slug>-<date>.md` (P2), `cortex/proposal.md` (P3), `cortex/recommendations.md` (P5). The chat is not the source of truth; the files are.
+- **Respect SSOT** — CLAUDE.md holds current state, research is a pointer not a duplicate.
+- **Czech in Q1-Q6 + proposal** — user's language.
+- **Synthesis is evidence-gated** — new agent/hook only with research citation. No citation = no synthesis.
+- **Synthesis budget** — max 3 agents + 2 hooks beyond the default set. More = overengineered.
+- **Structured architect approval** — `[a]ccept` / `[e]dit` / `[r]ewrite` / `[q]uit`. Free-form drifts.
+- **Three-hop citation traceability** — every claim in CLAUDE.md § Stack reality check links to a finding ID in research cache, which links to a source URL. cortex-doctor enforces.
 
 ## Anti-patterns
 
-- ❌ Scaffold bez discovery → generic výstup, the user musí vše přepisovat
-- ❌ Asking "do you want research?" → slows flow, research by měl být default
-- ❌ Research AFTER scaffold → pozdě, rozhodnutí už jsou udělaná
-- ❌ 10+ questions → completion rate drop za 7 (research)
+- ❌ Scaffold without discovery → generic output, the user has to rewrite everything
+- ❌ Asking "do you want research?" → slows flow, research should be default
+- ❌ Research AFTER scaffold ONLY (no pre-scaffold research) → too late, decisions already made; cortex does BOTH (Phase 2 pre-scaffold prediction, Phase 5 post-scaffold reality check)
+- ❌ 10+ questions → completion rate drops past 7 (research)
 - ❌ Persona thinking → "small businesses in country X" = useless, "a specific named user at a specific role" = actionable
 - ❌ Future-tense questions → "would you use?" useless, "kdy naposled?" actionable (Mom Test)
-- ❌ Synthesizing agents/hooks "for completeness" → generic `code-quality-auditor` = default set už to má. Synthesize jen když research říká "tenhle projekt potřebuje něco specifického, co default nepokryje"
-- ❌ Generating agent bez citace do research → halucinace, smazat
+- ❌ Synthesizing agents/hooks "for completeness" → generic `code-quality-auditor` = default set already has it. Synthesize only when research says "this project needs something specific that defaults don't cover."
+- ❌ Generating an agent without a research citation → hallucination, delete.
+- ❌ Inline proposal only (no `cortex/proposal.md` file) → user can't edit before scaffold; chat scrollback is not a review surface.
+- ❌ Free-form approval gate ("ok ale...") → drifts; structured choices are explicit hand-off.
 
 ## Philosophy
 
-Každý nový projekt začíná **6 otázkami co donutí the user přemýšlet** + **auto-research který mu ušetří 2 hodiny googlování** + **research-backed scaffold co je personalizovaný**.
+Each new project starts with **6 questions that force the user to think** + **auto-research that saves 2 hours of googling** + **research-backed scaffold that's personalized** + **post-scaffold reality check on the actually-realized stack**.
 
-Cortex-x je osobní senior product partner, ne template engine.
+cortex-x is a senior product partner, not a template engine. Phase 1 captures intention, Phase 2 grounds intention in 2026 best practice, Phase 3 architects the proposal, Phase 4 builds it, Phase 5 corrects course before the first commit. Five phases, five saved artifacts, zero magic.
 
 ## Research methodology reference
 
-Flow design inspirován:
+Flow design grounded in:
 - Mom Test (Rob Fitzpatrick) — past-tense questions
 - Lean Canvas (Ash Maurya) — 1-pager validation
 - Cagan 4 big risks (SVPG) — risk tagging framework
 - Pieter Levels indie hacker workflow — MVP boundary thinking
 - Teresa Torres opportunity solution tree — user-problem-solution mapping
+- BMAD-METHOD — handoff artifacts pattern (analyst → architect → dev), pre-implementation readiness gate
+- Aider architect mode — saved-artifact + reasoner/executor split
+- Anthropic multi-agent research paper — parallel dispatch, 90.2% lift on breadth-first queries (capped at 5 to keep cost rational)

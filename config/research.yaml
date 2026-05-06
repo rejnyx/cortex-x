@@ -42,6 +42,32 @@ triggers:
     agents: 3
     required: true
 
+  - name: post_install_adaptation
+    when: scaffold just finished AND research/<slug>-stack-*.md not present
+    agents: 3-5  # planner picks count based on detected stack × concerns matrix
+    required: true
+    mode: dynamic                       # planner-driven; vs static (fixed roles)
+    budget_override:
+      max_research_per_session: 2       # this is the SECOND research batch of session
+                                        # (Phase 2 was the first, Phase 5 is this one)
+    output:
+      cache: research/<slug>-stack-<YYYY-MM-DD>.md
+      actions: cortex/recommendations.md
+      summary: append-to-CLAUDE-stack-reality-check
+    skip_for_profiles:
+      - astro-static                    # no stack research adds value
+      - minimal                         # over-delivers
+
+  - name: existing_project_audit
+    when: prompts/existing-project-audit.md is being used (Phase 4)
+    agents: 3-5
+    required: true
+    mode: dynamic                       # planner reads cortex/AUDIT.md, picks topics
+    output:
+      cache: research/<slug>-audit-<YYYY-MM-DD>.md
+      actions: cortex/recommendations.md
+      summary: append-to-CLAUDE-stack-reality-check
+
 # =============================================================================
 # ANTI-TRIGGERS — kdy research EXPLICITNĚ nedělat
 # =============================================================================
