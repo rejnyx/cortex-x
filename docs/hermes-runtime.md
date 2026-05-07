@@ -373,6 +373,111 @@ These do not need answers before drafting; they surface during implementation:
 4. **Investigate subagent tool-list.** `[Read, Grep, Glob]` per research brief — confirm at first need.
 5. **Per-project `hermes.yaml` schema.** Override defaults: `cost_ceilings`, `cron_schedule`, `target_recommendations_section`, `eval_required`. Schema + Zod validator at first PR.
 
+## 4.5 v0.5b LLM provider — OpenRouter via fetch (zero-deps preserved)
+
+Originally the v0.5b design assumed `@anthropic-ai/claude-agent-sdk` as the
+runtime dep — crossing the zero-deps invariant. After the 2026-05-07 dogfood
+and the maintainer's available OpenRouter API key, an alternative emerged
+that **preserves zero-deps**:
+
+**Use `fetch()` (built into Node ≥18) to call OpenRouter's OpenAI-compatible
+chat-completions endpoint with `response_format: { type: "json_object" }`.**
+
+The model returns a structured edit-plan in the same shape as the mock
+engine's `HERMES_MOCK_PLAN`:
+
+```json
+{
+  "edits": [
+    { "path": "docs/foo.md", "content": "..." },
+    { "path": "src/bar.js", "content": "..." }
+  ]
+}
+```
+
+That JSON gets parsed and fed through the existing `applyEditsToFilesystem()`
+helper — same code path as the mock engine. No SDK lock-in, no architectural
+change.
+
+### Architecture
+
+```
+bin/hermes/_lib/action-engine.cjs
+  - mockEngine (env-driven, ships in v0.5a)         ← test path
+  - openrouterEngine (fetch + JSON-mode, v0.5b)     ← real path
+  - claudeSdkEngine (optional alternative, deferred) ← if Anthropic SDK
+                                                        ever becomes preferred
+```
+
+### Env vars
+
+| Var | Purpose |
+|---|---|
+| `OPENROUTER_API_KEY` | Required. Bearer token for `https://openrouter.ai/api/v1/chat/completions` |
+| `HERMES_MODEL` | Optional. Model slug (e.g. `anthropic/claude-sonnet-4.5`, `openai/gpt-5.4`, `google/gemini-2.5-pro`). Default: a Claude Sonnet of the day. |
+| `HERMES_ENGINE` | Set to `openrouter` to select this engine. |
+
+### Bonus over a direct Anthropic dep
+
+- **Multi-model**: switch model via env var, no code change. Compare Claude vs GPT vs Gemini on the same action with same prompt.
+- **Cost ceiling at provider layer**: OpenRouter UI exposes per-key spend limits, an extra ring over Hermes's own `cost_usd` journal rollup.
+- **Cost capture**: response includes `usage.prompt_tokens` + `usage.completion_tokens` + can request `usage.cost` — wires straight into journal `cost_usd`/`tokens_in`/`tokens_out`.
+- **No SDK lock-in**: if OpenRouter goes away or pricing flips, swap to direct Anthropic / direct OpenAI / Together is a one-line endpoint change.
+- **Test isolation**: mock `global.fetch` in unit tests — no API keys in CI.
+
+### Sketch (NOT YET IMPLEMENTED)
+
+```javascript
+async function openrouterEngine(plan, opts = {}) {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) return { ok: false, code: 'OPENROUTER_KEY_MISSING' }
+
+  const model = opts.model || process.env.HERMES_MODEL || 'anthropic/claude-sonnet-4.5'
+
+  const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://github.com/Rejnyx/cortex-x',
+      'X-Title': 'cortex-x Hermes',
+    },
+    body: JSON.stringify({
+      model,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: HERMES_SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(plan, opts.repoRoot) },
+      ],
+      max_tokens: 4096,
+    }),
+  })
+  const data = await resp.json()
+  const editPlan = JSON.parse(data.choices[0].message.content)
+
+  return applyEditsToFilesystem(editPlan.edits, {
+    repoRoot: opts.repoRoot,
+    cost_usd: data.usage?.cost ?? null,
+    tokens_in: data.usage?.prompt_tokens,
+    tokens_out: data.usage?.completion_tokens,
+    summary: `openrouter (${model}) applied ${editPlan.edits.length} edit(s)`,
+  })
+}
+```
+
+### Concurrency knock-on: applyAction becomes async
+
+The mock engine is sync today. OpenRouter requires `await fetch(...)`. So
+`applyAction` becomes async, `execute.cjs` awaits it, tests use `await` /
+`async`. Trivial refactor (~10 lines). Mock engine wraps its sync body in
+`Promise.resolve(...)` for shape compatibility.
+
+### Safety considerations
+
+- `OPENROUTER_API_KEY` is a real credential — **must be redacted in journal entries**. The existing `sk-` PII redactor catches OpenRouter keys (they're shaped `sk-or-v1-...`). Add an explicit sanity check in tests.
+- LLM-generated edits go through the **existing** Hermes-policy denylist (Ring 1) and `block-destructive.cjs` (Ring 2). The fact that an LLM produced the diff doesn't grant any policy bypass.
+- First REAL API call should be opt-in (CLI prompt or explicit `--confirm` flag) so a misconfigured cron doesn't silently burn money.
+
 ## 5. Out-of-scope explicitly (DO NOT BUILD in v0)
 
 - ❌ Webhook receivers (incident, PR-merged) — Unix-socket listener + signature validation

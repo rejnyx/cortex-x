@@ -97,37 +97,54 @@ resolved whatever caused the halt, **you** remove the sentinel:
 rm ~/.cortex/HERMES_HALT
 ```
 
-## L2 walkthrough (preview — what v0.5 will do)
+## L2 walkthrough — what v0.5a does TODAY (mock engine)
 
-When the v0.5 PR lands, the seam at `bin/hermes/execute.cjs` swaps from a
-stub to a real call. The flow becomes:
+v0.5a (Sprint 1.6.11) shipped the FULL execute pipeline minus the LLM call.
+You can run it end-to-end RIGHT NOW with the mock engine:
 
-```
-$ cortex-hermes dry-run --slug=cortex-x --json > /tmp/plan.json
-$ cortex-hermes execute --plan-file=/tmp/plan.json
-[hermes] reading plan... action: "Pivot v1 trigger to GitHub Actions"
-[hermes] checking halt... ok
-[hermes] acquiring lock... ok
-[hermes] checking out branch hermes/2026-05-07-pivot-v1-trigger-...
-[hermes] calling Claude Agent SDK with action context...
-[hermes] applied 3 file edits across docs/, tools/, .github/
-[hermes] running npm test... 408/408 pass
-[hermes] git add . && git commit -F /tmp/commit-message.txt
-[hermes] git push -u origin hermes/2026-05-07-pivot-v1-...
-[hermes] gh pr create --draft
-[hermes] PR opened: https://github.com/Rejnyx/cortex-x/pull/42
-[hermes] journaled 'action_completed' / outcome=success
+```bash
+# Step 1 — produce a plan
+cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+
+# Step 2 — execute with mock engine (writes specified files instead of LLM)
+HERMES_ENGINE=mock \
+  HERMES_MOCK_PLAN='{"edits":[{"path":"docs/example.md","content":"hello"}]}' \
+  cortex-hermes execute --plan-file=/tmp/plan.json
 ```
 
-The `execute.cjs` stub today returns `V05_NOT_IMPLEMENTED` and exits 64
-(`EX_USAGE`). It deliberately exists in v0 so:
+What this does:
+- Halt-check + lock acquire
+- Pre-flight clean-tree check
+- Branch checkout (`hermes/<YYYY-MM-DD>-<slug>-<id>`)
+- Apply mock edits
+- Run `npm test` (verification gate)
+- Stage explicit paths + commit with full Git trailers
+- Post-verify clean tree + journal `action_completed`
+- Lock release
 
-- The CLI surface (`cortex-hermes execute --plan-file=...`) is locked in
-- `.github/workflows/hermes.example.yml` can reference the execute step today
-- The v0.5 PR is a clean SDK-integration patch, not architectural change
-- Dave reviews the seam *before* deciding on the
-  `@anthropic-ai/claude-agent-sdk` dependency that crosses the zero-deps
-  invariant
+Verified end-to-end on a real cortex-x clone in Sprint 1.6.11 dogfood:
+460/460 tests passed during verification, branch + commit + trailers all
+correct, journal entry written. The only thing missing is the LLM that
+produces the edit JSON — which is v0.5b.
+
+## L2 walkthrough — what v0.5b will do (real LLM via OpenRouter)
+
+v0.5b's preferred design is **OpenRouter via built-in `fetch()`**, which
+preserves the zero-deps invariant. See `docs/hermes-runtime.md` § 4.5 for
+the full architecture.
+
+```bash
+# One-time setup:
+export OPENROUTER_API_KEY=sk-or-v1-...
+export HERMES_MODEL=anthropic/claude-sonnet-4.5  # or openai/gpt-5.4, etc.
+
+# Then:
+cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+HERMES_ENGINE=openrouter \
+  cortex-hermes execute --plan-file=/tmp/plan.json
+```
+
+The flow:
 
 ## L3 setup (preview — production projects post-v0.5)
 
@@ -250,7 +267,10 @@ resolved whatever caused the halt.
 | `bin/cortex-hermes.cjs` | Unified CLI dispatcher (dry-run / status / execute) |
 | `bin/hermes/dry-run.cjs` | Plan emitter (no Claude SDK) — L1 today |
 | `bin/hermes/status.cjs` | Observability CLI |
-| `bin/hermes/execute.cjs` | v0.5 LLM seam (stub returning `V05_NOT_IMPLEMENTED`) |
+| `bin/hermes/execute.cjs` | Full execute pipeline (v0.5a). Pluggable engine via `HERMES_ENGINE` env. |
+| `bin/hermes/_lib/verifier.cjs` | `npm test` runner with timeout + Win-shell fix |
+| `bin/hermes/_lib/git-ops.cjs` | Atomic git ops (no shell injection) |
+| `bin/hermes/_lib/action-engine.cjs` | Pluggable engines: `mock` (env-driven, ships v0.5a) + `claude-sdk`/`openrouter` (v0.5b) |
 | `bin/hermes/_lib/halt-check.cjs` | MUST-H5 kill switch detection |
 | `bin/hermes/_lib/lock.cjs` | MUST-H2 mutex-by-slug |
 | `bin/hermes/_lib/journal.cjs` | MUST-H4 append-only writer + Zod-equivalent validation |

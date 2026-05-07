@@ -137,12 +137,18 @@ When Dave returns to this RFC:
 6. ~~Wire 6 primitives + dry-run orchestrator (no Claude SDK yet).~~ ✅
 7. ~~Wire 6 primitives + dry-run orchestrator (no Claude SDK yet).~~ ✅
 8. ~~Add unified `bin/cortex-hermes` dispatcher CLI.~~ ✅
-9. **v0.5 milestone:** integrate Claude Agent SDK so the dry-run plan becomes
+9. **v0.5 milestone:** integrate an LLM provider so the dry-run plan becomes
    an actual Hermes commit + PR. The dry-run already produces a valid
    Conventional-Commits-shaped commit message with Git trailers; v0.5 just
    feeds it to `git commit -F -` after the LLM produces the file edits.
-   **Crosses the zero-deps invariant** — needs Dave's explicit decision before
-   any `@anthropic-ai/claude-agent-sdk` imports land in `bin/hermes/`.
+   - **v0.5a (shipped Sprint 1.6.11):** mock engine + full execute pipeline
+     (verifier + git-ops + commit). Validates everything except the LLM call.
+   - **v0.5b (next):** real LLM provider. **Updated 2026-05-07:** the
+     preferred path is now **OpenRouter via built-in `fetch()`** (zero-deps
+     preserved) rather than `@anthropic-ai/claude-agent-sdk` (would cross
+     zero-deps). See `docs/hermes-runtime.md` § 4.5 for the full design.
+     `@anthropic-ai/claude-agent-sdk` remains a possible alternative if
+     OpenRouter ever stops being suitable.
 10. **v1 milestone:** wire cron / on-incident / on-PR-merged triggers; expand
     from cortex-x dogfood to RELO + Kiosek.
 
