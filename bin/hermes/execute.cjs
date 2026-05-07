@@ -362,6 +362,32 @@ async function runExecute(opts = {}) {
     };
   }
 
+  // Phase 3.5 — Detached HEAD pre-flight check (Sprint 1.6.20 H5)
+  // Per edge-case audit: if `gitOps.getCurrentBranch` returns null (detached
+  // HEAD) and execute proceeds, the rollback paths skip branch-checkout and
+  // user is left on `plan.branch` with edits applied but not on original
+  // ref. Refuse early so cron drivers see clean BAD_HEAD_STATE + retry next
+  // run after Dave fixes the working state.
+  const currentBranch = gitOps.getCurrentBranch(repoRoot);
+  if (!currentBranch || currentBranch === 'HEAD') {
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T2',
+      event: 'execute_detached_head',
+      outcome: 'failure',
+      actor: 'hermes',
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+    });
+    return {
+      ok: false,
+      code: 'DETACHED_HEAD',
+      error: 'HEAD is detached (or unborn); checkout a branch before running Hermes',
+      currentBranch,
+    };
+  }
+
   // Phase 4 — Lock acquire
   let lockHandle;
   try {

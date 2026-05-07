@@ -186,6 +186,30 @@ describe('execute: mock engine — happy path', () => {
   });
 });
 
+describe('execute: Sprint 1.6.20 — detached HEAD pre-flight (H5)', () => {
+  test('detached HEAD → DETACHED_HEAD before lock acquire', async () => {
+    const repoRoot = tmpProjectRepo('detached');
+    // Detach HEAD by checking out the commit SHA directly
+    const sha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).stdout.trim();
+    spawnSync('git', ['checkout', sha], { cwd: repoRoot });
+
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'detached-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'DETACHED_HEAD');
+      // Journal recorded the refusal
+      const entries = journal.readJournal(SLUG);
+      const det = entries.find((e) => e.event === 'execute_detached_head');
+      assert.ok(det);
+    });
+  });
+});
+
 describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', () => {
   test('HERMES_DAILY_USD_CAP enforced: blocks when today\'s journal cost_usd >= cap', async () => {
     const repoRoot = tmpProjectRepo('budget-cap');
