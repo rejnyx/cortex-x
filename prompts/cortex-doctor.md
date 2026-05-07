@@ -262,6 +262,39 @@ grep -oE '(~/\.claude/shared/[^`]+|~/cortex-x/[^`]+)' "$P/CLAUDE.md" | sort -u
 
 **Note — renumbering:** pre-2026-04-19 the Audit scheduling section was #12. Now #13 (#12 is Scaffolded project cross-refs). Reports from older doctor runs may show the old numbering; treat as informational.
 
+### 13.5 Audit output structural integrity (NEW 2026-05-07, Tier 3 QA)
+
+For every project P that has a `cortex/AUDIT.md` (i.e. `/audit` ran on it), invoke the dedicated structural validator:
+
+```bash
+node ~/.claude/shared/tools/verify-audit-output.cjs --project-path $P --json
+```
+
+Or, equivalently, the Node API (when running inside a Claude Code session):
+
+```js
+const { Validator } = require(os.homedir() + '/.claude/shared/tools/verify-audit-output.cjs');
+```
+
+The validator runs **10 structural checks** including:
+
+- `cortex/AUDIT.md` exists with frontmatter `phase: 2-audit` + non-empty `slug`
+- `cortex/recommendations.md` exists with frontmatter `phase: 5-synthesis` + `based_on.audit` chain
+- `$CORTEX_DATA_HOME/projects/<slug>.md` exists (Phase 5d contract from `existing-project-audit.md`)
+- Every `[audit: §N]` in recommendations.md resolves to a `## N.` section in AUDIT.md (3-hop citation enforcement)
+- AUDIT.md has all 12 dimension sections
+
+Exit code 0 = pass, 1 = validation failures, 2 = validator crashed (bug — open issue).
+
+**Why this matters:** §14 below covers research/source URL freshness (the *content* of citations); §13.5 covers the *structure* of the audit deliverables. A perfectly fresh research cache is worthless if `cortex/recommendations.md` itself doesn't exist or its `[audit: §99]` markers point to nothing.
+
+Report format:
+- ✅ All M audited projects pass structural validation
+- 🟡 K projects have warning-level findings (e.g. missing `last_audit:` field in projects-library entry)
+- 🔴 J projects have blocker-level failures — list per-project with `verify-audit-output` exit-code-1 output
+
+For 🔴 findings, recommend re-running `/audit` on the affected project. The validator's `--json` mode + `node tools/verify-audit-output.cjs` is also runnable from `npm run test:audit` against the cortex-x repo's own audit fixtures.
+
 ### 14. Three-hop citation drift (NEW 2026-05-06)
 
 This check enforces the SSOT-extension rule from `docs/sprint-1.5-design.md` §10: every claim in `CLAUDE.md` § "Stack reality check" or `cortex/recommendations.md` MUST trace through three hops:
