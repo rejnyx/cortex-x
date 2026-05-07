@@ -129,12 +129,16 @@ When Dave returns to this RFC:
 4. ~~Sketch the core loop in `docs/hermes-runtime.md`.~~ ✅
 5. ~~Build a fixture project + first dry-run iteration in `tests/fixtures/hermes-dryrun/`.~~ ✅
 6. ~~Wire 6 primitives + dry-run orchestrator (no Claude SDK yet).~~ ✅
-7. **v0.5 milestone:** integrate Claude Agent SDK so the dry-run plan becomes
+7. ~~Wire 6 primitives + dry-run orchestrator (no Claude SDK yet).~~ ✅
+8. ~~Add unified `bin/cortex-hermes` dispatcher CLI.~~ ✅
+9. **v0.5 milestone:** integrate Claude Agent SDK so the dry-run plan becomes
    an actual Hermes commit + PR. The dry-run already produces a valid
    Conventional-Commits-shaped commit message with Git trailers; v0.5 just
    feeds it to `git commit -F -` after the LLM produces the file edits.
-8. **v1 milestone:** wire cron / on-incident / on-PR-merged triggers; expand
-   from cortex-x dogfood to RELO + Kiosek.
+   **Crosses the zero-deps invariant** — needs Dave's explicit decision before
+   any `@anthropic-ai/claude-agent-sdk` imports land in `bin/hermes/`.
+10. **v1 milestone:** wire cron / on-incident / on-PR-merged triggers; expand
+    from cortex-x dogfood to RELO + Kiosek.
 
 Estimated remaining: 4-8h Claude Agent SDK integration (v0.5) + 4-8h
 trigger wiring (v1) across 2 sessions.

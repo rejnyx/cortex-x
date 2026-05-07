@@ -20,6 +20,36 @@
 
 ## Current
 
+### Sprint 1.6.8 — Unified Hermes CLI + Tier 6 + Tier 7 (2026-05-07 late night)
+
+#### Non-breaking (additive — no migration required)
+
+- **What landed:** three additive deliverables across one autonomous run:
+  - **`bin/cortex-hermes.cjs`** — unified entrypoint that dispatches `dry-run` and `status` subcommands to existing `bin/hermes/<sub>.cjs` scripts. Single CLI surface for users; underlying scripts remain individually invocable. `cortex-hermes help` and `cortex-hermes --version` both implemented. 10 contract tests in `tests/unit/hermes/cli-dispatch.test.cjs`.
+  - **Tier 6 — bin/ tools contract tests** (`tests/contract/bin-tools-shape.test.cjs`, 13 tests). Black-box invocations of `cortex-bootstrap` (env-driven mode-new/existing/framework, marker-file shape, marker-overwrite, invalid-mode exit-2, non-interactive exit-2) + `cortex-gap-report` (graceful empty-log, --json schema, --help, --since filter, seeded-aggregate, --raw output). Closes one of the three pre-launch gates.
+  - **Tier 7 — standards link integrity** (`tools/verify-standards.cjs` + `tests/contract/standards-shape.test.cjs`, 13 tests). Validator scans every `standards/*.md` for: file exists + non-empty, internal markdown link resolution (relative-to-file OR repo-root), code-fence balance, PII denylist (matcher matches the maintainer's local path + personal email). First run surfaced **3 real issues** in `standards/ship-ready.md`: 2 broken links to `research/beta-distribution-2026-04-17.md` (file moved to `$CORTEX_DATA_HOME/research/` per Sprint 1.6 XDG separation but standards/ kept the stale ../research/ relative link) + 1 PII self-reference (the file mentioned `davidrajnoha@` in a "what NOT to commit" example, which itself matched the denylist). All 3 fixed in this sprint. Tier 7 closes the second of the three pre-launch gates.
+  - `prompts/cortex-doctor.md` gets new §13.7 "Standards link integrity" between §13.6 (prompt + SKILL.md regression) and §14 (citation drift). The three §13.x sections now form a complete structural-validation triad: §13.5 audit deliverables, §13.6 prompts + skills, §13.7 standards.
+  - `tests/smoke/verify-install.cjs` extended to require `tools/verify-standards.cjs` as a warning-severity check (mirrors verify-prompts + verify-skills install verification).
+
+- **npm scripts added:**
+  - `npm run hermes` — passthrough to `bin/cortex-hermes.cjs`
+  - `npm run hermes:status` — passthrough to `bin/hermes/status.cjs`
+  - `npm run test:standards` — Tier 7 contract tests only
+  - `npm run test:bin` — Tier 6 contract tests only
+  - `npm run verify:standards` — direct invocation of `tools/verify-standards.cjs`
+
+- **Self-bug-catching pattern repeated for the third time this week.** First run of `verify-prompts.cjs` after wiring §13.7 into `cortex-doctor.md` failed because the new section listed `davidrajnoha@` and `c:/Users/david/` as denylist examples — same regex caught the documentation. Same pattern as Tier 5 in fixture README and Tier 7 in `ship-ready.md`. Fixed by switching the prompt language to "the maintainer's personal email" and "local-machine path under `c:/Users/<name>/`". The pattern itself ("validators that document their denylist by quoting forbidden strings") may deserve a generic helper in v0.5+ — current fix is per-file.
+
+- **Test count:** 348 → 384 (+36 across 3 contract test files). Full suite ~9s, test:fast ~1.6s.
+
+- **Pre-launch tier gates:** Tier 6 ✓ (bin/ tools), Tier 7 ✓ (standards), Tier 8 (full agentskills.io spec coverage with Anthropic extensions) remains.
+
+- **Why:** review (2026-05-07) flagged "v0.1.0 launch readiness" as the post-Hermes priority. Tier 6 + 7 are the lowest-effort, highest-leverage of the remaining pre-launch tiers — both are pure plumbing, zero-deps, and Tier 7 immediately surfaced 3 real issues.
+
+- **Migrate:** none — purely additive.
+
+- **Rollback:** revert this sprint's commit. The validator + tests + cortex-doctor edit + ship-ready.md fixes form one logical unit.
+
 ### Sprint 1.6.7 — Hermes v0 primitives + dry-run orchestrator (2026-05-07 night)
 
 #### Non-breaking (additive — no migration required)

@@ -331,6 +331,25 @@ Report format:
 
 For 🔴 findings, the user should either fix the prompt/SKILL.md OR re-run `npm run test:fast` locally to confirm before pushing. CI lane (`.github/workflows/test.yml`) will block merge.
 
+### 13.7 Standards link integrity (NEW 2026-05-07, Tier 7 QA)
+
+cortex-x ships ~24 institutional-wisdom files (`standards/*.md`) that reference each other heavily ("see correctness.md § Trust boundaries"). When a file gets renamed or a section deleted, cross-references go stale silently — and silent drift in standards propagates into every scaffolded project.
+
+For every cortex-x install, run:
+
+```bash
+node ~/.claude/shared/tools/verify-standards.cjs --strict --json
+```
+
+**verify-standards** (`tools/verify-standards.cjs`) — 5 invariants per standard:
+- File exists + non-empty
+- Every internal markdown link resolves to a real file (relative to current file OR repo root) OR is an external URL OR a same-file anchor
+- Code-block fences balanced
+- No PII / maintainer-specific paths (denylist regex matches the local-machine path under `c:/Users/<name>/` and the maintainer's personal email)
+- References to other `standards/<name>.md` are real files
+
+Report format mirrors §13.6 (✅ green / 🟡 warnings / 🔴 blockers with --json detail). On first run 2026-05-07 the validator surfaced 3 real issues in `standards/ship-ready.md` (2 broken links to `research/beta-distribution-2026-04-17.md` post-Sprint-1.6 XDG move + 1 PII self-reference); all fixed same commit.
+
 ### 14. Three-hop citation drift (NEW 2026-05-06)
 
 This check enforces the SSOT-extension rule from `docs/sprint-1.5-design.md` §10: every claim in `CLAUDE.md` § "Stack reality check" or `cortex/recommendations.md` MUST trace through three hops:
