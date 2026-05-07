@@ -191,7 +191,7 @@ ls -la $CORTEX_DATA_HOME/projects/
 ### 9. Research cache hygiene (TTL per topic)
 
 - [ ] `research/` directory exists
-- [ ] Every research file respects its per-topic TTL (see [`standards/auto-orchestration.md`](../standards/auto-orchestration.md) § Research cache TTL):
+- [ ] Every research file respects its per-topic TTL (see [`standards/auto-orchestration.md`](standards/auto-orchestration.md) § Research cache TTL):
   - Hot frameworks (Next, React, Vercel, AI SDKs, Supabase, Tailwind, shadcn, Astro, Tone) → **30 days**
   - Specific APIs that deprecate often → 60 days
   - Regulations (tax, GDPR, HIPAA, legal, compliance) → 180 days
@@ -294,6 +294,42 @@ Report format:
 - 🔴 J projects have blocker-level failures — list per-project with `verify-audit-output` exit-code-1 output
 
 For 🔴 findings, recommend re-running `/audit` on the affected project. The validator's `--json` mode + `node tools/verify-audit-output.cjs` is also runnable from `npm run test:audit` against the cortex-x repo's own audit fixtures.
+
+### 13.6 Prompt + SKILL.md structural integrity (NEW 2026-05-07, Tier 5 QA)
+
+cortex-x ships ~13 prompts (`prompts/*.md`) and ~3 skills (`shared/skills/*/SKILL.md`). Both are markdown that gets consumed by Claude — subtle regressions slip through code review easily.
+
+For every cortex-x install, run:
+
+```bash
+node ~/.claude/shared/tools/verify-prompts.cjs --strict --json
+node ~/.claude/shared/tools/verify-skills.cjs --strict --json
+```
+
+The two validators check:
+
+**verify-prompts** (`tools/verify-prompts.cjs`) — 8 invariants per prompt:
+- File exists + non-empty
+- `## Phase N` headings sorted ascending + contiguous (no missing phases)
+- Internal markdown links resolve to existing files (paths relative to repo root, cortex-x convention)
+- References to `~/.claude/shared/agents/<name>.md` correspond to actual `agents/<name>.md`
+- References to `standards/<name>.md` correspond to actual files
+- Code-block fences balanced (catches half-truncated edits)
+- No PII / Dave-specific paths (denylist regex)
+
+**verify-skills** (`tools/verify-skills.cjs`) — agentskills.io v1 spec compliance:
+- `name:` field kebab-case + matches parent dir name (spec hard requirement)
+- `description:` 1-1024 chars, substantive (≥30 char minimum)
+- `compatibility:` if present, ≤500 chars
+- Body non-empty after frontmatter
+- No PII leak
+
+Report format:
+- ✅ All N prompts and M skills pass structural validation
+- 🟡 K warning-severity findings (broken links, short descriptions)
+- 🔴 J blocker-severity findings (missing required fields, PII leak) — list per file with `--json` output
+
+For 🔴 findings, the user should either fix the prompt/SKILL.md OR re-run `npm run test:fast` locally to confirm before pushing. CI lane (`.github/workflows/test.yml`) will block merge.
 
 ### 14. Three-hop citation drift (NEW 2026-05-06)
 

@@ -16,7 +16,7 @@ Orchestrate 5 parallel review agents on the current diff. Each has different con
 | **security-auditor** | Diff + standards/security.md | 8-layer defense regressions |
 | **ssot-enforcer** | Diff + config/ + constants | Duplicated constants, labels, schemas |
 
-Every agent should cite the relevant standard when flagging — including [`standards/coding-behavior.md`](../standards/coding-behavior.md) principle numbers (1-4) for behavioral findings.
+Every agent should cite the relevant standard when flagging — including [`standards/coding-behavior.md`](standards/coding-behavior.md) principle numbers (1-4) for behavioral findings.
 
 The DIFFERENTIATED context is the killer feature. Blind Hunter catches bugs that contextual reviewers rationalize away ("oh, that's probably handled elsewhere"). Acceptance Auditor catches drift that security reviewer ignores.
 

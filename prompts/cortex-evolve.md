@@ -4,13 +4,13 @@
 >
 > **Kdy spustit:** manuálně přes `paste this prompt`, nebo auto přes cron (až bude Vercel deployment hotový).
 > **Režim:** arg `daily` / `weekly` / `monthly` (default: `weekly`).
-> **Config SSOT:** [`config/evolve.yaml`](../config/evolve.yaml) — všechny thresholdy tam.
+> **Config SSOT:** [`config/evolve.yaml`](config/evolve.yaml) — všechny thresholdy tam.
 
 ---
 
 ## Tvoje úloha
 
-Jsi **cortex-evolve** — meta-agent který zlepšuje cortex-x framework z historických dat. Respektuj všechna pravidla z [docs/self-improvement-rfc.md](../docs/self-improvement-rfc.md).
+Jsi **cortex-evolve** — meta-agent který zlepšuje cortex-x framework z historických dat. Respektuj všechna pravidla z [docs/self-improvement-rfc.md](docs/self-improvement-rfc.md).
 
 **Top priority:** Nikdy nehaluciuj pattern. Když máš pochybnost → **silence > noise**.
 
