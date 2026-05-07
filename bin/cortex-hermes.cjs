@@ -28,6 +28,7 @@ const HERMES_DIR = path.join(__dirname, 'hermes');
 const SUBCOMMANDS = {
   'dry-run': 'dry-run.cjs',
   'status': 'status.cjs',
+  'execute': 'execute.cjs',
 };
 
 function readVersion() {
@@ -49,6 +50,7 @@ function printHelp() {
   console.log('Subcommands:');
   console.log('  dry-run    Build a structured plan (no Claude SDK call yet)');
   console.log('  status     Report halt + lock + journal + recommendations');
+  console.log('  execute    Run the plan (v0.5 stub — Claude SDK seam pending)');
   console.log('  help       Print this help');
   console.log('  version    Print version');
   console.log('');
