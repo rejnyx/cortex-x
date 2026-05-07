@@ -13,12 +13,15 @@
 # See docs/hermes-runtime.md § 1.2 "Trigger model" for design rationale.
 # See docs/hermes-usage.md § Model selection for HERMES_MODEL recommendations.
 
-name: hermes weekly
+name: hermes nightly
 
 on:
   workflow_dispatch:        # manual run via GH UI / `gh workflow run hermes.yml`
   schedule:
-    - cron: '0 4 * * 0'     # Sunday 04:00 UTC — matches config/evolve.yaml cadence.weekly.cron
+    - cron: '0 4 * * *'     # Daily 04:00 UTC — first nightly run is the morning after merge.
+                            # Cost ceiling: HERMES_DAILY_USD_CAP=$5/day; typical run ~$0.0008.
+                            # Failure ceiling: HERMES_FAILURE_BREAKER=3 per-action_key in 1-hour window.
+                            # If recommendations.md is exhausted, dry-run returns no_actionable_step → exit clean (no spend).
 
 # Mutex-by-repo per MUST-H2: at most one running Hermes per repo at a time.
 # `cancel-in-progress: false` because Hermes actions are stateful (mid-action
@@ -30,7 +33,7 @@ concurrency:
 
 jobs:
   hermes-run:
-    name: hermes weekly
+    name: hermes nightly
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
