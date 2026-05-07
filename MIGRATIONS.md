@@ -20,6 +20,30 @@
 
 ## Current
 
+### Sprint 1.6.6 — README↔reality alignment + Hermes pre-work (2026-05-07)
+
+#### Non-breaking (additive — no migration required)
+
+- **What landed:** three commits closing the third pre-Hermes RFC gate:
+  - **README/CLAUDE.md alignment** (commit `58857bf`) — external senior review flagged Phase 5 as overpromising ("✅ v1 done 2026-04-17" implied an automated runtime; reality is prompts + config + eval rubrics). Status calibrated to "✅ designed + specs / ⏳ runtime in Phase 7". Phase 7 — Hermes runtime added explicitly. Phase 1 marked ✅ shipped (Tier 0-5 QA infrastructure landed). Phase 2-4 marked ⚠️ partial with concrete what-ships-vs-what-defers. New "XDG separation (Sprint 1.6)" callout under repo structure explains the empty-looking `projects/` dir holds README only; actual project library entries live in `$CORTEX_DATA_HOME/projects/`.
+  - **Hermes pre-work design pass** (commit `a4844c1`) — three parallel background research agents dispatched (topology, triggers/safety, git workflow), each returned 800-1200 word brief grounded in production-agent precedent (Devin, Sweep, Copilot, Aider, Cline, Cognition essay, Anthropic SDK docs, OWASP LLM10, Temporal mutex). Three new files: `docs/hermes-research-synthesis.md` (decisions taken — 11-row table per architectural concern, 9 RFC open questions answered), `standards/hermes-policy.md` (Tier 2 — 7 hardcoded refusals + 7 Hermes-specific MUST patterns + denylist + cost ceilings + 4-tier escalation), `docs/hermes-runtime.md` (5 components + 4 ASCII sequence flows + v0 explicit non-scope). Three architectural pivots from RFC stub: (1) `hermes/<date>` daily-rolling → `hermes/<YYYY-MM-DD>-<slug>-<id>` branch-per-action (matches Devin/Sweep/Copilot precedent); (2) free-text journal lookup → Git trailers (`Hermes-Action-Id`, `Hermes-Journal-Entry`, `Hermes-Trigger`, `Hermes-Reverts` parseable via `git interpret-trailers`); (3) vague safety layer → file-based poison pill at `~/.cortex/HERMES_HALT` + `<repo>/.cortex/HERMES_HALT`. RFC checklist updated: 4 of 5 gates closed (fixture remains).
+  - **hermes-dryrun fixture + 18-test contract** (commit `9fc3a5b`) — `tests/fixtures/hermes-dryrun/` shipped: README, CLAUDE.md, package.json, src/index.js, tests/smoke.test.cjs, cortex/recommendations.md (frontmatter + ## DO this week section with 3 trivial action items + citation markers). New contract test `tests/contract/hermes-fixture-shape.test.cjs` with 18 assertions across 5 describe blocks (structural shape, recommendations.md parseable contract, PII + env safety, package.json hygiene, smoke-test sanity). First run caught a self-bug: README documented "no davidrajnoha@" as PII example, which itself matched the PII regex — fixed by switching to generic phrasing. Suite: 207 → 227 tests, all green; test:fast 197 → 217 tests in ~1.6s.
+
+- **Why:** external review (2026-05-07) ranked README↔reality alignment as the #1 next move; honest status is also a prerequisite to Hermes runtime work (you can't tell users "Hermes runs Phase 5 cron" if Phase 5 is ⏳ pending). Hermes pre-work: per RFC, both `standards/hermes-policy.md` + `docs/hermes-runtime.md` had to land before any runtime code merges. Fixture: per RFC checklist gate 5, "First Hermes-driven PR auto-generated against a fixture project" needs the fixture to exist first.
+
+- **Migrate:** none — purely additive. Existing installs unaffected.
+
+- **Rollback:** revert commits `9fc3a5b` `a4844c1` `58857bf` (in any order — they don't depend on each other).
+
+- **Pre-Hermes RFC checklist (per `docs/hermes-rfc.md`):**
+  - [x] Tier 4 hook contract (Sprint 1.6.5)
+  - [x] Tier 5 prompt + SKILL.md regression (Sprint 1.6.5)
+  - [x] hermes-policy.md drafted (this sprint, commit `a4844c1`)
+  - [x] hermes-runtime.md design doc (this sprint, commit `a4844c1`)
+  - [x] First Hermes-driven PR fixture (this sprint, commit `9fc3a5b`)
+
+  All five gates green. **Hermes runtime implementation can land in next session(s).**
+
 ### Sprint 1.6.5 — QA infrastructure (Tier 0-3, 2026-05-07)
 
 #### Non-breaking (additive — no migration required for existing installs)
