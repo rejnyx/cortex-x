@@ -1,19 +1,24 @@
-# hermes.example.yml — reference Hermes runtime workflow.
+# hermes.yml — autonomous Hermes runtime workflow.
 #
-# DISABLED until Hermes v0.5 lands the Claude Agent SDK seam. Copy this file
-# to .github/workflows/hermes.yml, add ANTHROPIC_API_KEY as a repo secret, and
-# adjust the schedule to enable autonomous weekly runs.
+# Sprint 1.6.13–1.6.19 shipped v0.5b OpenRouter engine + push + draft PR
+# pipeline + budget cap + circuit breaker. This workflow runs the full
+# autonomous loop: dry-run → execute (real LLM via OpenRouter) → file edits
+# → npm test gate → atomic commit → git push → gh pr create --draft.
 #
-# See docs/hermes-runtime.md § 1.2 "Trigger model" for the design rationale
-# (why GitHub Actions over local crontab for production projects).
+# Required repo secret: OPENROUTER_API_KEY (inference key, not provisioning).
+# Optional env knobs: HERMES_MODEL (default deepseek/deepseek-v4-flash),
+# HERMES_MAX_TOKENS (default 4096, recommend 16384), HERMES_DAILY_USD_CAP
+# (default $5), HERMES_FAILURE_BREAKER (default 3).
+#
+# See docs/hermes-runtime.md § 1.2 "Trigger model" for design rationale.
+# See docs/hermes-usage.md § Model selection for HERMES_MODEL recommendations.
 
-name: hermes (disabled)
+name: hermes weekly
 
-# Disabled by default — uncomment + rename to hermes.yml to enable
 on:
   workflow_dispatch:        # manual run via GH UI / `gh workflow run hermes.yml`
-  # schedule:
-  #   - cron: '0 4 * * 0'   # Sunday 04:00 UTC, matches config/evolve.yaml cadence.weekly.cron
+  schedule:
+    - cron: '0 4 * * 0'     # Sunday 04:00 UTC — matches config/evolve.yaml cadence.weekly.cron
 
 # Mutex-by-repo per MUST-H2: at most one running Hermes per repo at a time.
 # `cancel-in-progress: false` because Hermes actions are stateful (mid-action
@@ -30,7 +35,7 @@ jobs:
     timeout-minutes: 30
 
     permissions:
-      contents: write           # commit on hermes/<date>-<slug>-<id> branch
+      contents: write           # commit on hermes/<date>-<slug>-<id> branch + push
       pull-requests: write      # gh pr create --draft
 
     steps:
@@ -53,6 +58,11 @@ jobs:
           # Pre-flight: if the project's own test suite is red, do NOT run Hermes —
           # Hermes verifies via npm test, so a red baseline = false positives.
 
+      - name: Configure git identity (Hermes commits)
+        run: |
+          git config user.name  "Hermes (cortex-x)"
+          git config user.email "hermes@cortex-x.local"
+
       - name: Hermes dry-run (plan only)
         id: plan
         run: |
@@ -62,28 +72,29 @@ jobs:
             --trigger=cron \
             --json > /tmp/hermes-plan.json
           cat /tmp/hermes-plan.json
+          # Set step output: has_action=true iff dry-run produced an actionable plan
+          if jq -e '.mode == "dry-run"' /tmp/hermes-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "Dry-run returned no actionable step — exiting clean."
+          fi
         env:
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
 
-      # ───────────────────────────────────────────────────────────────────
-      # v0.5 — Claude Agent SDK seam (uncomment when v0.5 lands)
-      # ───────────────────────────────────────────────────────────────────
-      # - name: Hermes execute (Claude Agent SDK)
-      #   if: steps.plan.outputs.has_action == 'true'
-      #   run: node bin/cortex-hermes.cjs execute --plan-file=/tmp/hermes-plan.json
-      #   env:
-      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      #     CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
-      #
-      # - name: Push branch + open draft PR
-      #   if: steps.plan.outputs.has_action == 'true'
-      #   run: |
-      #     git push -u origin "$(jq -r .branch /tmp/hermes-plan.json)"
-      #     gh pr create --draft \
-      #       --title "$(jq -r .planned_commit.subject /tmp/hermes-plan.json)" \
-      #       --body  "Hermes weekly run — see /tmp/hermes-plan.json for the structured plan."
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
+      - name: Hermes execute (real LLM via OpenRouter, atomic commit, push, draft PR)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-hermes.cjs execute \
+            --plan-file=/tmp/hermes-plan.json
+        env:
+          OPENROUTER_API_KEY:      ${{ secrets.OPENROUTER_API_KEY }}
+          HERMES_MODEL:            deepseek/deepseek-v4-flash
+          HERMES_MAX_TOKENS:       '16384'
+          HERMES_DAILY_USD_CAP:    '5'
+          HERMES_FAILURE_BREAKER:  '3'
+          CORTEX_DATA_HOME:        ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                ${{ github.token }}   # for `gh pr create --draft` inside execute
 
       - name: Upload journal artifact
         if: always()
