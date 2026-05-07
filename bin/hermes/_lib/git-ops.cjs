@@ -121,6 +121,28 @@ function revertCommit(repoRoot, sha) {
   return git(repoRoot, ['revert', '--no-edit', sha]);
 }
 
+// Sprint 1.6.19: branch push for autonomous PR creation flow.
+// `git push --set-upstream origin <branch>` — set-upstream so subsequent
+// `gh pr create` knows the head ref. Reject flag-injection on branch name.
+function pushBranch(repoRoot, branch, opts = {}) {
+  if (typeof branch !== 'string' || branch.startsWith('-')) {
+    return { ok: false, error: 'invalid branch name' };
+  }
+  const remote = opts.remote || 'origin';
+  if (typeof remote !== 'string' || remote.startsWith('-')) {
+    return { ok: false, error: 'invalid remote name' };
+  }
+  return git(repoRoot, ['push', '--set-upstream', remote, branch]);
+}
+
+// Sprint 1.6.19: detect remote presence — refuse PR flow when no remote
+// configured (e.g., fresh `git init` projects without origin yet).
+function hasRemote(repoRoot, remote = 'origin') {
+  if (typeof remote !== 'string' || remote.startsWith('-')) return false;
+  const r = git(repoRoot, ['remote', 'get-url', remote]);
+  return r.ok && r.stdout.length > 0;
+}
+
 module.exports = {
   git,
   getCleanTreeStatus,
@@ -131,5 +153,7 @@ module.exports = {
   stage,
   commitWithMessageFile,
   revertCommit,
+  pushBranch,
+  hasRemote,
   DEFAULT_TIMEOUT_MS,
 };

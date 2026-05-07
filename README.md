@@ -309,14 +309,19 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 
 **Phase 6 — Memory upgrades** ⏳ designed — 6-signal scoring, graph expansion, DREAMS.md consolidation; awaits Phase 7
 
-**Phase 7 — Hermes runtime** ⚠️ v0 dry-run shipped 2026-05-07 · ⏳ v0.5 LLM seam pending
+**Phase 7 — Hermes runtime** ✅ v0.5b shipped 2026-05-07 · ⏳ v1 cron triggers pending
 - ✅ All 5 pre-Hermes RFC gates closed (Tier 4 hook contract + Tier 5 prompt regression + hermes-policy.md + hermes-runtime.md design + fixture)
 - ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` (halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist)
-- ✅ `bin/hermes/dry-run.cjs` orchestrator — reads recommendations.md, picks next action, builds Conventional-Commits-shaped commit message with Git trailers, journals run, releases lock. Every step EXCEPT the Claude Agent SDK call.
-- ✅ `bin/hermes/status.cjs` observability CLI — reports halt + lock + recommendations + journal rollup
-- ✅ 121 tests across `tests/unit/hermes/` + `tests/integration/hermes-dryrun.test.cjs`
-- ⏳ **v0.5:** Claude Agent SDK integration so dry-run plan drives actual `git commit -F -` + `gh pr create --draft`. Single session estimate.
-- ⏳ **v1:** cron / on-incident / on-PR-merged trigger wiring, expand from cortex-x dogfood to RELO + Kiosek.
+- ✅ `bin/hermes/dry-run.cjs` orchestrator — reads recommendations.md, picks next action, builds Conventional-Commits-shaped commit message with Git trailers, journals run, releases lock
+- ✅ `bin/hermes/status.cjs` observability CLI — reports halt + lock + recommendations + journal rollup with cost ledger
+- ✅ **`bin/hermes/execute.cjs` (v0.5a)** — async runtime: dry-run plan → branch → engine apply → npm test gate → atomic commit → rollback on failure → journal cost
+- ✅ **OpenRouter engine (v0.5b)** — real LLM via `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout, JSON-mode response_format, default `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable seam: mock / openrouter / claude-sdk.
+- ✅ **First real OpenRouter call validated end-to-end** (Sprint 1.6.13 dogfood): LLM → JSON → edits → test gate → atomic rollback proven safe by reality.
+- ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `HERMES_MAX_TOKENS`, cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
+- ✅ **489 tests** across `tests/unit/hermes/` + `tests/integration/hermes-dryrun.test.cjs`. All 3 CI workflows green.
+- ⏳ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`HERMES_DAILY_USD_CAP`) + consecutive-failure circuit breaker.
+- ⏳ **v1:** uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
+- ⏳ **v1.5+ hardening:** hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, `<untrusted>` delimiters, denylist expansion, eval suite + property tests + stateful simulation.
 
 See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [standards/hermes-policy.md](./standards/hermes-policy.md).
 
