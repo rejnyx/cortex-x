@@ -257,6 +257,7 @@ function runChecks() {
   // Tier 5 — prompt + skill validators
   checkFileExists('shared.tools.verify-prompts', path.join(SHARED, 'tools', 'verify-prompts.cjs'), 'warning');
   checkFileExists('shared.tools.verify-skills', path.join(SHARED, 'tools', 'verify-skills.cjs'), 'warning');
+  checkFileExists('shared.tools.verify-standards', path.join(SHARED, 'tools', 'verify-standards.cjs'), 'warning');
 }
 
 // ── reporting ───────────────────────────────────────────────────────────────

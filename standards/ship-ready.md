@@ -37,7 +37,7 @@ Anything a stranger would never need to know about the maintainer must not live 
 
 **Single repo. Two channels. Promote by tagging.**
 
-Grounded in research ([`research/beta-distribution-2026-04-17.md`](../research/beta-distribution-2026-04-17.md)) — Claude Code's `autoUpdatesChannel: latest|stable` model + GitHub native `--prerelease` flag. BMAD's dual-npm-channel is overkill at Dave's scale; Aider's single-stream too coarse once breaking changes ship.
+Grounded in beta-distribution research (cached at `$CORTEX_DATA_HOME/research/beta-distribution-2026-04-17.md` per Sprint 1.6 XDG separation; framework code stays in repo, user research caches don't) — Claude Code's `autoUpdatesChannel: latest|stable` model + GitHub native `--prerelease` flag. BMAD's dual-npm-channel is overkill at Dave's scale; Aider's single-stream too coarse once breaking changes ship.
 
 | Channel | Branch / Tag | Purpose | Audience |
 |---|---|---|---|
@@ -97,7 +97,7 @@ Distinction: `CORTEX_HOME` = framework source directory (`<home>/cortex-x` by de
 
 **v0: zero telemetry.** No counters, no events, no phone-home. Journal stays strictly local.
 
-**v0.3+ (if adopted): opt-IN, never opt-out.** Per research ([`research/beta-distribution-2026-04-17.md`](../research/beta-distribution-2026-04-17.md)) the 2026 baseline is Supabase/Vercel-style: env-var + CLI-command disable + public schema doc + DEBUG inspect mode. Vercel's Claude Code plugin that injected telemetry via prompt context was publicly shamed ([akshaychugh.xyz/vercel-plugin-telemetry](https://akshaychugh.xyz/writings/png/vercel-plugin-telemetry)) — **never ship that pattern**.
+**v0.3+ (if adopted): opt-IN, never opt-out.** Per the 2026 telemetry research (cache at `$CORTEX_DATA_HOME/research/beta-distribution-2026-04-17.md`) the baseline is Supabase/Vercel-style: env-var + CLI-command disable + public schema doc + DEBUG inspect mode. Vercel's Claude Code plugin that injected telemetry via prompt context was publicly shamed ([akshaychugh.xyz/vercel-plugin-telemetry](https://akshaychugh.xyz/writings/png/vercel-plugin-telemetry)) — **never ship that pattern**.
 
 If telemetry ever lands: explicit opt-in at first run, never default-on. Schema doc at `docs/telemetry-schema.md`. Inspection mode via `CORTEX_TELEMETRY_DEBUG=1`.
 
@@ -143,7 +143,7 @@ When cortex scaffolds a new project, the scaffolded output must itself satisfy s
 `ssot-enforcer` already detects duplication; extend its scope (or add `ship-ready-auditor` as 6th pipeline agent) to grep new diffs for personal identifiers. Any leak → 🔴 block.
 
 ### D) At evolve time ([prompts/cortex-evolve.md](../prompts/cortex-evolve.md))
-Weekly mining surfaces ship-ready regressions as priority insights. A new commit containing `davidrajnoha@` in a template is a Rule-0 violation (higher than Rule 1).
+Weekly mining surfaces ship-ready regressions as priority insights. A new commit containing the maintainer's personal email or `c:/Users/<name>/` in a template is a Rule-0 violation (higher than Rule 1).
 
 ---
 
