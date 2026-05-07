@@ -57,6 +57,8 @@ describe('hermes-dryrun integration: happy path', () => {
       assert.match(result.action.title, /subtract/i);
       assert.match(result.branch, /^hermes\/\d{4}-\d{2}-\d{2}-add-a-subtract-function-/);
       assert.match(result.action_id, /^[0-9A-HJKMNP-TV-Z]{26}$/);
+      // Sprint 1.8.1 — plan must include action_kind (default 'recommendation')
+      assert.equal(result.action_kind, 'recommendation');
     });
   });
 

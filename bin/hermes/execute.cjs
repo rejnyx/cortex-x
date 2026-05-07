@@ -42,6 +42,7 @@ const verifier = require('./_lib/verifier.cjs');
 const gitOps = require('./_lib/git-ops.cjs');
 const ghOps = require('./_lib/gh-ops.cjs');
 const actionEngine = require('./_lib/action-engine.cjs');
+const actionKinds = require('./_lib/action-kinds.cjs');
 
 const EX_USAGE = 64;
 const EX_TEMPFAIL = 75;
@@ -61,6 +62,26 @@ function loadPlan(planFile) {
     if (!plan.action || !plan.action.action_key || !plan.branch || !plan.action_id || !plan.commit_message) {
       return { ok: false, code: 'PLAN_INCOMPLETE', error: 'plan missing required fields (action, branch, action_id, commit_message)' };
     }
+    // Sprint 1.8.1 — typed action_kind validation. Default to backwards-compat
+    // 'recommendation' if missing (pre-1.8.1 plans don't have the field).
+    // Reject unknown kinds (typo guard) and not-yet-shipped kinds (registry
+    // declares the contract; executor implementations land in 1.8.2+).
+    const kind = plan.action_kind || actionKinds.DEFAULT_KIND;
+    if (!actionKinds.isSupportedKind(kind)) {
+      return {
+        ok: false,
+        code: 'PLAN_UNKNOWN_ACTION_KIND',
+        error: `action_kind '${kind}' is not registered. Supported: ${actionKinds.listKinds().join(', ')}`,
+      };
+    }
+    if (!actionKinds.isShippedKind(kind)) {
+      return {
+        ok: false,
+        code: 'PLAN_ACTION_KIND_NOT_SHIPPED',
+        error: `action_kind '${kind}' is declared but not yet shipped. Shipped kinds: ${actionKinds.listShippedKinds().join(', ')}`,
+      };
+    }
+    plan.action_kind = kind; // normalize back into plan for downstream use
     return { ok: true, plan };
   } catch (err) {
     return { ok: false, code: 'PLAN_PARSE_ERROR', error: `cannot parse plan: ${err.message}` };

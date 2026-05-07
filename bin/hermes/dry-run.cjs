@@ -35,6 +35,7 @@ const journal = require('./_lib/journal.cjs');
 const recommendations = require('./_lib/recommendations.cjs');
 const trailers = require('./_lib/git-trailers.cjs');
 const policy = require('./_lib/policy-check.cjs');
+const actionKinds = require('./_lib/action-kinds.cjs');
 
 const DEFAULT_TRIGGER = 'manual';
 
@@ -205,6 +206,11 @@ function runDryRun(opts = {}) {
       ok: true,
       mode: 'dry-run',
       slug,
+      // Sprint 1.8.1 — typed action_kind for Hermes capability dispatcher.
+      // Default 'recommendation' = backwards-compatible with all 1.6.X / 1.7.X
+      // plans. Future kinds (recommendation_harvest, dep_update_patch, ...)
+      // will be set by their own dry-run paths in Sprint 1.8.2+.
+      action_kind: actionKinds.DEFAULT_KIND,
       action: {
         num: action.num,
         title: action.title,
