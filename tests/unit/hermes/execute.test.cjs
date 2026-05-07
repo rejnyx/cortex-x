@@ -125,9 +125,11 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // recommendation_harvest is declared in registry (Sprint 1.8.2 roadmap)
-    // but shipped_in is null until that sprint lands. Executor must reject.
-    const f = tmpPlanFile(buildPlan({ action_kind: 'recommendation_harvest' }));
+    // dep_update_patch is declared (Sprint 1.8.4 roadmap) but shipped_in
+    // is null until that sprint lands. Executor must reject.
+    // (recommendation_harvest used to be the not-shipped example, but Sprint
+    //  1.8.2c shipped its executor — pick the next not-yet-shipped kind.)
+    const f = tmpPlanFile(buildPlan({ action_kind: 'dep_update_patch' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
@@ -762,5 +764,123 @@ describe('execute: CLI', () => {
     const parsed = JSON.parse(result.stdout);
     assert.equal(parsed.ok, true);
     assert.match(parsed.commit_sha, /^[0-9a-f]{40}$/);
+  });
+});
+
+// ── Sprint 1.8.2c — recommendation_harvest executor branch ─────────────────
+
+describe('execute: Sprint 1.8.2c — recommendation_harvest', () => {
+  function tmpRepoWithRecs(prefix, recsBody) {
+    const repo = tmpProjectRepo(prefix);
+    fs.mkdirSync(path.join(repo, 'cortex'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'cortex', 'recommendations.md'), recsBody);
+    spawnSync('git', ['add', '.'], { cwd: repo });
+    spawnSync('git', ['commit', '-m', 'add recs'], { cwd: repo });
+    return repo;
+  }
+
+  function buildHarvestPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'recommendation_harvest',
+      action: {
+        num: null,
+        title: 'Harvest 2 recommendations from gh signals',
+        body: 'Read-only harvest',
+        action_key: `${SLUG}#harvest-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-recommendation-harvest-test',
+      action_id: '01HARVEST',
+      trigger: 'manual',
+      commit_message: 'feat(hermes-dryrun): harvest recommendations\n\nbody\n\nHermes-Action-Id: 01HARVEST\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: harvester\nHermes-Action-Kind: recommendation_harvest',
+      ...overrides,
+    };
+  }
+
+  const MOCK_HARVEST_SIGNALS = {
+    failures: [
+      { name: 'test', conclusion: 'failure', url: 'https://github.com/x/y/actions/runs/1', databaseId: 1, headSha: 'a', createdAt: 't' },
+      { name: 'test', conclusion: 'failure', url: 'https://github.com/x/y/actions/runs/2', databaseId: 2, headSha: 'b', createdAt: 't' },
+    ],
+    prs: [
+      { number: 99, title: 'tech-debt fix', mergedAt: '2026-05-01', url: 'https://github.com/x/y/pull/99', labels: [{ name: 'tech-debt' }] },
+    ],
+    issues: [],
+  };
+
+  test('appendCandidatesToRecsBody inserts under existing DO this week (cited) section', () => {
+    const body = '---\nslug: x\n---\n\n## DO this week (cited)\n- [ ] existing item [src: foo]\n\n## DO next week\n- [ ] later\n';
+    const out = execute.appendCandidatesToRecsBody(body, '- [ ] new item [src: bar]');
+    assert.match(out, /^- \[ \] existing item \[src: foo\]$/m);
+    assert.match(out, /^- \[ \] new item \[src: bar\]$/m);
+    // New line must appear BEFORE the next ## heading
+    const newIdx = out.indexOf('new item');
+    const nextSection = out.indexOf('## DO next week');
+    assert.ok(newIdx < nextSection, 'new item must precede next section heading');
+  });
+
+  test('appendCandidatesToRecsBody creates new section if missing', () => {
+    const body = '---\nslug: x\n---\n\n# Recs\n\nNo DO section here.\n';
+    const out = execute.appendCandidatesToRecsBody(body, '- [ ] fresh item');
+    assert.match(out, /## DO this week \(cited\)/);
+    assert.match(out, /- \[ \] fresh item/);
+  });
+
+  test('runHarvestAction skips when recommendations.md missing', async () => {
+    const repo = tmpProjectRepo('harvest-no-recs');
+    const result = await execute.runHarvestAction(buildHarvestPlan(), { repoRoot: repo, harvestSignals: MOCK_HARVEST_SIGNALS });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'HARVEST_RECS_MISSING');
+  });
+
+  test('runHarvestAction returns HARVEST_NO_CANDIDATES when signals are all deduped', async () => {
+    const recs = '---\nslug: hermes-dryrun\n---\n\n## DO this week (cited)\n- [ ] Investigate recurring test workflow failures\n- [ ] Follow-up on PR #99 [src: https://github.com/x/y/pull/99]\n';
+    const repo = tmpRepoWithRecs('harvest-deduped', recs);
+    const result = await execute.runHarvestAction(buildHarvestPlan(), { repoRoot: repo, harvestSignals: MOCK_HARVEST_SIGNALS });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'HARVEST_NO_CANDIDATES');
+    assert.equal(result.touchedFiles.length, 0);
+  });
+
+  test('runHarvestAction appends candidates and reports touched recommendations.md', async () => {
+    const recs = '---\nslug: hermes-dryrun\n---\n\n## DO this week (cited)\n- [ ] some unrelated existing item [src: https://example.com/x]\n';
+    const repo = tmpRepoWithRecs('harvest-append', recs);
+    const result = await execute.runHarvestAction(buildHarvestPlan(), { repoRoot: repo, harvestSignals: MOCK_HARVEST_SIGNALS });
+    assert.equal(result.ok, true);
+    assert.equal(result.touchedFiles.length, 1);
+    assert.equal(result.touchedFiles[0], 'cortex/recommendations.md');
+    assert.equal(result.usage.cost_usd, 0); // free path
+    assert.ok(result.harvested_count >= 1);
+    // Verify the file was actually modified
+    const written = fs.readFileSync(path.join(repo, 'cortex', 'recommendations.md'), 'utf8');
+    assert.match(written, /Investigate recurring test workflow failures/);
+  });
+
+  test('full pipeline: harvest plan → execute → atomic commit on cortex/recommendations.md', async () => {
+    const recs = '---\nslug: hermes-dryrun\n---\n\n## DO this week (cited)\n- [ ] existing only [src: https://example.com/x]\n';
+    const repo = tmpRepoWithRecs('harvest-full', recs);
+    const planFile = tmpPlanFile(buildHarvestPlan());
+
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'harvest-data-')),
+      HERMES_NO_PUSH: '1', // skip remote ops
+    }, async () => {
+      const result = await execute.runExecute({
+        planFile,
+        repoRoot: repo,
+        skipPush: true,
+        harvestSignals: MOCK_HARVEST_SIGNALS,
+      });
+      assert.equal(result.ok, true, `expected ok, got: ${JSON.stringify(result)}`);
+      assert.match(result.commit_sha || '', /^[0-9a-f]{40}$/);
+      // Verify the commit lives on the harvest branch and recommendations.md was modified
+      const log = spawnSync('git', ['log', '--oneline', '-2'], { cwd: repo, encoding: 'utf8' });
+      assert.match(log.stdout, /harvest|Harvest/);
+      const updated = fs.readFileSync(path.join(repo, 'cortex', 'recommendations.md'), 'utf8');
+      assert.match(updated, /existing only/, 'original line preserved');
+      assert.match(updated, /test workflow/, 'harvested candidate appended');
+    });
   });
 });

@@ -39,13 +39,13 @@ const ACTION_KINDS = {
   // has `shipped_in: null` until the corresponding sprint lands.
   recommendation_harvest: {
     description:
-      'Read closed PRs + CI failures + reviewer comments, append observations to recommendations.md. Read-only — no LLM, no edits to source code.',
+      'Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code.',
     requires_llm: false,
-    source: 'gh pr list --state closed + gh run list --limit 20',
-    detector: null, // future: detectors/recommendation-harvest.cjs
+    source: 'gh pr list --state closed + gh run list + gh issue list',
+    detector: 'detectors/recommendation-harvest.cjs', // Sprint 1.8.2a
     cost_envelope: 'free', // no LLM call
     blast_radius: 'minimal', // appends to recommendations.md only
-    shipped_in: null, // Sprint 1.8.2
+    shipped_in: '0.1.0', // Sprint 1.8.2c — executor wired in execute.cjs runHarvestAction
   },
 
   dep_update_patch: {

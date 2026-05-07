@@ -103,6 +103,16 @@ function runDryRun(opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
   const trigger = opts.trigger || DEFAULT_TRIGGER;
   const isoDate = opts.isoDate || todayISODate();
+  // Sprint 1.8.2c — typed kind dispatch. Default 'recommendation'
+  // (backwards-compat with all 1.6.X / 1.7.X usage).
+  const kind = opts.kind || actionKinds.DEFAULT_KIND;
+  if (!actionKinds.isSupportedKind(kind)) {
+    return {
+      ok: false,
+      error: `unknown action_kind '${kind}'. Supported: ${actionKinds.listKinds().join(', ')}`,
+      code: 'UNKNOWN_KIND',
+    };
+  }
 
   // Step 1 — Halt check
   const halted = haltCheck.isHalted({ repoRoot });
@@ -174,6 +184,98 @@ function runDryRun(opts = {}) {
         error: `slug mismatch: CLI=${slug}, recommendations.md=${parsed.frontmatter.slug}`,
         code: 'SLUG_MISMATCH',
       };
+    }
+
+    // Sprint 1.8.2c — kind dispatch. recommendation_harvest skips action
+    // selection (it's not picking an existing item — it's appending NEW ones).
+    if (kind === 'recommendation_harvest') {
+      const harvester = require('../../detectors/recommendation-harvest.cjs');
+      const recsBody = fs.readFileSync(recsPath, 'utf8');
+      const harvest = harvester.harvest({
+        recommendationsBody: recsBody,
+        maxCandidates: opts.maxCandidates || 3,
+      });
+
+      if (harvest.candidates.length === 0) {
+        journal.appendJournal(slug, {
+          ts: new Date().toISOString(),
+          trigger,
+          tier: 'T0',
+          event: 'no_actionable_step',
+          outcome: 'skipped',
+          actor: 'hermes',
+          action_kind: 'recommendation_harvest',
+        });
+        return {
+          ok: true,
+          no_actionable_step: true,
+          slug,
+          action_kind: 'recommendation_harvest',
+          harvest_signals: harvest.total_signals,
+          deduped_count: harvest.deduped_count,
+        };
+      }
+
+      // Build harvest-shaped plan. Synthetic action because harvest doesn't
+      // pick from recommendations.md — it appends to it.
+      const actionId = trailers.ulid();
+      const harvestActionKey = `${slug}#harvest-${isoDate}`;
+      const branchName = `hermes/${isoDate}-recommendation-harvest-${shortId(actionId)}`;
+      const harvestTitle = `Harvest ${harvest.candidates.length} recommendation${harvest.candidates.length > 1 ? 's' : ''} from gh signals`;
+      const harvestBody = `Read-only harvest of closed PRs + CI failures + open issues, appended ${harvest.candidates.length} candidate${harvest.candidates.length > 1 ? 's' : ''} to cortex/recommendations.md (${harvest.total_signals} signals examined, ${harvest.deduped_count} deduped vs existing).`;
+
+      const plan = {
+        ok: true,
+        mode: 'dry-run',
+        slug,
+        action_kind: 'recommendation_harvest',
+        action: {
+          num: null,
+          title: harvestTitle,
+          body: harvestBody,
+          citations: harvest.candidates.map((c) => c.source_url).filter(Boolean),
+          section: null,
+          action_key: harvestActionKey,
+        },
+        harvest: {
+          candidates: harvest.candidates,
+          appendable_lines: harvester.formatAsRecommendationLines(harvest.candidates),
+          total_signals: harvest.total_signals,
+          deduped_count: harvest.deduped_count,
+        },
+        branch: branchName,
+        action_id: actionId,
+        trigger,
+        planned_commit: {
+          type: 'feat',
+          scope: slug,
+          subject: harvestTitle.slice(0, 72),
+          body: harvestBody,
+          trailers: {
+            'Hermes-Action-Id': actionId,
+            'Hermes-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
+            'Hermes-Trigger': trigger,
+            'Hermes-Recommendation-Source': `harvester (${harvest.candidates.length} new)`,
+            'Hermes-Action-Kind': 'recommendation_harvest',
+          },
+        },
+      };
+      plan.commit_message = trailers.buildCommitMessage(plan.planned_commit);
+
+      journal.appendJournal(slug, {
+        ts: new Date().toISOString(),
+        trigger,
+        tier: 'T0',
+        event: 'dry_run_completed',
+        outcome: 'success',
+        actor: 'hermes',
+        action_kind: 'recommendation_harvest',
+        action_key: harvestActionKey,
+        action_id: actionId,
+        branch: branchName,
+        harvest_count: harvest.candidates.length,
+      });
+      return plan;
     }
 
     // Step 5 — Pick next action (skip already-processed)
@@ -296,17 +398,20 @@ if (require.main === module) {
 
   const slug = flagValue('slug');
   if (!slug) {
-    process.stderr.write('Usage: hermes-dry-run --slug=<slug> [--repo-root=<path>] [--trigger=<source>] [--json] [--quiet]\n');
+    process.stderr.write('Usage: hermes-dry-run --slug=<slug> [--repo-root=<path>] [--trigger=<source>] [--kind=recommendation|recommendation_harvest] [--json] [--quiet]\n');
     process.exit(1);
   }
 
   const wantJson = args.includes('--json');
   const quiet = args.includes('--quiet');
+  // Sprint 1.8.2c — typed kind support for recommendation_harvest CLI invocation
+  const kind = flagValue('kind') || actionKinds.DEFAULT_KIND;
 
   const result = runDryRun({
     slug,
     repoRoot: flagValue('repo-root'),
     trigger: flagValue('trigger') || DEFAULT_TRIGGER,
+    kind,
   });
 
   if (result.halted) {
