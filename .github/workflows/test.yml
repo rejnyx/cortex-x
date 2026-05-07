@@ -27,10 +27,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: Install dev dependencies
-        run: npm ci || npm install
+        # cortex-x does not commit a lockfile (private framework dist, not
+        # an npm package). `npm install` resolves devDeps from package.json.
+        run: npm install --no-fund --no-audit --no-progress
 
       - name: Show test inventory
         run: |

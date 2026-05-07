@@ -111,6 +111,11 @@ function checkMinCount(id, dir, minCount, label, severity = 'blocker') {
   });
 }
 
+function readYamlBomSafe(p) {
+  const raw = fs.readFileSync(p, 'utf8');
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
+
 function checkYamlField(id, yamlPath, requiredField, severity = 'blocker') {
   if (!fs.existsSync(yamlPath)) {
     pushCheck({
@@ -123,7 +128,7 @@ function checkYamlField(id, yamlPath, requiredField, severity = 'blocker') {
     });
     return;
   }
-  const content = fs.readFileSync(yamlPath, 'utf8');
+  const content = readYamlBomSafe(yamlPath);
   const re = new RegExp('^' + requiredField + ':\\s*(.+)$', 'm');
   const match = content.match(re);
   pushCheck({
@@ -147,7 +152,7 @@ function checkSourceMirror(id, label, severity = 'blocker') {
   // dev paths.
   let sourceRoot = null;
   try {
-    const yaml = fs.readFileSync(path.join(SHARED, 'cortex-source.yaml'), 'utf8');
+    const yaml = readYamlBomSafe(path.join(SHARED, 'cortex-source.yaml'));
     const m = yaml.match(/^cortex_source:\s*(.+)$/m);
     if (m) sourceRoot = m[1].trim().replace(/^["']|["']$/g, '');
   } catch { /* fall through */ }

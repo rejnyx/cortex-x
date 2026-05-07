@@ -170,7 +170,10 @@ try {
   if (!dataHome) {
     try {
       const sourceYamlPath = path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml');
-      const yaml = fs.readFileSync(sourceYamlPath, 'utf8');
+      let yaml = fs.readFileSync(sourceYamlPath, 'utf8');
+      // Strip UTF-8 BOM if present — PS 5.1 install.ps1 prior to 2026-05-07
+      // emitted BOM via Set-Content -Encoding UTF8, which made ^regex fail.
+      if (yaml.charCodeAt(0) === 0xfeff) yaml = yaml.slice(1);
       const m = yaml.match(/^cortex_data_home:\s*(.+)$/m);
       if (m) dataHome = m[1].trim().replace(/^["']|["']$/g, '');
     } catch { /* yaml missing — fall through */ }
