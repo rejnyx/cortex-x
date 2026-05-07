@@ -351,61 +351,27 @@ Re-run \`install.sh\` after pulling cortex-x updates. Existing \`~/.claude/share
 - \`MIGRATIONS.md\` — pre-public-tag debt and version migrations
 NOTES
 
-# ── Post-copy verification — fail loudly if critical assets missing.
-# Catches: partial copies (network/perm), stale source repo state, Windows
-# file-locking, bugs in `cp -r` expansion. Runs ALL checks before exiting so
-# the user sees the full failure surface, not just the first miss.
-VERIFY_OK=1
-verify_file() {
-  if [ ! -f "$1" ]; then
-    printf '  \033[31m✗ MISSING file: %s\033[0m\n' "$1" >&2
-    VERIFY_OK=0
-  fi
-}
-verify_count() {
-  local dir="$1" min="$2" label="$3" actual
-  actual=$(ls -1 "$dir" 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$actual" -lt "$min" ]; then
-    printf '  \033[31m✗ %s: %d items in %s (expected ≥ %d)\033[0m\n' "$label" "$actual" "$dir" "$min" >&2
-    VERIFY_OK=0
-  fi
-}
-verify_file "$CLAUDE_HOME/shared/cortex-source.yaml"
-verify_file "$CLAUDE_HOME/shared/prompts/new-project.md"
-verify_file "$CLAUDE_HOME/shared/prompts/existing-project-audit.md"
-verify_file "$CLAUDE_HOME/shared/prompts/cortex-doctor.md"
-verify_file "$CLAUDE_HOME/shared/skills/cortex-init/SKILL.md"
-verify_file "$CLAUDE_HOME/skills/cortex-init/SKILL.md"
-verify_file "$CLAUDE_HOME/shared/standards/RULE-1.md"
-verify_file "$CLAUDE_HOME/shared/agents/synthesizer.md"
-verify_file "$CLAUDE_HOME/shared/agents/planner.md"
-verify_file "$CLAUDE_HOME/shared/hooks/session-start.cjs"
-# Default agents must be discoverable by Claude Code at user level.
-verify_file "$CLAUDE_HOME/agents/blind-hunter.md"
-verify_file "$CLAUDE_HOME/agents/security-auditor.md"
-verify_count "$CLAUDE_HOME/shared/standards" 20 "standards"
-verify_count "$CLAUDE_HOME/shared/prompts"   10 "prompts"
-verify_count "$CLAUDE_HOME/shared/agents"     5 "agents (staging)"
-verify_count "$CLAUDE_HOME/agents"            5 "agents (user-discoverable)"
-verify_count "$CLAUDE_HOME/shared/hooks"      5 "hooks"
-verify_count "$CLAUDE_HOME/shared/skills"     3 "skills"
-
-# Sprint 1.6: verify CORTEX_DATA_HOME structure exists (5 user-data dirs).
-verify_dir() {
-  if [ ! -d "$1" ]; then
-    printf '  \033[31m✗ MISSING dir: %s\033[0m\n' "$1" >&2
-    VERIFY_OK=0
-  fi
-}
-verify_dir "$CORTEX_DATA_HOME/research"
-verify_dir "$CORTEX_DATA_HOME/projects"
-verify_dir "$CORTEX_DATA_HOME/insights/proposals"
-verify_dir "$CORTEX_DATA_HOME/journal"
-verify_dir "$CORTEX_DATA_HOME/evals"
-
-if [ "$VERIFY_OK" = "0" ]; then
+# ── Post-copy verification — delegated to tests/smoke/verify-install.cjs.
+# Runs all 30 post-condition checks (file existence, dir counts, source-to-
+# installed mirror, cortex-source.yaml integrity, $CORTEX_DATA_HOME structure).
+# Single source of truth — same script runs from install.sh, install.ps1, CI
+# matrix, and integration tests. Exit codes: 0 OK / 1 validation fail / 2 bug.
+VERIFIER="$CORTEX_ROOT/tests/smoke/verify-install.cjs"
+if [ ! -f "$VERIFIER" ]; then
   echo >&2
-  echo "  ✗ Install verification FAILED. Critical assets are missing above." >&2
+  echo "  ✗ Verifier not found: $VERIFIER" >&2
+  echo "    Your cortex-x clone is incomplete. Re-clone from origin and re-run." >&2
+  exit 1
+fi
+if ! command -v node > /dev/null 2>&1; then
+  echo >&2
+  echo "  ✗ node is required to verify install but not found on PATH." >&2
+  echo "    Install Node.js >=22 (Active LTS) and re-run." >&2
+  exit 1
+fi
+if ! node "$VERIFIER"; then
+  echo >&2
+  echo "  ✗ Install verification FAILED — see output above." >&2
   echo "    Try: re-run install.sh, or open an issue at" >&2
   echo "         https://github.com/Rejnyx/cortex-x/issues" >&2
   exit 1
