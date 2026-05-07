@@ -83,13 +83,13 @@ const ACTION_KINDS = {
 
   todo_triage: {
     description:
-      'Scan TODO/FIXME/XXX older than N days, dedupe vs open issues, file gh issues with git-blame context.',
-    requires_llm: true, // one call per batch for issue body
-    source: 'rg -i "TODO|FIXME|XXX" + gh issue list',
-    detector: null, // future: detectors/todo-triage.cjs
-    cost_envelope: 'low',
+      'Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call.',
+    requires_llm: false, // deterministic body assembly; no LLM
+    source: 'fs scan + git blame + gh issue list',
+    detector: 'detectors/todo-triage.cjs', // Sprint 1.8.7
+    cost_envelope: 'free',
     blast_radius: 'minimal', // gh issue create only; no file edits
-    shipped_in: null, // Sprint 1.8.7
+    shipped_in: '0.1.0', // Sprint 1.8.7
   },
 
   // ReasoningBank-lite memory ISN'T an action_kind — it's a cross-cutting
