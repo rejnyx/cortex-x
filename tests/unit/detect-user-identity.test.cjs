@@ -175,4 +175,30 @@ describe('detect-user-identity: locale fallback', () => {
         `locale ${v} does not match BCP-47 shape`);
     }
   });
+
+  test('readLocale filters POSIX/C placeholder values to null', () => {
+    // GitHub Actions Linux runners + minimal Docker images often set LANG=C.
+    // C/POSIX mean "no real locale" — must return null, not literal "C".
+    const originalLang = process.env.LANG;
+    const originalLcAll = process.env.LC_ALL;
+    const originalLcMessages = process.env.LC_MESSAGES;
+    const originalLanguage = process.env.LANGUAGE;
+    try {
+      delete process.env.LC_ALL;
+      delete process.env.LC_MESSAGES;
+      delete process.env.LANGUAGE;
+      process.env.LANG = 'C';
+      const v = detector.readLocale();
+      // Either null (env filtered) or a real BCP-47 from Intl/Windows fallback —
+      // never the literal string "C" or "POSIX".
+      assert.notEqual(v, 'C');
+      assert.notEqual(v, 'POSIX');
+      assert.notEqual(v, 'c');
+    } finally {
+      if (originalLang === undefined) delete process.env.LANG; else process.env.LANG = originalLang;
+      if (originalLcAll !== undefined) process.env.LC_ALL = originalLcAll;
+      if (originalLcMessages !== undefined) process.env.LC_MESSAGES = originalLcMessages;
+      if (originalLanguage !== undefined) process.env.LANGUAGE = originalLanguage;
+    }
+  });
 });
