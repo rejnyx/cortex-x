@@ -1,0 +1,127 @@
+name: install-smoke
+
+# 5-lane matrix: linux/macOS bash + Windows (Git Bash, pwsh 7, Windows PowerShell 5.1).
+# Pattern grounded in 2026 research:
+#   - actions/checkout@v5 (Node 24 internally) — v4 deprecated fall 2025
+#   - actions/setup-node@v5 — pin Node 22 LTS (Active until Oct 2026)
+#   - matrix.shell at step level NOT supported (community discussion #25544);
+#     use include: + if-gated steps instead.
+#   - macos-latest is now ARM (macos-15), x86 retired Dec 2025
+#   - cron at :17 to avoid hour-boundary contention
+#   - upload-artifact@v4 on failure for debug logs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 3 * * *'  # 03:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  lane: 'linux-bash' }
+          - { os: macos-latest,   lane: 'macos-bash' }
+          - { os: windows-latest, lane: 'win-gitbash' }
+          - { os: windows-latest, lane: 'win-pwsh7' }
+          - { os: windows-latest, lane: 'win-ps51' }
+    runs-on: ${{ matrix.os }}
+    name: smoke / ${{ matrix.lane }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node 22 LTS
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Show environment
+        shell: bash
+        run: |
+          echo "OS:       ${{ matrix.os }}"
+          echo "Lane:     ${{ matrix.lane }}"
+          echo "Node:     $(node --version)"
+          echo "Bash:     $(bash --version | head -1 || echo unavailable)"
+          echo "HOME:     ${HOME:-$USERPROFILE}"
+          echo "PWD:      $(pwd)"
+
+      # ── Install path A: bash (Linux, macOS, Windows Git Bash) ──────────────
+      - name: Install via bash
+        if: matrix.lane == 'linux-bash' || matrix.lane == 'macos-bash' || matrix.lane == 'win-gitbash'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export CORTEX_LANGUAGE=en
+          export CORTEX_NO_UPDATE=1
+          ./install.sh
+
+      # ── Install path B: pwsh 7 (PowerShell Core, modern Windows) ──────────
+      - name: Install via pwsh 7
+        if: matrix.lane == 'win-pwsh7'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:CORTEX_LANGUAGE = 'en'
+          $env:CORTEX_NO_UPDATE = '1'
+          ./install.ps1
+
+      # ── Install path C: Windows PowerShell 5.1 (legacy Windows users) ─────
+      # cortex-x recently fixed install.ps1 BOM compatibility for 5.1; this
+      # lane proves the fix doesn't regress.
+      - name: Install via Windows PowerShell 5.1
+        if: matrix.lane == 'win-ps51'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:CORTEX_LANGUAGE = 'en'
+          $env:CORTEX_NO_UPDATE = '1'
+          .\install.ps1
+
+      # ── Standalone verifier (the install scripts already invoke it
+      # internally; this re-runs it as an explicit gate, also tests --json mode)
+      - name: Verify install (--json)
+        shell: bash
+        run: node tests/smoke/verify-install.cjs --json
+
+      - name: Verify install (strict mode)
+        shell: bash
+        run: node tests/smoke/verify-install.cjs --strict
+
+      # ── Failure debug ─────────────────────────────────────────────────────
+      - name: Capture install state on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          echo "── ~/.claude/ tree ──"
+          find "${HOME:-$USERPROFILE}/.claude" -maxdepth 3 -type f 2>/dev/null | head -100
+          echo "── ~/.cortex/ tree ──"
+          find "${HOME:-$USERPROFILE}/.cortex" -maxdepth 3 -type f 2>/dev/null | head -50
+          echo "── verifier --json output ──"
+          node tests/smoke/verify-install.cjs --json 2>&1 || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-logs-${{ matrix.lane }}
+          path: |
+            ~/.claude/**/*.log
+            ~/.cortex/**/*.log
+            ${{ runner.temp }}/cortex-install-*.log
+          if-no-files-found: ignore
+          retention-days: 7

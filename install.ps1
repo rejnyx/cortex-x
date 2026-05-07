@@ -416,68 +416,26 @@ Re-run ``install.ps1`` after pulling cortex-x updates. Existing ``~/.claude/shar
 "@
 $NotesContent | Set-Content -Path $InstallNotes -Encoding UTF8
 
-# ── Post-copy verification — fail loudly if critical assets missing.
-# Catches: partial copies (network/perm), stale source repo state, file-locking,
-# bugs in Copy-Item expansion. Runs ALL checks before exiting so the user sees
-# the full failure surface, not just the first miss.
-$VerifyOk = $true
-function Test-Required-File {
-    param([string]$Path)
-    if (-not (Test-Path $Path -PathType Leaf)) {
-        Write-Host "  $([char]0x2717) MISSING file: $Path" -ForegroundColor Red
-        $script:VerifyOk = $false
-    }
-}
-function Test-Required-Count {
-    param([string]$Dir, [int]$Min, [string]$Label)
-    if (-not (Test-Path $Dir -PathType Container)) {
-        Write-Host "  $([char]0x2717) MISSING dir: $Dir" -ForegroundColor Red
-        $script:VerifyOk = $false
-        return
-    }
-    $actual = (Get-ChildItem -Path $Dir -Force | Measure-Object).Count
-    if ($actual -lt $Min) {
-        Write-Host "  $([char]0x2717) ${Label}: $actual items in $Dir (expected $([char]0x2265) $Min)" -ForegroundColor Red
-        $script:VerifyOk = $false
-    }
-}
-Test-Required-File (Join-Path $SharedTarget "cortex-source.yaml")
-Test-Required-File (Join-Path $SharedTarget "prompts/new-project.md")
-Test-Required-File (Join-Path $SharedTarget "prompts/existing-project-audit.md")
-Test-Required-File (Join-Path $SharedTarget "prompts/cortex-doctor.md")
-Test-Required-File (Join-Path $SharedTarget "skills/cortex-init/SKILL.md")
-Test-Required-File (Join-Path $ClaudeHome "skills/cortex-init/SKILL.md")
-Test-Required-File (Join-Path $SharedTarget "standards/RULE-1.md")
-Test-Required-File (Join-Path $SharedTarget "agents/synthesizer.md")
-Test-Required-File (Join-Path $SharedTarget "agents/planner.md")
-Test-Required-File (Join-Path $SharedTarget "hooks/session-start.cjs")
-# Default agents must be discoverable by Claude Code at user level.
-Test-Required-File (Join-Path $ClaudeHome "agents/blind-hunter.md")
-Test-Required-File (Join-Path $ClaudeHome "agents/security-auditor.md")
-Test-Required-Count (Join-Path $SharedTarget "standards") 20 "standards"
-Test-Required-Count (Join-Path $SharedTarget "prompts")   10 "prompts"
-Test-Required-Count (Join-Path $SharedTarget "agents")     5 "agents (staging)"
-Test-Required-Count (Join-Path $ClaudeHome "agents")       5 "agents (user-discoverable)"
-Test-Required-Count (Join-Path $SharedTarget "hooks")      5 "hooks"
-Test-Required-Count (Join-Path $SharedTarget "skills")     3 "skills"
-
-# Sprint 1.6: verify CORTEX_DATA_HOME structure exists (5 user-data dirs).
-function Test-Required-Dir {
-    param([string]$Path)
-    if (-not (Test-Path $Path -PathType Container)) {
-        Write-Host "  $([char]0x2717) MISSING dir: $Path" -ForegroundColor Red
-        $script:VerifyOk = $false
-    }
-}
-Test-Required-Dir (Join-Path $CortexDataHome "research")
-Test-Required-Dir (Join-Path $CortexDataHome "projects")
-Test-Required-Dir (Join-Path $CortexDataHome "insights/proposals")
-Test-Required-Dir (Join-Path $CortexDataHome "journal")
-Test-Required-Dir (Join-Path $CortexDataHome "evals")
-
-if (-not $VerifyOk) {
+# ── Post-copy verification — delegated to tests/smoke/verify-install.cjs.
+# Single source of truth: same verifier runs from install.sh, install.ps1,
+# CI matrix, and integration tests. Exit codes: 0 OK / 1 validation fail / 2 bug.
+$Verifier = Join-Path $CortexRoot "tests/smoke/verify-install.cjs"
+if (-not (Test-Path $Verifier -PathType Leaf)) {
     Write-Host ""
-    Write-Host "  $([char]0x2717) Install verification FAILED. Critical assets are missing above." -ForegroundColor Red
+    Write-Host "  $([char]0x2717) Verifier not found: $Verifier" -ForegroundColor Red
+    Write-Host "    Your cortex-x clone is incomplete. Re-clone from origin and re-run." -ForegroundColor Red
+    exit 1
+}
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "  $([char]0x2717) node is required to verify install but not found on PATH." -ForegroundColor Red
+    Write-Host "    Install Node.js >=22 (Active LTS) and re-run." -ForegroundColor Red
+    exit 1
+}
+& node $Verifier
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "  $([char]0x2717) Install verification FAILED $([char]0x2014) see output above." -ForegroundColor Red
     Write-Host "    Try: re-run install.ps1, or open an issue at" -ForegroundColor Red
     Write-Host "         https://github.com/Rejnyx/cortex-x/issues" -ForegroundColor Red
     exit 1
