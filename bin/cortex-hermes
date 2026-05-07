@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# cortex-hermes — bash shim for the Hermes runtime CLI.
+#
+# Resolves the cortex-x source directory via two strategies:
+#   1) Repo-local: if SCRIPT_DIR/cortex-hermes.cjs exists, use it directly
+#      (developer mode — running from a cortex-x clone).
+#   2) Installed: read $HOME/.claude/shared/cortex-source.yaml to find
+#      cortex_source, then delegate to $cortex_source/bin/cortex-hermes.cjs.
+#
+# The two-strategy design keeps cortex-x source as the single source of truth
+# (no drift between $HOME/.claude/shared/bin/ and the repo's bin/hermes/).
+# Shim is small + stable; the implementation can evolve in the source repo
+# without re-running install.sh.
+
+set -e
+
+if ! command -v node > /dev/null 2>&1; then
+  echo "ERROR: node is required but not found on PATH." >&2
+  echo "  cortex-x's hooks and Hermes runtime both require Node 22+." >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Strategy 1: repo-local
+if [ -f "$SCRIPT_DIR/cortex-hermes.cjs" ] && [ -d "$SCRIPT_DIR/hermes" ]; then
+  exec node "$SCRIPT_DIR/cortex-hermes.cjs" "$@"
+fi
+
+# Strategy 2: installed shim — read cortex-source.yaml
+SOURCE_YAML="$HOME/.claude/shared/cortex-source.yaml"
+if [ ! -f "$SOURCE_YAML" ]; then
+  echo "ERROR: cortex-x not installed (missing $SOURCE_YAML)." >&2
+  echo "  Run install.sh first, or invoke from a cortex-x clone." >&2
+  exit 1
+fi
+
+# Flat-yaml parse — cortex_source: <path>. Strip CR (Windows), drop quotes.
+CORTEX_SOURCE="$(grep -E '^cortex_source:[[:space:]]*' "$SOURCE_YAML" \
+  | sed -E 's/^cortex_source:[[:space:]]*//' \
+  | tr -d '\r' \
+  | sed -E 's/^"//; s/"$//')"
+
+if [ -z "$CORTEX_SOURCE" ]; then
+  echo "ERROR: cortex_source: missing in $SOURCE_YAML." >&2
+  exit 1
+fi
+
+HERMES_ENTRY="$CORTEX_SOURCE/bin/cortex-hermes.cjs"
+if [ ! -f "$HERMES_ENTRY" ]; then
+  echo "ERROR: $HERMES_ENTRY not found." >&2
+  echo "  Re-run install.sh, or fix cortex_source: in $SOURCE_YAML." >&2
+  exit 1
+fi
+
+exec node "$HERMES_ENTRY" "$@"

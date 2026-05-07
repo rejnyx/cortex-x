@@ -250,6 +250,10 @@ function runChecks() {
   checkFileExists('shared.bin.cortex-gap-report', path.join(SHARED, 'bin', 'cortex-gap-report.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-bootstrap', path.join(SHARED, 'bin', 'cortex-bootstrap.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-migrate-data.sh', path.join(SHARED, 'bin', 'cortex-migrate-data.sh'), 'warning');
+  // Sprint 1.7.3 — cortex-hermes shim on PATH (delegates to $CORTEX_ROOT/bin/cortex-hermes.cjs).
+  // Both shims must exist so cortex-hermes works from bash + pwsh after install.
+  checkFileExists('shared.bin.cortex-hermes', path.join(SHARED, 'bin', 'cortex-hermes'), 'warning');
+  checkFileExists('shared.bin.cortex-hermes.ps1', path.join(SHARED, 'bin', 'cortex-hermes.ps1'), 'warning');
 
   // Tier 3 — tools/ (audit output validator + lib/) — invoked by cortex-doctor
   checkFileExists('shared.tools.verify-audit-output', path.join(SHARED, 'tools', 'verify-audit-output.cjs'), 'warning');
