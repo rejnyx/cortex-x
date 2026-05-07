@@ -91,10 +91,12 @@ describe('action-kinds: helpers', () => {
     assert.equal(kinds.isShippedKind('dep_update_patch'), true);
     assert.equal(kinds.isShippedKind('todo_triage'), true);
     assert.equal(kinds.isShippedKind('flaky_test_repair'), true);
-    // Sprint 1.8.6 — doc_drift (deterministic, no LLM)
     assert.equal(kinds.isShippedKind('doc_drift'), true);
-    // Negative case — bogus kind never shipped
-    assert.equal(kinds.isShippedKind('totally_made_up'), false);
+    // Sprint 1.8.9 — lint_fix_shipper
+    assert.equal(kinds.isShippedKind('lint_fix_shipper'), true);
+    // Future kinds remain not shipped
+    assert.equal(kinds.isShippedKind('test_coverage_gap'), false);
+    assert.equal(kinds.isShippedKind('pr_review_responder'), false);
   });
 
   test('listKinds returns all registered kinds (shipped + future)', () => {
@@ -104,7 +106,7 @@ describe('action-kinds: helpers', () => {
     assert.ok(all.length >= 1);
   });
 
-  test('listShippedKinds returns ALL 6 declared kinds (v0.8 complete)', () => {
+  test('listShippedKinds returns 7 kinds shipped (v0.8 + lint_fix capabilities)', () => {
     const shipped = kinds.listShippedKinds();
     assert.ok(Array.isArray(shipped));
     assert.ok(shipped.includes('recommendation'));
@@ -113,8 +115,8 @@ describe('action-kinds: helpers', () => {
     assert.ok(shipped.includes('todo_triage'));
     assert.ok(shipped.includes('flaky_test_repair'));
     assert.ok(shipped.includes('doc_drift'));
-    // Sanity: 6 kinds shipped post-v0.8
-    assert.ok(shipped.length >= 6);
+    assert.ok(shipped.includes('lint_fix_shipper'));
+    assert.ok(shipped.length >= 7);
   });
 });
 

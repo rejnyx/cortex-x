@@ -109,13 +109,13 @@ const ACTION_KINDS = {
 
   lint_fix_shipper: {
     description:
-      'Run ESLint --fix + tsc --noEmit; ship if only auto-fixable changes; LLM call only on non-trivial type errors. Capability #8.',
-    requires_llm: false, // happy path
-    source: 'eslint + tsc',
-    detector: null, // future: detectors/lint-fix.cjs
-    cost_envelope: 'free', // happy path
+      'Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8.',
+    requires_llm: false,
+    source: 'npx eslint + npx tsc',
+    detector: 'detectors/lint-fix.cjs', // Sprint 1.8.9
+    cost_envelope: 'free',
     blast_radius: 'medium', // arbitrary file edits via auto-fixers
-    shipped_in: null, // Sprint 1.9.x
+    shipped_in: '0.1.0', // Sprint 1.8.9
   },
 
   pr_review_responder: {

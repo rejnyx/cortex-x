@@ -63,6 +63,9 @@ const flakyRepair = require('../../detectors/flaky-test-repair.cjs');
 // files gh issues for undocumented public API. Deterministic, no LLM,
 // gh-only side effects (skip_commit pattern).
 const docDrift = require('../../detectors/doc-drift.cjs');
+// Sprint 1.8.9 — lint_fix_shipper runs eslint --fix + tsc --noEmit. Auto-fixes
+// ship as a commit; non-auto-fixable type errors get filed as gh issues.
+const lintFix = require('../../detectors/lint-fix.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -458,6 +461,75 @@ async function runDepUpdateAction(plan, opts = {}) {
     usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     updated_count: detected.candidates.length,
     candidates: detected.candidates,
+  };
+}
+
+// Sprint 1.8.9 — lint_fix_shipper executor branch. Two-phase deterministic:
+//   1. Run `npx eslint --fix` — auto-fixes ship as a commit (touchedFiles)
+//   2. Run `npx tsc --noEmit` — non-auto-fixable type errors get filed as gh
+//      issues (separate side effect, no commit)
+// If eslint produced edits AND tsc produced errors, ship the eslint commit
+// AND open issues for the tsc errors. Mixed flow uses skip_commit: false.
+async function runLintFixAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = lintFix.detectLintFix({
+    cwd: repoRoot,
+    apply: !opts.dryRunFix, // actually run eslint --fix unless DI says skip
+    mockEslint: opts.mockEslint,
+    mockTsc: opts.mockTsc,
+  });
+
+  const hasFixes = detected.touched_files.length > 0;
+  const hasErrors = detected.type_errors.length > 0;
+
+  if (!hasFixes && !hasErrors) {
+    return {
+      ok: false,
+      code: 'LINT_FIX_NO_WORK',
+      error: `nothing to ship (eslint_available=${detected.eslint_available}, tsc_available=${detected.tsc_available}, touched=0, errors=0)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  // Optionally file gh issues for type errors (non-auto-fixable)
+  const openedIssues = [];
+  if (hasErrors && !opts.skipGh && !opts.dryRunGh) {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (ghOpsLib.hasGhCli()) {
+      const errorsToFile = detected.type_errors.slice(0, opts.maxIssues || 5);
+      for (const err of errorsToFile) {
+        const title = lintFix.formatIssueTitle(err);
+        const body = lintFix.formatIssueBody(err);
+        const tmpFile = path.join(os.tmpdir(), `hermes-lint-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+        fs.writeFileSync(tmpFile, body, 'utf8');
+        const result = require('node:child_process').spawnSync('gh', [
+          'issue', 'create',
+          '--title', title,
+          '--body-file', tmpFile,
+          '--label', 'lint-fix',
+        ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+        try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+        if (result.status === 0) {
+          openedIssues.push({ title, url: (result.stdout || '').trim(), error: err });
+        }
+      }
+    }
+  } else if (hasErrors && opts.dryRunGh) {
+    for (const err of detected.type_errors.slice(0, opts.maxIssues || 5)) {
+      openedIssues.push({ title: lintFix.formatIssueTitle(err), url: 'mock://dry-run', error: err, dry_run: true });
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles: detected.touched_files, // empty array if eslint had no edits
+    // skip_commit only if eslint produced ZERO edits — we're issue-only mode
+    skip_commit: !hasFixes,
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    fixed_count: detected.touched_files.length,
+    type_errors_count: detected.type_errors.length,
+    opened_issues: openedIssues,
   };
 }
 
@@ -941,6 +1013,16 @@ async function runExecute(opts = {}) {
         dryRunGh: opts.dryRunGh,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'lint_fix_shipper') {
+      applyResult = await runLintFixAction(plan, {
+        repoRoot,
+        mockEslint: opts.mockEslint,
+        mockTsc: opts.mockTsc,
+        dryRunFix: opts.dryRunFix,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        maxIssues: opts.maxIssues,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -1184,6 +1266,8 @@ module.exports = {
   runFlakyRepairAction,
   // Sprint 1.8.6 — doc_drift helper exported for unit testing
   runDocDriftAction,
+  // Sprint 1.8.9 — lint_fix_shipper helper exported for unit testing
+  runLintFixAction,
   EX_USAGE,
 };
 

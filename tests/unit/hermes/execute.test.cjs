@@ -1210,3 +1210,99 @@ describe('execute: Sprint 1.8.6 — doc_drift', () => {
     });
   });
 });
+
+// ── Sprint 1.8.9 — lint_fix_shipper executor branch ────────────────────────
+
+describe('execute: Sprint 1.8.9 — lint_fix_shipper', () => {
+  function buildLintFixPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'lint_fix_shipper',
+      action: {
+        num: null,
+        title: 'Auto-fix lint issues',
+        body: 'eslint --fix + tsc --noEmit',
+        action_key: `${SLUG}#lint-fix-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-lint-fix-test',
+      action_id: '01LINTX',
+      trigger: 'manual',
+      commit_message: 'chore(lint): auto-fix style violations\n\nbody\n\nHermes-Action-Id: 01LINTX\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: lint-fix\nHermes-Action-Kind: lint_fix_shipper',
+      ...overrides,
+    };
+  }
+
+  test('runLintFixAction returns LINT_FIX_NO_WORK when nothing to fix', async () => {
+    const repo = tmpProjectRepo('lint-noop');
+    const result = await execute.runLintFixAction(buildLintFixPlan(), {
+      repoRoot: repo,
+      mockEslint: { ran: true, eslint_available: true, modified_files: [] },
+      mockTsc: { ran: true, tsc_available: true, type_errors: [] },
+      skipGh: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'LINT_FIX_NO_WORK');
+  });
+
+  test('runLintFixAction returns ok with touchedFiles when eslint produced edits', async () => {
+    const repo = tmpProjectRepo('lint-edits');
+    const result = await execute.runLintFixAction(buildLintFixPlan(), {
+      repoRoot: repo,
+      mockEslint: {
+        ran: true,
+        eslint_available: true,
+        modified_files: ['src/a.js', 'src/b.js'],
+      },
+      mockTsc: { ran: true, tsc_available: true, type_errors: [] },
+      skipGh: true,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, false); // has edits → commit needed
+    assert.deepEqual(result.touchedFiles, ['src/a.js', 'src/b.js']);
+    assert.equal(result.fixed_count, 2);
+  });
+
+  test('runLintFixAction returns ok + skip_commit when only type errors (no eslint edits)', async () => {
+    const repo = tmpProjectRepo('lint-tsc-only');
+    const result = await execute.runLintFixAction(buildLintFixPlan(), {
+      repoRoot: repo,
+      mockEslint: { ran: true, eslint_available: true, modified_files: [] },
+      mockTsc: {
+        ran: true,
+        tsc_available: true,
+        type_errors: [{ file: 'src/x.ts', line: 1, column: 1, code: 'TS2322', msg: 'oops' }],
+      },
+      skipGh: true,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, true); // no edits → no commit
+    assert.deepEqual(result.touchedFiles, []);
+    assert.equal(result.type_errors_count, 1);
+  });
+
+  test('runLintFixAction handles mixed: eslint edits + tsc errors', async () => {
+    const repo = tmpProjectRepo('lint-mixed');
+    const result = await execute.runLintFixAction(buildLintFixPlan(), {
+      repoRoot: repo,
+      mockEslint: {
+        ran: true,
+        eslint_available: true,
+        modified_files: ['src/auto.js'],
+      },
+      mockTsc: {
+        ran: true,
+        tsc_available: true,
+        type_errors: [{ file: 'src/y.ts', line: 1, column: 1, code: 'TS1', msg: 'x' }],
+      },
+      dryRunGh: true, // mock issue creation
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, false); // commit needed for the edits
+    assert.equal(result.fixed_count, 1);
+    assert.equal(result.type_errors_count, 1);
+    assert.equal(result.opened_issues.length, 1);
+    assert.ok(result.opened_issues[0].dry_run);
+  });
+});
