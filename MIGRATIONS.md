@@ -20,6 +20,57 @@
 
 ## Current
 
+### Sprint 1.6.11 — Hermes v0.5a: full execute infrastructure with mock engine (2026-05-07 night)
+
+#### Non-breaking (additive)
+
+- **What landed:** Hermes execute pipeline complete end-to-end with a mock action engine. v0.5b (real Claude Agent SDK) becomes a one-line swap. +40 tests (420 → 460).
+
+  1. **`bin/hermes/_lib/verifier.cjs`** (NEW, ~70 LOC) — runs `npm test` (or any npm script) via `spawnSync`, captures stdout/stderr/exitCode/durationMs, configurable timeout (default 5min). Windows compatibility: `npm.cmd` requires `shell: true` on Win since Node 16+ closed CVE-2024-27980 — args are static enums, no injection surface. Includes `summarizeResult()` that extracts test counts from `node --test` output for compact journal entries ("192/192 pass · 8.7s").
+
+  2. **`bin/hermes/_lib/git-ops.cjs`** (NEW, ~110 LOC) — atomic git operations wrapper. Provides `getCleanTreeStatus`, `getCurrentSha`, `getCurrentBranch`, `isInGitRepo`, `checkoutNewBranch`, `stage`, `commitWithMessageFile`, `revertCommit`. Defense in depth: rejects branch/path names starting with `-` (flag injection), validates SHA shape before revert, no shell invocation (spawnSync with array argv + `shell: false`), all paths passed after `--` separator.
+
+  3. **`bin/hermes/_lib/action-engine.cjs`** (NEW, ~120 LOC) — pluggable engine interface. Two engines:
+     - **`mock`** — env-driven (`HERMES_MOCK_PLAN` JSON). Writes specified files, returns touched paths. Defense: rejects absolute paths + path traversal (`..`).
+     - **`claude-sdk`** — stub returning `CLAUDE_SDK_NOT_IMPLEMENTED`. v0.5b plugs the actual SDK call here (single function body change).
+     Engine selection: `opts.engine` flag > `HERMES_ENGINE` env > default `claude-sdk`. The pluggable shape means v0.5b is a clean isolated PR — no architectural change.
+
+  4. **`bin/hermes/execute.cjs` rewritten** (~250 LOC, was ~140 LOC stub). Full 10-phase flow: halt check → plan validation → repo check → pre-flight clean-tree (filtering Hermes's own `cortex/journal/` runtime artifacts) → lock acquire → branch checkout → action-engine.applyAction → verifier.runNpmTest → stage → commit-with-message-file → post-commit verify → journal success → lock release. Rollback semantics for every failure mode: action engine fail → checkout original branch + delete dead branch; verify fail → `git checkout -- .` + `git clean -fd` + return original branch; lock collision → preserve held lock; halt → exit 75.
+
+  5. **+40 tests across 4 files:**
+     - `tests/unit/hermes/verifier.test.cjs` — 10 tests (npm test ok/fail, stdout capture, durationMs, timeoutMs, runNpmScript, summarizeResult variants)
+     - `tests/unit/hermes/git-ops.test.cjs` — 13 tests (introspection, branch ops, stage+commit, revert, flag-injection rejection, invalid-SHA rejection)
+     - `tests/unit/hermes/action-engine.test.cjs` — 13 tests (mock single+multi edit, env vars, JSON parse errors, empty edits, path traversal defense, claude-sdk stub, engine selection precedence)
+     - `tests/unit/hermes/execute.test.cjs` rewritten — 15 tests (plan validation, halt detection, claude-sdk default returns 64, mock happy path commits + journals success, dirty tree blocks, verify failure rolls back, mock-not-set rolls back to original branch, NOT_GIT_REPO, lock collision, CLI happy path)
+
+- **3 real bugs caught by tests during implementation:**
+  1. Windows `spawnSync('npm.cmd', ...)` requires `shell: true` (CVE-2024-27980). Without it: EINVAL on every npm invocation. Fix: conditional `shell: isWindows`.
+  2. Post-commit clean-tree check failed because lock file at `cortex/journal/<slug>/.lock` showed up as untracked → `POST_VERIFY_DIRTY` false-positive. Fix: pre-flight + post-verify both filter Hermes's own runtime artifacts (`cortex/journal/`).
+  3. Same filter needed in pre-flight too — test setup pre-creates lock file (to test collision) which was being treated as untracked-user-file, blocking on `DIRTY_TREE` before lock acquire could detect collision.
+
+- **What's autonomous TODAY (post-Sprint-1.6.11):**
+  ```bash
+  # Mock-engine end-to-end execute (real git commits in temp repo):
+  cortex-hermes dry-run --slug=hermes-dryrun --json > /tmp/plan.json
+  HERMES_ENGINE=mock HERMES_MOCK_PLAN='{"edits":[...]}' \
+    cortex-hermes execute --plan-file=/tmp/plan.json
+  # → real branch checkout → real edit → real npm test gate → real commit
+  ```
+  This is L2 (Execution autonomy) **with a mock LLM**. Real LLM = swap 1 file (`action-engine.cjs` claude-sdk stub) when Dave decides on zero-deps.
+
+- **Pre-launch tier gates:** all 3 still ✓ (Tier 6+7+8). v0 + v0.5a complete.
+
+- **Why:** Dave's "pojdme to dotáhnout celé do finishe, ať to máme nadupané" — closes the v0.5 architecture surface entirely so v0.5b is no-architectural-change. The mock engine path is dogfood-able today (no API keys), proves the full loop works (verify gate, commit semantics, rollback paths), generates real journal entries.
+
+- **Migrate:** none — additive.
+
+- **Rollback:** revert this sprint's commit; previous v0.5-stub state preserved.
+
+- **What's next (per RFC roadmap):**
+  - **v0.5b** = `bin/hermes/_lib/action-engine.cjs` `claudeSdkEngine` stub → real `@anthropic-ai/claude-agent-sdk` call. ~1 file changed substantively, ~1 dep added. Requires Dave's zero-deps decision.
+  - **v1** = Enable `.github/workflows/hermes.yml` (uncomment schedule + add `ANTHROPIC_API_KEY` secret).
+  - **D-1** = git history PII purge (destructive force-push, Dave-only) before v0.1.0 tag.
+
 ### Sprint 1.6.10 — v0.5 seam stub + execute subcommand + user guide (2026-05-07 final)
 
 #### Non-breaking (additive)
