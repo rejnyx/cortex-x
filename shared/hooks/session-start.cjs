@@ -80,6 +80,23 @@ const projectName = getProjectName();
 const ctx = [`=== ${projectName} — Session Context ===`];
 ctx.push('');
 
+// Sprint 1.7.6 — greet by name if user.yaml is populated. Falls back silently
+// if file missing or name field empty (fresh install without identity capture).
+try {
+  const os = require('os');
+  const userYaml = path.join(os.homedir(), '.claude', 'cortex', 'user.yaml');
+  if (fs.existsSync(userYaml)) {
+    const txt = fs.readFileSync(userYaml, 'utf8');
+    const nameMatch = txt.match(/^name:\s*(.+)$/m);
+    if (nameMatch && nameMatch[1].trim() && nameMatch[1].trim() !== '""') {
+      ctx.push(`Hello, ${nameMatch[1].trim()}.`);
+      ctx.push('');
+    }
+  }
+} catch (_) {
+  // user.yaml unreadable — skip greeting; non-blocking augmentation.
+}
+
 // Sprint tracking
 if (sprint) {
   ctx.push(`Active Phase: ${sprint}`);
@@ -328,6 +345,24 @@ try {
   }
 } catch {
   // Marker unreadable — silently skip; bootstrap is augmentation, not blocker.
+}
+
+// Sprint 1.7.6 — Hermes activation surface. If the project has a
+// recommendations.md (the Hermes input file) but no hermes.yml workflow
+// AND no halt switch active, surface ONE line nudge so the user discovers
+// the autopilot without re-grepping docs.
+try {
+  const os = require('os');
+  const recsPath = path.join(ROOT, 'cortex', 'recommendations.md');
+  const workflowPath = path.join(ROOT, '.github', 'workflows', 'hermes.yml');
+  const haltPath = path.join(os.homedir(), '.cortex', 'HERMES_HALT');
+  if (fs.existsSync(recsPath) && !fs.existsSync(workflowPath) && !fs.existsSync(haltPath)) {
+    ctx.push('');
+    ctx.push('→ Hermes ready to activate: paste ~/.claude/shared/prompts/hermes-setup.md');
+    ctx.push('  (autonomous nightly autopilot: reads recommendations.md, opens draft PR overnight, ~$0.0008/run)');
+  }
+} catch (_) {
+  // Path probes failed — non-blocking augmentation; skip the nudge.
 }
 
 console.log(JSON.stringify({
