@@ -34,6 +34,10 @@ tests/fixtures/**/.cortex-stage-ledger
 .env.local
 .env*.local
 
+# Maintainer scratch notes inside templates/ (e.g. transcribed video notes).
+# Real templates are .hbs / .md / .json — .txt in templates/ is always personal.
+templates/*.txt
+
 # OS
 .DS_Store
 Thumbs.db
