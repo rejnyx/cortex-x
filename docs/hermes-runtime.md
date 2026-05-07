@@ -128,15 +128,18 @@ jobs:
       - run: npm ci || npm install
       - run: node bin/cortex-hermes.cjs dry-run --slug=${{ github.event.repository.name }} --trigger=cron --json
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # v0.5 only
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}  # v0.5b default engine
+          HERMES_MODEL: deepseek/deepseek-v4-flash               # see hermes-usage.md § Model selection
+          HERMES_MAX_TOKENS: '16384'                              # default 4096 truncates multi-file edits
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
-      # v0.5+: if dry-run produced an action plan, run the real Hermes loop
-      # (Claude Agent SDK call → file edits → git commit → gh pr create --draft)
+      # v0.5b shipped Sprint 1.6.13: dry-run produced plan → cortex-hermes execute
+      # → real OpenRouter call (zero-deps via fetch) → file edits → npm test gate
+      # → atomic commit + gh pr create --draft. Cost captured per Sprint 1.6.15.
 ```
 
 **Why GitHub Actions over local crontab for production:**
 - Free for personal repos (within minute limits)
-- Built-in secret store (`ANTHROPIC_API_KEY` per repo)
+- Built-in secret store (`OPENROUTER_API_KEY` per repo)
 - Ephemeral runner = no leftover state, no shared FS, isolation by default
 - Audit trail in Actions UI (every run journaled by GitHub)
 - Mirrors project's existing CI env (Hermes needs `npm test` / `npm run lint` to work — Actions already configures this)
@@ -152,7 +155,7 @@ jobs:
 - **on-PR-merged** — GHA `pull_request` event with `types: [closed]` filter + `merged == true` check
 - **manual** — `cortex hermes run --action <id> [--dry-run]` CLI subcommand for local development; GHA `workflow_dispatch` for triggered-by-human runs in production
 
-A reference workflow template lives at [`.github/workflows/hermes.example.yml`](../.github/workflows/hermes.example.yml) — disabled (renamed to `.example.yml`) until v0.5 lands the LLM seam. Copy + rename to `hermes.yml` + add `ANTHROPIC_API_KEY` secret to enable.
+A reference workflow template lives at [`.github/workflows/hermes.example.yml`](../.github/workflows/hermes.example.yml) — disabled (renamed to `.example.yml`) pending Dave's first dogfood window with real cron triggers. Copy + rename to `hermes.yml` + add `OPENROUTER_API_KEY` secret to enable. v0.5b LLM seam shipped Sprint 1.6.13.
 
 ### 1.3 Memory model
 
@@ -413,9 +416,10 @@ bin/hermes/_lib/action-engine.cjs
 
 | Var | Purpose |
 |---|---|
-| `OPENROUTER_API_KEY` | Required. Bearer token for `https://openrouter.ai/api/v1/chat/completions` |
-| `HERMES_MODEL` | Optional. Model slug (e.g. `anthropic/claude-sonnet-4.5`, `openai/gpt-5.4`, `google/gemini-2.5-pro`). Default: a Claude Sonnet of the day. |
-| `HERMES_ENGINE` | Set to `openrouter` to select this engine. |
+| `OPENROUTER_API_KEY` | Required. Bearer token for `https://openrouter.ai/api/v1/chat/completions`. **Inference key**, not provisioning/management. |
+| `HERMES_MODEL` | Optional. Model slug (e.g. `deepseek/deepseek-v4-flash`, `anthropic/claude-haiku-4.5`, `anthropic/claude-sonnet-4.5`). Default: `deepseek/deepseek-v4-flash` (post-Sprint-1.6.13 — see hermes-usage.md § Model selection). |
+| `HERMES_MAX_TOKENS` | Optional. Output cap for the LLM call. Default `4096` truncates multi-file edit plans mid-string — bump to `16384` for production (Sprint 1.6.14). |
+| `HERMES_ENGINE` | Optional. Set to `openrouter` to force this engine; `openrouter` is the default post-Sprint-1.6.13. Use `--engine=claude-sdk` to fall back to the stub. |
 
 ### Bonus over a direct Anthropic dep
 
@@ -425,7 +429,7 @@ bin/hermes/_lib/action-engine.cjs
 - **No SDK lock-in**: if OpenRouter goes away or pricing flips, swap to direct Anthropic / direct OpenAI / Together is a one-line endpoint change.
 - **Test isolation**: mock `global.fetch` in unit tests — no API keys in CI.
 
-### Sketch (NOT YET IMPLEMENTED)
+### Implementation (shipped Sprint 1.6.13)
 
 ```javascript
 async function openrouterEngine(plan, opts = {}) {
