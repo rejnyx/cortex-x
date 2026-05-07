@@ -415,6 +415,10 @@ echo
 echo "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
 echo "    writes the marker, chains to the right cortex-x workflow."
 echo
+echo "  Hermes — your AI nightly autopilot (after scaffold):"
+echo "    Drop cortex/recommendations.md in your repo; Hermes opens a draft PR overnight."
+echo "    Activate: docs/hermes-usage.md.  Halt: touch ~/.cortex/HERMES_HALT."
+echo
 echo "  Shell-only alternative (power users / scripts):"
 if [ "$PATH_HAS_BIN" = "1" ]; then
   echo "    cortex-bootstrap     # already on PATH"
