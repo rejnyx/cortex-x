@@ -66,6 +66,9 @@ const docDrift = require('../../detectors/doc-drift.cjs');
 // Sprint 1.8.9 — lint_fix_shipper runs eslint --fix + tsc --noEmit. Auto-fixes
 // ship as a commit; non-auto-fixable type errors get filed as gh issues.
 const lintFix = require('../../detectors/lint-fix.cjs');
+// Sprint 1.8.10 — test_coverage_gap cross-references coverage summary +
+// recent git history, files gh issues for low-coverage hot-spots.
+const coverageGap = require('../../detectors/test-coverage-gap.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -461,6 +464,89 @@ async function runDepUpdateAction(plan, opts = {}) {
     usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     updated_count: detected.candidates.length,
     candidates: detected.candidates,
+  };
+}
+
+// Sprint 1.8.10 — test_coverage_gap executor branch. Issues-only side effect
+// (skip_commit pattern). Reads coverage/coverage-summary.json + recent git
+// log, files gh issue per file with low coverage AND recent edits.
+async function runCoverageGapAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = coverageGap.detectCoverageGaps({
+    cwd: repoRoot,
+    threshold: opts.threshold,
+    lookbackDays: opts.lookbackDays,
+    maxCandidates: opts.maxCandidates || 5,
+    mockSummary: opts.mockSummary,
+    mockRecentFiles: opts.mockRecentFiles,
+  });
+
+  if (!detected.coverage_available) {
+    return {
+      ok: false,
+      code: 'COVERAGE_REPORT_MISSING',
+      error: 'no coverage/coverage-summary.json found — run `npm run test:coverage` (or equivalent) first',
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'COVERAGE_GAP_NO_CANDIDATES',
+      error: `no low-coverage hot-spots (${detected.total_low_coverage} files below threshold, ${detected.skipped_unchanged} not recently edited)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  const openedIssues = [];
+  if (opts.skipGh || opts.dryRunGh) {
+    for (const cand of detected.candidates) {
+      openedIssues.push({
+        title: coverageGap.formatIssueTitle(cand),
+        url: 'mock://dry-run',
+        candidate: cand,
+        dry_run: true,
+      });
+    }
+  } else {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (!ghOpsLib.hasGhCli()) {
+      return {
+        ok: false,
+        code: 'GH_CLI_MISSING',
+        error: 'gh CLI not available — test_coverage_gap needs gh to file issues',
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      };
+    }
+    for (const cand of detected.candidates) {
+      const title = coverageGap.formatIssueTitle(cand);
+      const body = coverageGap.formatIssueBody(cand);
+      const tmpFile = path.join(os.tmpdir(), `hermes-coverage-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      fs.writeFileSync(tmpFile, body, 'utf8');
+      const result = require('node:child_process').spawnSync('gh', [
+        'issue', 'create',
+        '--title', title,
+        '--body-file', tmpFile,
+        '--label', 'coverage-gap',
+      ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      if (result.status === 0) {
+        openedIssues.push({ title, url: (result.stdout || '').trim(), candidate: cand });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles: [],
+    skip_commit: true,
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    opened_issues: openedIssues,
+    gap_count: detected.candidates.length,
   };
 }
 
@@ -1023,6 +1109,17 @@ async function runExecute(opts = {}) {
         dryRunGh: opts.dryRunGh,
         maxIssues: opts.maxIssues,
       });
+    } else if (plan.action_kind === 'test_coverage_gap') {
+      applyResult = await runCoverageGapAction(plan, {
+        repoRoot,
+        mockSummary: opts.mockSummary,
+        mockRecentFiles: opts.mockRecentFiles,
+        threshold: opts.threshold,
+        lookbackDays: opts.lookbackDays,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        maxCandidates: opts.maxCandidates,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -1268,6 +1365,8 @@ module.exports = {
   runDocDriftAction,
   // Sprint 1.8.9 — lint_fix_shipper helper exported for unit testing
   runLintFixAction,
+  // Sprint 1.8.10 — test_coverage_gap helper exported for unit testing
+  runCoverageGapAction,
   EX_USAGE,
 };
 

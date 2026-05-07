@@ -92,10 +92,10 @@ describe('action-kinds: helpers', () => {
     assert.equal(kinds.isShippedKind('todo_triage'), true);
     assert.equal(kinds.isShippedKind('flaky_test_repair'), true);
     assert.equal(kinds.isShippedKind('doc_drift'), true);
-    // Sprint 1.8.9 — lint_fix_shipper
     assert.equal(kinds.isShippedKind('lint_fix_shipper'), true);
-    // Future kinds remain not shipped
-    assert.equal(kinds.isShippedKind('test_coverage_gap'), false);
+    // Sprint 1.8.10 — test_coverage_gap
+    assert.equal(kinds.isShippedKind('test_coverage_gap'), true);
+    // Future kind remains parked
     assert.equal(kinds.isShippedKind('pr_review_responder'), false);
   });
 
@@ -106,7 +106,7 @@ describe('action-kinds: helpers', () => {
     assert.ok(all.length >= 1);
   });
 
-  test('listShippedKinds returns 7 kinds shipped (v0.8 + lint_fix capabilities)', () => {
+  test('listShippedKinds returns 8 kinds shipped (v0.8 capability palette complete)', () => {
     const shipped = kinds.listShippedKinds();
     assert.ok(Array.isArray(shipped));
     assert.ok(shipped.includes('recommendation'));
@@ -116,7 +116,8 @@ describe('action-kinds: helpers', () => {
     assert.ok(shipped.includes('flaky_test_repair'));
     assert.ok(shipped.includes('doc_drift'));
     assert.ok(shipped.includes('lint_fix_shipper'));
-    assert.ok(shipped.length >= 7);
+    assert.ok(shipped.includes('test_coverage_gap'));
+    assert.ok(shipped.length >= 8);
   });
 });
 

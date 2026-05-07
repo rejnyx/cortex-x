@@ -125,9 +125,10 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // test_coverage_gap is declared in registry (Sprint 1.9 roadmap) but
-    // shipped_in is null until that sprint lands. All v0.8 kinds shipped.
-    const f = tmpPlanFile(buildPlan({ action_kind: 'test_coverage_gap' }));
+    // pr_review_responder is the last parked kind (v0.9). All v0.8 kinds
+    // shipped: recommendation, recommendation_harvest, dep_update_patch,
+    // todo_triage, flaky_test_repair, doc_drift, lint_fix_shipper, test_coverage_gap.
+    const f = tmpPlanFile(buildPlan({ action_kind: 'pr_review_responder' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
