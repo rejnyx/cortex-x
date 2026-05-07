@@ -114,7 +114,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 
 ## Roadmap
 
-**Phase 1 — Foundation** (current)
+**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-5 QA infrastructure landed 2026-05-07: 207 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates)
 - Shared hooks (block-destructive, session-start [+ detector integration 2026-04-20], pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20
@@ -141,17 +141,23 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - Cached per-profile, versioned
 - Inject 2026 best practices into scaffolded CLAUDE.md
 
-**Phase 5 — Self-improvement loop** (v1 done 2026-04-17)
-- 4-cadence (daily/weekly/monthly/quarterly) via `prompts/cortex-evolve.md`
-- Hard evidence gates via `config/evolve.yaml`
-- Aider-style eval suite in `evals/`
-- PR-only mutations, never auto-edits source of truth
+**Phase 5 — Self-improvement loop** ✅ designed + specs (v1 — 2026-04-17) · ⏳ automated runtime in Phase 7
+- 4-cadence (daily/weekly/monthly/quarterly) via `prompts/cortex-evolve.md` — **specified, not yet cron-wired**
+- Hard evidence gates via `config/evolve.yaml` — enforced when prompt is manually invoked
+- Aider-style eval suite in `evals/` — 10 task rubrics shipped, `evals/results/` empty pending first automated run
+- PR-only mutations, never auto-edits source of truth — discipline encoded, no automated PR pipeline yet
 - See `docs/self-improvement-rfc.md`
 
-**Phase 6 — Memory upgrades**
+**Phase 6 — Memory upgrades** ⏳ designed (awaits Phase 7)
 - 6-signal scoring for autoDream promotion
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
+
+**Phase 7 — Hermes runtime** 🆕 RFC stub
+- Autonomous loop inside scaffolded projects
+- Reads `recommendations.md` → executes verified steps → atomic commit → opens PR (humans merge)
+- Pre-Hermes hard gates Tier 4 + Tier 5 ✅ closed 2026-05-07
+- See [docs/hermes-rfc.md](./docs/hermes-rfc.md). Implementation 2-3 sessions ahead.
 
 ## License
 
