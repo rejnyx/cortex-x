@@ -47,13 +47,38 @@ node ~/.claude/shared/detectors/detect-sister-env.cjs # monorepo | single-pkg | 
 
 If any detector fails-open (`{ ok: false, …}`), record the failure and proceed with reasonable defaults — never block.
 
+### Slug derivation (plain-language gate, MUST run)
+
+The `<slug>` is the cortex projects-library key for this project. It feeds `$CORTEX_DATA_HOME/projects/<slug>.md`, the research filename, and the audit-context frontmatter — so getting it right matters across sessions.
+
+**Step 1 — derive a smart default.** Walk these in order, take the first that doesn't look like a template stub:
+
+1. Folder basename of the project root (e.g. `masterbarbertemplatt`, `relo`, `pix-prep`)
+2. `package.json:name` only IF it doesn't match a template-default regex `^(my-app|next-app|nextjs-temp|nextjs-template|astro-template|app|template|template-.*|.*-template|repo|hello-world|test|scaffold|starter|.*-starter)$` (case-insensitive)
+
+Why folder-name first: most field tests have shown `package.json:name` is a template fossil from `npx create-next-app` and never updated, while folder names track the actual project identity Dave uses in his head.
+
+Sanitize the chosen string silently: lowercase, replace runs of non-`[a-z0-9]` with `-`, trim leading/trailing `-`, collapse runs of `-`. No need to surface this transform to the user.
+
+**Step 2 — confirm in plain Czech.** Ask exactly one short question — NEVER use the words "slug", "kebab-case", or any other internal jargon:
+
+> "Jak chceš tenhle projekt pojmenovat v paměti cortexu? (krátké jméno, lowercase, bez mezer — zapadne do `~/.cortex/projects/<jméno>.md`)
+>
+> Default: `<derived-default>` — stačí Enter, nebo napiš jiné."
+
+If the user provides a custom name, sanitize it the same way and proceed. If they hit Enter / approve, use the default. Save the final value as `<slug>` for all downstream phases.
+
+> **Auto-mode caveat:** if Dave invoked the prompt with "pokračuj sám / vše schvaluji / auto", you MAY skip this prompt and use the derived default — but log the choice loudly in the Phase 7 closing summary so he can rename via `mv` if it landed wrong.
+
+### Writing audit-context.md
+
 Write `cortex/audit-context.md`:
 
 ```markdown
 ---
 phase: 0-detect
 date: <YYYY-MM-DD>
-slug: <derived from package.json:name or folder name>
+slug: <slug from gate above — never raw package.json:name without check>
 ---
 
 # Audit context
@@ -234,8 +259,24 @@ After P2, ask the user the 5 questions no amount of code reading can derive. Upd
 
 > "Audit je hotov v `cortex/AUDIT.md` — projdi si ho. 5 otázek, co kód neumí říct:"
 
+### Auto-mode behavior (when Dave said "pokračuj sám / vše schvaluji")
+
+**Q1 is NEVER auto-filled.** It is the single input that re-prioritizes Phase 5's `## DO this week` ordering — guessing it on a project where the audit's "biggest signal" doesn't actually match the user's business priority will produce a recommendations file that *looks* senior but points at the wrong thing first. So even in full auto-mode, **stop and ask Q1 live** (one short prompt, English-or-Czech to taste, summarize the audit's top-3 candidates as defaults the user can pick by number).
+
+**Q2-Q5 may be auto-filled** by reasonable-assumption from the audit + Dave's global `CLAUDE.md` profile + this project's existing `CLAUDE.md` (if any). When auto-filled, mark each answer with `_(reasonable-assumption — override in cortex/AUDIT.md § "Phase 3 — Human input" to re-steer)_` so it's visible the value is a guess.
+
+Rationale (don't strip this — it's load-bearing): Q1 changes the *order* of Phase 5; Q2-Q5 change the *content* of supporting sections. Wrong Q1 = wrong sprint plan. Wrong Q4 (social map) is recoverable later because the audit findings are still surfaced as FYI.
+
 ### Q1 — Business priority
 > "Kdyby ses měl tenhle týden rozhodnout, kterou jednu věc opravit / přidat — co je to a proč PRÁVĚ to?"
+>
+> **In auto-mode**, present the audit's top-3 candidates as numbered options + a free-text fallback:
+>
+> > Audit našel 3 nejsilnější páky:
+> > [1] `<top finding from §11 + §12>`
+> > [2] `<runner-up>`
+> > [3] `<third>`
+> > [napiš číslo, nebo svůj vlastní top-1, nebo "1+2" pro kombo]
 
 ### Q2 — Threat model
 > "Kdo je tvůj hlavní attacker? (uživatel zlomyslný, konkurence, supply chain, insider, …) Co je tvůj nejcennější asset?"
@@ -335,6 +376,61 @@ The user reviews via `[a]ccept all` / `[s]elect changes` / `[r]eject all`.
 
 Same `§4.3` synthesis pattern as `new-project.md`: per gap identified in audit, propose a project-specific agent or hook with research citation. Apply the SAME budget (max 3 agents + 2 hooks). Write proposals to `cortex/agents-proposed/` and `cortex/hooks-proposed/` — **do NOT install into `.claude/` automatically.** User reviews + moves the ones they accept.
 
+### 5d) Projects library entry — `$CORTEX_DATA_HOME/projects/<slug>.md`
+
+The cortex projects library (`$CORTEX_DATA_HOME/projects/`) is the cross-session memory of *every* project Dave has touched with cortex-x. Greenfield runs (`new-project.md`) write to it; existing-project audits MUST do the same, otherwise `cortex-load` shows a blank when Dave returns to this repo six weeks later.
+
+Resolve the destination path:
+
+```bash
+# Same resolution chain as the session-start hook:
+DEST_ROOT="${CORTEX_DATA_HOME:-$(awk '/^cortex_data_home:/{gsub(/["'"'"']/,"",$2); print $2}' ~/.claude/shared/cortex-source.yaml 2>/dev/null)}"
+DEST_ROOT="${DEST_ROOT:-$HOME/.cortex}"
+mkdir -p "$DEST_ROOT/projects"
+DEST="$DEST_ROOT/projects/<slug>.md"
+```
+
+Write `$DEST` (overwrite if exists — this is the canonical entry):
+
+```markdown
+---
+slug: <slug>
+project_path: <absolute path of audited repo>
+profile: <detected profile>
+stage: <detected stage>
+last_audit: <YYYY-MM-DD>
+audit_artifacts: <project_path>/cortex/
+---
+
+# <project name>
+
+**Stack:** <one-line stack summary from audit-context>
+**Status:** <stage> — <one-line state from audit executive summary>
+
+## What this project is
+<2-3 sentences from audit §1 / executive summary>
+
+## Critical signals (from last audit)
+- <strongest finding #1 with severity>
+- <strongest finding #2 with severity>
+- <biggest opportunity>
+
+## Off-limits zones (from Phase 3 Q4)
+- <list any social-map exclusions>
+
+## Where the deep audit lives
+- `<project_path>/cortex/AUDIT.md` — 12-dimension audit
+- `<project_path>/cortex/recommendations.md` — DO this week / sprint, SKIP, OPEN
+- `<project_path>/cortex/research/<slug>-audit-<date>.md` — cited research
+
+## Active recommendations (top 3 not yet executed)
+- [ ] <DO this week #1>
+- [ ] <DO this week #2>
+- [ ] <DO this sprint top item>
+```
+
+This file is the **lookup target** for `cortex-load.md` and the session-start hook. If a previous entry already exists (re-audit case), preserve any user-added notes outside the YAML-frontmatter and the auto-sections — append a `## Audit history` log line: `- <date> — re-audited (see <project_path>/cortex/AUDIT.md)`.
+
 ---
 
 ## Phase 6 — ADR backfill (OPT-IN, requires `--backfill-adrs` flag)
@@ -392,8 +488,10 @@ Existing-project audit done. Created in this directory:
 - cortex/MEMORY/repo-map.md   — token-budgeted symbol map
 - cortex/decisions/ADR-*.md   — retroactive ADRs (only if --backfill-adrs)
 
-Plus in cortex source:
+Plus in cortex data home:
 - $CORTEX_DATA_HOME/research/<slug>-audit-<date>.md — raw research cache
+- $CORTEX_DATA_HOME/projects/<slug>.md — cross-session library entry (so future
+  sessions remember this project without re-deriving everything)
 
 Co dál?
 - Začni s `DO this week` v cortex/recommendations.md
