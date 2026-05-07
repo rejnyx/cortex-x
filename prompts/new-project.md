@@ -902,6 +902,8 @@ After Phase 5 (or after §4.6 if Phase 5 was skipped), end with this exact closi
 ```
 Hotovo. Co dál?
 - Začít první story: otevři PROGRESS.md, vyber 1.1
+- Aktivovat Hermes nightly autopilot: po prvním commitu si Hermes přečte cortex/recommendations.md
+  a otevře draft PR ráno (~$0.0008/run, halt: touch ~/.cortex/HERMES_HALT). Setup: docs/hermes-usage.md
 - Cortex sync na konci sezení: paste ~/.claude/shared/prompts/cortex-sync.md
 - Pokud začneš modifikovat existující codebase mimo scaffold (např. v existujícím projektu): paste ~/.claude/shared/prompts/audit-existing.md (skill /audit)
 - Něco se zamotá: paste ~/.claude/shared/prompts/cortex-doctor.md

@@ -22,6 +22,18 @@ Opens a new empty project folder → one command → you get:
 - Principles injected: **SSOT, Modular, Scalable, Security**
 - Optional: web research of 2026 best practices for your use case
 
+## Two AI surfaces — Claude Code by day, Hermes by night
+
+cortex-x runs on **two AI surfaces** that share the same project memory.
+
+**Claude Code (interactive).** Your IDE-side AI partner — drives feature work, code review, refactors. Reads cortex-x hooks · skills · agents · standards from `~/.claude/`. Use it dev-time.
+
+**Hermes (autonomous nightly).** Your AI nightly autopilot. Drop a `cortex/recommendations.md` in your repo. Hermes reads it overnight, runs the LLM (~$0.0008/run), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject.
+
+> **Safety primitives baked in.** Every Hermes run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/HERMES_HALT` stops it immediately · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
+
+See [docs/hermes-usage.md](./docs/hermes-usage.md) to activate Hermes for your repo.
+
 ## Core Mental Model — SSOT respected
 
 **cortex-x holds institutional wisdom. Project `CLAUDE.md` holds current state.**
