@@ -20,6 +20,83 @@
 
 ## Current
 
+### Sprint 1.6.13 — Hermes v0.5b: OpenRouter engine implementation (2026-05-07 closing-closing)
+
+#### Non-breaking (additive — zero new npm deps)
+
+- **What landed:** v0.5b LLM-provider engine in `bin/hermes/_lib/action-engine.cjs`. Full pipeline now works with a real LLM via OpenRouter's OpenAI-compatible API. **Zero-deps preserved** — uses `fetch()` built into Node ≥18. +12 tests (460 → 472), all CI-green.
+
+  **Key change:** default engine pivoted from `claude-sdk` (stub) to `openrouter` (real implementation behind `OPENROUTER_API_KEY` env var). `claude-sdk` engine remains reachable via explicit `--engine=claude-sdk` flag for the alternative path described in `docs/hermes-runtime.md` § 4.5.
+
+  Three deliverables:
+
+  1. **`openrouterEngine` (~100 LOC)** in `bin/hermes/_lib/action-engine.cjs`. Async, `fetch`-based. Calls `https://openrouter.ai/api/v1/chat/completions` with `response_format: { type: "json_object" }`, parses LLM-returned `{edits: [...]}` JSON, applies via shared `applyEditsToFilesystem()`. Captures `cost_usd` + `tokens_in` + `tokens_out` from `data.usage`. Configurable timeout (default 2 min) via `AbortController`. 8 distinct error codes for observability:
+     - `OPENROUTER_KEY_MISSING` — env var not set
+     - `NO_FETCH` — Node < 18
+     - `OPENROUTER_TIMEOUT` — request exceeded timeout
+     - `OPENROUTER_NETWORK_ERROR` — fetch threw
+     - `OPENROUTER_HTTP_ERROR` — 4xx/5xx with httpStatus
+     - `OPENROUTER_RESPONSE_NOT_JSON` — body wasn't JSON
+     - `OPENROUTER_EMPTY_RESPONSE` — choices array empty
+     - `OPENROUTER_PLAN_NOT_JSON` — LLM emitted non-JSON despite json_object mode
+     - `OPENROUTER_EDIT_UNSAFE` / `OPENROUTER_EDIT_INVALID` / `OPENROUTER_NO_EDITS` — same path-safety guards as mock engine
+
+     Plus: `HERMES_SYSTEM_PROMPT` (rules: JSON-only output, no human_only paths, zero-deps, smallest-change), `buildUserPrompt()` (action body + citations + best-effort CLAUDE.md inclusion, capped at 4000 chars), test-injectable `opts.fetch` for mocked-fetch unit tests.
+
+  2. **Async refactor.** `applyAction()` becomes `async`. Sync engines (mock, claude-sdk-stub) are wrapped in `Promise.resolve(...)` for shape compatibility — they continue to return immediately. `bin/hermes/execute.cjs` `runExecute()` becomes async; `await actionEngine.applyAction(...)`. CLI wraps `runExecute()` call in an async IIFE chained with `.then(handleResult).catch(...)`.
+
+  3. **`applyEditsToFilesystem` extracted as shared helper** + exported. Both mock + openrouter engines reduce to "write a list of edits to the filesystem with path-safety guards". Helper accepts custom error codes per caller (e.g. `MOCK_NO_EDITS` vs `OPENROUTER_NO_EDITS`) so failure observability stays distinguishable.
+
+- **Tests:**
+  - **+8 openrouter mock-fetch tests** in `tests/unit/hermes/action-engine.test.cjs` — all paths covered without making real API calls (test injects `opts.fetch`):
+    - happy path with cost capture
+    - correct headers + model + JSON-mode passed to OpenRouter
+    - 4xx/5xx HTTP error handling
+    - LLM-emits-non-JSON
+    - fetch-throws (network error)
+    - empty response
+    - LLM-emits-path-traversal (defense in depth still applies to LLM output)
+    - missing API key
+  - **+1 OpenRouter PII redaction test** in `tests/unit/hermes/journal.test.cjs` — explicit verification that `sk-or-v1-...` keys are caught by existing `sk-` regex (no separate pattern needed).
+  - **+2 default-engine tests** in `tests/unit/hermes/execute.test.cjs` — confirms post-Sprint-1.6.13 default is `openrouter`; `claude-sdk` still reachable via explicit `--engine=claude-sdk` flag.
+  - All existing tests refactored to `async test(...)` + `await execute.runExecute(...)`. The `withEnv()` helper became async too (returns `await fn()` in the try block).
+
+- **Bugs caught by tests during implementation:**
+  1. Async refactor: `withEnv()` returned the value of `fn()` but didn't await it, so when `fn` was async, the test ended before assertions ran → asynchronous-activity-after-test-ended file-level error. Fix: `await fn()` in `withEnv` + every test now `await withEnv(...)` (sed batch).
+  2. `sed -i 's|}, () => {|}, async () => {|g'` only matched single-line; multi-line `withEnv({...}, () => {...})` patterns needed a separate pass.
+  3. Default engine pivot from `claude-sdk` → `openrouter` broke the existing "claude-sdk default" test. Updated to test the new default + added explicit-flag test for the SDK path.
+
+- **Safety still in place:**
+  - LLM-generated edits go through `applyEditsToFilesystem` → same path-safety guards (no absolute paths, no `..` traversal) as mock engine. The fact that an LLM produced the diff doesn't grant any policy bypass.
+  - All Hermes-policy.md MUST-H1 to MUST-H7 guarantees preserved unchanged.
+  - `block-destructive.cjs` (Ring 2) still enforces at the Bash-tool layer.
+  - `OPENROUTER_API_KEY` redacted in journal (sk-or-v1- caught by existing `sk-` regex; explicit test added).
+  - First REAL API call deliberately requires user-set `OPENROUTER_API_KEY` env var — no API calls happen in CI (tests use `opts.fetch` injection).
+
+- **What's autonomous TODAY (post-Sprint-1.6.13):**
+  ```bash
+  # End-to-end Hermes execution with real LLM via OpenRouter:
+  export OPENROUTER_API_KEY=sk-or-v1-...
+  export HERMES_MODEL=anthropic/claude-sonnet-4.5  # or openai/gpt-5.4, etc.
+
+  cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+  cortex-hermes execute --plan-file=/tmp/plan.json
+  # → real OpenRouter call → file edits → npm test gate → atomic commit + trailers
+  ```
+
+  **L2 Execution autonomy is now real.** L3 (cron triggers) is the next milestone — uncomment `schedule:` in `.github/workflows/hermes.example.yml`, add `OPENROUTER_API_KEY` repo secret, copy to `hermes.yml`.
+
+- **Migrate:** none — additive. All existing tests refactored to async but signatures unchanged from the caller's perspective. Existing `mock` engine path unchanged. `claude-sdk` engine still reachable via `--engine=claude-sdk` (alternative path retained per docs/hermes-runtime.md § 4.5).
+
+- **Rollback:** revert this commit. v0.5a (mock engine + execute pipeline) preserved.
+
+- **Pending Dave's go for first REAL API call:**
+  - Set `OPENROUTER_API_KEY` env var on local machine OR as GitHub Actions secret
+  - Set `HERMES_MODEL` to preferred model
+  - Run a single dogfood `cortex-hermes execute` against a fresh clone with a small action
+  - Validate: PR opens, journal records `cost_usd` + tokens, branch is correct shape, trailers parseable
+  - If green for 1-2 weeks: enable GHA cron schedule
+
 ### Sprint 1.6.12 — dogfood follow-ups + OpenRouter pivot for v0.5b (2026-05-07 final-final)
 
 #### Non-breaking (additive — docs + .gitignore only, no code changes)

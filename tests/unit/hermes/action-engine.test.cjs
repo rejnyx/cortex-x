@@ -12,30 +12,31 @@ function tmpRepo(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `engine-${prefix}-`));
 }
 
-function withMockPlan(plan, fn) {
+async function withMockPlan(plan, fn) {
   const prev = process.env.HERMES_MOCK_PLAN;
   process.env.HERMES_MOCK_PLAN = JSON.stringify(plan);
-  try { return fn(); } finally {
+  try { return await fn(); } finally {
     if (prev === undefined) delete process.env.HERMES_MOCK_PLAN;
     else process.env.HERMES_MOCK_PLAN = prev;
   }
 }
 
-describe('action-engine: mock engine', () => {
-  test('applies single edit', () => {
+describe('action-engine: mock engine (sync, wrapped in async applyAction)', () => {
+  test('applies single edit', async () => {
     const repoRoot = tmpRepo('single');
-    const result = withMockPlan({
+    const result = await withMockPlan({
       edits: [{ path: 'src/foo.js', content: 'module.exports = 42;' }],
     }, () => engine.applyAction({}, { engine: 'mock', repoRoot }));
 
     assert.equal(result.ok, true);
     assert.deepEqual(result.touchedFiles, ['src/foo.js']);
+    assert.equal(result.engine, 'mock');
     assert.equal(fs.readFileSync(path.join(repoRoot, 'src/foo.js'), 'utf8'), 'module.exports = 42;');
   });
 
-  test('applies multiple edits', () => {
+  test('applies multiple edits', async () => {
     const repoRoot = tmpRepo('multi');
-    const result = withMockPlan({
+    const result = await withMockPlan({
       edits: [
         { path: 'a.js', content: 'a' },
         { path: 'sub/b.js', content: 'b' },
@@ -48,12 +49,12 @@ describe('action-engine: mock engine', () => {
     assert.equal(fs.readFileSync(path.join(repoRoot, 'sub/b.js'), 'utf8'), 'b');
   });
 
-  test('returns MOCK_NOT_SET when env var missing', () => {
+  test('returns MOCK_NOT_SET when env var missing', async () => {
     const repoRoot = tmpRepo('not-set');
     const prev = process.env.HERMES_MOCK_PLAN;
     delete process.env.HERMES_MOCK_PLAN;
     try {
-      const result = engine.applyAction({}, { engine: 'mock', repoRoot });
+      const result = await engine.applyAction({}, { engine: 'mock', repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'MOCK_NOT_SET');
     } finally {
@@ -61,12 +62,12 @@ describe('action-engine: mock engine', () => {
     }
   });
 
-  test('returns MOCK_PARSE_ERROR on invalid JSON', () => {
+  test('returns MOCK_PARSE_ERROR on invalid JSON', async () => {
     const repoRoot = tmpRepo('bad-json');
     const prev = process.env.HERMES_MOCK_PLAN;
     process.env.HERMES_MOCK_PLAN = '{ not valid json';
     try {
-      const result = engine.applyAction({}, { engine: 'mock', repoRoot });
+      const result = await engine.applyAction({}, { engine: 'mock', repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'MOCK_PARSE_ERROR');
     } finally {
@@ -75,26 +76,26 @@ describe('action-engine: mock engine', () => {
     }
   });
 
-  test('rejects empty edits array', () => {
+  test('rejects empty edits array', async () => {
     const repoRoot = tmpRepo('empty');
-    const result = withMockPlan({ edits: [] },
+    const result = await withMockPlan({ edits: [] },
       () => engine.applyAction({}, { engine: 'mock', repoRoot }));
     assert.equal(result.ok, false);
     assert.equal(result.code, 'MOCK_NO_EDITS');
   });
 
-  test('rejects absolute paths (defense in depth)', () => {
+  test('rejects absolute paths (defense in depth)', async () => {
     const repoRoot = tmpRepo('abs');
-    const result = withMockPlan({
+    const result = await withMockPlan({
       edits: [{ path: '/etc/passwd', content: 'evil' }],
     }, () => engine.applyAction({}, { engine: 'mock', repoRoot }));
     assert.equal(result.ok, false);
     assert.equal(result.code, 'MOCK_EDIT_UNSAFE');
   });
 
-  test('rejects path traversal', () => {
+  test('rejects path traversal', async () => {
     const repoRoot = tmpRepo('traversal');
-    const result = withMockPlan({
+    const result = await withMockPlan({
       edits: [{ path: '../../../escape.js', content: 'evil' }],
     }, () => engine.applyAction({}, { engine: 'mock', repoRoot }));
     assert.equal(result.ok, false);
@@ -102,17 +103,218 @@ describe('action-engine: mock engine', () => {
   });
 });
 
-describe('action-engine: claude-sdk engine (stub until v0.5b)', () => {
-  test('returns CLAUDE_SDK_NOT_IMPLEMENTED', () => {
-    const result = engine.applyAction({}, { engine: 'claude-sdk' });
+describe('action-engine: openrouter engine (async, fetch-based)', () => {
+  // All openrouter tests use a mocked fetch — never make a real API call.
+
+  function makeFetch(impl) {
+    return async (...args) => impl(...args);
+  }
+
+  function okResponse(body) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    };
+  }
+
+  function errResponse(status, body) {
+    return {
+      ok: false,
+      status,
+      json: async () => body,
+      text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
+    };
+  }
+
+  test('returns OPENROUTER_KEY_MISSING when env unset', async () => {
+    const prev = process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    try {
+      const result = await engine.applyAction({ action: { num: 1, title: 't', body: 'b' } }, {
+        engine: 'openrouter',
+      });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_KEY_MISSING');
+    } finally {
+      if (prev !== undefined) process.env.OPENROUTER_API_KEY = prev;
+    }
+  });
+
+  test('happy path: parses LLM JSON + applies edits + captures cost/tokens', async () => {
+    const repoRoot = tmpRepo('or-happy');
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test-only-not-real-1234567890';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              edits: [{ path: 'docs/openrouter-test.md', content: '# from OR\n' }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 1500, completion_tokens: 250, cost: 0.0042 },
+      }));
+
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 'demo', body: 'do the thing' } },
+        { engine: 'openrouter', repoRoot, fetch: fetchFake, model: 'test/model' },
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.engine, 'openrouter');
+      assert.equal(result.model, 'test/model');
+      assert.deepEqual(result.touchedFiles, ['docs/openrouter-test.md']);
+      assert.equal(result.cost_usd, 0.0042);
+      assert.equal(result.tokens_in, 1500);
+      assert.equal(result.tokens_out, 250);
+      assert.equal(fs.readFileSync(path.join(repoRoot, 'docs/openrouter-test.md'), 'utf8'), '# from OR\n');
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('passes correct headers + model + JSON-mode to OpenRouter', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test-1234';
+    try {
+      let captured = null;
+      const fetchFake = makeFetch(async (url, opts) => {
+        captured = { url, opts };
+        return okResponse({
+          choices: [{ message: { content: '{"edits":[{"path":"x.md","content":"x"}]}' } }],
+          usage: {},
+        });
+      });
+
+      await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        {
+          engine: 'openrouter',
+          repoRoot: tmpRepo('headers'),
+          fetch: fetchFake,
+          model: 'anthropic/claude-sonnet-4.5',
+        },
+      );
+
+      assert.equal(captured.url, engine.OPENROUTER_ENDPOINT);
+      assert.equal(captured.opts.method, 'POST');
+      assert.match(captured.opts.headers.Authorization, /^Bearer sk-or-v1-/);
+      assert.equal(captured.opts.headers['Content-Type'], 'application/json');
+      assert.equal(captured.opts.headers['X-Title'], 'cortex-x Hermes');
+
+      const body = JSON.parse(captured.opts.body);
+      assert.equal(body.model, 'anthropic/claude-sonnet-4.5');
+      assert.deepEqual(body.response_format, { type: 'json_object' });
+      assert.equal(body.messages[0].role, 'system');
+      assert.match(body.messages[0].content, /Hermes/);
+      assert.equal(body.messages[1].role, 'user');
+      assert.match(body.messages[1].content, /Action 1: t/);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('returns OPENROUTER_HTTP_ERROR on 4xx/5xx', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => errResponse(401, 'unauthorized'));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('http-err'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_HTTP_ERROR');
+      assert.equal(result.httpStatus, 401);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('returns OPENROUTER_PLAN_NOT_JSON when LLM emits malformed JSON', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{ message: { content: 'not json at all' } }],
+        usage: {},
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('not-json'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_PLAN_NOT_JSON');
+      assert.match(result.raw_preview, /not json/);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('returns OPENROUTER_NETWORK_ERROR on fetch throw', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => { throw new Error('econnrefused'); });
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('netw'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_NETWORK_ERROR');
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('returns OPENROUTER_EMPTY_RESPONSE when response has no message content', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({ choices: [], usage: {} }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('empty'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_EMPTY_RESPONSE');
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('rejects path traversal in LLM-generated edits', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              edits: [{ path: '../../../../etc/passwd', content: 'evil' }],
+            }),
+          },
+        }],
+        usage: {},
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('llm-traversal'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_EDIT_UNSAFE');
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+});
+
+describe('action-engine: claude-sdk engine (alternative path stub)', () => {
+  test('returns CLAUDE_SDK_NOT_IMPLEMENTED', async () => {
+    const result = await engine.applyAction({}, { engine: 'claude-sdk' });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'CLAUDE_SDK_NOT_IMPLEMENTED');
-    assert.ok(Array.isArray(result.next_steps));
   });
 });
 
 describe('action-engine: engine selection', () => {
-  test('opts.engine takes precedence over env', () => {
+  test('opts.engine takes precedence over env', async () => {
     const prev = process.env.HERMES_ENGINE;
     process.env.HERMES_ENGINE = 'claude-sdk';
     try {
@@ -136,20 +338,35 @@ describe('action-engine: engine selection', () => {
     }
   });
 
-  test('default is claude-sdk', () => {
+  test('default is openrouter (post-Sprint-1.6.13)', () => {
     const prev = process.env.HERMES_ENGINE;
     delete process.env.HERMES_ENGINE;
     try {
       const { name } = engine.selectEngine({});
-      assert.equal(name, 'claude-sdk');
+      assert.equal(name, 'openrouter');
     } finally {
       if (prev !== undefined) process.env.HERMES_ENGINE = prev;
     }
   });
 
-  test('unknown engine name returns UNKNOWN_ENGINE on apply', () => {
-    const result = engine.applyAction({}, { engine: 'frobnicate' });
+  test('unknown engine name returns UNKNOWN_ENGINE on apply', async () => {
+    const result = await engine.applyAction({}, { engine: 'frobnicate' });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'UNKNOWN_ENGINE');
+  });
+});
+
+describe('action-engine: applyEditsToFilesystem helper (shared)', () => {
+  test('exposed as a public export', () => {
+    assert.equal(typeof engine.applyEditsToFilesystem, 'function');
+  });
+
+  test('rejects empty edits with custom code', () => {
+    const result = engine.applyEditsToFilesystem([], {
+      repoRoot: tmpRepo('helper-empty'),
+      emptyCode: 'CUSTOM_NO_EDITS',
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'CUSTOM_NO_EDITS');
   });
 });
