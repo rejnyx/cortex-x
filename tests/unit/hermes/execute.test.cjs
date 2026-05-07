@@ -125,10 +125,10 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // pr_review_responder is the last parked kind (v0.9). All v0.8 kinds
-    // shipped: recommendation, recommendation_harvest, dep_update_patch,
-    // todo_triage, flaky_test_repair, doc_drift, lint_fix_shipper, test_coverage_gap.
-    const f = tmpPlanFile(buildPlan({ action_kind: 'pr_review_responder' }));
+    // release_notes_drafter is the v1.0+ placeholder (declared, shipped_in: null).
+    // All v0.8 kinds shipped: recommendation + 8 capabilities (harvest, dep-patch,
+    // flaky-test, doc-drift, todo-triage, lint-fix, test-coverage-gap, pr-responder).
+    const f = tmpPlanFile(buildPlan({ action_kind: 'release_notes_drafter' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');

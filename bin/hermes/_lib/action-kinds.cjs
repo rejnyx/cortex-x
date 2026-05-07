@@ -120,13 +120,25 @@ const ACTION_KINDS = {
 
   pr_review_responder: {
     description:
-      'When reviewer comments on Hermes draft PR, single LLM call drafts targeted patch on the same branch. Capability #9.',
+      'Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.',
+    requires_llm: false, // v1: aggregate + file issue, no patch generation
+    source: 'gh pr list + gh api repos/.../pulls/N/comments',
+    detector: 'detectors/pr-review-responder.cjs', // Sprint 1.8.11
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // gh issues only
+    shipped_in: '0.1.0', // Sprint 1.8.11
+  },
+
+  // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
+  release_notes_drafter: {
+    description:
+      'After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation.',
     requires_llm: true,
-    source: 'gh pr view --comments',
-    detector: null, // future: detectors/pr-review-responder.cjs
+    source: 'gh pr list --state merged + git tag --list',
+    detector: null,
     cost_envelope: 'normal',
-    blast_radius: 'low', // patches only the existing hermes/<branch>
-    shipped_in: null, // Sprint 1.9.x
+    blast_radius: 'low', // appends to CHANGELOG.md
+    shipped_in: null, // Sprint 1.10.x or v1.0
   },
 
   // ReasoningBank-lite memory ISN'T an action_kind — it's a cross-cutting

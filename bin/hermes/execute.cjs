@@ -69,6 +69,9 @@ const lintFix = require('../../detectors/lint-fix.cjs');
 // Sprint 1.8.10 — test_coverage_gap cross-references coverage summary +
 // recent git history, files gh issues for low-coverage hot-spots.
 const coverageGap = require('../../detectors/test-coverage-gap.cjs');
+// Sprint 1.8.11 — pr_review_responder monitors Hermes-authored PRs for
+// reviewer comments, files aggregation issue per PR. No auto-patch in v1.
+const prResponder = require('../../detectors/pr-review-responder.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -464,6 +467,77 @@ async function runDepUpdateAction(plan, opts = {}) {
     usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     updated_count: detected.candidates.length,
     candidates: detected.candidates,
+  };
+}
+
+// Sprint 1.8.11 — pr_review_responder executor branch. Surface reviewer
+// feedback on Hermes-authored PRs as aggregation issues. Issues-only
+// side effect (skip_commit pattern). No auto-patch in v1.
+async function runPRResponderAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = prResponder.detectReviewComments({
+    cwd: repoRoot,
+    maxCandidates: opts.maxCandidates || 5,
+    mockOpenPRs: opts.mockOpenPRs,
+    mockCommentsByPR: opts.mockCommentsByPR,
+  });
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'PR_RESPONDER_NO_CANDIDATES',
+      error: `no Hermes-authored PRs with unresolved reviewer comments (${detected.total_open_prs} Hermes PRs total)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  const openedIssues = [];
+  if (opts.skipGh || opts.dryRunGh) {
+    for (const cand of detected.candidates) {
+      openedIssues.push({
+        title: prResponder.formatIssueTitle(cand),
+        url: 'mock://dry-run',
+        candidate: cand,
+        dry_run: true,
+      });
+    }
+  } else {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (!ghOpsLib.hasGhCli()) {
+      return {
+        ok: false,
+        code: 'GH_CLI_MISSING',
+        error: 'gh CLI not available — pr_review_responder needs gh',
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      };
+    }
+    for (const cand of detected.candidates) {
+      const title = prResponder.formatIssueTitle(cand);
+      const body = prResponder.formatIssueBody(cand);
+      const tmpFile = path.join(os.tmpdir(), `hermes-prresp-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      fs.writeFileSync(tmpFile, body, 'utf8');
+      const result = require('node:child_process').spawnSync('gh', [
+        'issue', 'create',
+        '--title', title,
+        '--body-file', tmpFile,
+        '--label', 'pr-review-feedback',
+      ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      if (result.status === 0) {
+        openedIssues.push({ title, url: (result.stdout || '').trim(), candidate: cand });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles: [],
+    skip_commit: true,
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    opened_issues: openedIssues,
+    surfaced_count: detected.candidates.length,
   };
 }
 
@@ -1120,6 +1194,15 @@ async function runExecute(opts = {}) {
         dryRunGh: opts.dryRunGh,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'pr_review_responder') {
+      applyResult = await runPRResponderAction(plan, {
+        repoRoot,
+        mockOpenPRs: opts.mockOpenPRs,
+        mockCommentsByPR: opts.mockCommentsByPR,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        maxCandidates: opts.maxCandidates,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -1367,6 +1450,8 @@ module.exports = {
   runLintFixAction,
   // Sprint 1.8.10 — test_coverage_gap helper exported for unit testing
   runCoverageGapAction,
+  // Sprint 1.8.11 — pr_review_responder helper exported for unit testing
+  runPRResponderAction,
   EX_USAGE,
 };
 
