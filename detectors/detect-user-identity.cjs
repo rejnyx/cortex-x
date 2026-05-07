@@ -76,12 +76,16 @@ function readLocale() {
   }
 
   // Strategy 2: env chain (os-locale order). Unix-reliable, mostly empty on Windows.
+  // POSIX/C are placeholder values meaning "no real locale" — treat as null
+  // (GitHub Actions Linux runners default to LANG=C which would otherwise leak).
   const envChain = [
     process.env.LC_ALL,
     process.env.LC_MESSAGES,
     process.env.LANG,
     process.env.LANGUAGE && process.env.LANGUAGE.split(':')[0],
-  ].filter(Boolean).map((v) => v.split('.')[0].replace('_', '-'));
+  ].filter(Boolean)
+    .map((v) => v.split('.')[0].replace('_', '-'))
+    .filter((v) => v !== 'C' && v !== 'POSIX' && v !== 'c');
   const envLocale = envChain[0] || null;
 
   // Strategy 3: Windows registry (PowerShell Get-Culture) — only on win32 if Intl flopped to en-US.
