@@ -101,6 +101,46 @@ describe('execute: plan validation', () => {
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_INCOMPLETE');
   });
+
+  // Sprint 1.8.1 — typed action_kind validation
+  test('Sprint 1.8.1 — plan missing action_kind defaults to recommendation (backwards-compat)', async () => {
+    // Simulate pre-1.8.1 plan (no action_kind field). Should still validate
+    // and proceed past loadPlan — fails later in the pipeline due to no
+    // mock engine setup, but NOT at plan validation.
+    const f = tmpPlanFile(buildPlan());
+    const result = await execute.runExecute({ planFile: f });
+    // Whatever happens next, it must NOT be PLAN_UNKNOWN_ACTION_KIND or
+    // PLAN_ACTION_KIND_NOT_SHIPPED — those are the new 1.8.1 codes.
+    assert.notEqual(result.code, 'PLAN_UNKNOWN_ACTION_KIND');
+    assert.notEqual(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
+  });
+
+  test('Sprint 1.8.1 — plan with unknown action_kind returns PLAN_UNKNOWN_ACTION_KIND', async () => {
+    const f = tmpPlanFile(buildPlan({ action_kind: 'totally_made_up_kind' }));
+    const result = await execute.runExecute({ planFile: f });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'PLAN_UNKNOWN_ACTION_KIND');
+    assert.match(result.error, /not registered/);
+    assert.match(result.error, /Supported:/);
+  });
+
+  test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
+    // recommendation_harvest is declared in registry (Sprint 1.8.2 roadmap)
+    // but shipped_in is null until that sprint lands. Executor must reject.
+    const f = tmpPlanFile(buildPlan({ action_kind: 'recommendation_harvest' }));
+    const result = await execute.runExecute({ planFile: f });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
+    assert.match(result.error, /declared but not yet shipped/);
+  });
+
+  test('Sprint 1.8.1 — plan with explicit action_kind: recommendation works (no rejection)', async () => {
+    const f = tmpPlanFile(buildPlan({ action_kind: 'recommendation' }));
+    const result = await execute.runExecute({ planFile: f });
+    // Same as backwards-compat path — must not be rejected by 1.8.1 validators.
+    assert.notEqual(result.code, 'PLAN_UNKNOWN_ACTION_KIND');
+    assert.notEqual(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
+  });
 });
 
 describe('execute: halt detection', () => {
