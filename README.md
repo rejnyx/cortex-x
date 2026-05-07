@@ -69,8 +69,13 @@ cortex-x/
 │   └── agents/       Reusable subagents (reviewer, security, architect)
 ├── detectors/        Auto-detect project type from package.json
 ├── research/         Cached 2026 best-practices per profile
+├── tests/            Tier 0-5 QA infrastructure (207 tests, 5-lane CI matrix)
+├── tools/            Verifiers (verify-prompts, verify-skills, verify-audit-output, verify-install)
+├── projects/         README only — actual project entries land in $CORTEX_DATA_HOME/projects/
 └── install.sh        One-command install to ~/.claude/
 ```
+
+> **XDG separation (Sprint 1.6, 2026-04).** The repo holds **framework code only**. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`). The empty-looking `projects/` in the repo is intentional: it documents the contract; data is per-machine. See [docs/SSOT-architecture.md](./docs/SSOT-architecture.md) if it exists, or `cortex-source.yaml` after install.
 
 ## Installation
 
@@ -279,27 +284,32 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 
 ## Status
 
-**Phase 1 — Foundation** ✅
-- 5 universal hooks (block-destructive, session-start, pre-compact, pre-tool-use, post-tool-use)
-- 9 project profiles (nextjs-saas, waas, chatbot, ai-agent, tauri, astro, cli, kiosek, minimal)
-- 11 standards (SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs)
+> **Shipped infra vs designed patterns.** Items below split by *what runs today* (✅) vs *what's specified but awaits Phase 7 runtime* (⏳ designed). Read the status mark before betting on a feature.
+
+**Phase 1 — Foundation** ✅ shipped
+- 5 universal hooks (block-destructive, session-start, pre-compact, pre-tool-use, post-tool-use) — Tier 4 contract-tested
+- 9 project profiles (nextjs-saas, waas, chatbot, ai-agent, tauri, astro, cli, kiosek, minimal) — schema-validated
+- 11 standards (SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs) — Rule 1/1.5/2/3 tier system
 - 5 templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
-- Cross-platform install scripts
+- Cross-platform install scripts (5-lane CI matrix: ubuntu-bash, macos-bash, win-gitbash, win-pwsh7, win-ps5.1)
+- Tier 0-5 QA infrastructure (207 tests, hook contract + prompt regression — 2026-05-07)
 
-**Phase 2 — Bootstrap skill** — `/init-project` with Clack CLI
+**Phase 2 — Bootstrap skill** ⚠️ partial — prompt-driven scaffold (`prompts/new-project.md`) shipped; Clack-based interactive CLI deferred
 
-**Phase 3 — Multi-agent** — Shared orchestrator + review pipeline (code-reviewer, security-checker, architecture-guard, design-checker, test-writer, db-reviewer, doc-updater)
+**Phase 3 — Multi-agent** ⚠️ partial — 5-agent parallel code-review pipeline (`prompts/code-review.md` → blind-hunter, edge-case-hunter, acceptance-auditor, security-auditor, ssot-enforcer) shipped; standalone orchestrator agent deferred
 
-**Phase 4 — Web research** — Live 2026 best practices per use case via `--research` flag
+**Phase 4 — Web research** ✅ shipped — `prompts/new-project.md` Phase 5 dispatches 3-5 parallel research agents, `research-protocol.md` defines the contract, results cached at `$CORTEX_DATA_HOME/research/<slug>-<date>.md`
 
-**Phase 5 — Self-improvement loop** ✅ (v1 — 2026-04-17)
-- 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit)
-- Hard anti-hallucination gates (min_support=3, ≥2 projects, >7d spread, Bonferroni, citations required)
-- Aider-style eval suite (10 canonical tasks, scored per commit)
-- PR-only mutations (framework never auto-edits its own source of truth)
-- Meta-loop: every 30 insights → effectiveness review → threshold tuning
+**Phase 5 — Self-improvement loop** ✅ Designed + specs (v1 — 2026-04-17) · ⏳ Automated runtime via Phase 7 (Hermes)
+- 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit) — **specified in `config/evolve.yaml`, not yet cron-wired**
+- Hard anti-hallucination gates (min_support=3, ≥2 projects, >7d spread, Bonferroni, citations required) — enforced when `cortex-evolve` prompt is manually invoked
+- Aider-style eval suite (10 canonical task rubrics in `evals/`, `evals/results/` empty pending first automated run)
+- PR-only mutations (framework never auto-edits its own source of truth) — discipline encoded, no automated PR pipeline yet
+- Meta-loop: every 30 insights → effectiveness review → threshold tuning — designed, awaits Hermes
 
-**Phase 6 — Memory upgrades** — 6-signal scoring, graph expansion, DREAMS.md consolidation
+**Phase 6 — Memory upgrades** ⏳ designed — 6-signal scoring, graph expansion, DREAMS.md consolidation; awaits Phase 7
+
+**Phase 7 — Hermes runtime** 🆕 RFC stub at [docs/hermes-rfc.md](./docs/hermes-rfc.md) — autonomous loop that lives inside scaffolded projects, reads `recommendations.md` "DO this week", executes verified steps, opens PRs (humans merge). Pre-Hermes hard gates Tier 4 + Tier 5 ✅ closed 2026-05-07. Implementation 2-3 sessions ahead.
 
 ## License
 
