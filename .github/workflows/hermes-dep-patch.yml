@@ -1,0 +1,98 @@
+# hermes-dep-patch.yml — autonomous Hermes patch-only dep updater workflow.
+#
+# Sprint 1.8.4 shipped dep_update_patch action_kind. This workflow runs weekly
+# (Sundays 04:00 UTC) and bumps every patch-level outdated dependency: npm
+# outdated → patch-only filter → npm install --save → npm test gate → atomic
+# commit → push → gh pr create --draft.
+#
+# No LLM call — deterministic happy path. Cost: $0/run.
+#
+# Failures are journaled; ReasoningBank-lite memory captures lessons (e.g.
+# "this pkg is known to break tests on patch update, skip next time").
+
+name: hermes dep-patch
+
+on:
+  workflow_dispatch:        # manual run for ad-hoc updates
+  schedule:
+    - cron: '0 4 * * 0'     # Weekly Sundays 04:00 UTC. Same time as old weekly-only
+                            # recommendation cadence; offset because daily-recommendation
+                            # cron at 04:00 is typically a parallel run on different days.
+                            # GitHub will run both at the same time once a week — the
+                            # concurrency group below isolates them.
+
+concurrency:
+  group: hermes-dep-patch-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  hermes-dep-patch:
+    name: hermes dep-patch
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps (baseline before npm outdated)
+        run: npm ci || npm install
+
+      - name: Verify pre-update test baseline
+        run: |
+          npm test
+          # If pre-update tests are red, do NOT update — Hermes verifies via
+          # npm test, so a red baseline = false positives across patch bumps.
+
+      - name: Configure git identity (Hermes commits)
+        run: |
+          git config user.name  "Hermes (cortex-x)"
+          git config user.email "hermes@cortex-x.local"
+
+      - name: Hermes dep-patch dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-hermes.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=dep_update_patch \
+            --json > /tmp/hermes-dep-plan.json
+          cat /tmp/hermes-dep-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/hermes-dep-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No patch-only updates available — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+
+      - name: Hermes dep-patch execute (npm install --save patches, commit, draft PR)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-hermes.cjs execute \
+            --plan-file=/tmp/hermes-dep-plan.json
+        env:
+          # No OPENROUTER_API_KEY — dep-patch is deterministic, no LLM call
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-dep-patch-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
