@@ -6,6 +6,18 @@ dist/
 build/
 .turbo/
 
+# Test artifacts
+coverage/
+.nyc_output/
+.tap/
+tmp/
+.test-tmp/
+# Per-fixture transient git state — fixtures themselves are git-tracked,
+# but synthetic git histories (created by stage fixture builders) get a
+# .git/ inside them at test time and should never be committed.
+tests/fixtures/**/.git/
+tests/fixtures/**/node_modules/
+
 # Environment
 .env
 .env.local

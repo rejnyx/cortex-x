@@ -1,0 +1,27 @@
+{
+  "name": "cortex-x",
+  "version": "0.1.0-pre",
+  "private": true,
+  "description": "AI-agentic-first Claude Code framework. Distributed via git + install.sh / install.ps1 — this package.json exists ONLY for the development test suite, not for npm distribution.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rejnyx/cortex-x.git"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec",
+    "test:fast": "node --test --test-reporter=dot tests/unit tests/contract",
+    "test:smoke": "node tests/smoke/verify-install.cjs",
+    "test:detectors": "node --test --test-reporter=spec tests/unit/detect-profile.test.cjs tests/unit/detect-stage.test.cjs tests/unit/detect-sister-env.test.cjs tests/contract/profile-yaml-schema.test.cjs",
+    "test:audit": "node --test --test-reporter=spec tests/unit/audit-validator.test.cjs",
+    "test:integration": "node --test --test-reporter=spec tests/integration",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html --include=shared --include=detectors --include=bin --include=tools npm test",
+    "test:update-snapshots": "CORTEX_TEST_UPDATE_SNAPSHOTS=1 node --test --test-reporter=spec tests/unit tests/contract"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
+  }
+}
