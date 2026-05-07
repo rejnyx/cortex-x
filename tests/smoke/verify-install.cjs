@@ -254,6 +254,9 @@ function runChecks() {
   // Tier 3 — tools/ (audit output validator + lib/) — invoked by cortex-doctor
   checkFileExists('shared.tools.verify-audit-output', path.join(SHARED, 'tools', 'verify-audit-output.cjs'), 'warning');
   checkFileExists('shared.tools.lib.resolve-cortex-home', path.join(SHARED, 'tools', 'lib', 'resolve-cortex-home.cjs'), 'warning');
+  // Tier 5 — prompt + skill validators
+  checkFileExists('shared.tools.verify-prompts', path.join(SHARED, 'tools', 'verify-prompts.cjs'), 'warning');
+  checkFileExists('shared.tools.verify-skills', path.join(SHARED, 'tools', 'verify-skills.cjs'), 'warning');
 }
 
 // ── reporting ───────────────────────────────────────────────────────────────

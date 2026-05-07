@@ -31,7 +31,7 @@
 
 ## Phase 1 — Discover (7 questions, conversational, in user's preferred language)
 
-> **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](../standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask.
+> **Principle 1 — Think Before Coding** ([`standards/coding-behavior.md`](standards/coding-behavior.md)) applied: surface assumptions BEFORE scaffolding. Don't silently pick a stack; ask.
 
 ### Asking style (default: sequential, with batch override)
 
@@ -188,7 +188,7 @@ The user can edit this file before Phase 2 fires. After save, hand off: *"Saved 
 
 **NEVER ask "do you want research?" — always do it.** Research is cortex-x's killer feature, silent by default.
 
-**Protocol:** [`shared/research-protocol.md`](../shared/research-protocol.md). Config: [`config/research.yaml`](../config/research.yaml). Cache: `$CORTEX_DATA_HOME/research/<slug>-<date>.md`. Opt-out: `--no-research` in initial prompt.
+**Protocol:** [`shared/research-protocol.md`](shared/research-protocol.md). Config: [`config/research.yaml`](config/research.yaml). Cache: `$CORTEX_DATA_HOME/research/<slug>-<date>.md`. Opt-out: `--no-research` in initial prompt.
 
 Spawn **3 parallel research agents** (subagent_type: general-purpose) via the Agent tool. Add a 4th agent if Q7 ≠ `c) No AI`. Queries derived from `cortex/discovery.md`:
 
@@ -457,7 +457,7 @@ URL is the upstream SSOT for human readers and `cortex-doctor` freshness checks.
   ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/ai-patterns.md
 
 Skip pointers a project doesn't need. `astro-static` projects can drop AI patterns;
-`hermes-agent` profile adds `~/.claude/shared/standards/agentic-security.md`.
+`hermes-agent` profile adds `~/.claude/shared/standards/security.md` § Agentic Security (2026).
 ```
 
 `cortex-doctor` periodically compares each local file's hash to the canonical URL's content hash; warns if drift > 30 days.
@@ -675,7 +675,7 @@ Create `.claude/README.md`:
 
 ### 4.4 Rule 1 validation (BLOCKER — scaffold fails if violated)
 
-Before finalizing, verify scaffold against [`standards/RULE-1.md`](../standards/RULE-1.md) checklist. If **any** check fails → regenerate, do not push forward.
+Before finalizing, verify scaffold against [`standards/RULE-1.md`](standards/RULE-1.md) checklist. If **any** check fails → regenerate, do not push forward.
 
 **SSOT gate:**
 - [ ] One `config/` only (not `src/config/` + `src/settings/` + `app/config/`)
