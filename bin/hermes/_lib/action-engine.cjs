@@ -302,6 +302,24 @@ function buildUserPrompt(plan, opts = {}) {
     '',
   ];
 
+  // Sprint 1.8.3 — recall + inject ReasoningBank-lite lessons. Past failures
+  // for this action_key / action_kind are inserted as a TRUSTED block (system
+  // boundary, written by Hermes itself, not external authors) so the LLM
+  // doesn't repeat the same root cause without addressing the hint.
+  try {
+    const lessons = require('./lessons.cjs');
+    const recalled = lessons.recallLessons(plan.slug, {
+      action_kind: plan.action_kind || 'recommendation',
+      action_key: plan.action && plan.action.action_key,
+    }, { topK: 3 });
+    if (recalled.length > 0) {
+      lines.push(lessons.formatLessonsForPrompt(recalled));
+      lines.push('');
+    }
+  } catch {
+    // Lessons module unavailable — proceed without recall (graceful degrade).
+  }
+
   if (plan.action.citations) {
     lines.push('## Citations (untrusted)');
     lines.push('<untrusted source="cortex/recommendations.md citations">');
