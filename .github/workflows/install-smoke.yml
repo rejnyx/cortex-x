@@ -60,6 +60,10 @@ jobs:
           echo "PWD:      $(pwd)"
 
       # ── Install path A: bash (Linux, macOS, Windows Git Bash) ──────────────
+      # Invoke via `bash install.sh` instead of `./install.sh` — fresh
+      # actions/checkout@v5 on macos-15-arm64 does NOT preserve the +x bit,
+      # so the latter would fail with "Permission denied". `bash <file>`
+      # works regardless of file permission.
       - name: Install via bash
         if: matrix.lane == 'linux-bash' || matrix.lane == 'macos-bash' || matrix.lane == 'win-gitbash'
         shell: bash
@@ -67,7 +71,7 @@ jobs:
           set -euxo pipefail
           export CORTEX_LANGUAGE=en
           export CORTEX_NO_UPDATE=1
-          ./install.sh
+          bash install.sh
 
       # ── Install path B: pwsh 7 (PowerShell Core, modern Windows) ──────────
       - name: Install via pwsh 7
@@ -77,7 +81,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $env:CORTEX_LANGUAGE = 'en'
           $env:CORTEX_NO_UPDATE = '1'
-          ./install.ps1
+          pwsh -File ./install.ps1
 
       # ── Install path C: Windows PowerShell 5.1 (legacy Windows users) ─────
       # cortex-x recently fixed install.ps1 BOM compatibility for 5.1; this
@@ -89,7 +93,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $env:CORTEX_LANGUAGE = 'en'
           $env:CORTEX_NO_UPDATE = '1'
-          .\install.ps1
+          powershell.exe -ExecutionPolicy Bypass -File .\install.ps1
 
       # ── Standalone verifier (the install scripts already invoke it
       # internally; this re-runs it as an explicit gate, also tests --json mode)

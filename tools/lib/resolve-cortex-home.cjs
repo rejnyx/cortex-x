@@ -29,14 +29,23 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
+// Strip UTF-8 BOM (EF BB BF) if present at file start. install.ps1 in
+// older versions (or any tool that writes via PS 5.1 `Set-Content -Encoding
+// UTF8`) emits a BOM, which makes the regex `^cortex_source:` fail because
+// the first line technically starts with 3 BOM bytes, not the 'c' character.
+// All YAML reads in this resolver MUST go through this helper.
+function readYamlBomSafe(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
+
 function resolveCortexDataHome() {
   if (process.env.CORTEX_DATA_HOME) {
     return path.normalize(process.env.CORTEX_DATA_HOME);
   }
   try {
-    const yaml = fs.readFileSync(
-      path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml'),
-      'utf8'
+    const yaml = readYamlBomSafe(
+      path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml')
     );
     const m = yaml.match(/^cortex_data_home:\s*(.+)$/m);
     if (m) {
@@ -53,9 +62,8 @@ function resolveCortexAssetsRoot() {
     return path.normalize(process.env.CORTEX_ASSETS_ROOT);
   }
   try {
-    const yaml = fs.readFileSync(
-      path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml'),
-      'utf8'
+    const yaml = readYamlBomSafe(
+      path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml')
     );
     const m = yaml.match(/^cortex_assets_root:\s*(.+)$/m);
     if (m) {

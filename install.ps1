@@ -231,10 +231,18 @@ $InsightsReadmeSrc = Join-Path $CortexRoot "templates/cortex-data-insights-readm
 if ((-not (Test-Path $InsightsReadme)) -and (Test-Path $InsightsReadmeSrc)) {
     Copy-Item -Path $InsightsReadmeSrc -Destination $InsightsReadme -Force
 }
-@"
-cortex_source: $CortexRoot
-cortex_data_home: $CortexDataHome
-"@ | Set-Content -Path (Join-Path $SharedTarget "cortex-source.yaml") -Encoding UTF8
+# Write cortex-source.yaml WITHOUT UTF-8 BOM. PS 5.1's Set-Content -Encoding UTF8
+# emits BOM (EF BB BF) which makes Node's regex `^cortex_source:` fail because
+# the line starts with the BOM bytes, not 'c'. session-start.cjs and
+# verify-install.cjs both consume this file via flat-YAML regex — BOM = silent
+# field-missing on Windows. Use [System.IO.File]::WriteAllText with explicit
+# UTF8Encoding($false) for BOM-free output, works on both PS 5.1 and pwsh 7+.
+$CortexSourceYaml = "cortex_source: $CortexRoot`ncortex_data_home: $CortexDataHome`n"
+[System.IO.File]::WriteAllText(
+    (Join-Path $SharedTarget "cortex-source.yaml"),
+    $CortexSourceYaml,
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 # Write/update module.local.yaml with user preference (gitignored).
 $ModuleLocal = Join-Path $CortexRoot "module.local.yaml"
