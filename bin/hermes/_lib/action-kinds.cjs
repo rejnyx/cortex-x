@@ -50,13 +50,13 @@ const ACTION_KINDS = {
 
   dep_update_patch: {
     description:
-      'npm outdated → patch-only diffs → npm test gate → draft PR. Skip-LLM happy path; LLM only invoked on test failure for diagnosis.',
-    requires_llm: false, // happy path
+      'npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call.',
+    requires_llm: false,
     source: 'npm outdated --json',
-    detector: null, // future: detectors/dep-update-patch.cjs
+    detector: 'detectors/dep-update-patch.cjs', // Sprint 1.8.4
     cost_envelope: 'free',
     blast_radius: 'medium', // package.json + lockfile + node_modules state
-    shipped_in: null, // Sprint 1.8.4
+    shipped_in: '0.1.0', // Sprint 1.8.4
   },
 
   flaky_test_repair: {

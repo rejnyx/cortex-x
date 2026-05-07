@@ -125,11 +125,12 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // dep_update_patch is declared (Sprint 1.8.4 roadmap) but shipped_in
+    // flaky_test_repair is declared (Sprint 1.8.5 roadmap) but shipped_in
     // is null until that sprint lands. Executor must reject.
-    // (recommendation_harvest used to be the not-shipped example, but Sprint
-    //  1.8.2c shipped its executor — pick the next not-yet-shipped kind.)
-    const f = tmpPlanFile(buildPlan({ action_kind: 'dep_update_patch' }));
+    // (As capabilities ship, pick the next not-yet-shipped kind to keep
+    //  this test meaningful — recommendation_harvest 1.8.2c, dep_update_patch
+    //  1.8.4 already shipped.)
+    const f = tmpPlanFile(buildPlan({ action_kind: 'flaky_test_repair' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
@@ -882,5 +883,75 @@ describe('execute: Sprint 1.8.2c — recommendation_harvest', () => {
       assert.match(updated, /existing only/, 'original line preserved');
       assert.match(updated, /test workflow/, 'harvested candidate appended');
     });
+  });
+});
+
+// ── Sprint 1.8.4 — dep_update_patch executor branch ────────────────────────
+
+describe('execute: Sprint 1.8.4 — dep_update_patch', () => {
+  function buildDepPatchPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'dep_update_patch',
+      action: {
+        num: null,
+        title: 'Update 2 patch dependencies',
+        body: 'Patch-level npm dependency updates',
+        action_key: `${SLUG}#dep-update-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-dep-update-patch-test',
+      action_id: '01DEPATCH',
+      trigger: 'manual',
+      commit_message: 'chore(deps): patch updates\n\nbody\n\nHermes-Action-Id: 01DEPATCH\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: dep-update-patch\nHermes-Action-Kind: dep_update_patch',
+      ...overrides,
+    };
+  }
+
+  const MOCK_OUTDATED_JSON = JSON.stringify({
+    'lodash': { current: '4.17.20', wanted: '4.17.21', latest: '4.17.21' },
+    'chalk': { current: '5.0.0', wanted: '5.0.1', latest: '5.5.0' },
+  });
+
+  test('runDepUpdateAction returns DEP_UPDATE_NO_CANDIDATES when no patch updates', async () => {
+    const repo = tmpProjectRepo('dep-no-cands');
+    const result = await execute.runDepUpdateAction(buildDepPatchPlan(), {
+      repoRoot: repo,
+      mockOutdatedJson: '{}',
+      skipNpmInstall: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'DEP_UPDATE_NO_CANDIDATES');
+  });
+
+  test('runDepUpdateAction returns ok with package.json touched on candidates', async () => {
+    const repo = tmpProjectRepo('dep-happy');
+    const result = await execute.runDepUpdateAction(buildDepPatchPlan(), {
+      repoRoot: repo,
+      mockOutdatedJson: MOCK_OUTDATED_JSON,
+      skipNpmInstall: true, // tests don't actually install — would fail offline
+    });
+    assert.equal(result.ok, true);
+    assert.ok(result.touchedFiles.includes('package.json'));
+    assert.equal(result.usage.cost_usd, 0); // free path
+    assert.equal(result.updated_count, 2);
+    assert.equal(result.candidates.length, 2);
+  });
+
+  test('runDepUpdateAction respects maxCandidates cap', async () => {
+    const many = {};
+    for (let i = 0; i < 8; i += 1) {
+      many[`pkg-${i}`] = { current: '1.0.0', wanted: '1.0.1', latest: '1.0.1' };
+    }
+    const repo = tmpProjectRepo('dep-cap');
+    const result = await execute.runDepUpdateAction(buildDepPatchPlan(), {
+      repoRoot: repo,
+      mockOutdatedJson: JSON.stringify(many),
+      skipNpmInstall: true,
+      maxCandidates: 3,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.updated_count, 3);
   });
 });

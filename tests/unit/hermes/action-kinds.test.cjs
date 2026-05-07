@@ -89,8 +89,10 @@ describe('action-kinds: helpers', () => {
     assert.equal(kinds.isShippedKind('recommendation'), true);
     // Sprint 1.8.2c — recommendation_harvest fully shipped (detector + executor)
     assert.equal(kinds.isShippedKind('recommendation_harvest'), true);
+    // Sprint 1.8.4 — dep_update_patch fully shipped
+    assert.equal(kinds.isShippedKind('dep_update_patch'), true);
     // Future kinds remain not shipped
-    assert.equal(kinds.isShippedKind('dep_update_patch'), false);
+    assert.equal(kinds.isShippedKind('flaky_test_repair'), false);
   });
 
   test('listKinds returns all registered kinds (shipped + future)', () => {
@@ -106,8 +108,10 @@ describe('action-kinds: helpers', () => {
     assert.ok(shipped.includes('recommendation'));
     // Sprint 1.8.2c — recommendation_harvest fully shipped
     assert.ok(shipped.includes('recommendation_harvest'));
+    // Sprint 1.8.4 — dep_update_patch fully shipped
+    assert.ok(shipped.includes('dep_update_patch'));
     // Future kinds still excluded
-    assert.ok(!shipped.includes('dep_update_patch'));
+    assert.ok(!shipped.includes('flaky_test_repair'));
   });
 });
 
@@ -128,11 +132,12 @@ describe('action-kinds: future-roadmap entries', () => {
     assert.equal(k.detector, 'detectors/recommendation-harvest.cjs');
   });
 
-  test('Sprint 1.8.4 — dep_update_patch declared (skip-LLM happy path)', () => {
+  test('Sprint 1.8.4 — dep_update_patch shipped (no LLM, npm outdated patch-only)', () => {
     const k = kinds.getActionKind('dep_update_patch');
     assert.ok(k);
     assert.equal(k.requires_llm, false);
-    assert.equal(k.shipped_in, null);
+    assert.equal(k.shipped_in, '0.1.0');
+    assert.equal(k.detector, 'detectors/dep-update-patch.cjs');
   });
 
   test('Sprint 1.8.5 — flaky_test_repair declared (low cost)', () => {
