@@ -98,13 +98,13 @@ const ACTION_KINDS = {
   // detector + executor branch.
   test_coverage_gap: {
     description:
-      'Find files with coverage < threshold and recent edits, generate one focused test per gap. Capability #6 from research roadmap.',
-    requires_llm: true,
-    source: 'c8/istanbul coverage report + recent git diff',
-    detector: null, // future: detectors/test-coverage-gap.cjs
-    cost_envelope: 'normal',
-    blast_radius: 'low', // adds test files only
-    shipped_in: null, // Sprint 1.9.x
+      'Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6.',
+    requires_llm: false, // v1: file issue, no test generation
+    source: 'coverage/coverage-summary.json + git log --since',
+    detector: 'detectors/test-coverage-gap.cjs', // Sprint 1.8.10
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // gh issues only
+    shipped_in: '0.1.0', // Sprint 1.8.10
   },
 
   lint_fix_shipper: {
