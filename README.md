@@ -309,7 +309,16 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 
 **Phase 6 — Memory upgrades** ⏳ designed — 6-signal scoring, graph expansion, DREAMS.md consolidation; awaits Phase 7
 
-**Phase 7 — Hermes runtime** 🆕 RFC stub at [docs/hermes-rfc.md](./docs/hermes-rfc.md) — autonomous loop that lives inside scaffolded projects, reads `recommendations.md` "DO this week", executes verified steps, opens PRs (humans merge). Pre-Hermes hard gates Tier 4 + Tier 5 ✅ closed 2026-05-07. Implementation 2-3 sessions ahead.
+**Phase 7 — Hermes runtime** ⚠️ v0 dry-run shipped 2026-05-07 · ⏳ v0.5 LLM seam pending
+- ✅ All 5 pre-Hermes RFC gates closed (Tier 4 hook contract + Tier 5 prompt regression + hermes-policy.md + hermes-runtime.md design + fixture)
+- ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` (halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist)
+- ✅ `bin/hermes/dry-run.cjs` orchestrator — reads recommendations.md, picks next action, builds Conventional-Commits-shaped commit message with Git trailers, journals run, releases lock. Every step EXCEPT the Claude Agent SDK call.
+- ✅ `bin/hermes/status.cjs` observability CLI — reports halt + lock + recommendations + journal rollup
+- ✅ 121 tests across `tests/unit/hermes/` + `tests/integration/hermes-dryrun.test.cjs`
+- ⏳ **v0.5:** Claude Agent SDK integration so dry-run plan drives actual `git commit -F -` + `gh pr create --draft`. Single session estimate.
+- ⏳ **v1:** cron / on-incident / on-PR-merged trigger wiring, expand from cortex-x dogfood to RELO + Kiosek.
+
+See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [standards/hermes-policy.md](./standards/hermes-policy.md).
 
 ## License
 

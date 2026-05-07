@@ -153,11 +153,15 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
 
-**Phase 7 — Hermes runtime** 🆕 RFC stub
-- Autonomous loop inside scaffolded projects
-- Reads `recommendations.md` → executes verified steps → atomic commit → opens PR (humans merge)
-- Pre-Hermes hard gates Tier 4 + Tier 5 ✅ closed 2026-05-07
-- See [docs/hermes-rfc.md](./docs/hermes-rfc.md). Implementation 2-3 sessions ahead.
+**Phase 7 — Hermes runtime** ⚠️ v0 dry-run shipped (2026-05-07) · ⏳ v0.5 Claude Agent SDK seam pending
+- ✅ All 5 pre-Hermes RFC gates closed
+- ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` — halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist
+- ✅ `bin/hermes/dry-run.cjs` orchestrator — wires every primitive end-to-end except the Claude Agent SDK call. Outputs structured plan (branch name, commit message with trailers, journal entry).
+- ✅ `bin/hermes/status.cjs` observability CLI — halt + lock + recommendations + journal rollup
+- ✅ 121 Hermes-specific tests (95 unit + 26 integration/CLI)
+- ⏳ v0.5: Claude Agent SDK integration so dry-run plan drives actual `git commit` + `gh pr create --draft`
+- ⏳ v1: cron / on-incident / on-PR-merged triggers; expand from cortex-x dogfood to RELO + Kiosek
+- See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [standards/hermes-policy.md](./standards/hermes-policy.md)
 
 ## License
 

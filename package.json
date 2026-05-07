@@ -20,7 +20,7 @@
     "test:integration": "node --test --test-reporter=spec tests/integration/install-roundtrip.test.cjs",
     "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html --include=shared --include=detectors --include=bin --include=tools npm test",
     "test:update-snapshots": "CORTEX_TEST_UPDATE_SNAPSHOTS=1 node --test --test-reporter=spec --test-skip-pattern=\"install\\.sh roundtrip\"",
-    "test:hermes": "node --test --test-reporter=spec tests/unit/hermes/ tests/integration/hermes-dryrun.test.cjs",
+    "test:hermes": "node --test --test-reporter=spec tests/unit/hermes/halt-check.test.cjs tests/unit/hermes/lock.test.cjs tests/unit/hermes/journal.test.cjs tests/unit/hermes/recommendations.test.cjs tests/unit/hermes/git-trailers.test.cjs tests/unit/hermes/policy-check.test.cjs tests/unit/hermes/status.test.cjs tests/integration/hermes-dryrun.test.cjs",
     "hermes:dry-run": "node bin/hermes/dry-run.cjs"
   },
   "devDependencies": {
