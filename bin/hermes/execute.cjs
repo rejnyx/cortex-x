@@ -43,6 +43,10 @@ const gitOps = require('./_lib/git-ops.cjs');
 const ghOps = require('./_lib/gh-ops.cjs');
 const actionEngine = require('./_lib/action-engine.cjs');
 const actionKinds = require('./_lib/action-kinds.cjs');
+// Sprint 1.8.2c — recommendation_harvest is the first non-recommendation kind.
+// Detector lives in detectors/ (read-only signal source); the executor
+// runHarvestAction helper below handles the deterministic append-to-recs path.
+const harvester = require('../../detectors/recommendation-harvest.cjs');
 
 const EX_USAGE = 64;
 const EX_TEMPFAIL = 75;
@@ -278,6 +282,77 @@ function checkFailureBreaker(slug, actionKey) {
 
 // Filter out Hermes's own runtime artifacts (lock files, journal dir) from
 // the tree status — those are bookkeeping, not user data.
+// Sprint 1.8.2c — Insert harvested candidate lines into cortex/recommendations.md
+// under the existing "## DO this week (cited)" section. If section is absent,
+// append at end of file with a fresh heading. Idempotent — repeated runs against
+// the same body produce the same output (dedup is enforced upstream by the
+// harvester's extractDedupKeys).
+function appendCandidatesToRecsBody(body, appendableLines) {
+  if (!appendableLines) return body;
+  // Match the section header + zero-or-more existing checklist items.
+  // Captures the whole block so we can append before the next section / EOF.
+  const sectionRegex = /^## DO this week(?:\s*\(cited\))?\s*\n(?:- \[[ x]\][^\n]*\n)*/m;
+  const match = body.match(sectionRegex);
+  if (match) {
+    // Insert appendable lines at the end of the section block (before any
+    // subsequent ## heading or EOF).
+    const insertAt = match.index + match[0].length;
+    return body.slice(0, insertAt) + appendableLines + '\n' + body.slice(insertAt);
+  }
+  // Section missing — append fresh block with heading.
+  const sep = body.endsWith('\n') ? '\n' : '\n\n';
+  return body + sep + '## DO this week (cited)\n' + appendableLines + '\n';
+}
+
+// Sprint 1.8.2c — recommendation_harvest executor branch.
+// Read-only path: no LLM call, no source-code edits, just append candidates
+// to cortex/recommendations.md. Returns same shape as actionEngine.applyAction
+// so the rest of the runExecute pipeline (stage → commit → push → PR) reuses
+// existing logic verbatim.
+async function runHarvestAction(plan, { repoRoot, harvestSignals }) {
+  const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+  if (!fs.existsSync(recsPath)) {
+    return {
+      ok: false,
+      code: 'HARVEST_RECS_MISSING',
+      error: `cortex/recommendations.md not found at ${recsPath} — harvester needs an existing file to append to`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+  const existingBody = fs.readFileSync(recsPath, 'utf8');
+  const result = harvester.harvest({
+    recommendationsBody: existingBody,
+    maxCandidates: 3,
+    signals: harvestSignals, // DI seam for testing without real gh calls
+  });
+
+  if (result.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'HARVEST_NO_CANDIDATES',
+      error: 'no fresh candidates from CI/PR/issue signals (all dedup vs existing recs)',
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      total_signals: result.total_signals,
+      deduped_count: result.deduped_count,
+    };
+  }
+
+  const appendableLines = harvester.formatAsRecommendationLines(result.candidates);
+  const newBody = appendCandidatesToRecsBody(existingBody, appendableLines);
+  fs.writeFileSync(recsPath, newBody, 'utf8');
+
+  return {
+    ok: true,
+    touchedFiles: ['cortex/recommendations.md'],
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    harvested_count: result.candidates.length,
+    total_signals: result.total_signals,
+    deduped_count: result.deduped_count,
+  };
+}
+
 function isHermesArtifact(p) {
   if (!p) return false;
   // Normalize Windows backslashes to forward slashes for matching
@@ -466,8 +541,17 @@ async function runExecute(opts = {}) {
       return { ok: false, code: 'CHECKOUT_FAILED', error: checkout.stderr || checkout.error || 'unknown checkout error' };
     }
 
-    // Phase 6 — Apply action (async — engines may make network calls)
-    const applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
+    // Phase 6 — Apply action (async — engines may make network calls).
+    // Sprint 1.8.2c — typed kind dispatch. recommendation_harvest is the
+    // first non-recommendation kind; runs deterministically without LLM,
+    // appends to cortex/recommendations.md only. Future kinds (dep_update_patch,
+    // flaky_test_repair, etc.) follow the same dispatch shape.
+    let applyResult;
+    if (plan.action_kind === 'recommendation_harvest') {
+      applyResult = await runHarvestAction(plan, { repoRoot, harvestSignals: opts.harvestSignals });
+    } else {
+      applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
+    }
 
     if (!applyResult.ok) {
       // Rollback to original branch + delete the dead branch
@@ -658,6 +742,9 @@ module.exports = {
   runExecute,
   loadPlan,
   addCostFields,
+  // Sprint 1.8.2c — harvester helpers exported for unit testing
+  appendCandidatesToRecsBody,
+  runHarvestAction,
   EX_USAGE,
 };
 

@@ -87,8 +87,9 @@ describe('action-kinds: helpers', () => {
 
   test('isShippedKind returns true only for shipped kinds (shipped_in != null)', () => {
     assert.equal(kinds.isShippedKind('recommendation'), true);
-    // Future kinds are NOT shipped yet
-    assert.equal(kinds.isShippedKind('recommendation_harvest'), false);
+    // Sprint 1.8.2c — recommendation_harvest fully shipped (detector + executor)
+    assert.equal(kinds.isShippedKind('recommendation_harvest'), true);
+    // Future kinds remain not shipped
     assert.equal(kinds.isShippedKind('dep_update_patch'), false);
   });
 
@@ -103,8 +104,9 @@ describe('action-kinds: helpers', () => {
     const shipped = kinds.listShippedKinds();
     assert.ok(Array.isArray(shipped));
     assert.ok(shipped.includes('recommendation'));
-    // Future kinds excluded
-    assert.ok(!shipped.includes('recommendation_harvest'));
+    // Sprint 1.8.2c — recommendation_harvest fully shipped
+    assert.ok(shipped.includes('recommendation_harvest'));
+    // Future kinds still excluded
     assert.ok(!shipped.includes('dep_update_patch'));
   });
 });
@@ -115,13 +117,15 @@ describe('action-kinds: future-roadmap entries', () => {
   // executor is the implementation. Having entries declared (with shipped_in: null)
   // lets us version-pin the dispatcher API now.
 
-  test('Sprint 1.8.2 — recommendation_harvest declared (read-only, no LLM)', () => {
+  test('Sprint 1.8.2 — recommendation_harvest shipped (read-only, no LLM)', () => {
     const k = kinds.getActionKind('recommendation_harvest');
     assert.ok(k);
     assert.equal(k.requires_llm, false);
     assert.equal(k.cost_envelope, 'free');
     assert.equal(k.blast_radius, 'minimal');
-    assert.equal(k.shipped_in, null);
+    // Sprint 1.8.2a shipped detector; 1.8.2c flipped shipped_in to '0.1.0'.
+    assert.equal(k.shipped_in, '0.1.0');
+    assert.equal(k.detector, 'detectors/recommendation-harvest.cjs');
   });
 
   test('Sprint 1.8.4 — dep_update_patch declared (skip-LLM happy path)', () => {
