@@ -20,6 +20,29 @@
 
 ## Current
 
+### Sprint 1.6.10 — v0.5 seam stub + execute subcommand + user guide (2026-05-07 final)
+
+#### Non-breaking (additive)
+
+- **What landed:** three deliverables wrapping up Hermes v0 day-end:
+
+  1. **`bin/hermes/execute.cjs`** (NEW, ~140 LOC) — the v0.5 LLM seam, intentionally a stub. Returns `{ ok: false, code: 'V05_NOT_IMPLEMENTED' }` and exits 64 (`EX_USAGE`). Validates plan-file shape (5 error codes: MISSING_PLAN_FILE, PLAN_FILE_NOT_FOUND, PLAN_PARSE_ERROR, PLAN_INVALID, PLAN_INCOMPLETE), runs halt-check first, journals an `execute_not_implemented` entry so observability shows Hermes was invoked but didn't act. Why ship a stub: locks the CLI surface (`cortex-hermes execute --plan-file=...`) so the v0.5 PR is a clean SDK-integration patch instead of architectural change; documents the seam visibly so Dave reviews the boundary BEFORE deciding on the `@anthropic-ai/claude-agent-sdk` dependency that crosses zero-deps; lets `.github/workflows/hermes.example.yml` reference the execute step today. 11 unit tests covering plan validation, halt detection, journal contract, CLI exit codes.
+
+  2. **`execute` subcommand wired into `bin/cortex-hermes.cjs`** dispatcher. `cortex-hermes execute --plan-file=...` now reachable; `cli-dispatch.test.cjs` extended with one test asserting reachability.
+
+  3. **`docs/hermes-usage.md`** (NEW, ~250 LOC) — the user guide. Defines the **4-level autonomy ladder** (L1 Planning ✅ shipped / L2 Execution ⏳ v0.5 / L3 Triggers ⏳ v1 / L4 Recommendations ⏳ Phase 5 + v1) + hardcoded NEVER autonomous (auto-merge, MUST-H6). Concrete commands for L1 dogfood, L2 preview walkthrough, L3 setup, troubleshooting (MISSING_RECOMMENDATIONS, LOCK_HELD, SLUG_MISMATCH, HALTED), file-by-file reference table.
+
+- **Full suite:** 408 → 420 tests (+12 from execute.test.cjs).
+- **`npm run test:hermes`:** 132 tests in ~700ms.
+
+- **Why:** Dave's "dodělej vše co je potřeba" + "můj otázka: může být Hermes autonomní?" — the user guide's autonomy ladder answers the autonomy question with concrete L1-L4 levels + explicit NEVER (auto-merge); the execute stub is the architectural commitment that L2 is one-PR away (not a refactor); the dispatcher wiring closes the CLI surface.
+
+- **Migrate:** none — additive.
+
+- **Rollback:** revert this commit; Sprint 1.6.9 stays intact.
+
+- **Final v0 state:** all 3 pre-launch tier gates closed (Tier 6+7+8). All 5 pre-Hermes RFC gates closed. Hermes v0 ships L1 (Planning autonomy) end-to-end. v0.5 (L2) = 1 PR. v1 (L3) = workflow uncomment + secret. L4 = Phase 5 cortex-evolve runtime wiring (separate milestone).
+
 ### Sprint 1.6.9 — Dogfood + GitHub Actions pivot + PII helper + Tier 8 (2026-05-07 closing)
 
 #### Non-breaking (additive)

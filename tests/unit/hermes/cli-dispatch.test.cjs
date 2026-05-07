@@ -120,5 +120,16 @@ describe('cortex-hermes: error paths', () => {
   test('SUBCOMMANDS exposes dispatch table', () => {
     assert.ok(cli.SUBCOMMANDS['dry-run']);
     assert.ok(cli.SUBCOMMANDS['status']);
+    assert.ok(cli.SUBCOMMANDS['execute']);
+  });
+
+  test('execute subcommand is reachable via dispatcher (returns 64 stub)', () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, 'execute', '--json'], {
+      encoding: 'utf8', timeout: 5000,
+    });
+    // Without --plan-file the inner CLI exits 1 (MISSING_PLAN_FILE),
+    // dispatcher passes through. Either way it shouldn't hang.
+    assert.ok(result.status === 1 || result.status === 64,
+      `expected exit 1 or 64, got ${result.status}; stdout: ${result.stdout}`);
   });
 });
