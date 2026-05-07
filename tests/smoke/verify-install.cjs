@@ -254,6 +254,10 @@ function runChecks() {
   // Both shims must exist so cortex-hermes works from bash + pwsh after install.
   checkFileExists('shared.bin.cortex-hermes', path.join(SHARED, 'bin', 'cortex-hermes'), 'warning');
   checkFileExists('shared.bin.cortex-hermes.ps1', path.join(SHARED, 'bin', 'cortex-hermes.ps1'), 'warning');
+  // Sprint 1.7.4 — user identity captured at install (~/.claude/cortex/user.yaml).
+  // Templates + session-start hook read this to personalize output. Always
+  // written by install (even with empty fields), so missing file = install bug.
+  checkFileExists('cortex.user.yaml', path.join(CLAUDE_HOME, 'cortex', 'user.yaml'), 'warning');
 
   // Tier 3 — tools/ (audit output validator + lib/) — invoked by cortex-doctor
   checkFileExists('shared.tools.verify-audit-output', path.join(SHARED, 'tools', 'verify-audit-output.cjs'), 'warning');

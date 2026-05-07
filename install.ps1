@@ -130,6 +130,59 @@ if (-not $Language -and [Environment]::UserInteractive) {
 }
 if (-not $Language) { $Language = "en" }
 
+# Identity capture (Sprint 1.7.4) — auto-detect from git config + Intl + gh.
+# Detector ALWAYS runs when node + detector are available (so platform/locale
+# always populate). Interactive Y/n confirmation only when interactive + not
+# CORTEX_NO_IDENTITY. Persists to ~/.claude/cortex/user.yaml.
+$CortexUserName    = ''
+$CortexUserEmail   = ''
+$CortexUserUsername = ''
+$CortexUserPlatform = ''
+$CortexUserLocale  = ''
+$CortexUserGhLogin = ''
+$CortexUserConfirmed = 'false'
+$IdentityDetected = $false
+$IdentityDetectorPath = Join-Path $CortexRoot "detectors\detect-user-identity.cjs"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $IdentityDetectorPath)) {
+    try {
+        $IdentityJson = & node $IdentityDetectorPath --json 2>$null
+        if ($LASTEXITCODE -eq 0 -and $IdentityJson) {
+            $Identity = $IdentityJson | ConvertFrom-Json
+            if ($Identity.name)     { $CortexUserName     = $Identity.name }
+            if ($Identity.email)    { $CortexUserEmail    = $Identity.email }
+            if ($Identity.username) { $CortexUserUsername = $Identity.username }
+            if ($Identity.platform) { $CortexUserPlatform = $Identity.platform }
+            if ($Identity.locale)   { $CortexUserLocale   = $Identity.locale }
+            if ($Identity.gh_login) { $CortexUserGhLogin  = $Identity.gh_login }
+            $IdentityDetected = $true
+        }
+    } catch {
+        # Detector failure is non-fatal — user.yaml will be written with empty fields.
+    }
+}
+if (-not $env:CORTEX_NO_IDENTITY -and [Environment]::UserInteractive -and $IdentityDetected) {
+    Write-Host ""
+    Write-Host "Detected user identity:"
+    if ($CortexUserName)    { Write-Host "  name:    $CortexUserName" }    else { Write-Host "  name:    (none — set git config user.name to use)" }
+    if ($CortexUserEmail)   { Write-Host "  email:   $CortexUserEmail" }   else { Write-Host "  email:   (none — set git config user.email to use)" }
+    if ($CortexUserLocale)  { Write-Host "  locale:  $CortexUserLocale" }
+    if ($CortexUserGhLogin) { Write-Host "  gh:      $CortexUserGhLogin" }
+
+    if (-not $CortexUserName -and -not $CortexUserEmail) {
+        Write-Host "  (no signals — Claude will address you generically; you can edit ~/.claude/cortex/user.yaml later)"
+    } else {
+        $Reply = Read-Host "Use this identity? [Y/n]"
+        if (-not $Reply) { $Reply = 'y' }
+        if ($Reply -match '^[yY]') {
+            $CortexUserConfirmed = 'true'
+        } else {
+            Write-Host "  -> Skipped - running with empty identity. Edit ~/.claude/cortex/user.yaml after install."
+            $CortexUserName = ''; $CortexUserEmail = ''; $CortexUserLocale = ''; $CortexUserGhLogin = ''
+            $CortexUserConfirmed = 'false'
+        }
+    }
+}
+
 Write-Host "cortex-x installer"
 Write-Host "  from:     $CortexRoot"
 Write-Host "  to:       $SharedTarget"
@@ -252,6 +305,37 @@ $ModuleLocal = Join-Path $CortexRoot "module.local.yaml"
 config:
   communication_language: $Language
 "@ | Set-Content -Path $ModuleLocal -Encoding UTF8
+
+# Sprint 1.7.4 — write user identity to ~/.claude/cortex/user.yaml.
+# Templates + session-start hook read this to address the user by name in
+# their detected locale. Always written (even with empty fields) so callers
+# can rely on the file existing. Idempotent: regenerated on every install.
+$UserYamlDir = Join-Path $ClaudeHome "cortex"
+New-Item -ItemType Directory -Force -Path $UserYamlDir | Out-Null
+$UserYamlPath = Join-Path $UserYamlDir "user.yaml"
+$DetectedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$UserYamlContent = @"
+# cortex-x user identity (gitignored — written by install.ps1).
+# Populated from git config + Intl + gh CLI. Edit freely; install will not
+# overwrite unless you re-run it. Used by templates (CLAUDE.md, MEMORY.md)
+# and session-start hook to personalize output.
+name: $CortexUserName
+email: $CortexUserEmail
+username: $CortexUserUsername
+platform: $CortexUserPlatform
+locale: $CortexUserLocale
+gh_login: $CortexUserGhLogin
+language: $Language
+confirmed: $CortexUserConfirmed
+detected_at: $DetectedAt
+"@
+# BOM-free UTF-8 (PS 5.1 quirk — Set-Content -Encoding UTF8 emits BOM which
+# breaks flat-yaml regex parsers in hooks/detectors).
+[System.IO.File]::WriteAllText(
+    $UserYamlPath,
+    $UserYamlContent,
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 # Print directive for user to add to ~/.claude/CLAUDE.md
 # (don't auto-edit user's global file — Principle 1 from coding-behavior.md)

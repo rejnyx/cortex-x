@@ -102,6 +102,49 @@ if [ -z "$CORTEX_LANGUAGE" ] && [ -t 0 ]; then
 fi
 CORTEX_LANGUAGE="${CORTEX_LANGUAGE:-en}"
 
+# Identity capture (Sprint 1.7.4) — auto-detect from git config + Intl + gh.
+# Detector ALWAYS runs when node + detector are available (so platform/locale
+# always populate). Interactive Y/n confirmation only when TTY + not CORTEX_NO_IDENTITY.
+# Persists to ~/.claude/cortex/user.yaml.
+CORTEX_USER_NAME=''
+CORTEX_USER_EMAIL=''
+CORTEX_USER_USERNAME=''
+CORTEX_USER_PLATFORM=''
+CORTEX_USER_LOCALE=''
+CORTEX_USER_GH_LOGIN=''
+CORTEX_USER_CONFIRMED='false'
+if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/detectors/detect-user-identity.cjs" ]; then
+  # Detector emits CORTEX_USER_* assignments — safe to eval (single-quoted with bash escaping).
+  IDENTITY_OUT="$(node "$CORTEX_ROOT/detectors/detect-user-identity.cjs" --shell 2>/dev/null || true)"
+  if [ -n "$IDENTITY_OUT" ]; then
+    eval "$IDENTITY_OUT"
+  fi
+fi
+# Interactive confirmation gate — only when TTY + identity capture not opted out.
+if [ -z "$CORTEX_NO_IDENTITY" ] && [ -t 0 ] && [ -n "$IDENTITY_OUT" ]; then
+  echo
+  echo "Detected user identity:"
+  [ -n "$CORTEX_USER_NAME" ]     && echo "  name:    $CORTEX_USER_NAME"     || echo "  name:    (none — set git config user.name to use)"
+  [ -n "$CORTEX_USER_EMAIL" ]    && echo "  email:   $CORTEX_USER_EMAIL"    || echo "  email:   (none — set git config user.email to use)"
+  [ -n "$CORTEX_USER_LOCALE" ]   && echo "  locale:  $CORTEX_USER_LOCALE"
+  [ -n "$CORTEX_USER_GH_LOGIN" ] && echo "  gh:      $CORTEX_USER_GH_LOGIN"
+  if [ -z "$CORTEX_USER_NAME" ] && [ -z "$CORTEX_USER_EMAIL" ]; then
+    echo "  (no signals — Claude will address you generically; you can edit ~/.claude/cortex/user.yaml later)"
+  else
+    printf "Use this identity? [Y/n]: "
+    read -r CORTEX_IDENTITY_REPLY || true
+    CORTEX_IDENTITY_REPLY="${CORTEX_IDENTITY_REPLY:-y}"
+    case "$CORTEX_IDENTITY_REPLY" in
+      [yY]|[yY][eE][sS]) CORTEX_USER_CONFIRMED='true' ;;
+      *)
+        echo "  ↳ Skipped — running with empty identity. Edit ~/.claude/cortex/user.yaml after install."
+        CORTEX_USER_NAME=''; CORTEX_USER_EMAIL=''; CORTEX_USER_LOCALE=''; CORTEX_USER_GH_LOGIN=''
+        CORTEX_USER_CONFIRMED='false'
+        ;;
+    esac
+  fi
+fi
+
 echo "cortex-x installer"
 echo "  from:     $CORTEX_ROOT"
 echo "  to:       $CLAUDE_HOME/shared"
@@ -216,6 +259,29 @@ cat > "$MODULE_LOCAL" <<YAML
 # unless you re-run install.
 config:
   communication_language: $CORTEX_LANGUAGE
+YAML
+
+# Sprint 1.7.4 — write user identity to ~/.claude/cortex/user.yaml.
+# Templates + session-start hook read this to address the user by name in
+# their detected locale. Always written (even with empty fields) so callers
+# can rely on the file existing. Idempotent: regenerated on every install.
+USER_YAML_DIR="$CLAUDE_HOME/cortex"
+USER_YAML="$USER_YAML_DIR/user.yaml"
+mkdir -p "$USER_YAML_DIR"
+cat > "$USER_YAML" <<YAML
+# cortex-x user identity (gitignored — written by install.sh).
+# Populated from git config + Intl + gh CLI. Edit freely; install will not
+# overwrite unless you re-run it. Used by templates (CLAUDE.md, MEMORY.md)
+# and session-start hook to personalize output.
+name: $CORTEX_USER_NAME
+email: $CORTEX_USER_EMAIL
+username: $CORTEX_USER_USERNAME
+platform: $CORTEX_USER_PLATFORM
+locale: $CORTEX_USER_LOCALE
+gh_login: $CORTEX_USER_GH_LOGIN
+language: $CORTEX_LANGUAGE
+confirmed: $CORTEX_USER_CONFIRMED
+detected_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
 YAML
 
 case "$CORTEX_LANGUAGE" in
