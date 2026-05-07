@@ -47,6 +47,10 @@ const actionKinds = require('./_lib/action-kinds.cjs');
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
 const harvester = require('../../detectors/recommendation-harvest.cjs');
+// Sprint 1.8.4 — dep_update_patch deterministic capability. npm outdated
+// → patch-only diffs → npm install --save → npm test gate. No LLM call on
+// happy path; verifier rejection rolls back exactly like the LLM path.
+const depPatch = require('../../detectors/dep-update-patch.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -372,6 +376,79 @@ async function runHarvestAction(plan, { repoRoot, harvestSignals }) {
   };
 }
 
+// Sprint 1.8.4 — dep_update_patch executor branch. Deterministic, no LLM:
+//   1. Detect candidates via npm outdated --json (or DI mockOutdatedJson)
+//   2. Run npm install --save pkg@wanted, ... for the candidates
+//   3. Verifier (runNpmTest) is the gate — same as LLM path
+//
+// Returns same shape as actionEngine.applyAction so the runExecute pipeline
+// (stage → commit → push → PR) reuses existing logic verbatim.
+async function runDepUpdateAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = depPatch.detectPatchUpdates({
+    cwd: repoRoot,
+    mockOutdatedJson: opts.mockOutdatedJson, // DI for tests
+    maxCandidates: opts.maxCandidates || 5,
+  });
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'DEP_UPDATE_NO_CANDIDATES',
+      error: `no patch-only updates available (${detected.total_outdated} outdated, ${detected.skipped_minor} minor, ${detected.skipped_major} major)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  // Run npm install for the patch candidates (unless DI flag says skip).
+  if (!opts.skipNpmInstall) {
+    const args = depPatch.buildInstallArgs(detected.candidates);
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync('npm', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      timeout: 5 * 60 * 1000, // 5 min cap
+    });
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        code: 'DEP_UPDATE_INSTALL_FAILED',
+        error: `npm install failed: ${(result.stderr || '').slice(0, 500)}`,
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+        candidates: detected.candidates,
+      };
+    }
+  }
+
+  // npm install touches package.json + lock files; report both as touched
+  // so the staging step adds them. Detect which lockfile actually changed
+  // by checking which files were modified in the working tree.
+  const touchedFiles = ['package.json'];
+  const fs = require('node:fs');
+  const path = require('node:path');
+  for (const lock of ['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml']) {
+    const lockPath = path.join(repoRoot, lock);
+    if (fs.existsSync(lockPath)) {
+      // Check if it changed via git status
+      const { execSync } = require('node:child_process');
+      try {
+        const out = execSync(`git diff --name-only -- "${lock}"`, { cwd: repoRoot, encoding: 'utf8' }).trim();
+        if (out) touchedFiles.push(lock);
+      } catch { /* ignore */ }
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles,
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    updated_count: detected.candidates.length,
+    candidates: detected.candidates,
+  };
+}
+
 function isHermesArtifact(p) {
   if (!p) return false;
   // Normalize Windows backslashes to forward slashes for matching
@@ -568,6 +645,13 @@ async function runExecute(opts = {}) {
     let applyResult;
     if (plan.action_kind === 'recommendation_harvest') {
       applyResult = await runHarvestAction(plan, { repoRoot, harvestSignals: opts.harvestSignals });
+    } else if (plan.action_kind === 'dep_update_patch') {
+      applyResult = await runDepUpdateAction(plan, {
+        repoRoot,
+        mockOutdatedJson: opts.mockOutdatedJson, // DI for tests
+        skipNpmInstall: opts.skipNpmInstall, // DI for tests
+        maxCandidates: opts.maxCandidates,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -772,6 +856,8 @@ module.exports = {
   // Sprint 1.8.2c — harvester helpers exported for unit testing
   appendCandidatesToRecsBody,
   runHarvestAction,
+  // Sprint 1.8.4 — dep_update_patch helpers exported for unit testing
+  runDepUpdateAction,
   EX_USAGE,
 };
 
