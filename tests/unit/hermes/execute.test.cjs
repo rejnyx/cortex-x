@@ -125,10 +125,9 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // doc_drift is the last parked kind (Sprint 1.8.6 → v0.9). All other kinds
-    // shipped: recommendation, recommendation_harvest, dep_update_patch,
-    // todo_triage, flaky_test_repair.
-    const f = tmpPlanFile(buildPlan({ action_kind: 'doc_drift' }));
+    // test_coverage_gap is declared in registry (Sprint 1.9 roadmap) but
+    // shipped_in is null until that sprint lands. All v0.8 kinds shipped.
+    const f = tmpPlanFile(buildPlan({ action_kind: 'test_coverage_gap' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
@@ -1131,6 +1130,83 @@ describe('execute: Sprint 1.8.5 — flaky_test_repair', () => {
       // Verify file modified + committed
       const updated = fs.readFileSync(path.join(repo, 'tests/api.test.js'), 'utf8');
       assert.match(updated, /it\.skip\('returns 200'/);
+    });
+  });
+});
+
+// ── Sprint 1.8.6 — doc_drift executor branch ───────────────────────────────
+
+describe('execute: Sprint 1.8.6 — doc_drift', () => {
+  function buildDocDriftPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'doc_drift',
+      action: {
+        num: null,
+        title: 'Triage 2 doc-drifted exports',
+        body: 'Doc drift detection',
+        action_key: `${SLUG}#doc-drift-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-doc-drift-test',
+      action_id: '01DOCDRX',
+      trigger: 'manual',
+      commit_message: 'chore(docs): triage doc drift\n\nbody\n\nHermes-Action-Id: 01DOCDRX\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: doc-drift\nHermes-Action-Kind: doc_drift',
+      ...overrides,
+    };
+  }
+
+  test('runDocDriftAction returns DOC_DRIFT_NO_CANDIDATES when all documented', async () => {
+    const repo = tmpProjectRepo('docdrift-empty');
+    const result = await execute.runDocDriftAction(buildDocDriftPlan(), {
+      repoRoot: repo,
+      mockFiles: [{ path: 'src/x.js', content: 'export function foo() {}' }],
+      mockDocsCorpus: 'foo is documented',
+      skipGh: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'DOC_DRIFT_NO_CANDIDATES');
+  });
+
+  test('runDocDriftAction returns ok with skip_commit + opened_issues for drift', async () => {
+    const repo = tmpProjectRepo('docdrift-happy');
+    const result = await execute.runDocDriftAction(buildDocDriftPlan(), {
+      repoRoot: repo,
+      mockFiles: [
+        { path: 'src/a.js', content: 'export function newAPI() {}' },
+        { path: 'src/b.js', content: 'export class HiddenClass {}' },
+      ],
+      mockDocsCorpus: '', // nothing documented
+      skipGh: true,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, true);
+    assert.deepEqual(result.touchedFiles, []);
+    assert.equal(result.opened_issues.length, 2);
+    assert.equal(result.drifted_count, 2);
+  });
+
+  test('full pipeline: doc_drift plan → execute → no commit, gh issues opened', async () => {
+    const repo = tmpProjectRepo('docdrift-full');
+    const planFile = tmpPlanFile(buildDocDriftPlan());
+
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'docdrift-data-')),
+      HERMES_NO_PUSH: '1',
+    }, async () => {
+      const result = await execute.runExecute({
+        planFile,
+        repoRoot: repo,
+        skipPush: true,
+        mockFiles: [{ path: 'src/x.js', content: 'export function undocumented() {}' }],
+        mockDocsCorpus: '',
+        skipGh: true,
+      });
+      assert.equal(result.ok, true);
+      assert.equal(result.action_kind, 'doc_drift');
+      assert.equal(result.skip_commit, true);
+      assert.equal(result.triaged_count !== undefined || result.opened_issues !== undefined, true);
     });
   });
 });

@@ -90,10 +90,11 @@ describe('action-kinds: helpers', () => {
     assert.equal(kinds.isShippedKind('recommendation_harvest'), true);
     assert.equal(kinds.isShippedKind('dep_update_patch'), true);
     assert.equal(kinds.isShippedKind('todo_triage'), true);
-    // Sprint 1.8.5 — flaky_test_repair (marker-based, deterministic)
     assert.equal(kinds.isShippedKind('flaky_test_repair'), true);
-    // Still parked
-    assert.equal(kinds.isShippedKind('doc_drift'), false);
+    // Sprint 1.8.6 — doc_drift (deterministic, no LLM)
+    assert.equal(kinds.isShippedKind('doc_drift'), true);
+    // Negative case — bogus kind never shipped
+    assert.equal(kinds.isShippedKind('totally_made_up'), false);
   });
 
   test('listKinds returns all registered kinds (shipped + future)', () => {
@@ -103,7 +104,7 @@ describe('action-kinds: helpers', () => {
     assert.ok(all.length >= 1);
   });
 
-  test('listShippedKinds returns ONLY shipped kinds', () => {
+  test('listShippedKinds returns ALL 6 declared kinds (v0.8 complete)', () => {
     const shipped = kinds.listShippedKinds();
     assert.ok(Array.isArray(shipped));
     assert.ok(shipped.includes('recommendation'));
@@ -111,8 +112,9 @@ describe('action-kinds: helpers', () => {
     assert.ok(shipped.includes('dep_update_patch'));
     assert.ok(shipped.includes('todo_triage'));
     assert.ok(shipped.includes('flaky_test_repair'));
-    // Still parked
-    assert.ok(!shipped.includes('doc_drift'));
+    assert.ok(shipped.includes('doc_drift'));
+    // Sanity: 6 kinds shipped post-v0.8
+    assert.ok(shipped.length >= 6);
   });
 });
 
@@ -151,10 +153,14 @@ describe('action-kinds: future-roadmap entries', () => {
     assert.equal(k.detector, 'detectors/flaky-test-repair.cjs');
   });
 
-  test('Sprint 1.8.6 — doc_drift declared (doc-only edits)', () => {
+  test('Sprint 1.8.6 — doc_drift shipped (deterministic exported-symbol scan)', () => {
     const k = kinds.getActionKind('doc_drift');
     assert.ok(k);
-    assert.equal(k.blast_radius, 'low');
+    assert.equal(k.requires_llm, false);
+    assert.equal(k.cost_envelope, 'free');
+    assert.equal(k.blast_radius, 'minimal'); // gh issues only in v1
+    assert.equal(k.shipped_in, '0.1.0');
+    assert.equal(k.detector, 'detectors/doc-drift.cjs');
   });
 
   test('Sprint 1.8.7 — todo_triage shipped (gh issue create, no LLM, no file edits)', () => {
