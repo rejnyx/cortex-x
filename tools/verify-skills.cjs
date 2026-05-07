@@ -23,6 +23,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { stripDenylistExamples } = require('./lib/denylist-examples.cjs');
+
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SKILLS_DIR = path.join(REPO_ROOT, 'shared', 'skills');
 
@@ -191,6 +193,88 @@ class Validator {
       }
     }
 
+    // 7. metadata (optional, Anthropic Claude Code extension)
+    // parseFrontmatter returns metadata as an object if the YAML has nested
+    // keys under it. Validate each value is a string scalar.
+    if (fm.data.metadata !== undefined) {
+      if (typeof fm.data.metadata !== 'object' || fm.data.metadata === null) {
+        this.fail(`${id}.metadata.shape`, 'warning', `${id}/SKILL.md: metadata must be a YAML map (nested keys), got ${typeof fm.data.metadata}`);
+      } else {
+        for (const [k, v] of Object.entries(fm.data.metadata)) {
+          if (typeof v !== 'string') {
+            this.fail(`${id}.metadata.${k}`, 'warning', `${id}/SKILL.md: metadata.${k} must be a scalar string`);
+          }
+        }
+      }
+    }
+
+    // Tier 8 — Anthropic Claude Code extensions (validated when present;
+    // base spec stays SSOT, extensions are optional). Read the raw
+    // frontmatter block directly for these because parseFrontmatter doesn't
+    // know inline arrays / booleans. Trailing \n appended so multi-line
+    // dash-list regex catches the final item.
+    const rawFmMatch = src.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    const rawFm = rawFmMatch ? rawFmMatch[1] + '\n' : '';
+
+    // 7a. allowed-tools — inline array `[A, B, C]` or block-list (dash-prefixed).
+    // Use [ \t]* (horizontal whitespace only) for the gap between `:` and value
+    // so the regex doesn't inadvertently eat the line break.
+    const allowedToolsLine = rawFm.match(/^allowed-tools:[ \t]*(.*)$/m);
+    if (allowedToolsLine) {
+      const val = allowedToolsLine[1].trim();
+      let tools = null;
+      if (val.startsWith('[') && val.endsWith(']')) {
+        // inline array
+        tools = val.slice(1, -1).split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+      } else if (val === '') {
+        // multi-line dash list
+        const block = rawFm.match(/^allowed-tools:[ \t]*\n((?:[ \t]+-[ \t]+\S+[ \t]*\n)+)/m);
+        if (block) {
+          tools = block[1].split('\n').map((l) => {
+            const m = l.match(/^[ \t]+-[ \t]+(.+)$/);
+            return m ? m[1].trim().replace(/^["']|["']$/g, '') : null;
+          }).filter(Boolean);
+        }
+      }
+      if (tools === null) {
+        this.fail(`${id}.allowed-tools.shape`, 'warning', `${id}/SKILL.md: allowed-tools must be an array (inline [A, B] or dash-list)`);
+      } else if (tools.length === 0) {
+        this.fail(`${id}.allowed-tools.empty`, 'warning', `${id}/SKILL.md: allowed-tools is empty (omit the field instead of setting empty)`);
+      } else {
+        this.pass(`${id}.allowed-tools`, `${id}/SKILL.md: allowed-tools = [${tools.join(', ')}]`);
+      }
+    }
+
+    // 7b. disable-model-invocation — boolean
+    const disableLine = rawFm.match(/^disable-model-invocation:[ \t]*(true|false)[ \t]*$/mi);
+    const disableLineUntyped = rawFm.match(/^disable-model-invocation:[ \t]*(.+?)[ \t]*$/m);
+    if (disableLineUntyped && !disableLine) {
+      this.fail(`${id}.disable-model-invocation.shape`, 'warning', `${id}/SKILL.md: disable-model-invocation must be 'true' or 'false', got '${disableLineUntyped[1]}'`);
+    } else if (disableLine) {
+      this.pass(`${id}.disable-model-invocation`, `${id}/SKILL.md: disable-model-invocation = ${disableLine[1].toLowerCase()}`);
+    }
+
+    // 7c. model — known Claude model identifier (warn-only on unknown; new
+    // models ship periodically, so we don't gate on a hardcoded allowlist —
+    // just check the value is a kebab-shape string)
+    const modelLine = rawFm.match(/^model:[ \t]*(.+?)[ \t]*$/m);
+    if (modelLine) {
+      const m = modelLine[1].trim().replace(/^["']|["']$/g, '');
+      if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/i.test(m) || m.length > 80) {
+        this.fail(`${id}.model.shape`, 'warning', `${id}/SKILL.md: model '${m}' should be a kebab-case identifier ≤80 chars (e.g. claude-sonnet-4-6, claude-haiku-4-5)`);
+      } else {
+        this.pass(`${id}.model`, `${id}/SKILL.md: model '${m}'`);
+      }
+    }
+
+    // 7d. license — short string per agentskills.io spec (e.g. "MIT", "Apache-2.0")
+    if (fm.data.license !== undefined) {
+      const lic = String(fm.data.license);
+      if (lic.length === 0 || lic.length > 100) {
+        this.fail(`${id}.license.shape`, 'warning', `${id}/SKILL.md: license should be a short SPDX-ish identifier (1-100 chars), got ${lic.length} chars`);
+      }
+    }
+
     // 8. body non-empty
     const body = fm.body.trim();
     if (body.length < 50) {
@@ -199,10 +283,11 @@ class Validator {
       this.pass(`${id}.body`, `${id}/SKILL.md: body ${body.length} chars`);
     }
 
-    // 9. PII / Dave-path leak
+    // 9. PII / Dave-path leak (skipping <!-- denylist-example --> lines)
+    const srcForPii = stripDenylistExamples(src);
     let piiHits = [];
     for (const re of PII_DENY) {
-      const matches = src.match(re);
+      const matches = srcForPii.match(re);
       if (matches) piiHits.push(matches[0]);
     }
     if (piiHits.length > 0) {

@@ -47,8 +47,14 @@ Hardcoded Hermes refusals — non-negotiable:
 
 1. **Hermes core loop** — reads recommendations, picks next action,
    spawns subagent, verifies, logs, repeats.
-2. **Trigger model** — cron (daily/weekly), on-incident (Sentry hook),
-   on-PR-merged (GitHub webhook), manual.
+2. **Trigger model** — **GitHub Actions cron** (production projects, default
+   after cortex-x dogfood — free per-repo schedule, ephemeral runner, isolated
+   from dev machine, secrets via GH UI, audit trail in Actions UI). Local
+   crontab kept as cortex-x dogfood-only path. v1+ adds on-incident
+   (`repository_dispatch` from Sentry/PagerDuty webhook), on-PR-merged
+   (`pull_request` event), manual (`workflow_dispatch` or local CLI). See
+   [`docs/hermes-runtime.md`](./hermes-runtime.md#12-trigger-model) for
+   reference workflow + isolation rationale.
 3. **Memory model** — append-only `~/.cortex/journal/<slug>/<date>.jsonl`
    with replay-friendly structure. Hermes reads it before each action
    to know "what did I already try and what failed?".

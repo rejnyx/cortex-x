@@ -1,0 +1,94 @@
+# hermes.example.yml — reference Hermes runtime workflow.
+#
+# DISABLED until Hermes v0.5 lands the Claude Agent SDK seam. Copy this file
+# to .github/workflows/hermes.yml, add ANTHROPIC_API_KEY as a repo secret, and
+# adjust the schedule to enable autonomous weekly runs.
+#
+# See docs/hermes-runtime.md § 1.2 "Trigger model" for the design rationale
+# (why GitHub Actions over local crontab for production projects).
+
+name: hermes (disabled)
+
+# Disabled by default — uncomment + rename to hermes.yml to enable
+on:
+  workflow_dispatch:        # manual run via GH UI / `gh workflow run hermes.yml`
+  # schedule:
+  #   - cron: '0 4 * * 0'   # Sunday 04:00 UTC, matches config/evolve.yaml cadence.weekly.cron
+
+# Mutex-by-repo per MUST-H2: at most one running Hermes per repo at a time.
+# `cancel-in-progress: false` because Hermes actions are stateful (mid-action
+# cancellation could leave a partial commit on hermes/<branch>); we'd rather
+# queue.
+concurrency:
+  group: hermes-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  hermes-run:
+    name: hermes weekly
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write           # commit on hermes/<date>-<slug>-<id> branch
+      pull-requests: write      # gh pr create --draft
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # Hermes journal lookup needs full git history
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Verify pre-Hermes gates
+        run: |
+          npm test
+          # Pre-flight: if the project's own test suite is red, do NOT run Hermes —
+          # Hermes verifies via npm test, so a red baseline = false positives.
+
+      - name: Hermes dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-hermes.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --json > /tmp/hermes-plan.json
+          cat /tmp/hermes-plan.json
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+
+      # ───────────────────────────────────────────────────────────────────
+      # v0.5 — Claude Agent SDK seam (uncomment when v0.5 lands)
+      # ───────────────────────────────────────────────────────────────────
+      # - name: Hermes execute (Claude Agent SDK)
+      #   if: steps.plan.outputs.has_action == 'true'
+      #   run: node bin/cortex-hermes.cjs execute --plan-file=/tmp/hermes-plan.json
+      #   env:
+      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      #     CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+      #
+      # - name: Push branch + open draft PR
+      #   if: steps.plan.outputs.has_action == 'true'
+      #   run: |
+      #     git push -u origin "$(jq -r .branch /tmp/hermes-plan.json)"
+      #     gh pr create --draft \
+      #       --title "$(jq -r .planned_commit.subject /tmp/hermes-plan.json)" \
+      #       --body  "Hermes weekly run — see /tmp/hermes-plan.json for the structured plan."
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

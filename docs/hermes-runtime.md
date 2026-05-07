@@ -85,7 +85,11 @@ async function runHermesIteration(opts: HermesRunOpts): Promise<HermesRunResult>
 
 ### 1.2 Trigger model
 
-v0 ships **cron only**. Cron entry installed during `cortex init` for projects opting in to Hermes:
+**v0 ships cron only.** Two cron variants by deployment target (decided 2026-05-07 after isolation discussion):
+
+#### v0a — Local crontab (cortex-x dogfood only)
+
+Installed during `cortex init` on Dave's machine, for the cortex-x self-dogfood phase:
 
 ```cron
 # ~/.cortex/cron.d/hermes-cortex-x
@@ -94,12 +98,61 @@ v0 ships **cron only**. Cron entry installed during `cortex init` for projects o
 
 Sunday 04:00 UTC matches `config/evolve.yaml` `cadence.weekly.cron` so Hermes mining stays aligned with the manual cadence.
 
-**Mutex semantics** (per [`standards/hermes-policy.md`](../standards/hermes-policy.md) MUST-H2): the lock file `cortex/journal/<slug>/.lock` enforces "one Hermes run per project at a time". Stale-lock recovery: if mtime > `2 × declared_action_timeout`, log `lock_recovered` and proceed.
+**Constraints:** local-only, requires Dave's machine to be on, no isolation, no audit trail beyond `~/.cortex/journal/`. Acceptable for cortex-x dogfood (3-week proving window per `docs/hermes-research-synthesis.md` v0 assumption #4) but **not for production projects**.
+
+#### v0b — GitHub Actions cron (production projects, default after dogfood)
+
+For RELO / Kiosek / Chatbot Platform / WaaS and any Hermes-enabled project beyond cortex-x:
+
+```yaml
+# .github/workflows/hermes.yml
+name: hermes
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # Sunday 04:00 UTC, matches local default
+  workflow_dispatch:       # manual trigger via GH UI / gh cli
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write     # commit on hermes/<branch>
+      pull-requests: write # gh pr create --draft
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0    # Hermes journal lookup needs full git history
+      - uses: actions/setup-node@v5
+        with: { node-version: '22' }
+      - run: npm ci || npm install
+      - run: node bin/cortex-hermes.cjs dry-run --slug=${{ github.event.repository.name }} --trigger=cron --json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # v0.5 only
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+      # v0.5+: if dry-run produced an action plan, run the real Hermes loop
+      # (Claude Agent SDK call → file edits → git commit → gh pr create --draft)
+```
+
+**Why GitHub Actions over local crontab for production:**
+- Free for personal repos (within minute limits)
+- Built-in secret store (`ANTHROPIC_API_KEY` per repo)
+- Ephemeral runner = no leftover state, no shared FS, isolation by default
+- Audit trail in Actions UI (every run journaled by GitHub)
+- Mirrors project's existing CI env (Hermes needs `npm test` / `npm run lint` to work — Actions already configures this)
+- Built-in PR creation via `gh` CLI (no SSH-key juggling)
+- Concurrency groups for mutex (`concurrency: { group: hermes-${{ github.event.repository.name }}, cancel-in-progress: false }`) — natural mapping of MUST-H2 mutex-by-slug
+
+**When to use a self-hosted runner instead:** if minute limits become a constraint, or if 24/7 availability matters more than ephemeral isolation (Actions cold-start ~30s is fine for cron, slow for on-incident triage). Hetzner $5/mo VPS with `actions-runner` install = the pragmatic upgrade path.
+
+**Mutex semantics** (per [`standards/hermes-policy.md`](../standards/hermes-policy.md) MUST-H2): the lock file `cortex/journal/<slug>/.lock` enforces "one Hermes run per project at a time". On GitHub Actions, the workflow `concurrency:` key provides a second layer of protection at the runner-orchestration level — the file lock + GHA concurrency together = belt-and-suspenders. Stale-lock recovery: if mtime > `2 × declared_action_timeout`, log `lock_recovered` and proceed.
 
 **v1+ trigger sources** (designed, not shipped):
-- **on-incident** — webhook receiver at `~/.cortex/bin/hermes-webhook` listens on a Unix socket; Sentry / PagerDuty post incident JSON; Hermes loads incident context + drafts fix PR.
-- **on-PR-merged** — GitHub webhook → after merge to main, run regression suite, journal outcome, optionally update PROGRESS.md story status.
-- **manual** — `cortex hermes run --action <id> [--dry-run]` CLI subcommand.
+- **on-incident** — Sentry / PagerDuty webhook → triggers `repository_dispatch` event → GHA workflow runs Hermes with `--trigger=incident` and the incident payload as input
+- **on-PR-merged** — GHA `pull_request` event with `types: [closed]` filter + `merged == true` check
+- **manual** — `cortex hermes run --action <id> [--dry-run]` CLI subcommand for local development; GHA `workflow_dispatch` for triggered-by-human runs in production
+
+A reference workflow template lives at [`.github/workflows/hermes.example.yml`](../.github/workflows/hermes.example.yml) — disabled (renamed to `.example.yml`) until v0.5 lands the LLM seam. Copy + rename to `hermes.yml` + add `ANTHROPIC_API_KEY` secret to enable.
 
 ### 1.3 Memory model
 

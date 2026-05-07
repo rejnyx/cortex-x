@@ -25,6 +25,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { stripDenylistExamples } = require('./lib/denylist-examples.cjs');
+
 const REPO_ROOT = path.resolve(__dirname, '..');
 const STANDARDS_DIR = path.join(REPO_ROOT, 'standards');
 
@@ -121,9 +123,10 @@ function checkFile(filePath) {
     });
   }
 
-  // Check 3 — PII denylist
+  // Check 3 — PII denylist (skipping <!-- denylist-example --> lines)
+  const contentForPii = stripDenylistExamples(content);
   for (const re of PII_DENYLIST) {
-    if (re.test(content)) {
+    if (re.test(contentForPii)) {
       findings.push({
         severity: 'blocker',
         code: 'PII_LEAK',

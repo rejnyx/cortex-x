@@ -20,6 +20,43 @@
 
 ## Current
 
+### Sprint 1.6.9 — Dogfood + GitHub Actions pivot + PII helper + Tier 8 (2026-05-07 closing)
+
+#### Non-breaking (additive)
+
+- **What landed:** five deliverables in one autonomous run, +24 tests (384 → 408 full suite, 364 → 388 test:fast).
+
+  1. **`cortex/recommendations.md`** for cortex-x itself. Six DO-* items (3 week + 3 sprint) derived from external review + Sprint 1.6.7-1.6.8 architectural decisions. cortex-x is now Hermes-targetable.
+
+  2. **First successful Hermes dry-run on the real cortex-x repo.** `node bin/cortex-hermes.cjs dry-run --slug=cortex-x --json` picked DO-this-week #1 ("Pivot v1 trigger to GitHub Actions"), generated branch name `hermes/2026-05-07-pivot-v1-trigger-model-from-crontab-to-g-bz83`, emitted Conventional-Commits-shaped commit message with valid Git trailers, journaled the run. Dogfood proved the v0 plumbing works on a non-fixture project.
+
+  3. **v1 trigger model pivoted from local crontab to GitHub Actions** (commit message body of the planned commit became this commit's body — manual Hermes mode).
+     - `docs/hermes-runtime.md` § 1.2 expanded to v0a (local crontab, cortex-x dogfood only) + v0b (GitHub Actions cron, production projects) + rationale + reference workflow + when-to-self-host-runner.
+     - `docs/hermes-rfc.md` "Architecture sketch" §2 trigger model rewritten to lead with GitHub Actions.
+     - `.github/workflows/hermes.example.yml` (NEW, ~85 LOC) — disabled-by-default reference workflow with `concurrency:` group for mutex-by-repo, `permissions:` for contents+PR write, `actions/checkout@v5` + `actions/setup-node@v5` + `npm ci` + `bin/cortex-hermes.cjs dry-run`, journal artifact upload, commented-out v0.5 Claude Agent SDK + PR creation steps.
+
+  4. **Self-referential PII helper** (`tools/lib/denylist-examples.cjs` + 12 tests). Single-line opt-out marker `<!-- denylist-example -->` — any line containing the marker is excluded from PII scan. All 3 verifiers (verify-prompts, verify-skills, verify-standards) now strip marker-bearing lines before applying the PII denylist regex. Closes the recurring self-bug pattern caught 3 times this week (Tier 5 fixture README, Tier 7 ship-ready.md, cortex-doctor §13.7 — each documented a denylist by quoting forbidden strings, regex caught them). Markers preserve line numbers for error messages by replacing matched lines with empty strings rather than removing them.
+
+  5. **Tier 8 — agentskills.io v1 spec extensions** (`tools/verify-skills.cjs` extended + `tests/contract/skill-extensions.test.cjs` 12 tests). Four Anthropic Claude Code extensions validated when present:
+     - `allowed-tools:` — inline array `[Bash, Edit]` or block-list (dash-prefixed) format; empty arrays warn
+     - `disable-model-invocation:` — must be `true` or `false`
+     - `model:` — kebab-case identifier ≤80 chars (e.g. `claude-sonnet-4-6`)
+     - `license:` — short SPDX-ish identifier (1-100 chars)
+     - `metadata:` — already validated as nested object; tightened
+     Real `start/SKILL.md` (Anthropic-style with `disable-model-invocation: false`) now shows up in verify output as a passing check.
+
+- **Bug caught by tests during implementation:** Tier 8 first regex used `\s*` for the gap between `:` and value, which matches newlines. So `allowed-tools:\n  - Bash` got parsed with `val = '- Bash'` instead of empty (which would trigger dash-list-block parsing). Fix: use `[ \t]*` (horizontal whitespace only) for the inline-value gap. Caught by the contract test specifically for dash-list format — would have shipped silently otherwise.
+
+- **npm scripts:** none added (all run via existing `npm test`, `test:fast`, `test:standards`, `test:bin`).
+
+- **Pre-launch tier gates:** Tier 6 ✓ · Tier 7 ✓ · Tier 8 ✓. **All three pre-launch tier gates closed.** Remaining ship-blockers: D-1 (PII purge, Dave-only) + v0.5 (Claude Agent SDK, zero-deps decision pending).
+
+- **Why:** Dave's "udělej nejlepší postup verzi" mandate post-isolation discussion. Combined the dogfood validation + the architectural decision (GitHub Actions for production) + the meta-fix for the 3-times-bitten PII pattern + the last pre-launch tier into one coherent sprint. Manual Hermes mode (Claude played the LLM seam) actually executed DO-this-week item #1 from the new recommendations.md.
+
+- **Migrate:** none — additive. Existing installs unaffected. `.github/workflows/hermes.example.yml` is disabled (no `schedule:` block) until v0.5 ships.
+
+- **Rollback:** revert this sprint's commit. The five deliverables form one logical unit.
+
 ### Sprint 1.6.8 — Unified Hermes CLI + Tier 6 + Tier 7 (2026-05-07 late night)
 
 #### Non-breaking (additive — no migration required)
