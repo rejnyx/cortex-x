@@ -47,6 +47,10 @@ const actionKinds = require('./_lib/action-kinds.cjs');
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
 const harvester = require('../../detectors/recommendation-harvest.cjs');
+// Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
+// (root cause + hint) so the next run can recall + avoid repeating the same
+// mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
+const lessons = require('./_lib/lessons.cjs');
 
 const EX_USAGE = 64;
 const EX_TEMPFAIL = 75;
@@ -96,6 +100,21 @@ function writeCommitMessageToTmp(message) {
   const tmpFile = path.join(os.tmpdir(), `hermes-commit-${Date.now()}-${process.pid}.txt`);
   fs.writeFileSync(tmpFile, message, 'utf8');
   return tmpFile;
+}
+
+// Sprint 1.8.3 — record a lesson when an executor failure path returns.
+// Best-effort, never blocks the failure return. Caller passes the result
+// object (must have .code) and plan (for action_kind + action_key context).
+function safeRecordLesson(slug, result, plan) {
+  try {
+    const lesson = lessons.lessonFromExecuteResult(result, {
+      action_kind: plan && plan.action_kind,
+      action_key: plan && plan.action && plan.action.action_key,
+    });
+    if (lesson) lessons.recordLesson(slug, lesson);
+  } catch (_) {
+    // Never let lesson recording sink the failure return.
+  }
 }
 
 function safeJournal(slug, entry) {
@@ -569,6 +588,8 @@ async function runExecute(opts = {}) {
         action_key: plan.action.action_key,
         action_id: plan.action_id,
       }, applyResult));
+      // Sprint 1.8.3 — record lesson so next run avoids the same root cause
+      safeRecordLesson(slug, applyResult, plan);
       return {
         ok: false,
         code: applyResult.code || 'ACTION_FAILED',
@@ -611,6 +632,12 @@ async function runExecute(opts = {}) {
           action_key: plan.action.action_key,
           action_id: plan.action_id,
         }, applyResult));
+        // Sprint 1.8.3 — record lesson on verify-fail (most common LLM regression)
+        safeRecordLesson(slug, {
+          ok: false,
+          code: 'NPM_TEST_FAILED',
+          error: 'npm test failed after action edits; rolled back',
+        }, plan);
         return {
           ok: false,
           code: 'VERIFY_FAILED',
