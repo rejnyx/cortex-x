@@ -1,0 +1,72 @@
+name: test
+
+# Fast lane — Linux only, runs the full test suite on every PR + push.
+# install-smoke.yml runs the cross-OS matrix on the same triggers.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dev dependencies
+        run: npm ci || npm install
+
+      - name: Show test inventory
+        run: |
+          echo "::group::Test files"
+          find tests -name '*.test.cjs' -type f | sort
+          echo "::endgroup::"
+          echo "::group::Fixtures"
+          find tests/fixtures -maxdepth 2 -name 'package.json' -type f | sort
+          echo "::endgroup::"
+
+      - name: Unit + contract suites
+        run: npm run test:fast
+
+      - name: Detector tests (with fixture rebuild)
+        run: npm run test:detectors
+
+      - name: Audit validator tests
+        run: npm run test:audit
+
+      - name: Integration tests (install roundtrip)
+        # roundtrip needs a clean isolated $HOME — runs `bash install.sh` into
+        # a tmpdir. Linux runners always have bash.
+        run: npm run test:integration
+
+      - name: Coverage report (informational, not gated)
+        # Coverage is informational right now — we ratchet thresholds upward
+        # over 2-3 sprints once we have a baseline (per cortex-x's "measure
+        # first, ratchet later" pattern in standards/testing.md).
+        run: npm run test:coverage || true
+        continue-on-error: true
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
