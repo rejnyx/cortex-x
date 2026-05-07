@@ -73,6 +73,51 @@ describe('auto-orchestrate: trigger patterns', () => {
   });
 });
 
+describe('auto-orchestrate: guidance content quality', () => {
+  test('triggered guidance includes orchestration signal (3-fronta / decision tree / batch)', () => {
+    const r = runHook('auto-orchestrate', userPrompt('implement a new feature for users'));
+    const ctx = expectGuidanceInjected(r);
+    // The guidance string is supposed to direct toward 3-fronta orchestration
+    // (per standards/auto-orchestration.md). Catches "we emit 'continue: true'
+    // with hookSpecificOutput but additionalContext is empty/garbage" regression.
+    assert.ok(ctx.length > 80,
+      `guidance should be substantive; got ${ctx.length} chars: ${ctx.slice(0, 200)}`);
+    // Must mention research caches or 3-fronta or sequential decision pattern
+    assert.match(ctx, /research|3-fronta|sequential|parallel|fronta|decision tree|cache/i,
+      `guidance should reference orchestration signals; got: ${ctx.slice(0, 400)}`);
+  });
+
+  test('triggered guidance is well-formed (no template-placeholder leaks)', () => {
+    const r = runHook('auto-orchestrate', userPrompt('build new auth integration'));
+    const ctx = expectGuidanceInjected(r);
+    // Catches handlebars-style `{{...}}` placeholders escaping to runtime
+    assert.ok(!/\{\{[^}]+\}\}/.test(ctx),
+      `guidance should not contain unrendered template placeholders; got: ${ctx.slice(0, 300)}`);
+    // Catches "undefined" string from missing context value
+    assert.ok(!/\bundefined\b/.test(ctx),
+      `guidance should not contain literal 'undefined'; got: ${ctx.slice(0, 300)}`);
+  });
+
+  test('guidance surfaces research-cache state (catches "buildGuidance ran with empty caches" regression)', () => {
+    const r = runHook('auto-orchestrate', userPrompt('implement new endpoint'));
+    const ctx = expectGuidanceInjected(r);
+    // The hook calls listResearchCache() and the result should show up
+    // in guidance (even when empty — output reads "(empty)" or similar).
+    // Catches "we read the cache dir but never include the result" regression.
+    assert.match(ctx, /Research cache|cache:/i,
+      `guidance should mention research cache; got: ${ctx.slice(0, 400)}`);
+  });
+
+  test('guidance includes decision tree / next-step direction', () => {
+    const r = runHook('auto-orchestrate', userPrompt('implement new endpoint'));
+    const ctx = expectGuidanceInjected(r);
+    // The 3-fronta pattern requires the user / Claude to decide research-vs-skip.
+    // Guidance should include numbered or bulleted decision steps.
+    assert.match(ctx, /Decision tree|decision|spawn.*Agent|skip|implement/i,
+      `guidance should include decision/next-step direction; got: ${ctx.slice(0, 400)}`);
+  });
+});
+
 describe('auto-orchestrate: skip patterns', () => {
   test('skips "fix typo"', () => {
     const r = runHook('auto-orchestrate', userPrompt('fix typo in README — implement → implements'));
