@@ -80,6 +80,20 @@ function safeJournal(slug, entry) {
   }
 }
 
+// Sprint 1.6.15: failure paths must capture cost_usd/tokens too — the LLM
+// call already incurred spend even if edits broke npm test or applyAction
+// returned ok:false. Without this, status's cost_usd_total under-reports.
+// Conditional add (only when value is a number) keeps journal validateEntry
+// happy when engines emit null cost (e.g., OpenRouter response without
+// data.usage.cost field).
+function addCostFields(entry, applyResult) {
+  if (!applyResult) return entry;
+  if (typeof applyResult.cost_usd === 'number') entry.cost_usd = applyResult.cost_usd;
+  if (typeof applyResult.tokens_in === 'number') entry.tokens_in = applyResult.tokens_in;
+  if (typeof applyResult.tokens_out === 'number') entry.tokens_out = applyResult.tokens_out;
+  return entry;
+}
+
 // Filter out Hermes's own runtime artifacts (lock files, journal dir) from
 // the tree status — those are bookkeeping, not user data.
 function isHermesArtifact(p) {
@@ -202,7 +216,7 @@ async function runExecute(opts = {}) {
         gitOps.git(repoRoot, ['checkout', originalBranch]);
         gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
       }
-      safeJournal(slug, {
+      safeJournal(slug, addCostFields({
         ts: new Date().toISOString(),
         trigger: plan.trigger || 'manual',
         tier: applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? 'T1' : 'T2',
@@ -211,7 +225,7 @@ async function runExecute(opts = {}) {
         actor: 'hermes',
         action_key: plan.action.action_key,
         action_id: plan.action_id,
-      });
+      }, applyResult));
       return {
         ok: false,
         code: applyResult.code || 'ACTION_FAILED',
@@ -244,7 +258,7 @@ async function runExecute(opts = {}) {
           gitOps.git(repoRoot, ['checkout', originalBranch]);
           gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
         }
-        safeJournal(slug, {
+        safeJournal(slug, addCostFields({
           ts: new Date().toISOString(),
           trigger: plan.trigger || 'manual',
           tier: 'T2',
@@ -253,7 +267,7 @@ async function runExecute(opts = {}) {
           actor: 'hermes',
           action_key: plan.action.action_key,
           action_id: plan.action_id,
-        });
+        }, applyResult));
         return {
           ok: false,
           code: 'VERIFY_FAILED',
@@ -285,7 +299,7 @@ async function runExecute(opts = {}) {
     // by design, and projects often have other untracked working files).
     const postStatus = getCleanTreeIgnoringHermes(repoRoot);
     if (postStatus.modified && postStatus.modified.length > 0) {
-      safeJournal(slug, {
+      safeJournal(slug, addCostFields({
         ts: new Date().toISOString(),
         trigger: plan.trigger || 'manual',
         tier: 'T2',
@@ -294,7 +308,7 @@ async function runExecute(opts = {}) {
         actor: 'hermes',
         action_key: plan.action.action_key,
         action_id: plan.action_id,
-      });
+      }, applyResult));
       return {
         ok: false,
         code: 'POST_VERIFY_DIRTY',
@@ -303,8 +317,8 @@ async function runExecute(opts = {}) {
       };
     }
 
-    // Phase 10 — Journal success (capture cost/tokens if engine reported them)
-    const successEntry = {
+    // Phase 10 — Journal success (cost/tokens via shared addCostFields helper)
+    safeJournal(slug, addCostFields({
       ts: new Date().toISOString(),
       trigger: plan.trigger || 'manual',
       tier: 'T0',
@@ -314,11 +328,7 @@ async function runExecute(opts = {}) {
       action_key: plan.action.action_key,
       action_id: plan.action_id,
       branch: plan.branch,
-    };
-    if (typeof applyResult.cost_usd === 'number') successEntry.cost_usd = applyResult.cost_usd;
-    if (typeof applyResult.tokens_in === 'number') successEntry.tokens_in = applyResult.tokens_in;
-    if (typeof applyResult.tokens_out === 'number') successEntry.tokens_out = applyResult.tokens_out;
-    safeJournal(slug, successEntry);
+    }, applyResult));
 
     return {
       ok: true,

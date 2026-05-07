@@ -234,6 +234,78 @@ describe('execute: mock engine — error paths', () => {
     });
   });
 
+  test('Sprint 1.6.15: verify_failed entry preserves cost_usd + tokens', async () => {
+    const repoRoot = tmpProjectRepo('verify-fail-cost');
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+    pkg.scripts.test = 'node -e "process.exit(1)"';
+    fs.writeFileSync(path.join(repoRoot, 'package.json'), JSON.stringify(pkg));
+    spawnSync('git', ['add', '.'], { cwd: repoRoot });
+    spawnSync('git', ['commit', '-m', 'fail-test'], { cwd: repoRoot });
+
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-cost-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({
+        edits: [{ path: 'a.js', content: 'a' }],
+        usage: { cost_usd: 0.0042, tokens_in: 1500, tokens_out: 800 },
+      }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.code, 'VERIFY_FAILED');
+      const fail = journal.readJournal(SLUG).find((e) => e.event === 'execute_verify_failed');
+      assert.ok(fail);
+      assert.equal(fail.cost_usd, 0.0042);
+      assert.equal(fail.tokens_in, 1500);
+      assert.equal(fail.tokens_out, 800);
+    });
+  });
+
+  test('Sprint 1.6.15: action_failed entry preserves cost_usd when engine reports it', async () => {
+    const repoRoot = tmpProjectRepo('action-fail-cost');
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'action-cost-data-')),
+      HERMES_ENGINE: 'mock',
+      // Edit fails (unsafe path) but engine reports cost — LLM call already happened
+      HERMES_MOCK_PLAN: JSON.stringify({
+        edits: [{ path: '../escaped.js', content: 'x' }],
+        usage: { cost_usd: 0.0021, tokens_in: 600, tokens_out: 200 },
+      }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, false);
+      const fail = journal.readJournal(SLUG).find((e) => e.event === 'execute_action_failed');
+      assert.ok(fail);
+      assert.equal(fail.cost_usd, 0.0021);
+      assert.equal(fail.tokens_in, 600);
+      assert.equal(fail.tokens_out, 200);
+    });
+  });
+
+  test('Sprint 1.6.15: verify_failed without usage envelope omits cost (no null contamination)', async () => {
+    const repoRoot = tmpProjectRepo('verify-no-cost');
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+    pkg.scripts.test = 'node -e "process.exit(1)"';
+    fs.writeFileSync(path.join(repoRoot, 'package.json'), JSON.stringify(pkg));
+    spawnSync('git', ['add', '.'], { cwd: repoRoot });
+    spawnSync('git', ['commit', '-m', 'fail-test'], { cwd: repoRoot });
+
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-nocost-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.code, 'VERIFY_FAILED');
+      const fail = journal.readJournal(SLUG).find((e) => e.event === 'execute_verify_failed');
+      assert.ok(fail);
+      assert.equal(fail.cost_usd, undefined);
+      assert.equal(fail.tokens_in, undefined);
+    });
+  });
+
   test('mock engine without HERMES_MOCK_PLAN env returns MOCK_NOT_SET + rolls back', async () => {
     const repoRoot = tmpProjectRepo('mock-not-set');
     const planFile = tmpPlanFile(buildPlan());

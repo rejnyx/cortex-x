@@ -111,7 +111,7 @@ function mockEngine(_plan, opts = {}) {
     };
   }
 
-  return applyEditsToFilesystem(mock.edits, {
+  const result = applyEditsToFilesystem(mock.edits, {
     repoRoot: opts.repoRoot,
     emptyCode: 'MOCK_NO_EDITS',
     invalidCode: 'MOCK_EDIT_INVALID',
@@ -120,6 +120,15 @@ function mockEngine(_plan, opts = {}) {
       ? `mock applied ${mock.edits.length} edit(s) to ${(mock.edits || []).map((e) => e.path).join(', ')}`
       : undefined,
   });
+
+  // Forward optional usage envelope for cost-capture tests. Sprint 1.6.15:
+  // failure paths in execute.cjs must persist cost_usd/tokens too.
+  if (mock.usage) {
+    if (typeof mock.usage.cost_usd === 'number') result.cost_usd = mock.usage.cost_usd;
+    if (typeof mock.usage.tokens_in === 'number') result.tokens_in = mock.usage.tokens_in;
+    if (typeof mock.usage.tokens_out === 'number') result.tokens_out = mock.usage.tokens_out;
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
