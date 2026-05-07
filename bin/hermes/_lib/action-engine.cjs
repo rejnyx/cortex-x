@@ -35,6 +35,30 @@ const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
 const OPENROUTER_TIMEOUT_MS = 120_000; // 2 min
 
+// Sprint 1.6.17: Anthropic models on OpenRouter sometimes ignore
+// response_format: json_object and wrap output in ```json ... ``` fences.
+// Strip a leading/trailing markdown code fence (json or generic) before
+// JSON.parse. No-op on bare JSON to avoid regressing DeepSeek/OpenAI.
+function stripJsonFences(content) {
+  if (typeof content !== 'string') return content;
+  const trimmed = content.trim();
+  const m = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+  return m ? m[1].trim() : trimmed;
+}
+
+// Sprint 1.6.17: extract usage envelope shape so early-exit failure paths
+// (empty response, plan-not-JSON, applyResult failure) can forward
+// cost/tokens. The LLM call already cost spend regardless of parsing
+// outcome — without this, status's cost ledger silently under-reports.
+function extractUsage(data) {
+  const u = (data && data.usage) || {};
+  const out = {};
+  if (typeof u.cost === 'number') out.cost_usd = u.cost;
+  if (typeof u.prompt_tokens === 'number') out.tokens_in = u.prompt_tokens;
+  if (typeof u.completion_tokens === 'number') out.tokens_out = u.completion_tokens;
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Shared: applyEditsToFilesystem
 // ---------------------------------------------------------------------------
@@ -261,24 +285,27 @@ async function openrouterEngine(plan, opts = {}) {
     return { ok: false, code: 'OPENROUTER_RESPONSE_NOT_JSON', error: err.message };
   }
 
+  const usageFields = extractUsage(data);
+
   const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (!content) {
-    return { ok: false, code: 'OPENROUTER_EMPTY_RESPONSE', error: 'OpenRouter response did not contain message content' };
+    return { ok: false, code: 'OPENROUTER_EMPTY_RESPONSE', error: 'OpenRouter response did not contain message content', model, ...usageFields };
   }
 
   let editPlan;
   try {
-    editPlan = JSON.parse(content);
+    editPlan = JSON.parse(stripJsonFences(content));
   } catch (err) {
     return {
       ok: false,
       code: 'OPENROUTER_PLAN_NOT_JSON',
       error: `LLM did not return valid JSON: ${err.message}`,
       raw_preview: content.slice(0, 200),
+      model,
+      ...usageFields,
     };
   }
 
-  const usage = data.usage || {};
   const applyResult = applyEditsToFilesystem(editPlan.edits, {
     repoRoot: opts.repoRoot,
     emptyCode: 'OPENROUTER_NO_EDITS',
@@ -287,14 +314,12 @@ async function openrouterEngine(plan, opts = {}) {
     summary: `openrouter (${model}) applied ${(editPlan.edits || []).length} edit(s)`,
   });
 
-  if (!applyResult.ok) return { ...applyResult, model };
+  if (!applyResult.ok) return { ...applyResult, model, ...usageFields };
 
   return {
     ...applyResult,
     model,
-    cost_usd: typeof usage.cost === 'number' ? usage.cost : null,
-    tokens_in: usage.prompt_tokens,
-    tokens_out: usage.completion_tokens,
+    ...usageFields,
   };
 }
 
