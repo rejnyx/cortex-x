@@ -125,11 +125,8 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // flaky_test_repair is declared (Sprint 1.8.5 roadmap) but shipped_in
-    // is null until that sprint lands. Executor must reject.
-    // (As capabilities ship, pick the next not-yet-shipped kind to keep
-    //  this test meaningful — recommendation_harvest 1.8.2c, dep_update_patch
-    //  1.8.4 already shipped.)
+    // flaky_test_repair (1.8.5) and doc_drift (1.8.6) are still parked to v0.8
+    // because they need CI integration / LLM. Both stay shipped_in: null.
     const f = tmpPlanFile(buildPlan({ action_kind: 'flaky_test_repair' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
@@ -953,5 +950,92 @@ describe('execute: Sprint 1.8.4 — dep_update_patch', () => {
     });
     assert.equal(result.ok, true);
     assert.equal(result.updated_count, 3);
+  });
+});
+
+// ── Sprint 1.8.7 — todo_triage executor branch ─────────────────────────────
+
+describe('execute: Sprint 1.8.7 — todo_triage', () => {
+  function buildTodoPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'todo_triage',
+      action: {
+        num: null,
+        title: 'Triage 3 stale TODO markers',
+        body: 'TODO triage',
+        action_key: `${SLUG}#todo-triage-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-todo-triage-test',
+      action_id: '01TODOX',
+      trigger: 'manual',
+      commit_message: 'chore(todo): triage stale markers\n\nbody\n\nHermes-Action-Id: 01TODOX\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: todo-triage\nHermes-Action-Kind: todo_triage',
+      ...overrides,
+    };
+  }
+
+  const MOCK_FILES = [
+    { path: 'src/x.js', content: '// TODO: implement caching layer for users' },
+    { path: 'src/y.js', content: '// FIXME: handle edge case in auth flow' },
+  ];
+
+  test('runTodoTriageAction returns TODO_TRIAGE_NO_CANDIDATES on empty scan', async () => {
+    const repo = tmpProjectRepo('todo-empty');
+    const result = await execute.runTodoTriageAction(buildTodoPlan(), {
+      repoRoot: repo,
+      mockFiles: [],
+      skipBlame: true,
+      skipGh: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'TODO_TRIAGE_NO_CANDIDATES');
+  });
+
+  test('runTodoTriageAction returns ok with skip_commit + opened_issues', async () => {
+    const repo = tmpProjectRepo('todo-happy');
+    const result = await execute.runTodoTriageAction(buildTodoPlan(), {
+      repoRoot: repo,
+      mockFiles: MOCK_FILES,
+      mockOpenIssues: [],
+      skipBlame: true,
+      skipGh: true,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, true);
+    assert.deepEqual(result.touchedFiles, []);
+    assert.equal(result.usage.cost_usd, 0);
+    assert.equal(result.opened_issues.length, 2);
+    assert.ok(result.opened_issues.every((i) => i.dry_run === true));
+  });
+
+  test('full pipeline: todo_triage plan → execute → no commit, gh issues opened', async () => {
+    const repo = tmpProjectRepo('todo-full');
+    const planFile = tmpPlanFile(buildTodoPlan());
+
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'todo-data-')),
+      HERMES_NO_PUSH: '1',
+    }, async () => {
+      const result = await execute.runExecute({
+        planFile,
+        repoRoot: repo,
+        skipPush: true,
+        mockFiles: MOCK_FILES,
+        mockOpenIssues: [],
+        skipBlame: true,
+        skipGh: true,
+      });
+      assert.equal(result.ok, true);
+      assert.equal(result.action_kind, 'todo_triage');
+      assert.equal(result.skip_commit, true);
+      assert.equal(result.triaged_count, 2);
+      // No commit means no commit_sha; verify there's no fresh commit on the branch
+      // (should still be on the original branch's HEAD)
+      const log = spawnSync('git', ['log', '--oneline', '-2'], { cwd: repo, encoding: 'utf8' });
+      // Initial commit only — Hermes did NOT commit anything
+      assert.ok(!/todo-triage|Triage/.test(log.stdout), 'no Hermes commit should be present');
+    });
   });
 });

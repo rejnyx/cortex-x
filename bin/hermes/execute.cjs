@@ -51,6 +51,10 @@ const harvester = require('../../detectors/recommendation-harvest.cjs');
 // → patch-only diffs → npm install --save → npm test gate. No LLM call on
 // happy path; verifier rejection rolls back exactly like the LLM path.
 const depPatch = require('../../detectors/dep-update-patch.cjs');
+// Sprint 1.8.7 — todo_triage deterministic capability. Scan TODO/FIXME
+// markers, age-filter via git blame, dedupe vs open issues, file gh issues
+// with code-context body. No LLM call, no file edits — only opens gh issues.
+const todoTriage = require('../../detectors/todo-triage.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -449,6 +453,86 @@ async function runDepUpdateAction(plan, opts = {}) {
   };
 }
 
+// Sprint 1.8.7 — todo_triage executor branch. Opens gh issues for fresh TODO
+// markers; NO file edits, NO commit, NO PR. The signal `skip_commit: true`
+// in the result tells runExecute to bypass the stage/commit/push/PR pipeline
+// after this action — the gh issue creation IS the side effect.
+async function runTodoTriageAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = todoTriage.triageTodos({
+    cwd: repoRoot,
+    minAgeDays: opts.minAgeDays,
+    maxCandidates: opts.maxCandidates || 5,
+    mockFiles: opts.mockFiles,
+    mockOpenIssues: opts.mockOpenIssues,
+    skipBlame: opts.skipBlame,
+    skipGh: opts.skipGh,
+  });
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'TODO_TRIAGE_NO_CANDIDATES',
+      error: `no fresh TODO markers (${detected.total_markers} found, ${detected.skipped_recent} too recent, ${detected.skipped_dup} dup vs open issues)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  const openedIssues = [];
+  if (opts.skipGh || opts.dryRunGh) {
+    // DI / dry-run path — don't actually create issues
+    for (const cand of detected.candidates) {
+      openedIssues.push({
+        title: todoTriage.formatIssueTitle(cand),
+        url: 'mock://dry-run',
+        candidate: cand,
+        dry_run: true,
+      });
+    }
+  } else {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (!ghOpsLib.hasGhCli()) {
+      return {
+        ok: false,
+        code: 'GH_CLI_MISSING',
+        error: 'gh CLI not available — todo_triage needs gh to create issues',
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      };
+    }
+    for (const cand of detected.candidates) {
+      const title = todoTriage.formatIssueTitle(cand);
+      const body = todoTriage.formatIssueBody(cand);
+      // Write body to tmp file (gh issue create accepts --body-file for multi-line)
+      const tmpFile = path.join(os.tmpdir(), `hermes-todo-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      fs.writeFileSync(tmpFile, body, 'utf8');
+      const result = require('node:child_process').spawnSync('gh', [
+        'issue', 'create',
+        '--title', title,
+        '--body-file', tmpFile,
+        '--label', 'hermes-triage',
+      ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      if (result.status === 0) {
+        openedIssues.push({ title, url: (result.stdout || '').trim(), candidate: cand });
+      } else {
+        // Per-issue failure shouldn't kill the whole batch; log + continue
+        openedIssues.push({ title, error: result.stderr || 'unknown', candidate: cand });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles: [], // no file edits
+    skip_commit: true, // tell runExecute to bypass commit/push/PR pipeline
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    opened_issues: openedIssues,
+    triaged_count: openedIssues.length,
+  };
+}
+
 function isHermesArtifact(p) {
   if (!p) return false;
   // Normalize Windows backslashes to forward slashes for matching
@@ -648,8 +732,19 @@ async function runExecute(opts = {}) {
     } else if (plan.action_kind === 'dep_update_patch') {
       applyResult = await runDepUpdateAction(plan, {
         repoRoot,
-        mockOutdatedJson: opts.mockOutdatedJson, // DI for tests
-        skipNpmInstall: opts.skipNpmInstall, // DI for tests
+        mockOutdatedJson: opts.mockOutdatedJson,
+        skipNpmInstall: opts.skipNpmInstall,
+        maxCandidates: opts.maxCandidates,
+      });
+    } else if (plan.action_kind === 'todo_triage') {
+      applyResult = await runTodoTriageAction(plan, {
+        repoRoot,
+        mockFiles: opts.mockFiles,
+        mockOpenIssues: opts.mockOpenIssues,
+        skipBlame: opts.skipBlame,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        minAgeDays: opts.minAgeDays,
         maxCandidates: opts.maxCandidates,
       });
     } else {
@@ -681,6 +776,37 @@ async function runExecute(opts = {}) {
         engine: applyResult.engine,
         next_steps: applyResult.next_steps,
         exitCode: applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? EX_USAGE : 1,
+      };
+    }
+
+    // Sprint 1.8.7 — skip_commit is the signal from runTodoTriageAction
+    // (and any future no-file-edits kind) that the action's effect was via
+    // gh issue creation / external system, NOT via working-tree edits.
+    // Bypass stage/commit/push/PR pipeline; journal completion + return ok.
+    if (applyResult.skip_commit === true) {
+      if (originalBranch) {
+        gitOps.git(repoRoot, ['checkout', originalBranch]);
+        gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
+      }
+      safeJournal(slug, addCostFields({
+        ts: new Date().toISOString(),
+        trigger: plan.trigger || 'manual',
+        tier: 'T0',
+        event: 'action_completed',
+        outcome: 'success',
+        actor: 'hermes',
+        action_kind: plan.action_kind,
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+        skip_commit: true,
+      }, applyResult));
+      return {
+        ok: true,
+        action_kind: plan.action_kind,
+        skip_commit: true,
+        opened_issues: applyResult.opened_issues || [],
+        triaged_count: applyResult.triaged_count || 0,
+        usage: applyResult.usage,
       };
     }
 
@@ -858,6 +984,8 @@ module.exports = {
   runHarvestAction,
   // Sprint 1.8.4 — dep_update_patch helpers exported for unit testing
   runDepUpdateAction,
+  // Sprint 1.8.7 — todo_triage helper exported for unit testing
+  runTodoTriageAction,
   EX_USAGE,
 };
 

@@ -87,12 +87,15 @@ describe('action-kinds: helpers', () => {
 
   test('isShippedKind returns true only for shipped kinds (shipped_in != null)', () => {
     assert.equal(kinds.isShippedKind('recommendation'), true);
-    // Sprint 1.8.2c — recommendation_harvest fully shipped (detector + executor)
+    // Sprint 1.8.2c — recommendation_harvest fully shipped
     assert.equal(kinds.isShippedKind('recommendation_harvest'), true);
     // Sprint 1.8.4 — dep_update_patch fully shipped
     assert.equal(kinds.isShippedKind('dep_update_patch'), true);
-    // Future kinds remain not shipped
+    // Sprint 1.8.7 — todo_triage fully shipped
+    assert.equal(kinds.isShippedKind('todo_triage'), true);
+    // Parked to v0.8 — need CI integration / LLM
     assert.equal(kinds.isShippedKind('flaky_test_repair'), false);
+    assert.equal(kinds.isShippedKind('doc_drift'), false);
   });
 
   test('listKinds returns all registered kinds (shipped + future)', () => {
@@ -110,8 +113,11 @@ describe('action-kinds: helpers', () => {
     assert.ok(shipped.includes('recommendation_harvest'));
     // Sprint 1.8.4 — dep_update_patch fully shipped
     assert.ok(shipped.includes('dep_update_patch'));
-    // Future kinds still excluded
+    // Sprint 1.8.7 — todo_triage fully shipped
+    assert.ok(shipped.includes('todo_triage'));
+    // Parked to v0.8 (need CI integration / LLM call)
     assert.ok(!shipped.includes('flaky_test_repair'));
+    assert.ok(!shipped.includes('doc_drift'));
   });
 });
 
@@ -153,9 +159,12 @@ describe('action-kinds: future-roadmap entries', () => {
     assert.equal(k.blast_radius, 'low');
   });
 
-  test('Sprint 1.8.7 — todo_triage declared (gh issue create, no file edits)', () => {
+  test('Sprint 1.8.7 — todo_triage shipped (gh issue create, no LLM, no file edits)', () => {
     const k = kinds.getActionKind('todo_triage');
     assert.ok(k);
     assert.equal(k.blast_radius, 'minimal');
+    assert.equal(k.requires_llm, false);
+    assert.equal(k.shipped_in, '0.1.0');
+    assert.equal(k.detector, 'detectors/todo-triage.cjs');
   });
 });
