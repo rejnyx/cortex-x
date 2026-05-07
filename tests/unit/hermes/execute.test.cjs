@@ -283,6 +283,25 @@ describe('execute: mock engine — error paths', () => {
     });
   });
 
+  test('Sprint 1.6.18 (D6): addCostFields contract holds for all 4 journal entry shapes (incl. post_verify_failed)', () => {
+    // Sprint 1.6.15 promised cost capture on 3 failure paths but post_verify_failed
+    // had no test (action_failed + verify_failed only). Unit-testing the helper
+    // covers the contract regardless of which call site invokes it.
+    const apply = { cost_usd: 0.0042, tokens_in: 1500, tokens_out: 800 };
+    for (const event of ['action_completed', 'execute_action_failed', 'execute_verify_failed', 'execute_post_verify_failed']) {
+      const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event, outcome: 'success', actor: 'hermes' };
+      const decorated = execute.addCostFields(entry, apply);
+      assert.equal(decorated.cost_usd, 0.0042, `${event} should capture cost_usd`);
+      assert.equal(decorated.tokens_in, 1500, `${event} should capture tokens_in`);
+      assert.equal(decorated.tokens_out, 800, `${event} should capture tokens_out`);
+    }
+    // Null applyResult — entry untouched
+    const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event: 'execute_post_verify_failed', outcome: 'failure', actor: 'hermes' };
+    const decorated = execute.addCostFields(entry, null);
+    assert.equal(decorated.cost_usd, undefined);
+    assert.equal(decorated.tokens_in, undefined);
+  });
+
   test('Sprint 1.6.15: verify_failed without usage envelope omits cost (no null contamination)', async () => {
     const repoRoot = tmpProjectRepo('verify-no-cost');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));

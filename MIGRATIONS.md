@@ -20,6 +20,77 @@
 
 ## Current
 
+### Sprint 1.6.18 — Hermes review-pipeline-surfaced hardening (2026-05-07 ultra-closing)
+
+#### Non-breaking (corrections + new error code + tightened guards)
+
+- **B1 — `applyEditsToFilesystem` path-safety hardened** (`bin/hermes/_lib/action-engine.cjs:95-128`):
+  Old `edit.path.includes('..')` substring check produced false-positives on legitimate paths like `docs/v1.2/notes.md` AND missed real attacks (NUL byte, leading-dash flag injection). New flow:
+  1. Reject NUL bytes explicitly (`includes('\0')`)
+  2. Reject `path.isAbsolute` and `startsWith('-')` (flag-injection defense)
+  3. `path.resolve(repoRoot, edit.path)` then `path.relative` containment check
+  Catches symlink composition that the old substring approach missed. Surfaced by Correctness Tier 1 + Security H3 + Edge Case audits.
+- **B2 — editPlan shape gate** (`bin/hermes/_lib/action-engine.cjs:316-326`): new `OPENROUTER_PLAN_SHAPE_INVALID` error code emitted when `JSON.parse(stripJsonFences(content))` returns a non-object, an array, or an object missing `edits[]`. Prior behaviour passed `editPlan.edits === undefined` to `applyEditsToFilesystem` which masked LLM-format-failures as NO_EDITS.
+- **B3 — `DEFAULT_MODEL` aligned with docs**: changed from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash` (`bin/hermes/_lib/action-engine.cjs:39`). All three doc sources (`hermes-usage.md`, `hermes-runtime.md`, `MIGRATIONS.md`) recommend V4 Flash since Sprint 1.6.13 — code default was the SSOT outlier.
+- **B4 — `execute.cjs` CLI help corrected** (3 sites): "default: claude-sdk" / "fallback to claude-sdk" → "default: openrouter" / "fallback to openrouter". Help was actively misleading users since Sprint 1.6.13 default-engine pivot.
+- **B5 — `data === null` guard** (`bin/hermes/_lib/action-engine.cjs:301`): `data && data.choices && ...` prevents uncaught TypeError when OpenRouter returns HTTP 200 with null body.
+
+#### Tests
+
+- **+9 unit tests** (480 → 489 pass):
+  - `action-engine.test.cjs`: B1 — accepts legit `docs/v1.2/notes.md`, rejects NUL byte, rejects leading-dash, catches `./sub/../../escape.js`. B2 — primitive root, missing edits[], array root. B5 — null body returns EMPTY_RESPONSE.
+  - `execute.test.cjs`: D6 — `addCostFields` exported and contract-tested for all 4 journal entry shapes including `execute_post_verify_failed` (1.6.15's missing test).
+
+#### Why now
+
+External review pipeline (acceptance + blind + correctness + security + ssot + edge-case agents in parallel) flagged these as MUST-FIX before Phase 7 cron triggers land. Detail: today's first-real-OpenRouter dogfood + cross-model Haiku 4.5 retry exposed gaps in:
+- Trust-boundary correctness (B1 — symlink/NUL bypass)
+- Failure observability (B5 — null crash bypasses journal)
+- User-facing accuracy (B4 — help text lying about defaults)
+
+Hardening items H1-H10 (daily spend cap, opts.endpoint hardcode, extractUsage string coercion, etc.) ticketed for Sprint 1.6.19. Eval-suite + property-tests + stateful simulation (T1, T2, T4) are tier-gate work for Phase 7 launch.
+
+### Sprint 1.6.17 — JSON-fence stripping + cost capture pre-parse (2026-05-07 late-closing)
+
+Surfaced by today's Haiku 4.5 dogfood: Anthropic models on OpenRouter ignore `response_format: json_object` and wrap output in markdown fences. Two-layer fix:
+
+- **`stripJsonFences(content)`** (`action-engine.cjs:42`): unwraps ` ```json ... ``` ` (or generic ` ``` ... ``` `). No-op on bare JSON (DeepSeek/OpenAI no-regression).
+- **`extractUsage(data)`** (`action-engine.cjs:53`): SSOT for OpenRouter wire-shape → engine-contract shape (cost/tokens). Forwarded on 3 early-exit paths (PLAN_NOT_JSON, EMPTY_RESPONSE, applyEditsToFilesystem failures). Sprint 1.6.15 captured cost in journal — but the engine wasn't passing usage on parse-failed paths, so journal had nothing to capture. Two-layer fix needed.
+- Tests: +5 (475 → 480) — fenced JSON parses, generic fence parses, bare JSON no-regression, PLAN_NOT_JSON forwards usage, EMPTY_RESPONSE forwards usage.
+
+### Sprint 1.6.16 — Docs alignment with v0.5b reality (2026-05-07 evening)
+
+After Sprints 1.6.13-1.6.15 shipped, `hermes-usage.md` + `hermes-runtime.md` still described v0.5b as "what will do" and pointed users to `ANTHROPIC_API_KEY`. Aligned with the working code:
+
+- "L2 walkthrough" rewrites in present tense ("v0.5b does today")
+- Setup section: explicit "inference key, NOT provisioning" guidance (today's first-test surfaced 401 "User not found" trap)
+- One-shot setup commands for both bash + PowerShell with persistence
+- Model selection table (DeepSeek V4 Flash default → Claude Sonnet 4.5 expensive)
+- "What gets captured in journal" — explicit Sprint 1.6.15 cost guarantee
+- Troubleshooting: 4 real failure modes from today's dogfood
+- L3 GHA setup: `OPENROUTER_API_KEY` secret (not `ANTHROPIC_API_KEY`)
+- `hermes-runtime.md`: env vars table updated with `HERMES_MAX_TOKENS` row + inference-key callout
+
+No code changes — pure doc-reality alignment after 3 ship sprints.
+
+### Sprint 1.6.15 — Cost capture on failure paths (2026-05-07 late-evening)
+
+First-real-OpenRouter-call dogfood (Sprints 1.6.13/14) surfaced silent observability gap: when execute incurred OpenRouter spend but failed at apply or verify gates, the journal entry omitted `cost_usd`/`tokens_in`/`tokens_out` entirely. Status's `cost_usd_total` under-reported real spend.
+
+- **`addCostFields(entry, applyResult)` helper** (`execute.cjs:90`): SSOT, conditional add (only number values), used at all 4 sites: `execute_action_failed`, `execute_verify_failed`, `execute_post_verify_failed`, `action_completed`.
+- **Mock engine extended**: `HERMES_MOCK_PLAN` JSON envelope now optionally includes `usage: { cost_usd, tokens_in, tokens_out }` so tests can inject cost without spinning up real fetch infrastructure.
+- Tests: +3 (472 → 475) — verify_failed cost capture, action_failed cost capture, no null-contamination when no usage envelope.
+
+Real-world signal: today's 4 failed runs DID consume DeepSeek tokens — without this fix, cron-driven Hermes would silently exceed budget on repeated verify failures.
+
+### Sprint 1.6.14 — `HERMES_MAX_TOKENS` env var support (2026-05-07 evening)
+
+First real OpenRouter call hit truncation: DeepSeek V4 Flash returned ~3700 tokens of JSON but hardcoded `max_tokens: 4096` truncated mid-string. Multi-file edit plans need bigger output budgets.
+
+One-line fix: `max_tokens: opts.maxTokens || parseInt(process.env.HERMES_MAX_TOKENS, 10) || 4096`. Precedence: opts (test injection) > env > 4096 default. Production recommendation: 16384 (`HERMES_MAX_TOKENS=16384`).
+
+No new tests (additive env override; existing test count preserved at 472).
+
 ### Sprint 1.6.13 — Hermes v0.5b: OpenRouter engine implementation (2026-05-07 closing-closing)
 
 #### Non-breaking (additive — zero new npm deps)

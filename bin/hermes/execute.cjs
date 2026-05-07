@@ -6,7 +6,7 @@
 //   2. Lock acquire
 //   3. Clean-tree gate (no uncommitted work)
 //   4. Branch checkout (per the plan)
-//   5. Action-engine.applyAction() — file edits (mock or claude-sdk)
+//   5. Action-engine.applyAction() — file edits (mock | openrouter | claude-sdk)
 //   6. Verifier.runNpmTest() — verification gate
 //   7. Stage touched files (explicit paths only — never `git add -A`)
 //   8. Commit via planned commit message
@@ -14,18 +14,19 @@
 //   10. Journal success / failure / rollback per outcome
 //   11. Lock release
 //
-// Default engine is `claude-sdk` (returns NOT_IMPLEMENTED until v0.5b).
+// Default engine is `openrouter` (Sprint 1.6.13 — real LLM via fetch).
+// `claude-sdk` is a stub kept reachable via explicit `--engine=claude-sdk`.
 // Override via env `HERMES_ENGINE=mock` for tests + dogfood.
 //
 // CLI:
 //   node bin/hermes/execute.cjs --plan-file=<path-to-dry-run-json>
-//                               [--repo-root=<path>] [--engine=<mock|claude-sdk>]
+//                               [--repo-root=<path>] [--engine=<mock|openrouter|claude-sdk>]
 //                               [--json] [--quiet] [--no-push]
 //
 // Exit codes:
 //   0  — action committed successfully
 //   1  — generic error
-//   64 — engine-not-implemented (claude-sdk before v0.5b)
+//   64 — engine-not-implemented (claude-sdk explicit opt-in path)
 //   75 — halted (HERMES_HALT sentinel)
 
 'use strict';
@@ -354,6 +355,7 @@ async function runExecute(opts = {}) {
 module.exports = {
   runExecute,
   loadPlan,
+  addCostFields,
   EX_USAGE,
 };
 
@@ -374,15 +376,17 @@ if (require.main === module) {
     console.log('Usage: hermes execute --plan-file=<path-to-dry-run-json> [options]');
     console.log('  --plan-file <path>   path to a JSON file from `hermes dry-run --json`');
     console.log('  --repo-root <path>   project root (default: cwd)');
-    console.log('  --engine <name>      action engine: mock | claude-sdk (default: claude-sdk)');
+    console.log('  --engine <name>      action engine: mock | openrouter | claude-sdk (default: openrouter)');
     console.log('  --skip-verify        skip the npm test gate (DANGEROUS; tests only)');
     console.log('  --json               machine-readable output');
     console.log('  --quiet              silent on success');
     console.log('  --help               this help');
     console.log('');
-    console.log('Engine selection (precedence): --engine flag > HERMES_ENGINE env > claude-sdk');
+    console.log('Engine selection (precedence): --engine flag > HERMES_ENGINE env > openrouter');
     console.log('');
-    console.log('claude-sdk engine returns CLAUDE_SDK_NOT_IMPLEMENTED + exit 64 (v0.5b pending).');
+    console.log('openrouter engine: real LLM via fetch (zero-deps). Requires OPENROUTER_API_KEY.');
+    console.log('  See docs/hermes-usage.md § Model selection for HERMES_MODEL recommendations.');
+    console.log('claude-sdk engine: stub returning CLAUDE_SDK_NOT_IMPLEMENTED + exit 64 (opt-in).');
     console.log('mock engine reads HERMES_MOCK_PLAN env var as the edit script.');
     process.exit(0);
   }
@@ -425,10 +429,12 @@ if (require.main === module) {
       console.log(`  verify: ${result.verifier}`);
       console.log(`  engine: ${result.engine}`);
     } else if (result.code === 'CLAUDE_SDK_NOT_IMPLEMENTED') {
-      console.log('hermes execute — claude-sdk engine NOT_IMPLEMENTED (v0.5b pending)');
+      console.log('hermes execute — claude-sdk engine NOT_IMPLEMENTED (stub only)');
       console.log('');
-      console.log('  Try the mock engine for dogfood: --engine=mock');
-      console.log('  or set HERMES_ENGINE=mock');
+      console.log('  Use the openrouter engine instead (default since Sprint 1.6.13):');
+      console.log('    --engine=openrouter   (or unset --engine for the default)');
+      console.log('  Or the mock engine for offline tests:');
+      console.log('    --engine=mock   (HERMES_MOCK_PLAN env var supplies the edit JSON)');
     } else {
       process.stderr.write(`Error: ${result.error || result.code}\n`);
     }

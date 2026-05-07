@@ -32,7 +32,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
+// Sprint 1.6.18: default model aligned with hermes-usage.md § Model selection
+// recommendation. DeepSeek V4 Flash is the cost/quality sweet-spot for Hermes
+// edit-plan generation (~$0.0008/run vs Sonnet 4.5's ~$0.04). Override via
+// HERMES_MODEL env or opts.model.
+const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
 const OPENROUTER_TIMEOUT_MS = 120_000; // 2 min
 
 // Sprint 1.6.17: Anthropic models on OpenRouter sometimes ignore
@@ -88,16 +92,37 @@ function applyEditsToFilesystem(edits, opts = {}) {
         touchedFiles: touched,
       };
     }
-    if (path.isAbsolute(edit.path) || edit.path.includes('..')) {
+    // Sprint 1.6.18: tightened path-traversal check.
+    // Old: edit.path.includes('..') had false positives ('docs/v1.2/x') + false
+    // negatives (NUL byte, leading-./, Windows reparse, leading-dash flag-injection).
+    // New: NUL byte + leading-dash + isAbsolute reject up-front, then resolve under
+    // repoRoot and assert containment via path.relative.
+    if (edit.path.includes('\0')) {
       return {
         ok: false,
         code: opts.unsafeCode || 'EDIT_UNSAFE',
-        error: `edit path must be relative + traversal-free: ${edit.path}`,
+        error: `edit path contains NUL byte: ${JSON.stringify(edit.path)}`,
         touchedFiles: touched,
       };
     }
-
-    const fullPath = path.join(repoRoot, edit.path);
+    if (path.isAbsolute(edit.path) || edit.path.startsWith('-')) {
+      return {
+        ok: false,
+        code: opts.unsafeCode || 'EDIT_UNSAFE',
+        error: `edit path must be relative + non-flag: ${edit.path}`,
+        touchedFiles: touched,
+      };
+    }
+    const fullPath = path.resolve(repoRoot, edit.path);
+    const relCheck = path.relative(repoRoot, fullPath);
+    if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) {
+      return {
+        ok: false,
+        code: opts.unsafeCode || 'EDIT_UNSAFE',
+        error: `edit path escapes repoRoot via traversal: ${edit.path}`,
+        touchedFiles: touched,
+      };
+    }
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, edit.content, 'utf8');
     touched.push(edit.path);
@@ -287,7 +312,9 @@ async function openrouterEngine(plan, opts = {}) {
 
   const usageFields = extractUsage(data);
 
-  const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  // Sprint 1.6.18: B5 null guard — OpenRouter has been observed returning HTTP
+  // 200 with body `null` or empty object on flaky upstream routes.
+  const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (!content) {
     return { ok: false, code: 'OPENROUTER_EMPTY_RESPONSE', error: 'OpenRouter response did not contain message content', model, ...usageFields };
   }
@@ -300,6 +327,22 @@ async function openrouterEngine(plan, opts = {}) {
       ok: false,
       code: 'OPENROUTER_PLAN_NOT_JSON',
       error: `LLM did not return valid JSON: ${err.message}`,
+      raw_preview: content.slice(0, 200),
+      model,
+      ...usageFields,
+    };
+  }
+
+  // Sprint 1.6.18: B2 editPlan shape gate — JSON.parse can return primitives
+  // (`42`, `"text"`, `null`) or objects without `edits` array. Without this
+  // guard, applyEditsToFilesystem(undefined, ...) returns NO_EDITS but the
+  // failure mode is distant from the cause. Explicit shape error helps
+  // diagnose prompt-failure vs LLM-format-failure.
+  if (!editPlan || typeof editPlan !== 'object' || Array.isArray(editPlan) || !Array.isArray(editPlan.edits)) {
+    return {
+      ok: false,
+      code: 'OPENROUTER_PLAN_SHAPE_INVALID',
+      error: 'edit-plan missing edits[] array or wrong root type',
       raw_preview: content.slice(0, 200),
       model,
       ...usageFields,
