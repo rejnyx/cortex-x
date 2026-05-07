@@ -255,7 +255,7 @@ node bin/cortex-hermes.cjs status --slug=cortex-x
 ### Programmatic test (CI-gated)
 
 ```bash
-npm test                   # 475 tests across all 8 tier gates
+npm test                   # ~490 tests across all 8 tier gates (count current at HEAD)
 npm run test:hermes        # Hermes-only suite (132 tests in ~600ms)
 npm run test:standards     # Tier 7 link integrity (13 tests)
 npm run test:bin           # Tier 6 bin/ tools (13 tests)
