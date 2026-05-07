@@ -240,6 +240,10 @@ function runChecks() {
   checkFileExists('shared.bin.cortex-gap-report', path.join(SHARED, 'bin', 'cortex-gap-report.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-bootstrap', path.join(SHARED, 'bin', 'cortex-bootstrap.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-migrate-data.sh', path.join(SHARED, 'bin', 'cortex-migrate-data.sh'), 'warning');
+
+  // Tier 3 — tools/ (audit output validator + lib/) — invoked by cortex-doctor
+  checkFileExists('shared.tools.verify-audit-output', path.join(SHARED, 'tools', 'verify-audit-output.cjs'), 'warning');
+  checkFileExists('shared.tools.lib.resolve-cortex-home', path.join(SHARED, 'tools', 'lib', 'resolve-cortex-home.cjs'), 'warning');
 }
 
 // ── reporting ───────────────────────────────────────────────────────────────

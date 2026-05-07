@@ -170,6 +170,13 @@ if [ -d "$CORTEX_ROOT/detectors" ]; then
   cp -r "$CORTEX_ROOT/detectors" "$CLAUDE_HOME/shared/" 2>/dev/null || true
 fi
 
+# Tools directory — Node CLIs invoked by cortex-doctor + ad-hoc by users.
+# Currently: verify-audit-output.cjs (Tier 3 QA). Includes lib/ for shared
+# helpers like resolve-cortex-home.cjs (SSOT).
+if [ -d "$CORTEX_ROOT/tools" ]; then
+  cp -r "$CORTEX_ROOT/tools" "$CLAUDE_HOME/shared/" 2>/dev/null || true
+fi
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic dirs (projects/, research/)
 # stay in source and need an absolute path baked into scaffolded files.

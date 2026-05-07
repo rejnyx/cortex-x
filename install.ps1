@@ -206,6 +206,14 @@ if (Test-Path $DetectorsSrc) {
     Copy-Item -Recurse -Path $DetectorsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
 }
 
+# Tools directory — Node CLIs invoked by cortex-doctor + ad-hoc by users.
+# Currently: verify-audit-output.cjs (Tier 3 QA). Includes lib/ for shared
+# helpers like resolve-cortex-home.cjs (SSOT).
+$ToolsSrc = Join-Path $CortexRoot "tools"
+if (Test-Path $ToolsSrc) {
+    Copy-Item -Recurse -Path $ToolsSrc -Destination $SharedTarget -ErrorAction SilentlyContinue
+}
+
 # Record cortex-x source dir for {{cortex_source}} placeholder resolution at scaffold time.
 # Templates reference installed assets via ~/.claude/shared/; dynamic user-data dirs (research,
 # projects, insights, journal, evals) live in $CortexDataHome (default ~/.cortex).
