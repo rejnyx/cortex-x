@@ -19,7 +19,9 @@
     "test:audit": "node --test --test-reporter=spec tests/unit/audit-validator.test.cjs",
     "test:integration": "node --test --test-reporter=spec tests/integration/install-roundtrip.test.cjs",
     "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html --include=shared --include=detectors --include=bin --include=tools npm test",
-    "test:update-snapshots": "CORTEX_TEST_UPDATE_SNAPSHOTS=1 node --test --test-reporter=spec --test-skip-pattern=\"install\\.sh roundtrip\""
+    "test:update-snapshots": "CORTEX_TEST_UPDATE_SNAPSHOTS=1 node --test --test-reporter=spec --test-skip-pattern=\"install\\.sh roundtrip\"",
+    "test:hermes": "node --test --test-reporter=spec tests/unit/hermes/ tests/integration/hermes-dryrun.test.cjs",
+    "hermes:dry-run": "node bin/hermes/dry-run.cjs"
   },
   "devDependencies": {
     "c8": "^10.1.3"

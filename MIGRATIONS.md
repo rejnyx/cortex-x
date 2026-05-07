@@ -20,6 +20,44 @@
 
 ## Current
 
+### Sprint 1.6.7 — Hermes v0 primitives + dry-run orchestrator (2026-05-07 night)
+
+#### Non-breaking (additive — no migration required)
+
+- **What landed:** Hermes runtime v0 minus the Claude Agent SDK call. Six zero-dep CJS primitives in `bin/hermes/_lib/` + one orchestrator at `bin/hermes/dry-run.cjs` + 6 unit-test files (95 unit tests) + 1 integration suite (16 fixture-driven tests). Total +111 tests; full suite 227 → 338 green.
+  - **`bin/hermes/_lib/halt-check.cjs`** — file-based kill switch detection (MUST-H5). Two sentinel paths checked at every tool-call boundary: `~/.cortex/HERMES_HALT` (fleet) and `<repo>/.cortex/HERMES_HALT` (per-project). CLI mode exits 75 (EX_TEMPFAIL) if halted. Fleet sentinel takes precedence when both present.
+  - **`bin/hermes/_lib/lock.cjs`** — per-project mutex (MUST-H2). Atomic acquire via `fs.writeFileSync({flag: 'wx'})` to `cortex/journal/<slug>/.lock`. Stale-lock recovery if mtime > 2× action timeout (default 30 min). EEXIST_FRESH error with held-by metadata when lock is fresh.
+  - **`bin/hermes/_lib/journal.cjs`** — append-only structured writer (MUST-H4). Manual schema validation (zero-dep equivalent of Zod) on every entry: ts/trigger/tier/event required, cost_usd/tokens optional with non-negative constraints, outcome/actor enum-validated. PII redaction at write time: homedir → `<HOME>`, sk-…/ghp_…/Bearer …/eyJ… all replaced with `<REDACTED>` tokens. Per-day JSONL files at `$CORTEX_DATA_HOME/journal/<slug>/<YYYY-MM-DD>.jsonl`.
+  - **`bin/hermes/_lib/recommendations.cjs`** — parser for `cortex/recommendations.md`. Extracts YAML frontmatter (slug required), parses `## DO this week (cited)` and `## DO this sprint (cited)` sections, extracts numbered action items (`### N. Title`) with [audit:] / [src:] citations. `pickNextAction()` returns first DO-this-week item not yet present in journal-derived processed-actions set.
+  - **`bin/hermes/_lib/git-trailers.cjs`** — Conventional Commits + Git trailer builder (MUST-H3). ULID generator (zero-dep, monotonic), subject validation (≤72 chars, valid type), trailer validation (required keys present, no newlines in values), `parseTrailers()` round-trip-safe parser that mirrors `git interpret-trailers --parse` for cases we care about.
+  - **`bin/hermes/_lib/policy-check.cjs`** — Hermes Ring 1 denylist (over `block-destructive.cjs` Ring 2). 9 rules: HERMES_HALT preservation, human_only path protection (standards/, prompts/, profiles/, agents/, CLAUDE.md, README.md, module.yaml), auto-merge prevention (`gh pr merge`, `git merge main`), prod-mutation prevention (vercel deploy --prod, supabase db push --linked, kubectl prod), force-push + hard-reset (also caught by block-destructive.cjs at Ring 2). Tool-aware check separates Edit/Write/MultiEdit (file_path argument) from Bash (free-text command).
+  - **`bin/hermes/dry-run.cjs`** — orchestrator that wires all six primitives end-to-end. CLI invocation: `node bin/hermes/dry-run.cjs --slug=<slug> [--repo-root=<path>] [--trigger=cron|incident|pr-merged|manual] [--json]`. Library invocation: `runDryRun(opts)` returns the structured plan. Steps: halt check → lock acquire → recommendations parse → action pick (skip already-processed via journal) → build branch name (`hermes/<YYYY-MM-DD>-<slug>-<id>`) → build Conventional Commits + trailers commit message → policy pre-flight on action body → journal entry append → lock release. No Claude Agent SDK call; outputs WHAT Hermes would do, not the actual edits.
+
+- **Tests landed:**
+  - `tests/unit/hermes/halt-check.test.cjs` — 7 tests (clean-state default, project sentinel, fleet sentinel + precedence, contract surfaces)
+  - `tests/unit/hermes/lock.test.cjs` — 9 tests (acquire/release, idempotent release, EEXIST_FRESH collision, multi-slug isolation, stale-lock recovery, fresh-lock-not-recovered, lock dir mkdir)
+  - `tests/unit/hermes/journal.test.cjs` — 21 tests (8 schema validations, 5 PII-redaction scenarios, 4 append+read, 2 append-only contract, 1 contract surface, 1 PII at write-not-read)
+  - `tests/unit/hermes/recommendations.test.cjs` — 14 tests (frontmatter parse, action item extraction, citations, full parse, slug-required, DO-this-week-required, action picker dedup, fixture integration)
+  - `tests/unit/hermes/git-trailers.test.cjs` — 19 tests (ULID, subject validation, trailer validation, buildSubject, buildCommitMessage end-to-end, parseTrailers round-trip, contract surfaces)
+  - `tests/unit/hermes/policy-check.test.cjs` — 25 tests (sentinel preservation, source-of-truth protection per path family, auto-merge prevention, prod-mutation prevention, git destructive ops, allow-paths, utilities)
+  - `tests/integration/hermes-dryrun.test.cjs` — 16 tests (happy path, dedupe across runs, halt + lock semantics, error paths, journal contract, CLI entry)
+
+- **Bugs caught by tests during implementation:**
+  - `parseTrailers` mishandled commit messages with trailing newlines (the canonical case — `git commit -F -` always trails) — fixed by stripping trailing empties before scanning, plus rewriting the algorithm to find the LAST blank line and walk forward instead of finding the first blank from end
+  - `policy-check` HUMAN_ONLY_PATH/HUMAN_ONLY_TOPLEVEL regexes required `\b(write|edit|delete|rm)\b` BEFORE the path, but `flattenArgs` produced unpredictable arg-value order. Fix: introduce tool-aware `checkWriteTool()` that matches on `args.file_path` directly when toolName is Edit/Write/MultiEdit/NotebookEdit. Pattern-based regex layer kept for Bash command rules.
+
+- **npm scripts added:**
+  - `npm run test:hermes` — runs unit + integration tests for Hermes only (~110 tests in ~1s)
+  - `npm run hermes:dry-run` — CLI passthrough to `bin/hermes/dry-run.cjs`
+
+- **Why:** Hermes RFC pre-merge checklist gate 5 ("First Hermes-driven PR auto-generated against a fixture project") needed to land before runtime code. Dry-run orchestrator IS the first deliverable: it produces a valid Conventional-Commits-shaped commit message with Git trailers, identifies the action to take, journals the run — every step EXCEPT the Claude Agent SDK call. The remaining LLM integration becomes a single seam to wire in v0.5.
+
+- **Migrate:** none — purely additive. Existing installs unaffected.
+
+- **Rollback:** revert this commit. The 6 primitives + dry-run orchestrator + 7 test files form one logical unit; revert removes them all together.
+
+- **What's next (v0.5):** integrate Claude Agent SDK so the dry-run plan drives an actual `git commit -F -` + `gh pr create --draft`. The dry-run already produces a valid commit message; v0.5 wires the LLM-driven file edits + verification (`npm test`) gate. Estimated 4-8h, single session.
+
 ### Sprint 1.6.6 — README↔reality alignment + Hermes pre-work (2026-05-07)
 
 #### Non-breaking (additive — no migration required)
