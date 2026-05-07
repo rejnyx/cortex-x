@@ -25,7 +25,7 @@ stop at any level and still get value.
 |---|---|---|---|
 | **L1 Planning** | ✅ shipped (v0) | Reads recommendations, picks action, emits plan with valid commit message + trailers | Make the file edits yourself, run `npm test`, commit, push, PR |
 | **L2 Execution** | ⏳ v0.5 (1 PR away) | + Claude SDK calls → makes the file edits → runs `npm test` → atomic commit → draft PR | Review the draft PR, merge |
-| **L3 Triggers** | ⏳ v1 | + GitHub Actions cron fires weekly automatically | Add `ANTHROPIC_API_KEY` secret once |
+| **L3 Triggers** | ⏳ v1 | + GitHub Actions cron fires weekly automatically | Add `OPENROUTER_API_KEY` secret once |
 | **L4 Recommendations** | ⏳ Phase 5 + v1 | + cortex-evolve weekly mining auto-generates new DO-this-week items | Review proposals occasionally |
 
 **Hardcoded NEVER autonomous (per `standards/hermes-policy.md` MUST-H6):**
@@ -127,22 +127,93 @@ Verified end-to-end on a real cortex-x clone in Sprint 1.6.11 dogfood:
 correct, journal entry written. The only thing missing is the LLM that
 produces the edit JSON — which is v0.5b.
 
-## L2 walkthrough — what v0.5b will do (real LLM via OpenRouter)
+## L2 walkthrough — what v0.5b does TODAY (real LLM via OpenRouter)
 
-v0.5b's preferred design is **OpenRouter via built-in `fetch()`**, which
-preserves the zero-deps invariant. See `docs/hermes-runtime.md` § 4.5 for
-the full architecture.
+Shipped Sprint 1.6.13/14/15 (2026-05-07). **OpenRouter via built-in
+`fetch()`** preserves the zero-deps invariant. See `docs/hermes-runtime.md`
+§ 4.5 for the architecture. v0.5b is the post-Sprint-1.6.13 default
+engine — `claude-sdk` remains reachable via explicit `--engine=claude-sdk`.
+
+### One-time setup
+
+**1. Get an OpenRouter inference key** (NOT a provisioning/management key —
+those return 401 "User not found" on completion calls):
+
+- Sign up at [openrouter.ai](https://openrouter.ai), top up credits
+- [openrouter.ai/keys](https://openrouter.ai/keys) → **Create Key** → standard
+  inference key (the default — UI distinguishes inference vs provisioning)
+- Verify it's an inference key:
+  ```bash
+  curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+    https://openrouter.ai/api/v1/auth/key
+  # Expect: "is_provisioning_key": false, "is_management_key": false
+  ```
+
+**2. Set env vars:**
 
 ```bash
-# One-time setup:
+# Bash / WSL
 export OPENROUTER_API_KEY=sk-or-v1-...
-export HERMES_MODEL=anthropic/claude-sonnet-4.5  # or openai/gpt-5.4, etc.
-
-# Then:
-cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
-HERMES_ENGINE=openrouter \
-  cortex-hermes execute --plan-file=/tmp/plan.json
+export HERMES_MODEL=deepseek/deepseek-v4-flash   # see § Model selection
+export HERMES_MAX_TOKENS=16384                   # default 4096 truncates multi-file edits
 ```
+
+```powershell
+# PowerShell (persistent + current session in one command)
+$env:OPENROUTER_API_KEY="sk-or-v1-..."; $env:HERMES_MODEL="deepseek/deepseek-v4-flash"; $env:HERMES_MAX_TOKENS="16384"; [Environment]::SetEnvironmentVariable("OPENROUTER_API_KEY",$env:OPENROUTER_API_KEY,"User"); [Environment]::SetEnvironmentVariable("HERMES_MODEL",$env:HERMES_MODEL,"User"); [Environment]::SetEnvironmentVariable("HERMES_MAX_TOKENS",$env:HERMES_MAX_TOKENS,"User")
+```
+
+### Run
+
+```bash
+cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+cortex-hermes execute --plan-file=/tmp/plan.json --engine=openrouter
+```
+
+`--engine=openrouter` is now the default — the explicit flag is shown for
+clarity. Pipeline: dry-run produces plan → execute creates branch → real
+LLM call returns `{edits: [...]}` → applied via path-safety guards →
+`npm test` gate → atomic commit with Git trailers (or rollback on failure).
+
+### Model selection (May 2026)
+
+| Model | Cost (in/out per 1M) | When to use |
+|---|---|---|
+| `deepseek/deepseek-v4-flash` ⭐ | $0.14 / $0.28 | **Default** — cheapest viable, JSON mode reliable |
+| `deepseek/deepseek-v3.2` | $0.28 / $0.42 | Battle-tested fallback if V4 Flash misbehaves |
+| `anthropic/claude-haiku-4.5` | $1.00 / $5.00 | Anthropic-family voice match for `hermes-policy.md` |
+| `anthropic/claude-sonnet-4.5` | $3.00 / $15.00 | Complex multi-file actions; expensive for cron |
+
+Cost per typical Hermes call (~3K in / ~1.5K out): **DeepSeek V4 Flash ≈
+$0.0008 → $8 budget = ~9500 runs**. Set per-key spend limit in OpenRouter
+UI as a safety net.
+
+### What gets captured in the journal
+
+Every run records `cost_usd`, `tokens_in`, `tokens_out`, and `model` —
+even on **failure paths** (action_failed, verify_failed,
+post_verify_failed). LLM spend is incurred regardless of test outcome,
+so the journal must reflect real spend per Sprint 1.6.15.
+
+```bash
+cortex-hermes status --slug=$(basename $PWD)
+# Shows: cost_usd_total: $X.YYYY, tokens: in=N, out=M (when > 0)
+```
+
+### Troubleshooting
+
+- **`OPENROUTER_PLAN_NOT_JSON`** + truncation around char 14000: bump
+  `HERMES_MAX_TOKENS` to 16384 or higher. Default 4096 truncates
+  multi-file edit plans mid-string.
+- **`401 User not found`**: inference key has the wrong type. Check
+  `is_provisioning_key:false` per setup step 1.
+- **DIRTY_TREE**: stash or commit unrelated working changes before
+  running. Hermes pre-flight enforces clean tree for deterministic
+  rollback.
+- **Same action keeps being skipped**: the journal marks an action as
+  "processed" once any `dry_run_completed` event exists. Selection
+  picks the next un-processed `DO this week` action; if all are
+  processed for the day, dry-run returns `no_actionable_step`.
 
 The flow:
 
@@ -154,9 +225,9 @@ workflow instead of local crontab:
 ```bash
 # Per-project setup (one-time):
 cp .github/workflows/hermes.example.yml .github/workflows/hermes.yml
-# Edit hermes.yml to uncomment the schedule: block + the v0.5 SDK steps
-# Add ANTHROPIC_API_KEY secret on GitHub:
-gh secret set ANTHROPIC_API_KEY --body=$ANTHROPIC_API_KEY
+# Edit hermes.yml: uncomment the schedule: block + set HERMES_MODEL/HERMES_MAX_TOKENS env
+# Add OPENROUTER_API_KEY secret on GitHub:
+gh secret set OPENROUTER_API_KEY --body=$OPENROUTER_API_KEY
 
 # Optional: trigger a manual run to verify
 gh workflow run hermes.yml
@@ -184,7 +255,7 @@ node bin/cortex-hermes.cjs status --slug=cortex-x
 ### Programmatic test (CI-gated)
 
 ```bash
-npm test                   # 420 tests across all 8 tier gates
+npm test                   # 475 tests across all 8 tier gates
 npm run test:hermes        # Hermes-only suite (132 tests in ~600ms)
 npm run test:standards     # Tier 7 link integrity (13 tests)
 npm run test:bin           # Tier 6 bin/ tools (13 tests)
@@ -270,7 +341,7 @@ resolved whatever caused the halt.
 | `bin/hermes/execute.cjs` | Full execute pipeline (v0.5a). Pluggable engine via `HERMES_ENGINE` env. |
 | `bin/hermes/_lib/verifier.cjs` | `npm test` runner with timeout + Win-shell fix |
 | `bin/hermes/_lib/git-ops.cjs` | Atomic git ops (no shell injection) |
-| `bin/hermes/_lib/action-engine.cjs` | Pluggable engines: `mock` (env-driven, ships v0.5a) + `claude-sdk`/`openrouter` (v0.5b) |
+| `bin/hermes/_lib/action-engine.cjs` | Pluggable engines: `mock` (env-driven, ships v0.5a) + `openrouter` (v0.5b default — fetch + zero-deps) + `claude-sdk` (stub, opt-in via `--engine=claude-sdk`) |
 | `bin/hermes/_lib/halt-check.cjs` | MUST-H5 kill switch detection |
 | `bin/hermes/_lib/lock.cjs` | MUST-H2 mutex-by-slug |
 | `bin/hermes/_lib/journal.cjs` | MUST-H4 append-only writer + Zod-equivalent validation |
