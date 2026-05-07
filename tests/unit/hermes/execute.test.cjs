@@ -125,9 +125,10 @@ describe('execute: plan validation', () => {
   });
 
   test('Sprint 1.8.1 — plan with declared-but-not-shipped kind returns PLAN_ACTION_KIND_NOT_SHIPPED', async () => {
-    // flaky_test_repair (1.8.5) and doc_drift (1.8.6) are still parked to v0.8
-    // because they need CI integration / LLM. Both stay shipped_in: null.
-    const f = tmpPlanFile(buildPlan({ action_kind: 'flaky_test_repair' }));
+    // doc_drift is the last parked kind (Sprint 1.8.6 → v0.9). All other kinds
+    // shipped: recommendation, recommendation_harvest, dep_update_patch,
+    // todo_triage, flaky_test_repair.
+    const f = tmpPlanFile(buildPlan({ action_kind: 'doc_drift' }));
     const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_ACTION_KIND_NOT_SHIPPED');
@@ -1036,6 +1037,100 @@ describe('execute: Sprint 1.8.7 — todo_triage', () => {
       const log = spawnSync('git', ['log', '--oneline', '-2'], { cwd: repo, encoding: 'utf8' });
       // Initial commit only — Hermes did NOT commit anything
       assert.ok(!/todo-triage|Triage/.test(log.stdout), 'no Hermes commit should be present');
+    });
+  });
+});
+
+// ── Sprint 1.8.5 — flaky_test_repair executor branch ───────────────────────
+
+describe('execute: Sprint 1.8.5 — flaky_test_repair', () => {
+  function buildFlakyPlan(overrides = {}) {
+    return {
+      ok: true,
+      mode: 'dry-run',
+      slug: SLUG,
+      action_kind: 'flaky_test_repair',
+      action: {
+        num: null,
+        title: 'Quarantine 2 flaky tests',
+        body: 'Marker-based quarantine',
+        action_key: `${SLUG}#flaky-2026-05-07`,
+      },
+      branch: 'hermes/2026-05-07-flaky-test-repair-test',
+      action_id: '01FLAKYX',
+      trigger: 'manual',
+      commit_message: 'chore(test): quarantine flaky tests\n\nbody\n\nHermes-Action-Id: 01FLAKYX\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: flaky-test-repair\nHermes-Action-Kind: flaky_test_repair',
+      ...overrides,
+    };
+  }
+
+  function tmpRepoWithFlakyMarkers(prefix, files) {
+    const repo = tmpProjectRepo(prefix);
+    for (const f of files) {
+      const fullPath = path.join(repo, f.path);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, f.content);
+    }
+    spawnSync('git', ['add', '.'], { cwd: repo });
+    spawnSync('git', ['commit', '-m', 'add flaky tests'], { cwd: repo });
+    return repo;
+  }
+
+  test('runFlakyRepairAction returns FLAKY_REPAIR_NO_CANDIDATES when no markers', async () => {
+    const repo = tmpProjectRepo('flaky-empty');
+    const result = await execute.runFlakyRepairAction(buildFlakyPlan(), {
+      repoRoot: repo,
+      mockFiles: [{ path: 'a.test.js', content: 'test("x", () => {});' }],
+      skipGh: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'FLAKY_REPAIR_NO_CANDIDATES');
+  });
+
+  test('runFlakyRepairAction quarantines marker-tagged tests via real fs writes', async () => {
+    const flakyContent = `// HERMES-FLAKY: race condition\ntest('user logs in', () => {});\n`;
+    const repo = tmpRepoWithFlakyMarkers('flaky-quarantine', [
+      { path: 'tests/auth.test.js', content: flakyContent },
+    ]);
+    const result = await execute.runFlakyRepairAction(buildFlakyPlan(), {
+      repoRoot: repo,
+      skipGh: true,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.quarantined_count, 1);
+    assert.equal(result.touchedFiles.length, 1);
+    // path.relative emits OS-native separators (Windows = \, Unix = /)
+    // — normalize for cross-platform assertion
+    const normalized = result.touchedFiles[0].replace(/\\/g, '/');
+    assert.equal(normalized, 'tests/auth.test.js');
+    // Verify edits applied
+    const updated = fs.readFileSync(path.join(repo, 'tests/auth.test.js'), 'utf8');
+    assert.match(updated, /test\.skip\('user logs in'/);
+    assert.doesNotMatch(updated, /HERMES-FLAKY/);
+  });
+
+  test('full pipeline: flaky plan → execute → atomic commit on test files', async () => {
+    const flakyContent = `// HERMES-FLAKY: timeout\nit('returns 200', () => {});\n`;
+    const repo = tmpRepoWithFlakyMarkers('flaky-full', [
+      { path: 'tests/api.test.js', content: flakyContent },
+    ]);
+    const planFile = tmpPlanFile(buildFlakyPlan());
+
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'flaky-data-')),
+      HERMES_NO_PUSH: '1',
+    }, async () => {
+      const result = await execute.runExecute({
+        planFile,
+        repoRoot: repo,
+        skipPush: true,
+        skipGh: true,
+      });
+      assert.equal(result.ok, true, `expected ok, got: ${JSON.stringify(result)}`);
+      assert.match(result.commit_sha || '', /^[0-9a-f]{40}$/);
+      // Verify file modified + committed
+      const updated = fs.readFileSync(path.join(repo, 'tests/api.test.js'), 'utf8');
+      assert.match(updated, /it\.skip\('returns 200'/);
     });
   });
 });

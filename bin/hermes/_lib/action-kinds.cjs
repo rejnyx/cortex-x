@@ -61,13 +61,13 @@ const ACTION_KINDS = {
 
   flaky_test_repair: {
     description:
-      'Re-run failed tests N times, classify flaky vs real, auto-quarantine via .skip + linked issue. One LLM call per batch for issue body.',
-    requires_llm: true,
-    source: 'last npm test failure log',
-    detector: null, // future: detectors/flaky-test-repair.cjs
-    cost_envelope: 'low', // one LLM call per N flakies
-    blast_radius: 'low', // adds .skip + opens GH issue; no logic change
-    shipped_in: null, // Sprint 1.8.5
+      'Marker-based quarantine: scan source for `// HERMES-FLAKY: <reason>` markers above test/it/describe declarations, replace with .skip + remove marker + open gh issue. Deterministic, no LLM call.',
+    requires_llm: false,
+    source: 'fs scan for HERMES-FLAKY markers',
+    detector: 'detectors/flaky-test-repair.cjs', // Sprint 1.8.5
+    cost_envelope: 'free',
+    blast_radius: 'low', // adds .skip in test files + opens GH issue
+    shipped_in: '0.1.0', // Sprint 1.8.5
   },
 
   doc_drift: {

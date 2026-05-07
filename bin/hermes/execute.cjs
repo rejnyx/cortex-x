@@ -55,6 +55,10 @@ const depPatch = require('../../detectors/dep-update-patch.cjs');
 // markers, age-filter via git blame, dedupe vs open issues, file gh issues
 // with code-context body. No LLM call, no file edits — only opens gh issues.
 const todoTriage = require('../../detectors/todo-triage.cjs');
+// Sprint 1.8.5 — flaky_test_repair marker-based quarantine. Scan source for
+// `// HERMES-FLAKY: reason` above test/it/describe → replace with .skip +
+// remove marker + open gh issue. Deterministic, no LLM, file edits + issue.
+const flakyRepair = require('../../detectors/flaky-test-repair.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -453,6 +457,101 @@ async function runDepUpdateAction(plan, opts = {}) {
   };
 }
 
+// Sprint 1.8.5 — flaky_test_repair executor branch. Marker-based quarantine
+// (deterministic, no LLM):
+//   1. Scan source for `// HERMES-FLAKY: <reason>` markers
+//   2. For each match within 3 lines of a test/it/describe declaration:
+//      - Replace declaration with `<kind>.skip(...)` form
+//      - Remove the HERMES-FLAKY marker line (action consumed)
+//   3. Optionally open gh issue per quarantined test (skipGh=false)
+//   4. Return touchedFiles for atomic commit + draft PR pipeline
+async function runFlakyRepairAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = flakyRepair.detectFlakyMarkers({
+    cwd: repoRoot,
+    mockFiles: opts.mockFiles, // DI for tests
+    maxCandidates: opts.maxCandidates || 5,
+  });
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'FLAKY_REPAIR_NO_CANDIDATES',
+      error: 'no HERMES-FLAKY markers found in source — mark a flaky test with `// HERMES-FLAKY: <reason>` above its declaration',
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  // Group candidates by file (we apply edits per-file to preserve line indices)
+  const byFile = new Map();
+  for (const cand of detected.candidates) {
+    if (!byFile.has(cand.file)) byFile.set(cand.file, []);
+    byFile.get(cand.file).push(cand);
+  }
+
+  const touchedFiles = [];
+  const editLog = [];
+  for (const [relFile, fileCands] of byFile.entries()) {
+    const fullPath = path.join(repoRoot, relFile);
+    let content;
+    try { content = fs.readFileSync(fullPath, 'utf8'); } catch (err) {
+      return {
+        ok: false,
+        code: 'FLAKY_REPAIR_READ_FAILED',
+        error: `cannot read ${relFile}: ${err.message}`,
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      };
+    }
+    const { newContent, edits } = flakyRepair.applyQuarantineEdits(content, fileCands);
+    if (newContent !== content) {
+      fs.writeFileSync(fullPath, newContent, 'utf8');
+      touchedFiles.push(relFile);
+      editLog.push({ file: relFile, edits });
+    }
+  }
+
+  // Optional: open gh issues for each quarantined test
+  const openedIssues = [];
+  if (!opts.skipGh && !opts.dryRunGh) {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (ghOpsLib.hasGhCli()) {
+      for (const cand of detected.candidates) {
+        const title = flakyRepair.formatIssueTitle(cand);
+        const body = flakyRepair.formatIssueBody(cand);
+        const tmpFile = path.join(os.tmpdir(), `hermes-flaky-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+        fs.writeFileSync(tmpFile, body, 'utf8');
+        const result = require('node:child_process').spawnSync('gh', [
+          'issue', 'create',
+          '--title', title,
+          '--body-file', tmpFile,
+          '--label', 'flaky-test',
+        ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+        try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+        openedIssues.push({
+          title,
+          url: result.status === 0 ? (result.stdout || '').trim() : null,
+          error: result.status !== 0 ? (result.stderr || '').trim() : null,
+        });
+      }
+    }
+  } else if (opts.dryRunGh) {
+    for (const cand of detected.candidates) {
+      openedIssues.push({ title: flakyRepair.formatIssueTitle(cand), url: 'mock://dry-run', dry_run: true });
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles,
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    quarantined_count: detected.candidates.length,
+    edit_log: editLog,
+    opened_issues: openedIssues,
+  };
+}
+
 // Sprint 1.8.7 — todo_triage executor branch. Opens gh issues for fresh TODO
 // markers; NO file edits, NO commit, NO PR. The signal `skip_commit: true`
 // in the result tells runExecute to bypass the stage/commit/push/PR pipeline
@@ -747,6 +846,14 @@ async function runExecute(opts = {}) {
         minAgeDays: opts.minAgeDays,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'flaky_test_repair') {
+      applyResult = await runFlakyRepairAction(plan, {
+        repoRoot,
+        mockFiles: opts.mockFiles,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        maxCandidates: opts.maxCandidates,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -986,6 +1093,8 @@ module.exports = {
   runDepUpdateAction,
   // Sprint 1.8.7 — todo_triage helper exported for unit testing
   runTodoTriageAction,
+  // Sprint 1.8.5 — flaky_test_repair helper exported for unit testing
+  runFlakyRepairAction,
   EX_USAGE,
 };
 
