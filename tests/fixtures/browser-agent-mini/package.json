@@ -1,0 +1,14 @@
+{
+  "name": "browser-agent-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "browser-use": "^0.5.0",
+    "@browser-use/cdp-use": "^0.1.0",
+    "playwright": "^1.50.0",
+    "next": "^16.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}

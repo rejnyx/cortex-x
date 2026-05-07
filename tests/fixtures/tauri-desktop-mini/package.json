@@ -1,0 +1,11 @@
+{
+  "name": "tauri-desktop-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

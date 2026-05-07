@@ -1,0 +1,10 @@
+{
+  "name": "nextjs-saas-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "@supabase/ssr": "^0.5.0"
+  }
+}
