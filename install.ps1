@@ -294,6 +294,12 @@ $BootstrapFiles = @(
     @{ Src = "bin/cortex-gap-report.cjs";   Dst = "cortex-gap-report.cjs" }
     @{ Src = "bin/cortex-migrate-data.sh";  Dst = "cortex-migrate-data.sh" }
     @{ Src = "bin/cortex-migrate-data.ps1"; Dst = "cortex-migrate-data.ps1" }
+    # cortex-hermes shim — bash + pwsh entry points that delegate to
+    # $CortexRoot/bin/cortex-hermes.cjs via cortex-source.yaml. The shim
+    # stays small + stable; the actual hermes runtime lives in the source
+    # repo (no drift between bin/ shim and bin/hermes/ implementation).
+    @{ Src = "bin/cortex-hermes";          Dst = "cortex-hermes" }
+    @{ Src = "bin/cortex-hermes.ps1";      Dst = "cortex-hermes.ps1" }
 )
 foreach ($f in $BootstrapFiles) {
     $srcPath = Join-Path $CortexRoot $f.Src
@@ -483,6 +489,7 @@ Write-Host "    writes the marker, chains to the right cortex-x workflow."
 Write-Host ""
 Write-Host "  Hermes — your AI nightly autopilot (after scaffold):"
 Write-Host "    Drop cortex/recommendations.md in your repo; Hermes opens a draft PR overnight."
+Write-Host "    Debug:    cortex-hermes status --slug=<your-repo>  (preview without spend)"
 Write-Host "    Activate: docs/hermes-usage.md.  Halt: touch ~/.cortex/HERMES_HALT."
 Write-Host ""
 Write-Host "  Shell-only alternative (power users / scripts):"

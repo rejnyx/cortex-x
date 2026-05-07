@@ -238,6 +238,12 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 [ -f "$CORTEX_ROOT/bin/cortex-migrate-data" ]   && { cp "$CORTEX_ROOT/bin/cortex-migrate-data"   "$CLAUDE_HOME/shared/bin/" 2>/dev/null || true; }
 [ -f "$CORTEX_ROOT/bin/cortex-migrate-data.sh" ] && { cp "$CORTEX_ROOT/bin/cortex-migrate-data.sh" "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-migrate-data.sh"; }
 [ -f "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" "$CLAUDE_HOME/shared/bin/"
+# cortex-hermes shim — bash + pwsh entry points that delegate to
+# $CORTEX_ROOT/bin/cortex-hermes.cjs via cortex-source.yaml. The shim is
+# small + stable; the actual hermes runtime stays in the source repo
+# (no drift between $CLAUDE_HOME/shared/bin/ and bin/hermes/).
+[ -f "$CORTEX_ROOT/bin/cortex-hermes" ]     && { cp "$CORTEX_ROOT/bin/cortex-hermes"     "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-hermes"; }
+[ -f "$CORTEX_ROOT/bin/cortex-hermes.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-hermes.ps1" "$CLAUDE_HOME/shared/bin/"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
@@ -417,6 +423,7 @@ echo "    writes the marker, chains to the right cortex-x workflow."
 echo
 echo "  Hermes — your AI nightly autopilot (after scaffold):"
 echo "    Drop cortex/recommendations.md in your repo; Hermes opens a draft PR overnight."
+echo "    Debug:    cortex-hermes status --slug=<your-repo>  (preview without spend)"
 echo "    Activate: docs/hermes-usage.md.  Halt: touch ~/.cortex/HERMES_HALT."
 echo
 echo "  Shell-only alternative (power users / scripts):"
