@@ -20,6 +20,34 @@
 
 ## Current
 
+### Sprint 1.6.5 — QA infrastructure (Tier 0-3, 2026-05-07)
+
+#### Non-breaking (additive — no migration required for existing installs)
+
+- **What landed:** cortex-x own QA infrastructure across 4 commits (Tier 0-3 of an 8-tier architecture):
+  - **Tier 0** (commit `a5a5f57`) — `node --test` foundation, `tests/` layout, `c8` coverage, helpers (`fixture-utils.cjs`, `run-detector.cjs`, `snapshot-helpers.cjs`), `tools/lib/resolve-cortex-home.cjs` (SSOT extracted from `session-start.cjs`)
+  - **Tier 1** (commit `3d7980a`) — `tests/smoke/verify-install.cjs` (single source of truth for "is install correct"). `install.sh` + `install.ps1` refactored to delegate (~70 LOC of duplicate verification deleted). `.github/workflows/install-smoke.yml` 5-lane matrix (ubuntu/macos bash + windows gitbash/pwsh7/ps5.1). `tests/integration/install-roundtrip.test.cjs` (idempotent re-install + backup rotation).
+  - **Tier 2** (commit `a067a53`) — 50 schema-invariant tests across 10 profile YAMLs, 11 real-shape fixtures (10 profiles + monorepo-edge), 3 stage fixtures (greenfield 0c, prototype 30c, mvp 100c), detect-profile/stage/sister-env tests (71/71 pass). Caught and fixed 2 production bugs in same commit:
+    - `parseProfileYaml` init-mismatch (`{}` vs `[]` for files/config_files/negative_signals) — meant `browser-agent.yaml` was silently dropped from candidates since it shipped 2026-04-20 (17 days)
+    - `tauri-desktop.yaml` had `files:` containing config-file paths — meant the profile would never match a real Tauri project in production
+  - **Tier 3** (commit `e20ffb9`) — `tools/verify-audit-output.cjs` (zero-dep CLI, 10 structural checks, plain/JSON/TAP modes, exit 0/1/2). 5 audit fixtures (good + 4 bad cases). 9 validator tests. `cortex-doctor.md` §13.5 wired to invoke validator. `install.{sh,ps1}` extended to copy `tools/` → `~/.claude/shared/tools/`.
+
+- **Why:** field tests #4–#8 surfaced regression clusters across install, detection, and audit-output paths. Manual field testing as primary QA doesn't scale beyond ~10 tests/week. Tier 0-3 closes the three highest-impact failure surfaces (install, detector, audit output) before Hermes runtime layer lands. Tier 4-5 (hooks + prompts) are pre-Hermes hard gates; Tier 6-8 are pre-launch gates.
+
+- **Migrate:** none — purely additive. Existing installs gain `~/.claude/shared/tools/` on next install run; old installs continue working without it (validator checks are warning-severity in `verify-install.cjs` for backward compat).
+
+- **Rollback:** revert commits `e20ffb9` `a067a53` `3d7980a` `a5a5f57`. Inline verification block in `install.{sh,ps1}` is preserved in pre-Tier-1 git history.
+
+#### Deprecated
+
+- **Inline 70-LOC verification block in `install.sh` + `install.ps1`** — removed in Tier 1, replaced with single-line `node verify-install.cjs` delegation. SSOT now in `tests/smoke/verify-install.cjs`. Anyone who copy-pasted those blocks for their own forks: switch to invoking the verifier directly.
+
+- **`detect-profile.cjs` `parseProfileYaml` `{}`-only init** — pre-Tier-2 form silently failed on `config_files:` / `negative_signals:` blocks (TypeError caught + swallowed by load-time fail-open). Post-Tier-2 it discriminates by subsection name. Profile YAML authors no longer need to avoid `config_files:` — it now works.
+
+#### Coverage thresholds
+
+Coverage is informational at Sprint 1.6.5. The plan ("measure first, ratchet later" per `standards/testing.md`) is to wait 2-3 sprints for a baseline, then ratchet thresholds upward. Don't add hard gates to CI until Tier 4+5 land.
+
 ### Sprint 1.6 — `$CORTEX_DATA_HOME` separation (2026-05-06)
 
 #### Breaking (for pre-Sprint-1.6 dev installs only — no released version yet)

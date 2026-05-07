@@ -87,8 +87,30 @@ Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./
 ## Development Workflow
 
 1. Edit files in cortex-x repo
-2. Run `./install.ps1` (Windows) or `./install.sh` (Unix) to sync to `~/.claude/shared/`
-3. Changes propagate to all projects using cortex-x hooks/skills/agents
+2. Run `npm test` to confirm nothing regressed (~16 sec, unit + contract + integration)
+3. Run `./install.ps1` (Windows) or `./install.sh` (Unix) to sync to `~/.claude/shared/`
+4. Changes propagate to all projects using cortex-x hooks/skills/agents
+
+## Testing
+
+cortex-x has its own QA infrastructure landed in 4 commits (Tier 0-3, 2026-05-07). See [tests/README.md](./tests/README.md) for the full layout + 8-tier roadmap, and [CONTRIBUTING.md](./CONTRIBUTING.md) § Code contributors for the pre-PR gate.
+
+```bash
+npm test                  # full suite — unit + contract + integration, ~16 sec
+npm run test:fast         # unit + contract only, dot reporter, ~5 sec
+npm run test:smoke        # post-install verification (also called from install.{sh,ps1})
+npm run test:detectors    # 11 profile fixtures + 3 stage fixtures + schema invariants
+npm run test:audit        # tools/verify-audit-output.cjs against 5 audit fixtures
+npm run test:coverage     # c8 → coverage/ HTML + lcov
+```
+
+CI lanes (every PR + push to main):
+
+- **`.github/workflows/test.yml`** — Linux fast lane (full suite + coverage)
+- **`.github/workflows/install-smoke.yml`** — 5-lane matrix: ubuntu-bash, macos-bash, windows-gitbash, windows-pwsh7, windows-ps5.1
+- **`.github/workflows/no-pii.yml`** — PII scanner (pre-existing)
+
+The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are HARD gates before Hermes runtime; Tier 6-8 gate public launch) is documented in [tests/README.md](./tests/README.md) § Tier mapping.
 
 ## Roadmap
 
