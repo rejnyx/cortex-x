@@ -303,6 +303,107 @@ describe('action-engine: openrouter engine (async, fetch-based)', () => {
       delete process.env.OPENROUTER_API_KEY;
     }
   });
+
+  // Sprint 1.6.17: cross-model JSON robustness + cost capture on parse failure.
+  // Surfaced by Haiku 4.5 dogfood — Anthropic models on OpenRouter sometimes
+  // ignore response_format: json_object and wrap output in markdown fences.
+  test('Sprint 1.6.17: parses markdown ```json fenced output (Anthropic via OpenRouter)', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fenced = '```json\n' + JSON.stringify({ edits: [{ path: 'a.txt', content: 'fenced' }] }) + '\n```';
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{ message: { content: fenced } }],
+        usage: { cost: 0.0042, prompt_tokens: 1500, completion_tokens: 800 },
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('fenced-json'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.touchedFiles, ['a.txt']);
+      assert.equal(result.cost_usd, 0.0042);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('Sprint 1.6.17: parses generic markdown fenced output (no language tag)', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fenced = '```\n' + JSON.stringify({ edits: [{ path: 'b.txt', content: 'g' }] }) + '\n```';
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{ message: { content: fenced } }],
+        usage: { cost: 0.001, prompt_tokens: 100, completion_tokens: 50 },
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('fenced-bare'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.touchedFiles, ['b.txt']);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('Sprint 1.6.17: bare JSON still parses (DeepSeek/OpenAI no-regression)', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{ message: { content: JSON.stringify({ edits: [{ path: 'c.txt', content: 'bare' }] }) } }],
+        usage: { prompt_tokens: 200 },
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('bare-json'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, true);
+      assert.equal(result.tokens_in, 200);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('Sprint 1.6.17: PLAN_NOT_JSON forwards usage (LLM spend captured even on parse failure)', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [{ message: { content: 'I cannot return JSON sorry.' } }],
+        usage: { cost: 0.0021, prompt_tokens: 600, completion_tokens: 50 },
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('parse-fail-cost'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_PLAN_NOT_JSON');
+      assert.equal(result.cost_usd, 0.0021);
+      assert.equal(result.tokens_in, 600);
+      assert.equal(result.tokens_out, 50);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  test('Sprint 1.6.17: EMPTY_RESPONSE forwards usage when response has tokens', async () => {
+    process.env.OPENROUTER_API_KEY = 'sk-or-v1-test';
+    try {
+      const fetchFake = makeFetch(async () => okResponse({
+        choices: [],
+        usage: { prompt_tokens: 400, completion_tokens: 0 },
+      }));
+      const result = await engine.applyAction(
+        { action: { num: 1, title: 't', body: 'b' } },
+        { engine: 'openrouter', repoRoot: tmpRepo('empty-cost'), fetch: fetchFake },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_EMPTY_RESPONSE');
+      assert.equal(result.tokens_in, 400);
+      assert.equal(result.tokens_out, 0);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
 });
 
 describe('action-engine: claude-sdk engine (alternative path stub)', () => {
