@@ -77,25 +77,57 @@ Both must be green before any Hermes runtime code merges:
 - [x] Tier 5 prompt + SKILL.md regression — `npm run test:fast` includes
       17 contract tests verifying every prompt and SKILL.md is structurally
       valid. CI lane gates merges.
-- [ ] Hermes-policy.md drafted in `standards/` and reviewed by Dave.
-- [ ] Hermes-runtime.md design doc with sequence diagrams for the 4 main
-      flows (cron, incident, PR-merged, manual).
+- [x] Hermes-policy.md drafted in `standards/` (2026-05-07) — see
+      [`standards/hermes-policy.md`](../standards/hermes-policy.md).
+- [x] Hermes-runtime.md design doc with cron sequence flow + halt flow +
+      verification flow + PR-promotion flow (2026-05-07) — see
+      [`docs/hermes-runtime.md`](./hermes-runtime.md). Note: only cron flow
+      ships in v0; incident / PR-merged / manual flows are designed-but-deferred.
 - [ ] First Hermes-driven PR auto-generated against a fixture project
       (`tests/fixtures/hermes-dryrun/`), reviewed by Dave, before any
       live project gets Hermes wiring.
+
+## Decisions taken from research (2026-05-07)
+
+Three parallel research briefs (topology, triggers/safety, git workflow)
+synthesized into [`docs/hermes-research-synthesis.md`](./hermes-research-synthesis.md).
+Key decisions:
+
+- **Single-agent core loop** with opt-in read-only `investigate` subagent
+  (Cognition "Don't Build Multi-Agents" + Anthropic SDK guidance).
+- **Branch-per-action**, not daily-rolling — `hermes/<YYYY-MM-DD>-<slug>-<id>`
+  matches Devin / Sweep / Copilot precedent.
+- **Mutex-by-project-slug** with FIFO `max_pending=1` per trigger-type;
+  P0 incident may interrupt-at-checkpoint (never mid-tool-call).
+- **Cost ceilings:** $0.50 / $2 per session, $3 / $5 daily project,
+  $10 / $15 daily fleet — loop-prevention guards under MAX subscription.
+- **4-tier escalation** T0 silent journal → T1 needs_review flag → T2
+  Slack/email + pause → T3 halt + sentinel.
+- **File-based kill switch** at `~/.cortex/HERMES_HALT` (fleet) and
+  `<repo>/.cortex/HERMES_HALT` (per-project).
+- **Git trailers** (`Hermes-Action-Id`, `Hermes-Journal-Entry`,
+  `Hermes-Trigger`, `Hermes-Reverts`) — machine-parseable via
+  `git interpret-trailers`.
+- **Draft PR by default**, promote-to-ready on CI green +
+  atomic-commit-contract verified. Humans always merge.
+- **v0 dogfood target:** cortex-x itself, weekly cron only, 3 weeks proven
+  before expanding to RELO / Kiosek / Chatbot Platform.
+
+Five of the original nine open questions are answered in the synthesis;
+the remaining four (default ping channel detail, hosting credential split,
+multi-action-per-run, PR body templating) defer to first implementation PR.
 
 ## Next steps
 
 When Dave returns to this RFC:
 
-1. Read this stub.
-2. Decide topology (single-agent vs subagent).
-3. Draft `standards/hermes-policy.md` from the "What Hermes is NOT" list
-   above.
-4. Sketch the core loop in `docs/hermes-runtime.md`.
+1. ~~Read this stub.~~ ✅
+2. ~~Decide topology (single-agent vs subagent).~~ ✅ single-agent
+3. ~~Draft `standards/hermes-policy.md`.~~ ✅
+4. ~~Sketch the core loop in `docs/hermes-runtime.md`.~~ ✅
 5. Build a fixture project + first dry-run iteration in
-   `tests/fixtures/hermes-dryrun/`.
+   `tests/fixtures/hermes-dryrun/` — **next**.
 6. Open the first non-trivial PR.
 
-Estimated 2h research + 4h design + 4-8h initial implementation across
-2-3 sessions. NOT a single-session task.
+Estimated remaining: 2-3h fixture + 4-8h initial implementation across
+1-2 sessions.
