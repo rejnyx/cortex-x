@@ -1,0 +1,95 @@
+# hermes-todo-triage.yml — autonomous Hermes TODO/FIXME triage workflow.
+#
+# Sprint 1.8.7 shipped todo_triage action_kind. This workflow runs monthly
+# (1st of each month, 04:00 UTC) and triages stale TODO/FIXME/XXX/HACK
+# markers older than 30 days into gh issues with code-context bodies.
+#
+# No LLM, no file edits — only opens gh issues. Each candidate produces ONE
+# issue labeled `hermes-triage` for downstream filtering.
+#
+# Why monthly: TODO accumulation is slow. Daily/weekly triage would create
+# noise; monthly hits the sweet spot for catching genuine stale TODOs.
+#
+# Skip-commit pattern: this workflow does NOT commit anything to the repo —
+# the side effect is purely external (gh issues). runExecute returns ok with
+# `skip_commit: true` and bypasses stage/commit/push/PR pipeline.
+
+name: hermes todo-triage
+
+on:
+  workflow_dispatch:        # manual run via GH UI
+  schedule:
+    - cron: '0 4 1 * *'     # Monthly 1st at 04:00 UTC. Cadence matches
+                            # standards/observability.md § Recurring monthly
+                            # SLO review which already runs the 1st.
+
+concurrency:
+  group: hermes-todo-triage-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  hermes-todo-triage:
+    name: hermes todo-triage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read           # only reads source for TODO scan
+      issues: write            # gh issue create
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # full history needed for git blame age check
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity (Hermes commits — unused on todo-triage but kept for journal)
+        run: |
+          git config user.name  "Hermes (cortex-x)"
+          git config user.email "hermes@cortex-x.local"
+
+      - name: Hermes todo-triage dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-hermes.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=todo_triage \
+            --json > /tmp/hermes-todo-plan.json
+          cat /tmp/hermes-todo-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/hermes-todo-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No fresh TODO markers — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Hermes todo-triage execute (gh issue create per candidate)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-hermes.cjs execute \
+            --plan-file=/tmp/hermes-todo-plan.json
+        env:
+          # No OPENROUTER_API_KEY — todo-triage is deterministic, no LLM call
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-todo-triage-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
