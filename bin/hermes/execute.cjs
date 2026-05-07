@@ -59,6 +59,10 @@ const todoTriage = require('../../detectors/todo-triage.cjs');
 // `// HERMES-FLAKY: reason` above test/it/describe → replace with .skip +
 // remove marker + open gh issue. Deterministic, no LLM, file edits + issue.
 const flakyRepair = require('../../detectors/flaky-test-repair.cjs');
+// Sprint 1.8.6 — doc_drift scans exported symbols, checks doc mentions,
+// files gh issues for undocumented public API. Deterministic, no LLM,
+// gh-only side effects (skip_commit pattern).
+const docDrift = require('../../detectors/doc-drift.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
@@ -454,6 +458,80 @@ async function runDepUpdateAction(plan, opts = {}) {
     usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     updated_count: detected.candidates.length,
     candidates: detected.candidates,
+  };
+}
+
+// Sprint 1.8.6 — doc_drift executor branch. Scan exports, check docs, file
+// gh issues for undocumented symbols. NO file edits, NO commit, NO PR — same
+// skip_commit pattern as todo_triage. The side effect IS the gh issue creation.
+async function runDocDriftAction(plan, opts = {}) {
+  const repoRoot = opts.repoRoot;
+  const detected = docDrift.detectDocDrift({
+    cwd: repoRoot,
+    mockFiles: opts.mockFiles,
+    mockDocsCorpus: opts.mockDocsCorpus,
+    maxCandidates: opts.maxCandidates || 5,
+  });
+
+  if (detected.candidates.length === 0) {
+    return {
+      ok: false,
+      code: 'DOC_DRIFT_NO_CANDIDATES',
+      error: `no undocumented exports found (${detected.total_exports} exports total, ${detected.documented_count} documented)`,
+      touchedFiles: [],
+      usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    };
+  }
+
+  const openedIssues = [];
+  if (opts.skipGh || opts.dryRunGh) {
+    for (const cand of detected.candidates) {
+      openedIssues.push({
+        title: docDrift.formatIssueTitle(cand),
+        url: 'mock://dry-run',
+        candidate: cand,
+        dry_run: true,
+      });
+    }
+  } else {
+    const ghOpsLib = require('./gh-ops.cjs');
+    if (!ghOpsLib.hasGhCli()) {
+      return {
+        ok: false,
+        code: 'GH_CLI_MISSING',
+        error: 'gh CLI not available — doc_drift needs gh to file issues',
+        touchedFiles: [],
+        usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+      };
+    }
+    for (const cand of detected.candidates) {
+      const title = docDrift.formatIssueTitle(cand);
+      const body = docDrift.formatIssueBody(cand);
+      const tmpFile = path.join(os.tmpdir(), `hermes-docdrift-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      fs.writeFileSync(tmpFile, body, 'utf8');
+      const result = require('node:child_process').spawnSync('gh', [
+        'issue', 'create',
+        '--title', title,
+        '--body-file', tmpFile,
+        '--label', 'doc-drift',
+      ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      if (result.status === 0) {
+        openedIssues.push({ title, url: (result.stdout || '').trim(), candidate: cand });
+      } else {
+        openedIssues.push({ title, error: result.stderr || 'unknown', candidate: cand });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    touchedFiles: [],
+    skip_commit: true, // gh issues only — no commit needed
+    usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
+    opened_issues: openedIssues,
+    drifted_count: detected.drifted_count,
+    documented_count: detected.documented_count,
   };
 }
 
@@ -854,6 +932,15 @@ async function runExecute(opts = {}) {
         dryRunGh: opts.dryRunGh,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'doc_drift') {
+      applyResult = await runDocDriftAction(plan, {
+        repoRoot,
+        mockFiles: opts.mockFiles,
+        mockDocsCorpus: opts.mockDocsCorpus,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        maxCandidates: opts.maxCandidates,
+      });
     } else {
       applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
     }
@@ -1095,6 +1182,8 @@ module.exports = {
   runTodoTriageAction,
   // Sprint 1.8.5 — flaky_test_repair helper exported for unit testing
   runFlakyRepairAction,
+  // Sprint 1.8.6 — doc_drift helper exported for unit testing
+  runDocDriftAction,
   EX_USAGE,
 };
 

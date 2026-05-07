@@ -72,13 +72,13 @@ const ACTION_KINDS = {
 
   doc_drift: {
     description:
-      'Diff exported APIs vs README/CLAUDE.md after merged PRs. LLM produces doc patches.',
-    requires_llm: true,
-    source: 'git diff exported symbols + README.md',
-    detector: null, // future: detectors/doc-drift.cjs
-    cost_envelope: 'normal',
-    blast_radius: 'low', // doc-only edits
-    shipped_in: null, // Sprint 1.8.6
+      'Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call.',
+    requires_llm: false,
+    source: 'fs scan + README.md + CLAUDE.md + docs/*.md',
+    detector: 'detectors/doc-drift.cjs', // Sprint 1.8.6
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // gh issues only — no doc edits in v1
+    shipped_in: '0.1.0', // Sprint 1.8.6
   },
 
   todo_triage: {
@@ -90,6 +90,43 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'minimal', // gh issue create only; no file edits
     shipped_in: '0.1.0', // Sprint 1.8.7
+  },
+
+  // ── Future kinds (Sprint 1.9+ roadmap) ─────────────────────────────────
+  // Declared with shipped_in: null so the dispatcher contract is forward-
+  // compatible. Each lands when the corresponding sprint implements its
+  // detector + executor branch.
+  test_coverage_gap: {
+    description:
+      'Find files with coverage < threshold and recent edits, generate one focused test per gap. Capability #6 from research roadmap.',
+    requires_llm: true,
+    source: 'c8/istanbul coverage report + recent git diff',
+    detector: null, // future: detectors/test-coverage-gap.cjs
+    cost_envelope: 'normal',
+    blast_radius: 'low', // adds test files only
+    shipped_in: null, // Sprint 1.9.x
+  },
+
+  lint_fix_shipper: {
+    description:
+      'Run ESLint --fix + tsc --noEmit; ship if only auto-fixable changes; LLM call only on non-trivial type errors. Capability #8.',
+    requires_llm: false, // happy path
+    source: 'eslint + tsc',
+    detector: null, // future: detectors/lint-fix.cjs
+    cost_envelope: 'free', // happy path
+    blast_radius: 'medium', // arbitrary file edits via auto-fixers
+    shipped_in: null, // Sprint 1.9.x
+  },
+
+  pr_review_responder: {
+    description:
+      'When reviewer comments on Hermes draft PR, single LLM call drafts targeted patch on the same branch. Capability #9.',
+    requires_llm: true,
+    source: 'gh pr view --comments',
+    detector: null, // future: detectors/pr-review-responder.cjs
+    cost_envelope: 'normal',
+    blast_radius: 'low', // patches only the existing hermes/<branch>
+    shipped_in: null, // Sprint 1.9.x
   },
 
   // ReasoningBank-lite memory ISN'T an action_kind — it's a cross-cutting
