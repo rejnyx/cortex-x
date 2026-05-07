@@ -186,6 +186,276 @@ describe('execute: mock engine — happy path', () => {
   });
 });
 
+describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', () => {
+  test('HERMES_DAILY_USD_CAP enforced: blocks when today\'s journal cost_usd >= cap', async () => {
+    const repoRoot = tmpProjectRepo('budget-cap');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-data-'));
+    const planFile = tmpPlanFile(buildPlan());
+
+    // Seed journal with $4 spent today (cap will be set to $5 → next $1+ run blocks)
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      journal.appendJournal(SLUG, {
+        ts: new Date().toISOString(),
+        trigger: 'manual',
+        tier: 'T0',
+        event: 'action_completed',
+        outcome: 'success',
+        actor: 'hermes',
+        cost_usd: 4.0,
+        tokens_in: 1000,
+      });
+    });
+
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      HERMES_DAILY_USD_CAP: '5',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      // 4 + 0 = 4 < 5, so this should pass; let's seed more to actually trip it
+      assert.equal(result.ok, true, 'with cap=$5 + spent=$4, run is permitted');
+    });
+
+    // Now seed another $1.5 → total $5.5 > cap $5 → next run blocks
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      journal.appendJournal(SLUG, {
+        ts: new Date().toISOString(),
+        trigger: 'manual',
+        tier: 'T0',
+        event: 'action_completed',
+        outcome: 'success',
+        actor: 'hermes',
+        cost_usd: 1.5,
+        tokens_in: 500,
+      });
+    });
+
+    const planFile2 = tmpPlanFile(buildPlan({ action: { num: 2, title: 'demo 2', action_key: `${SLUG}#week-2` } }));
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
+      HERMES_DAILY_USD_CAP: '5',
+    }, async () => {
+      const result = await execute.runExecute({ planFile: planFile2, repoRoot });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'BUDGET_CAP_REACHED');
+      assert.ok(result.spent >= 5, `spent ${result.spent} should reflect today's totals`);
+
+      // Journal recorded the refusal
+      const entries = journal.readJournal(SLUG);
+      const capped = entries.find((e) => e.event === 'execute_budget_capped');
+      assert.ok(capped);
+      assert.equal(capped.outcome, 'skipped');
+    });
+  });
+
+  test('HERMES_DAILY_USD_CAP=0 disables the cap (opt-out)', async () => {
+    const repoRoot = tmpProjectRepo('budget-disabled');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-off-data-'));
+    const planFile = tmpPlanFile(buildPlan());
+
+    // Seed journal with $1000 spent (would normally trip any sane cap)
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      journal.appendJournal(SLUG, {
+        ts: new Date().toISOString(),
+        trigger: 'manual',
+        tier: 'T0',
+        event: 'action_completed',
+        outcome: 'success',
+        actor: 'hermes',
+        cost_usd: 1000,
+        tokens_in: 1,
+      });
+    });
+
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'x.js', content: 'x' }] }),
+      HERMES_DAILY_USD_CAP: '0',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, true, 'cap=0 must allow any spend');
+    });
+  });
+
+  test('HERMES_FAILURE_BREAKER trips after N consecutive execute_*_failed for same action_key', async () => {
+    const repoRoot = tmpProjectRepo('breaker');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-data-'));
+    const planFile = tmpPlanFile(buildPlan({ action: { num: 9, title: 'demo 9', action_key: `${SLUG}#week-9` } }));
+
+    // Seed 3 failures for same action_key in last 5 minutes
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      for (let i = 0; i < 3; i++) {
+        journal.appendJournal(SLUG, {
+          ts: new Date(Date.now() - i * 60_000).toISOString(),
+          trigger: 'cron',
+          tier: 'T2',
+          event: 'execute_action_failed',
+          outcome: 'failure',
+          actor: 'hermes',
+          action_key: `${SLUG}#week-9`,
+        });
+      }
+    });
+
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'y.js', content: 'y' }] }),
+      HERMES_FAILURE_BREAKER: '3',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'FAILURE_BREAKER_TRIPPED');
+      assert.equal(result.recentFailures, 3);
+
+      const entries = journal.readJournal(SLUG);
+      const trip = entries.find((e) => e.event === 'execute_breaker_tripped');
+      assert.ok(trip);
+    });
+  });
+
+  test('failure breaker scoped to action_key: failures on different keys do not trip', async () => {
+    const repoRoot = tmpProjectRepo('breaker-scope');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-scope-data-'));
+    const planFile = tmpPlanFile(buildPlan({ action: { num: 7, title: 'demo 7', action_key: `${SLUG}#week-7` } }));
+
+    // 5 failures on UNRELATED action_key
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      for (let i = 0; i < 5; i++) {
+        journal.appendJournal(SLUG, {
+          ts: new Date().toISOString(),
+          trigger: 'cron',
+          tier: 'T2',
+          event: 'execute_verify_failed',
+          outcome: 'failure',
+          actor: 'hermes',
+          action_key: `${SLUG}#week-99`, // different key
+        });
+      }
+    });
+
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'z.js', content: 'z' }] }),
+      HERMES_FAILURE_BREAKER: '3',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, true, 'breaker should not trip on different action_keys');
+    });
+  });
+
+  test('failure breaker window expires after 1 hour', async () => {
+    const repoRoot = tmpProjectRepo('breaker-window');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-window-data-'));
+    const planFile = tmpPlanFile(buildPlan({ action: { num: 5, title: 'demo 5', action_key: `${SLUG}#week-5` } }));
+
+    // 5 failures from 2 hours ago — outside the 1-hour window
+    await withEnv({ CORTEX_DATA_HOME: dataHome }, async () => {
+      for (let i = 0; i < 5; i++) {
+        journal.appendJournal(SLUG, {
+          ts: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          trigger: 'cron',
+          tier: 'T2',
+          event: 'execute_action_failed',
+          outcome: 'failure',
+          actor: 'hermes',
+          action_key: `${SLUG}#week-5`,
+        });
+      }
+    });
+
+    await withEnv({
+      CORTEX_DATA_HOME: dataHome,
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'w.js', content: 'w' }] }),
+      HERMES_FAILURE_BREAKER: '3',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, true, 'failures outside 1h window must not count');
+    });
+  });
+});
+
+describe('execute: Sprint 1.6.19 — push + draft PR (best-effort, degrades gracefully)', () => {
+  test('no origin remote → result.pr.status === "no_remote", commit still lands', async () => {
+    const repoRoot = tmpProjectRepo('no-remote');
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'no-remote-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, true);
+      assert.ok(result.pr, 'pr substruct present');
+      assert.equal(result.pr.status, 'no_remote');
+      // Commit still landed
+      assert.match(result.commit_sha, /^[0-9a-f]{40}$/);
+      // Journal entry includes pr_status
+      const entries = journal.readJournal(SLUG);
+      const success = entries.find((e) => e.event === 'action_completed');
+      assert.equal(success.pr_status, 'no_remote');
+    });
+  });
+
+  test('skipPush opts out → result.pr.status === "skipped", no remote check attempted', async () => {
+    const repoRoot = tmpProjectRepo('skip-push');
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'skip-push-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot, skipPush: true });
+      assert.equal(result.ok, true);
+      assert.equal(result.pr.status, 'skipped');
+      assert.match(result.pr.reason, /opt-out/);
+    });
+  });
+
+  test('HERMES_NO_PUSH=1 env → result.pr.status === "skipped"', async () => {
+    const repoRoot = tmpProjectRepo('env-no-push');
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'env-no-push-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'c.js', content: 'c' }] }),
+      HERMES_NO_PUSH: '1',
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.pr.status, 'skipped');
+    });
+  });
+
+  test('with bare-repo origin: push succeeds, no gh CLI → result.pr.status === "no_gh_cli" (or "created" if gh on PATH)', async () => {
+    // Set up a bare repo as origin so push has somewhere to land
+    const repoRoot = tmpProjectRepo('with-remote');
+    const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-bare-'));
+    spawnSync('git', ['init', '--bare'], { cwd: bareDir });
+    spawnSync('git', ['remote', 'add', 'origin', bareDir], { cwd: repoRoot });
+
+    const planFile = tmpPlanFile(buildPlan());
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'remote-data-')),
+      HERMES_ENGINE: 'mock',
+      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'd.js', content: 'd' }] }),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, true);
+      // pushed: true regardless of whether gh CLI is present in test env
+      assert.equal(result.pr.pushed, true);
+      // Status depends on test env: 'no_gh_cli' (CI without auth) or 'created' (local with auth)
+      // or 'pr_failed' (gh present but no GH_TOKEN). All are valid post-push outcomes.
+      assert.match(result.pr.status, /^(no_gh_cli|created|pr_failed)$/);
+    });
+  });
+});
+
 describe('execute: mock engine — error paths', () => {
   test('dirty working tree blocks execute', async () => {
     const repoRoot = tmpProjectRepo('dirty');

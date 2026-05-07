@@ -153,15 +153,21 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
 
-**Phase 7 — Hermes runtime** ⚠️ v0 dry-run shipped (2026-05-07) · ⏳ v0.5 Claude Agent SDK seam pending
+**Phase 7 — Hermes runtime** ✅ v0.5b shipped (2026-05-07) · ⏳ v1 cron triggers pending
 - ✅ All 5 pre-Hermes RFC gates closed
 - ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` — halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist
-- ✅ `bin/hermes/dry-run.cjs` orchestrator — wires every primitive end-to-end except the Claude Agent SDK call. Outputs structured plan (branch name, commit message with trailers, journal entry).
-- ✅ `bin/hermes/status.cjs` observability CLI — halt + lock + recommendations + journal rollup
-- ✅ 121 Hermes-specific tests (95 unit + 26 integration/CLI)
-- ⏳ v0.5: Claude Agent SDK integration so dry-run plan drives actual `git commit` + `gh pr create --draft`
-- ⏳ v1: cron / on-incident / on-PR-merged triggers; expand from cortex-x dogfood to RELO + Kiosek
-- See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [standards/hermes-policy.md](./standards/hermes-policy.md)
+- ✅ `bin/hermes/dry-run.cjs` orchestrator — wires every primitive end-to-end with structured plan output (branch name, commit message with trailers, journal entry)
+- ✅ `bin/hermes/status.cjs` observability CLI — halt + lock + recommendations + journal rollup with per-action cost ledger
+- ✅ **`bin/hermes/execute.cjs` (v0.5a Sprint 1.6.11)** — async runtime taking dry-run plan to atomic commit, with verifier gate + rollback + per-phase journaling + lock mutex
+- ✅ **OpenRouter engine (v0.5b Sprint 1.6.13)** — real LLM via built-in `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout via AbortController, JSON-mode `response_format`, default model `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable engine seam: `mock` / `openrouter` / `claude-sdk` (stub kept reachable via explicit flag).
+- ✅ **First real OpenRouter call validated end-to-end (Sprint 1.6.13 dogfood)** — LLM → JSON → edits → npm test gate → atomic rollback on failure → journal cost capture. Safety mechanika ověřena reálným testem.
+- ✅ **Sprint 1.6.14–1.6.17 hardening from real-world signal**: `HERMES_MAX_TOKENS` env (4096 default truncated multi-file plans), cost capture on all failure paths (`addCostFields` SSOT helper), JSON-fence stripping for Anthropic-via-OpenRouter quirk (`stripJsonFences`), cost forwarding pre-parse via `extractUsage`.
+- ✅ **Sprint 1.6.18 review-pipeline-driven hardening** — 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) on the v0.5b stack surfaced 8 fixes shipped same-day: tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), `data === null` guard, default model SSOT alignment, CLI help text corrections, MIGRATIONS.md backfill.
+- ✅ **489 unit + contract + integration tests** across 8 tier gates (Tier 0-7 + 8). All 3 CI workflows green (test / install-smoke / no-pii).
+- ⏳ **v0.5b finalization (Sprint 1.6.19 — in progress)**: `gh pr create --draft` integration in execute.cjs (push + PR open Phase 11), daily spend cap (`HERMES_DAILY_USD_CAP`) + consecutive-failure circuit breaker (Security HIGH per review pipeline).
+- ⏳ **v1 cron triggers**: uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
+- ⏳ **v1.5+ hardening backlog (Sprint 1.6.20+)**: hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, timeoutMs/maxTokens upper-bound clamps, `<untrusted>` delimiters around prompt-injected content, `.env*` + `.github/workflows/**` denylist expansion, eval suite + property tests + stateful simulation per `standards/correctness.md`.
+- See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [docs/hermes-usage.md](./docs/hermes-usage.md), [standards/hermes-policy.md](./standards/hermes-policy.md)
 
 ## License
 

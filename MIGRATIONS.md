@@ -20,6 +20,92 @@
 
 ## Current
 
+### Sprint 1.6.19 — v0.5b finalization: push + draft PR + budget gates (2026-05-07 night)
+
+The phase that turns "v0.5b mostly works" into "v0.5b done": local-only execute now closes the loop with `git push` + `gh pr create --draft`, and a security-required pair of pre-flight gates (daily spend cap + consecutive-failure circuit breaker) shipped as defense-in-depth before Phase 7 cron triggers can land safely.
+
+#### Non-breaking (additive — zero new npm deps)
+
+**Push + draft PR pipeline** (3 new modules + execute.cjs Phase 10 wire)
+
+- `bin/hermes/_lib/git-ops.cjs:117-138` — `pushBranch(repoRoot, branch, opts)` + `hasRemote(repoRoot, remote='origin')`. Push uses `--set-upstream` so subsequent `gh pr create` knows the head ref. Both reject flag-shaped branch/remote names (defense in depth).
+- `bin/hermes/_lib/gh-ops.cjs` (new file, ~140 LOC) — wraps `gh` CLI via `spawnSync`. Exports `hasGhCli()` (cached), `createDraftPR(opts)` (writes body to tmpfile + uses `--body-file` to avoid quoting issues with multi-line content). Returns `{ ok, url?, error?, code? }` matching git-ops contract. **gh CLI is OPTIONAL** — module degrades gracefully when absent (returns `code: 'GH_CLI_MISSING'`).
+- `bin/hermes/execute.cjs` — new helper `maybePushAndOpenPR()` between Phase 9 (post-verify) and Phase 11 (success journal). Best-effort, non-blocking: commit + journal always succeed; push/PR step adds `pr` substruct to result with status from one of:
+  - `skipped` — `--no-push` CLI flag or `HERMES_NO_PUSH=1` env
+  - `no_remote` — no `origin` remote configured (fresh `git init`)
+  - `push_failed` — git push exited non-zero (auth, conflict, permission)
+  - `no_gh_cli` — branch pushed but gh CLI not on PATH
+  - `pr_failed` — gh `pr create` exited non-zero (no GH_TOKEN, repo permission)
+  - `created` — `{url: '<PR url>', pushed: true}`
+- Journal `action_completed` entry now includes `pr_url` and `pr_status` for cron observability — status command can audit "Hermes ran 12 actions today, 10 created PRs, 2 fell back to no_gh_cli".
+- CLI: `--no-push` flag added to `hermes execute` help.
+
+**Budget gates** (Sprint 1.6.19 Phase 2.5)
+
+Two pre-flight gates run BEFORE lock acquisition. A tripped gate journals the refusal and exits cleanly — leaving no lock for next run, and giving cron drivers an exit code + journal trail to back off until conditions clear.
+
+- **`HERMES_DAILY_USD_CAP`** (default $5, set to `0` to disable):
+  - `checkDailyBudget(slug)` reads today's journal (timestamps starting with current `YYYY-MM-DD`), sums `cost_usd` across all entries (success + failure paths — Sprint 1.6.15 ensured failures journal cost too), refuses if `>= cap`.
+  - Defense in depth over OpenRouter's UI-level per-key spend limit.
+  - Refusal journals `execute_budget_capped` event, `outcome: skipped`.
+  - Real-incident anchor: April 29 2026 dev's $437 retry-loop bill ([Medium post-mortem](https://medium.com/@mohamedmsatfi1/i-spent-0-20-reproducing-the-multi-agent-loop-that-cost-someone-47k-7f57c51f3c06)).
+
+- **`HERMES_FAILURE_BREAKER`** (default 3, set to `0` to disable):
+  - `checkFailureBreaker(slug, actionKey)` counts `execute_*_failed` events for the same `action_key` in the last 1 hour. Refuses if `>= breaker`.
+  - Window is **per-action_key** so a wedged Tier 8 action doesn't block other healthy actions.
+  - Refusal journals `execute_breaker_tripped`, `outcome: skipped`.
+  - Real-incident anchor: today's V4 Flash dogfood produced 4 failed attempts on Tier 8 multi-file action before halt — without breaker, cron would keep retrying every Sunday.
+
+#### Tests
+
+**+9 unit tests** (489 → 498 pass):
+
+`tests/unit/hermes/execute.test.cjs`:
+- Push + PR (4 tests): no-remote degrades, `--no-push` opts out, `HERMES_NO_PUSH=1` env opts out, bare-repo origin → push succeeds + status reflects gh-CLI presence
+- Budget cap (2 tests): blocks when today's spend >= cap, `HERMES_DAILY_USD_CAP=0` opt-out
+- Failure breaker (3 tests): trips at threshold, scoped to action_key (different keys don't trip), 1-hour window expires
+
+#### Documentation
+
+- `CLAUDE.md` Phase 7 status: `⚠️ v0 dry-run shipped` → `✅ v0.5b shipped` (full reality: OpenRouter engine + cost ledger + path-safety hardening + push+PR + budget gates)
+- `README.md` Phase 7 section mirror-aligned
+- Field-test memory entry: `project_cortex_hermes_v05b_review_pipeline_2026_05_07.md` (institutional learning — 7 real-world incidents, 6-agent review pipeline as validated workflow)
+
+Local: npm test → 498/498 pass
+       node tools/verify-prompts.cjs --strict → 83 pass
+       node tools/verify-skills.cjs --strict → 19 pass
+       node tools/verify-standards.cjs --strict → 24 pass
+
+#### What v0.5b "DONE" means after this sprint
+
+L2 Execution autonomy is now **fully production-shaped**:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+export HERMES_MODEL=deepseek/deepseek-v4-flash
+export HERMES_MAX_TOKENS=16384
+export HERMES_DAILY_USD_CAP=5         # safety
+cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+cortex-hermes execute --plan-file=/tmp/plan.json
+# → real OpenRouter call → file edits → npm test gate → atomic commit
+# → git push origin <branch> → gh pr create --draft
+# → journal logs cost_usd + tokens + pr_url
+# → if today's spend >= cap, refuses with BUDGET_CAP_REACHED
+# → if action_key has 3+ failures in last hour, refuses with FAILURE_BREAKER_TRIPPED
+```
+
+L3 (cron triggers) is now **safe to enable**: uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, rename to `hermes.yml`. The two budget gates close the cost-runaway risk class.
+
+#### Out of scope (Sprint 1.6.20+ candidates)
+
+Hardening tier (Security MEDIUM, deferred):
+- H2: Hardcode endpoint (drop `opts.endpoint` test seam)
+- H4: `extractUsage` coerce string costs (some routes return `"0.42"` instead of `0.42`)
+- H5: Detached HEAD pre-flight check
+- H10: Clamp timeoutMs/maxTokens upper bounds
+
+Eval-suite + property tests + mutation testing + stateful simulation (T1, T2, T4) remain Phase 7 launch-tier work.
+
 ### Sprint 1.6.18 — Hermes review-pipeline-surfaced hardening (2026-05-07 ultra-closing)
 
 #### Non-breaking (corrections + new error code + tightened guards)
