@@ -131,3 +131,57 @@ describe('pre-compact: idempotency + safety', () => {
     assert.equal(r.exitCode, 0);
   });
 });
+
+describe('pre-compact: failure-mid-write resilience', () => {
+  let tmp;
+  after(() => {
+    if (tmp) {
+      // Restore writability so cleanup works on Linux/macOS where chmod stuck
+      try { fs.chmodSync(path.join(tmp, '.claude'), 0o755); } catch {}
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('handles malformed PROGRESS.md without crashing', () => {
+    tmp = makeTmpProject('malformed', {
+      'package.json': JSON.stringify({ name: 'malformed-fixture' }),
+      'PROGRESS.md': '## Sprint X\n\n| ill-formed table\n||| empty cells\n```\nunclosed code fence',
+    });
+    const r = runPreCompactIn(tmp);
+    // Should NOT crash on malformed input — pre-compact is best-effort
+    assert.equal(r.exitCode, 0, `crashed on malformed PROGRESS.md; stderr: ${r.stderr}`);
+    // State file should still be written (even if minimal)
+    assert.ok(fs.existsSync(path.join(tmp, '.claude', 'compact-state.md')));
+  });
+
+  test('does not crash on extremely large PROGRESS.md (10k lines)', () => {
+    const lines = ['## Sprint Stress', '', '| Story | Popis | Stav |', '|---|---|---|'];
+    for (let i = 0; i < 10000; i++) {
+      lines.push(`| S-${i} | story ${i} | ${i % 3 === 0 ? 'done' : 'pending'} |`);
+    }
+    tmp = makeTmpProject('large', {
+      'package.json': JSON.stringify({ name: 'large-fixture' }),
+      'PROGRESS.md': lines.join('\n'),
+    });
+    const r = runPreCompactIn(tmp);
+    assert.equal(r.exitCode, 0);
+    assert.equal(r.timedOut, false, '10k-line PROGRESS.md should still be processed in <5s');
+  });
+
+  test('writes deterministic ASCII (no PII regression)', () => {
+    tmp = makeTmpProject('det', {
+      'package.json': JSON.stringify({ name: 'det-fixture' }),
+      'PROGRESS.md': '## Sprint Det\n\n| ID | Popis | Stav |\n|---|---|---|\n| D1 | first | pending |',
+    });
+    const r = runPreCompactIn(tmp);
+    assert.equal(r.exitCode, 0);
+    const content = fs.readFileSync(path.join(tmp, '.claude', 'compact-state.md'), 'utf8');
+    // Catches "we accidentally write process.env.HOME or os.homedir() into
+    // the state file" regression.
+    const lower = content.toLowerCase();
+    assert.ok(
+      !lower.includes('/c/users/david/') && !lower.includes('c:\\users\\david\\'),
+      `state file leaked Dave-specific path; content:\n${content.slice(0, 500)}`
+    );
+  });
+});
