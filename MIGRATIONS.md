@@ -20,6 +20,35 @@
 
 ## Current
 
+### Sprint 1.6.12 — dogfood follow-ups + OpenRouter pivot for v0.5b (2026-05-07 final-final)
+
+#### Non-breaking (additive — docs + .gitignore only, no code changes)
+
+- **What landed:** four small follow-ups closing the day's loose ends. No tests added (no code changes), 460/460 still pass, all 3 validators (--strict) green.
+
+  1. **`.gitignore` adds `package-lock.json` + `yarn.lock` + `pnpm-lock.yaml`.** Sprint 1.6.11 dogfood discovered that `npm install` on a fresh clone creates `package-lock.json`, which then trips Hermes pre-flight `DIRTY_TREE` check. cortex-x intentionally ships no lockfile (single dev dep `c8`, no runtime deps). Lockfile is now gitignored so future dogfooders + CI clones don't hit the same friction. Comment block in .gitignore explains the why for future contributors.
+
+  2. **`docs/hermes-runtime.md` § 4.5 "v0.5b LLM provider — OpenRouter via fetch (zero-deps preserved)"** (NEW section, ~80 lines). Documents the architectural pivot from `@anthropic-ai/claude-agent-sdk` to OpenRouter's OpenAI-compatible chat-completions endpoint via built-in `fetch()`. Same `{edits: [...]}` JSON shape as the mock engine — same code path, no SDK lock-in. Includes pseudocode sketch, env vars (`OPENROUTER_API_KEY`, `HERMES_MODEL`, `HERMES_ENGINE`), bonus-over-direct-SDK comparison, async-refactor notes, safety considerations.
+
+  3. **`docs/hermes-rfc.md` step 9 updated** — "v0.5 milestone" now distinguishes v0.5a (mock engine + full pipeline, shipped Sprint 1.6.11) from v0.5b (real LLM provider, OpenRouter preferred path). `@anthropic-ai/claude-agent-sdk` documented as fallback alternative if OpenRouter ever stops being suitable.
+
+  4. **`docs/hermes-usage.md` rewritten L2 walkthroughs** — split into "L2 walkthrough — what v0.5a does TODAY (mock engine)" + "L2 walkthrough — what v0.5b will do (real LLM via OpenRouter)". Concrete commands for both. The "TODAY" section is the dogfood-validated path (Sprint 1.6.11 commit 2cf2ae0). File-by-file reference table updated to reflect Sprint 1.6.11's new primitives (verifier, git-ops, action-engine).
+
+- **Why these specifically:** Dave: "jinak udělej všechny ty drobnosti co jsi navrhnul" — closing the loose ends from the dogfood report (gitignore lockfile) and the OpenRouter conversation (document the pivot before any v0.5b code lands). No new code crosses zero-deps; v0.5b implementation deferred to a separate sprint.
+
+- **Pivot rationale (OpenRouter over direct Anthropic SDK):**
+  - **Zero-deps preserved** — `fetch()` is built into Node ≥18, no npm dep adds
+  - **Multi-model** — switch `HERMES_MODEL` env var to compare Claude / GPT / Gemini / Llama on the same action with same prompt
+  - **Cost ceiling at provider layer** — OpenRouter UI exposes per-key spend limits, an extra ring over Hermes's own `cost_usd` journal rollup
+  - **Cost capture** — response includes `usage.prompt_tokens` + `usage.completion_tokens` + `usage.cost`, wires straight into journal
+  - **No SDK lock-in** — engine layer accepts any provider returning the same `{edits: [{path, content}]}` JSON shape (direct Anthropic, direct OpenAI, Together, vLLM self-hosted, etc.)
+
+- **Migrate:** none — additive.
+
+- **Rollback:** revert this commit; .gitignore + 3 doc updates form one logical unit.
+
+- **What's next (v0.5b):** implement `openrouterEngine` in `bin/hermes/_lib/action-engine.cjs` per the design at `docs/hermes-runtime.md` § 4.5. Make `applyAction` async, update `execute.cjs` to await it, mock `global.fetch` in tests. ~3-4h, single sprint.
+
 ### Sprint 1.6.11 — Hermes v0.5a: full execute infrastructure with mock engine (2026-05-07 night)
 
 #### Non-breaking (additive)

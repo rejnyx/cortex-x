@@ -1,5 +1,12 @@
 # Dependencies
 node_modules/
+# cortex-x intentionally does NOT commit a lockfile (single dev dep `c8`,
+# no runtime deps). `npm install` regenerates it locally. Surfaced by the
+# Sprint 1.6.11 dogfood: untracked package-lock.json was tripping Hermes
+# pre-flight DIRTY_TREE check on a fresh clone + npm install.
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Build output
 dist/
