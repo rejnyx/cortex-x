@@ -28,6 +28,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { stripDenylistExamples } = require('./lib/denylist-examples.cjs');
+
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PROMPTS_DIR = path.join(REPO_ROOT, 'prompts');
 const AGENTS_DIR = path.join(REPO_ROOT, 'agents');
@@ -229,9 +231,12 @@ class Validator {
     }
 
     // 7. PII / Dave-path leak
+    // Lines marked `<!-- denylist-example -->` are excluded from the scan
+    // (see tools/lib/denylist-examples.cjs for the rationale).
+    const mdForPii = stripDenylistExamples(md);
     let piiHits = [];
     for (const re of PII_DENY) {
-      const matches = md.match(re);
+      const matches = mdForPii.match(re);
       if (matches) piiHits.push(matches[0]);
     }
     if (piiHits.length > 0) {
