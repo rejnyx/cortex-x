@@ -211,6 +211,11 @@ function runChecks() {
   checkFileExists('shared.agents.planner', path.join(SHARED, 'agents', 'planner.md'));
   checkFileExists('shared.hooks.session-start', path.join(SHARED, 'hooks', 'session-start.cjs'));
   checkFileExists('shared.hooks.block-destructive', path.join(SHARED, 'hooks', 'block-destructive.cjs'));
+  // Tier 4 — additional critical hooks Hermes runtime depends on
+  checkFileExists('shared.hooks.pre-compact', path.join(SHARED, 'hooks', 'pre-compact.cjs'));
+  checkFileExists('shared.hooks.auto-orchestrate', path.join(SHARED, 'hooks', 'auto-orchestrate.cjs'));
+  checkFileExists('shared.hooks.pre-tool-use', path.join(SHARED, 'hooks', 'pre-tool-use.cjs'));
+  checkFileExists('shared.hooks.post-tool-use', path.join(SHARED, 'hooks', 'post-tool-use.cjs'));
 
   // User-discoverable agents (Claude Code reads ~/.claude/agents/, NOT ~/.claude/shared/agents/)
   // Field test #5 caught this: install copied to staging only, default agents
