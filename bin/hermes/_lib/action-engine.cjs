@@ -218,7 +218,7 @@ async function openrouterEngine(plan, opts = {}) {
       body: JSON.stringify({
         model,
         response_format: { type: 'json_object' },
-        max_tokens: opts.maxTokens || 4096,
+        max_tokens: opts.maxTokens || parseInt(process.env.HERMES_MAX_TOKENS, 10) || 4096,
         messages: [
           { role: 'system', content: HERMES_SYSTEM_PROMPT },
           { role: 'user', content: buildUserPrompt(plan, opts) },
