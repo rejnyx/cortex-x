@@ -83,9 +83,11 @@ Both must be green before any Hermes runtime code merges:
       verification flow + PR-promotion flow (2026-05-07) — see
       [`docs/hermes-runtime.md`](./hermes-runtime.md). Note: only cron flow
       ships in v0; incident / PR-merged / manual flows are designed-but-deferred.
-- [ ] First Hermes-driven PR auto-generated against a fixture project
-      (`tests/fixtures/hermes-dryrun/`), reviewed by Dave, before any
-      live project gets Hermes wiring.
+- [x] First Hermes-driven dry-run against fixture project
+      (`tests/fixtures/hermes-dryrun/`) — fixture + 18-test contract landed
+      2026-05-07 commit `9fc3a5b`; dry-run orchestrator + 16-test integration
+      suite landed 2026-05-07 (this commit). Real Hermes-driven PR (with
+      Claude Agent SDK call) is the v0.5 milestone.
 
 ## Decisions taken from research (2026-05-07)
 
@@ -125,9 +127,14 @@ When Dave returns to this RFC:
 2. ~~Decide topology (single-agent vs subagent).~~ ✅ single-agent
 3. ~~Draft `standards/hermes-policy.md`.~~ ✅
 4. ~~Sketch the core loop in `docs/hermes-runtime.md`.~~ ✅
-5. Build a fixture project + first dry-run iteration in
-   `tests/fixtures/hermes-dryrun/` — **next**.
-6. Open the first non-trivial PR.
+5. ~~Build a fixture project + first dry-run iteration in `tests/fixtures/hermes-dryrun/`.~~ ✅
+6. ~~Wire 6 primitives + dry-run orchestrator (no Claude SDK yet).~~ ✅
+7. **v0.5 milestone:** integrate Claude Agent SDK so the dry-run plan becomes
+   an actual Hermes commit + PR. The dry-run already produces a valid
+   Conventional-Commits-shaped commit message with Git trailers; v0.5 just
+   feeds it to `git commit -F -` after the LLM produces the file edits.
+8. **v1 milestone:** wire cron / on-incident / on-PR-merged triggers; expand
+   from cortex-x dogfood to RELO + Kiosek.
 
-Estimated remaining: 2-3h fixture + 4-8h initial implementation across
-1-2 sessions.
+Estimated remaining: 4-8h Claude Agent SDK integration (v0.5) + 4-8h
+trigger wiring (v1) across 2 sessions.
