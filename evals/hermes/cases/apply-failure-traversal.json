@@ -1,0 +1,19 @@
+{
+  "name": "apply-failure-traversal",
+  "description": "LLM emits an edit with composed path traversal (./sub/../../escape.js). Sprint 1.6.18 realpath containment check catches it where the old includes('..') substring check would also have caught — but this case also exercises the realpath logic on a path that includes legitimate '..' substrings.",
+  "mock_plan": {
+    "edits": [
+      {
+        "path": "./sub/../../escape.js",
+        "content": "module.exports = 'pwned';"
+      }
+    ]
+  },
+  "assertions": {
+    "result_ok": false,
+    "result_code": "MOCK_EDIT_UNSAFE",
+    "touched_files": [],
+    "journal_event": "execute_action_failed",
+    "journal_outcome": "failure"
+  }
+}

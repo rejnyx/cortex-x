@@ -26,6 +26,7 @@
     "hermes": "node bin/cortex-hermes.cjs",
     "hermes:dry-run": "node bin/hermes/dry-run.cjs",
     "hermes:status": "node bin/hermes/status.cjs",
+    "eval:hermes": "node tools/run-hermes-evals.cjs",
     "verify:standards": "node tools/verify-standards.cjs"
   },
   "devDependencies": {

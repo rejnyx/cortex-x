@@ -1,0 +1,20 @@
+{
+  "name": "apply-failure-empty-edits",
+  "description": "LLM emits a valid envelope with empty edits[] array. Pipeline refuses with NO_EDITS, rolls back cleanly, journals failure. Cost still captured because LLM call happened.",
+  "mock_plan": {
+    "edits": [],
+    "usage": {
+      "cost_usd": 0.0005,
+      "tokens_in": 1200,
+      "tokens_out": 30
+    }
+  },
+  "assertions": {
+    "result_ok": false,
+    "result_code": "MOCK_NO_EDITS",
+    "touched_files": [],
+    "journal_event": "execute_action_failed",
+    "journal_outcome": "failure",
+    "cost_captured": true
+  }
+}
