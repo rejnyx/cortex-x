@@ -424,6 +424,9 @@ Templates reference two kinds of paths:
 Bake the absolute resolved path into scaffolded output. If Dave later moves cortex-x source, the user re-runs `cortex-doctor` to detect and re-anchor.
 
 ### 4.1 Render scaffold
+
+**Sprint 1.7.4b — locale-aware rendering.** Templates ship in English-default form. If `~/.claude/cortex/user.yaml` has `language:` ≠ `en`, translate scaffolded text content (headings, bullet copy, TODO markers, comment text) to the user's detected language during render. Code identifiers, file paths, command examples, and `{{handlebars}}` placeholder names stay in English. This keeps templates maintainable in one language while delivering localized output to non-English users.
+
 1. Scaffold per `profiles/<selected>.yaml` (structure, package.json, configs, Next.js/Astro/etc.) — apply §4.1d profile right-sizing first.
 2. Render templates with **data from `cortex/discovery.md` + `cortex/proposal.md`** (not generic placeholders):
    - `CLAUDE.md` — project-specific description, stack, architecture from proposal — **dual-link standards** per §4.1a below
