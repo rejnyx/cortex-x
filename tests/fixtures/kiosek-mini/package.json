@@ -1,0 +1,9 @@
+{
+  "name": "kiosek-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "next": "^16.0.0",
+    "dexie": "^4.0.0"
+  }
+}

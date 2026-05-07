@@ -1,0 +1,10 @@
+{
+  "name": "waas-template-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "next": "^16.0.0",
+    "gsap": "^3.14.0",
+    "@gsap/react": "^2.1.0"
+  }
+}

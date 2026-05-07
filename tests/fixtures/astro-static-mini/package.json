@@ -1,0 +1,8 @@
+{
+  "name": "astro-static-fixture",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "astro": "^5.0.0"
+  }
+}

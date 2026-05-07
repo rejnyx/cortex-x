@@ -1,0 +1,8 @@
+{
+  "name": "@monorepo-edge/app",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "next": "^16.0.0"
+  }
+}

@@ -27,8 +27,11 @@ stack:
 
 detect:
   files:
+    - src-tauri/
+  config_files:
     - src-tauri/tauri.conf.json
-    - src-tauri/Cargo.toml
+    - tauri.conf.json
+    - Cargo.toml
 
 conventions:
   rust_backend: native capabilities in Rust

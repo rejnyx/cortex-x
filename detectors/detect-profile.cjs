@@ -83,7 +83,15 @@ function parseProfileYaml(content) {
       const val = nested[2].trim();
       if (val === '') {
         subsection = key;
-        result.detect[key] = {};
+        // Init container by subsection shape: list-of-values (files,
+        // config_files, negative_signals) → []; nested map (package_json) → {}.
+        // Without this guard, list items below would .push() on {} and crash
+        // (browser-agent.yaml regression caught by tests/contract/profile-yaml-schema 2026-05-07).
+        if (key === 'files' || key === 'config_files' || key === 'negative_signals') {
+          result.detect[key] = [];
+        } else {
+          result.detect[key] = {};
+        }
         currentList = null;
       } else {
         result.detect[key] = val;
@@ -338,13 +346,15 @@ function collectSignals(cwd) {
 
   // Common folder probes (lightweight — single-level stat on known paths)
   const candidateFolders = [
-    'src/app', 'src/app/api', 'src/app/api/chat', 'src/lib/ai', 'src/lib/ai/tools',
+    'src/app', 'src/app/api', 'src/app/api/chat', 'src/lib/ai', 'src/lib/ai/tools', 'src/lib/ai/memory',
     'supabase/migrations', 'supabase', 'prisma',
-    'src-tauri', 'desktop', 'electron',
+    'src-tauri', 'src-tauri/src', 'desktop', 'electron',
     'public', 'pages', 'app',
-    'lib/browser', 'browser',
+    'app/api/webhook', 'lib/adapters', 'lib/ai/tools', 'lib/ai/memory',
+    'src/lib/browser', 'lib/browser', 'browser', 'infra/docker/browser-runner',
     'tests', 'e2e',
     'evals',
+    'themes', 'content',
     '.claude', '.claude/agents', '.claude/skills',
   ];
   for (const rel of candidateFolders) {

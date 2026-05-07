@@ -1,0 +1,4 @@
+/* fixture: minimal WaaS theme tokens for detection */
+:root {
+  --color-primary: oklch(0.7 0.1 60);
+}
