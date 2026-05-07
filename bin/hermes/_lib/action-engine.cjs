@@ -530,6 +530,10 @@ module.exports = {
   openrouterEngine,
   claudeSdkEngine,
   buildUserPrompt,
+  // Sprint 1.6.21 (T2): expose helpers for property tests
+  stripJsonFences,
+  extractUsage,
+  isDenylistedPath,
   HERMES_SYSTEM_PROMPT,
   OPENROUTER_ENDPOINT,
   DEFAULT_MODEL,

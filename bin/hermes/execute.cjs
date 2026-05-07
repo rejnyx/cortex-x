@@ -96,6 +96,30 @@ function addCostFields(entry, applyResult) {
   return entry;
 }
 
+// Sprint 1.6.21 (T4): SSOT rollback helper for stateful-pipeline failure paths.
+// Discards working-tree edits, returns to originalBranch, deletes the dead
+// hermes/<...> branch. Best-effort — each step's failure is intentionally
+// swallowed because we're already in a failure path; bubbling up here would
+// mask the real failure code (STAGE_FAILED, COMMIT_FAILED, etc.).
+//
+// The pre-1.6.21 layout duplicated this 3-step sequence at 3 sites
+// (action_failed, verify_failed, post_verify_failed) — but STAGE_FAILED and
+// COMMIT_FAILED returned WITHOUT rolling back, leaving the user on dead
+// branch with edits applied. T4 stateful simulation made the bug observable.
+function rollbackToOriginal(repoRoot, originalBranch, deadBranch) {
+  // Discard working-tree changes (tracked + untracked) so the dead branch
+  // can be deleted cleanly. `git checkout -- .` reverts modified tracked
+  // files; `git clean -fd` removes untracked files + empty directories.
+  try { gitOps.git(repoRoot, ['checkout', '--', '.']); } catch { /* best effort */ }
+  try { gitOps.git(repoRoot, ['clean', '-fd']); } catch { /* best effort */ }
+  if (originalBranch) {
+    try { gitOps.git(repoRoot, ['checkout', originalBranch]); } catch { /* best effort */ }
+    if (deadBranch && deadBranch !== originalBranch) {
+      try { gitOps.git(repoRoot, ['branch', '-D', deadBranch]); } catch { /* best effort */ }
+    }
+  }
+}
+
 // Sprint 1.6.19: push branch + draft PR — best-effort, non-blocking.
 // Degradation matrix:
 //   skipPush=true                      → status='skipped'         (--no-push or HERMES_NO_PUSH=1)
@@ -495,14 +519,42 @@ async function runExecute(opts = {}) {
     // Phase 8 — Stage + commit (atomic per MUST-H1)
     const stageResult = gitOps.stage(repoRoot, touchedFiles);
     if (!stageResult.ok) {
+      // Sprint 1.6.21 (T4): STAGE_FAILED previously returned without rollback
+      // — leaving user on dead branch with edits applied. Now: discard working
+      // tree changes, return to originalBranch, delete dead branch, journal.
+      rollbackToOriginal(repoRoot, originalBranch, plan.branch);
+      safeJournal(slug, addCostFields({
+        ts: new Date().toISOString(),
+        trigger: plan.trigger || 'manual',
+        tier: 'T2',
+        event: 'execute_stage_failed',
+        outcome: 'failure',
+        actor: 'hermes',
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+      }, applyResult));
       return { ok: false, code: 'STAGE_FAILED', error: stageResult.stderr || stageResult.error };
     }
 
     const commitMsgFile = writeCommitMessageToTmp(plan.commit_message);
     const commitResult = gitOps.commitWithMessageFile(repoRoot, commitMsgFile);
-    fs.unlinkSync(commitMsgFile); // cleanup
+    try { fs.unlinkSync(commitMsgFile); } catch { /* tmpfile cleanup best-effort */ }
 
     if (!commitResult.ok) {
+      // Sprint 1.6.21 (T4): COMMIT_FAILED previously returned without rollback.
+      // Same recovery as STAGE_FAILED: discard tree, return to original ref,
+      // delete dead branch.
+      rollbackToOriginal(repoRoot, originalBranch, plan.branch);
+      safeJournal(slug, addCostFields({
+        ts: new Date().toISOString(),
+        trigger: plan.trigger || 'manual',
+        tier: 'T2',
+        event: 'execute_commit_failed',
+        outcome: 'failure',
+        actor: 'hermes',
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+      }, applyResult));
       return { ok: false, code: 'COMMIT_FAILED', error: commitResult.stderr || commitResult.error };
     }
 
