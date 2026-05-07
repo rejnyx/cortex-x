@@ -6,18 +6,18 @@
 
 ## 🔒 RULE 1 — Inviolable architectural invariants
 
-> **Contracts, ne aspirace.** Každý commit v tomto projektu musí respektovat. Violations blokují merge.
+> **Contracts, not aspirations.** Every commit in this project must respect them. Violations block merge.
 
 ### SSOT (Single Source of Truth)
-Každý kus znalosti má **přesně jeden zdroj pravdy**. Constants → `config/`. Design tokens → `config/design-tokens.ts`. DB schema → migrace (types generované, ne psané ručně). Institutional wisdom → `~/.claude/shared/standards/` (stable rules) + `{{cortex_source}}/projects/` (cross-project memory). Current state → tento CLAUDE.md. **Nula overlap.**
+Every piece of knowledge has **exactly one source of truth**. Constants → `config/`. Design tokens → `config/design-tokens.ts`. DB schema → migrations (types generated, not hand-written). Institutional wisdom → `~/.claude/shared/standards/` (stable rules) + `{{cortex_source}}/projects/` (cross-project memory). Current state → this CLAUDE.md. **Zero overlap.**
 
 ### Modular (Isolated subsystems)
-Features žijí v `src/features/<slug>/` (nebo ekvivalentu). Externí SDK jen přes adapter. LEGO tools — jeden soubor per tool. Žádné kruhové importy. Test boundary = module boundary.
+Features live in `src/features/<slug>/` (or equivalent). External SDKs only via adapters. LEGO tools — one file per tool. No circular imports. Test boundary = module boundary.
 
 ### Scalable (10x-safe patterns)
-RLS od day 1. Indexy na FK a query predikátech. Paginace na všech listech. Rate limit + cost guards na externích boundaries. Streaming > polling kde dává smysl.
+RLS from day 1. Indexes on FK and query predicates. Pagination on all list endpoints. Rate limits + cost guards on external boundaries. Streaming > polling where it makes sense.
 
-**Full contract:** `~/.claude/shared/standards/RULE-1.md`. Anti-patterns tam jsou automatic blockers — ne debate.
+**Full contract:** `~/.claude/shared/standards/RULE-1.md`. Anti-patterns there are automatic blockers — not up for debate.
 
 ### Rule 2 (Critical): [`security.md`](../.claude/shared/standards/security.md) · [`testing.md`](../.claude/shared/standards/testing.md) · [`observability.md`](../.claude/shared/standards/observability.md) · [`correctness.md`](../.claude/shared/standards/correctness.md)
 
@@ -50,27 +50,27 @@ RLS od day 1. Indexy na FK a query predikátech. Paginace na všech listech. Rat
 - **Tests:** {{stack.testing.unit}}{{#if stack.testing.e2e}} + {{stack.testing.e2e}}{{/if}}
 {{/if}}
 
-## Architektura
+## Architecture
 
 {{#if architecture}}
 {{architecture}}
 {{else}}
-TODO: Popis architektury — jak to funguje end-to-end. Jaké moduly, jaké hranice, kam teče data flow.
+TODO: Architecture description — how it works end-to-end. Which modules, which boundaries, where data flows.
 {{/if}}
 
-## Konvence
+## Conventions
 
 - {{#if conventions.typescript_strict}}TypeScript strict mode{{/if}}
-- {{#if conventions.language_ui}}UI jazyk: {{conventions.language_ui}}{{/if}}
-- {{#if conventions.language_code}}Kód: {{conventions.language_code}} (variables, comments){{/if}}
+- {{#if conventions.language_ui}}UI language: {{conventions.language_ui}}{{/if}}
+- {{#if conventions.language_code}}Code: {{conventions.language_code}} (variables, comments){{/if}}
 {{#if conventions.component_library}}
-- Komponenty: {{conventions.component_library}}
+- Components: {{conventions.component_library}}
 {{/if}}
 {{#if conventions.color_system}}
-- Barvy: {{conventions.color_system}}
+- Colors: {{conventions.color_system}}
 {{/if}}
 {{#if conventions.form_validation}}
-- Validace: {{conventions.form_validation}}
+- Validation: {{conventions.form_validation}}
 {{/if}}
 
 ## Development
@@ -85,7 +85,7 @@ npm test
 ## Environment Variables
 
 ```env
-# TODO: Doplnit podle stacku
+# TODO: fill in per your stack
 ```
 
 ## Directory Structure
@@ -101,15 +101,15 @@ npm test
 {{#each agents}}- `{{this}}`
 {{/each}}
 
-Invoke via `~/.claude/shared/prompts/code-review.md` — spawn paralelně s diff context. `ssot-enforcer` je vždy MANDATORY (Rule 1 gate).
+Invoke via `~/.claude/shared/prompts/code-review.md` — spawn in parallel with diff context. `ssot-enforcer` is always MANDATORY (Rule 1 gate).
 
 ## Hooks
 
-Automaticky aktivní z `~/.claude/shared/hooks/`:
+Automatically active from `~/.claude/shared/hooks/`:
 - `block-destructive` — rm -r, force push, hard reset, DROP TABLE
-- `session-start` — sprint state + git state + Rule 1 violations v insights/
-- `pre-compact` — recovery state před kontextem compact
-- `post-tool-use` — journal traces pro cortex-evolve (metadata only)
+- `session-start` — sprint state + git state + Rule 1 violations in insights/
+- `pre-compact` — recovery state before context compact
+- `post-tool-use` — journal traces for cortex-evolve (metadata only)
 
 ## Cross-project context
 
