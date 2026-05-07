@@ -87,14 +87,12 @@ describe('action-kinds: helpers', () => {
 
   test('isShippedKind returns true only for shipped kinds (shipped_in != null)', () => {
     assert.equal(kinds.isShippedKind('recommendation'), true);
-    // Sprint 1.8.2c — recommendation_harvest fully shipped
     assert.equal(kinds.isShippedKind('recommendation_harvest'), true);
-    // Sprint 1.8.4 — dep_update_patch fully shipped
     assert.equal(kinds.isShippedKind('dep_update_patch'), true);
-    // Sprint 1.8.7 — todo_triage fully shipped
     assert.equal(kinds.isShippedKind('todo_triage'), true);
-    // Parked to v0.8 — need CI integration / LLM
-    assert.equal(kinds.isShippedKind('flaky_test_repair'), false);
+    // Sprint 1.8.5 — flaky_test_repair (marker-based, deterministic)
+    assert.equal(kinds.isShippedKind('flaky_test_repair'), true);
+    // Still parked
     assert.equal(kinds.isShippedKind('doc_drift'), false);
   });
 
@@ -109,14 +107,11 @@ describe('action-kinds: helpers', () => {
     const shipped = kinds.listShippedKinds();
     assert.ok(Array.isArray(shipped));
     assert.ok(shipped.includes('recommendation'));
-    // Sprint 1.8.2c — recommendation_harvest fully shipped
     assert.ok(shipped.includes('recommendation_harvest'));
-    // Sprint 1.8.4 — dep_update_patch fully shipped
     assert.ok(shipped.includes('dep_update_patch'));
-    // Sprint 1.8.7 — todo_triage fully shipped
     assert.ok(shipped.includes('todo_triage'));
-    // Parked to v0.8 (need CI integration / LLM call)
-    assert.ok(!shipped.includes('flaky_test_repair'));
+    assert.ok(shipped.includes('flaky_test_repair'));
+    // Still parked
     assert.ok(!shipped.includes('doc_drift'));
   });
 });
@@ -146,11 +141,14 @@ describe('action-kinds: future-roadmap entries', () => {
     assert.equal(k.detector, 'detectors/dep-update-patch.cjs');
   });
 
-  test('Sprint 1.8.5 — flaky_test_repair declared (low cost)', () => {
+  test('Sprint 1.8.5 — flaky_test_repair shipped (deterministic marker-based)', () => {
     const k = kinds.getActionKind('flaky_test_repair');
     assert.ok(k);
-    assert.equal(k.cost_envelope, 'low');
+    assert.equal(k.requires_llm, false); // simplified marker-based, no LLM
+    assert.equal(k.cost_envelope, 'free');
     assert.equal(k.blast_radius, 'low');
+    assert.equal(k.shipped_in, '0.1.0');
+    assert.equal(k.detector, 'detectors/flaky-test-repair.cjs');
   });
 
   test('Sprint 1.8.6 — doc_drift declared (doc-only edits)', () => {
