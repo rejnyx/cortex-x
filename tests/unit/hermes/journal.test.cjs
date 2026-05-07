@@ -91,6 +91,12 @@ describe('journal: PII redaction', () => {
     assert.equal(out.event.includes('AAAAAAAAAAAAAAAAAAAA1234'), false);
   });
 
+  test('OpenRouter sk-or-v1- credentials redacted (caught by sk- regex)', () => {
+    const out = redactPII({ event: 'OPENROUTER_API_KEY=sk-or-v1-1234567890abcdef1234567890abcdef' });
+    assert.match(out.event, /sk-<REDACTED>/);
+    assert.equal(out.event.includes('1234567890abcdef'), false);
+  });
+
   test('GitHub PAT ghp_ redacted', () => {
     const out = redactPII({ event: 'token ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
     assert.match(out.event, /ghp_<REDACTED>/);

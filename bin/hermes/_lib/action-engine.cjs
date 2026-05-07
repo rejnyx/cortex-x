@@ -1,46 +1,97 @@
 // action-engine.cjs — pluggable interface for "apply this action's edits".
 //
-// v0.5a ships TWO engines:
-//   - mock: env-driven; reads HERMES_MOCK_PLAN and writes the listed files.
-//           Used for tests + dogfood without crossing zero-deps.
-//   - claude-sdk: NOT YET IMPLEMENTED (v0.5b). Same interface, real LLM call.
+// v0.5b ships THREE engines (all share applyEditsToFilesystem):
+//   - mock: env-driven (HERMES_MOCK_PLAN); writes the listed files. Sync.
+//   - openrouter: real LLM via OpenRouter's OpenAI-compatible API. Async via
+//                 built-in fetch() (Node ≥18). Zero-deps preserved.
+//   - claude-sdk: NOT YET IMPLEMENTED (alternative to openrouter — would
+//                 require @anthropic-ai/claude-agent-sdk dep).
 //
 // Engine contract:
 //
-//   applyAction(plan, opts) -> {
+//   await applyAction(plan, opts) -> {
 //     ok: boolean,
 //     touchedFiles: string[],   // relative paths to repo root
 //     summary: string,          // 1-line human description
+//     engine: string,           // engine name that produced the result
+//     cost_usd?: number,        // present for paid engines
+//     tokens_in?: number,
+//     tokens_out?: number,
 //     error?: string,           // present if ok=false
 //     code?: string,            // machine-readable error code
 //   }
 //
-// The engine is responsible ONLY for file edits. Everything else (verify,
-// commit, journal) is wired by execute.cjs.
+// applyAction is async. Sync engines return a result; the wrapper awaits
+// it (Promise.resolve passes through). The engine is responsible ONLY for
+// file edits. Everything else (verify, commit, journal) is wired by
+// execute.cjs.
 
 'use strict';
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-// ---------------------------------------------------------------------------
-// Mock engine
-// ---------------------------------------------------------------------------
-//
-// Reads HERMES_MOCK_PLAN env var as JSON:
-//
-//   { "edits": [{ "path": "src/foo.js", "content": "..." }, ...] }
-//
-// Writes each `content` to `path` (relative to repoRoot). Creates directories
-// as needed. Returns the touched file paths.
-//
-// If HERMES_MOCK_PLAN is missing OR malformed, returns an error so tests can
-// distinguish "no mock provided" from "mock applied".
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
+const OPENROUTER_TIMEOUT_MS = 120_000; // 2 min
 
-function mockEngine(plan, opts = {}) {
+// ---------------------------------------------------------------------------
+// Shared: applyEditsToFilesystem
+// ---------------------------------------------------------------------------
+//
+// Both mock + openrouter engines reduce to "apply a list of {path, content}
+// edits to the working tree". This helper is the shared implementation +
+// path-safety guard. Returns a result object matching the engine contract.
+
+function applyEditsToFilesystem(edits, opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
-  const raw = process.env.HERMES_MOCK_PLAN;
 
+  if (!Array.isArray(edits) || edits.length === 0) {
+    return {
+      ok: false,
+      code: opts.emptyCode || 'NO_EDITS',
+      error: 'edits must be a non-empty array',
+    };
+  }
+
+  const touched = [];
+  for (const edit of edits) {
+    if (!edit || !edit.path || typeof edit.content !== 'string') {
+      return {
+        ok: false,
+        code: opts.invalidCode || 'EDIT_INVALID',
+        error: `edit missing required fields: ${JSON.stringify(edit)}`,
+        touchedFiles: touched,
+      };
+    }
+    if (path.isAbsolute(edit.path) || edit.path.includes('..')) {
+      return {
+        ok: false,
+        code: opts.unsafeCode || 'EDIT_UNSAFE',
+        error: `edit path must be relative + traversal-free: ${edit.path}`,
+        touchedFiles: touched,
+      };
+    }
+
+    const fullPath = path.join(repoRoot, edit.path);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, edit.content, 'utf8');
+    touched.push(edit.path);
+  }
+
+  return {
+    ok: true,
+    touchedFiles: touched,
+    summary: opts.summary || `applied ${touched.length} edit(s) to ${touched.join(', ')}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mock engine (sync, env-driven)
+// ---------------------------------------------------------------------------
+
+function mockEngine(_plan, opts = {}) {
+  const raw = process.env.HERMES_MOCK_PLAN;
   if (!raw) {
     return {
       ok: false,
@@ -60,83 +111,217 @@ function mockEngine(plan, opts = {}) {
     };
   }
 
-  if (!mock.edits || !Array.isArray(mock.edits) || mock.edits.length === 0) {
+  return applyEditsToFilesystem(mock.edits, {
+    repoRoot: opts.repoRoot,
+    emptyCode: 'MOCK_NO_EDITS',
+    invalidCode: 'MOCK_EDIT_INVALID',
+    unsafeCode: 'MOCK_EDIT_UNSAFE',
+    summary: mock.edits && Array.isArray(mock.edits)
+      ? `mock applied ${mock.edits.length} edit(s) to ${(mock.edits || []).map((e) => e.path).join(', ')}`
+      : undefined,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// OpenRouter engine (async, fetch-based)
+// ---------------------------------------------------------------------------
+
+const HERMES_SYSTEM_PROMPT = [
+  'You are Hermes, an autonomous code-editing agent for cortex-x projects.',
+  '',
+  'You receive a single action item from cortex/recommendations.md. Your job',
+  'is to produce a JSON edit-plan in this EXACT shape:',
+  '',
+  '  {"edits": [{"path": "<relative-to-repo-root>", "content": "<full file content>"}, ...]}',
+  '',
+  'Rules:',
+  '- Output ONLY the JSON object. No markdown fences, no commentary.',
+  '- Each edit MUST replace the file completely. No partial diffs, no patch syntax.',
+  '- Paths MUST be relative to repo root. No absolute paths, no ".." traversal.',
+  '- Do NOT touch files under standards/, prompts/, profiles/, agents/, or top-level',
+  '  CLAUDE.md / README.md / module.yaml — these are human_only per config/evolve.yaml.',
+  '- Do NOT add npm dependencies. cortex-x is zero-deps (single dev-dep `c8`).',
+  '- Make the smallest change that satisfies the action. If unsure, prefer fewer edits.',
+  '- The action body is your primary spec. Read it carefully.',
+].join('\n');
+
+function buildUserPrompt(plan, opts = {}) {
+  const repoRoot = opts.repoRoot || process.cwd();
+  const lines = [
+    `# Action ${plan.action.num}: ${plan.action.title}`,
+    '',
+    plan.action.body || '',
+    '',
+  ];
+
+  if (plan.action.citations) {
+    lines.push('## Citations');
+    if (plan.action.citations.audit) lines.push(`- audit: ${plan.action.citations.audit}`);
+    if (plan.action.citations.src) lines.push(`- src: ${plan.action.citations.src}`);
+    lines.push('');
+  }
+
+  // Best-effort: include CLAUDE.md if present (project context)
+  try {
+    const claudeMd = fs.readFileSync(path.join(repoRoot, 'CLAUDE.md'), 'utf8');
+    lines.push('## Project context (CLAUDE.md)');
+    lines.push('');
+    // Cap to avoid blowing token budget — first ~2000 chars is usually enough
+    lines.push(claudeMd.length > 4000 ? claudeMd.slice(0, 4000) + '\n…[truncated]' : claudeMd);
+    lines.push('');
+  } catch {
+    // CLAUDE.md missing — proceed without
+  }
+
+  lines.push('Output the edit-plan JSON now.');
+  return lines.join('\n');
+}
+
+async function openrouterEngine(plan, opts = {}) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
     return {
       ok: false,
-      code: 'MOCK_NO_EDITS',
-      error: 'HERMES_MOCK_PLAN.edits must be a non-empty array',
+      code: 'OPENROUTER_KEY_MISSING',
+      error: 'OPENROUTER_API_KEY env var is required for the openrouter engine',
     };
   }
 
-  const touched = [];
-  for (const edit of mock.edits) {
-    if (!edit.path || typeof edit.content !== 'string') {
-      return {
-        ok: false,
-        code: 'MOCK_EDIT_INVALID',
-        error: `mock edit missing required fields: ${JSON.stringify(edit)}`,
-        touchedFiles: touched,
-      };
-    }
-    // Defense: forbid absolute paths + path traversal
-    if (path.isAbsolute(edit.path) || edit.path.includes('..')) {
-      return {
-        ok: false,
-        code: 'MOCK_EDIT_UNSAFE',
-        error: `mock edit path must be relative + traversal-free: ${edit.path}`,
-        touchedFiles: touched,
-      };
-    }
-
-    const fullPath = path.join(repoRoot, edit.path);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, edit.content, 'utf8');
-    touched.push(edit.path);
+  // Allow tests to inject a fetch fake; default is global fetch (Node ≥18)
+  const fetchImpl = opts.fetch || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') {
+    return {
+      ok: false,
+      code: 'NO_FETCH',
+      error: 'fetch() is not available; Node ≥18 required',
+    };
   }
 
+  const model = opts.model || process.env.HERMES_MODEL || DEFAULT_MODEL;
+  const endpoint = opts.endpoint || OPENROUTER_ENDPOINT;
+  const timeoutMs = opts.timeoutMs || OPENROUTER_TIMEOUT_MS;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  let resp;
+  try {
+    resp = await fetchImpl(endpoint, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://github.com/Rejnyx/cortex-x',
+        'X-Title': 'cortex-x Hermes',
+      },
+      body: JSON.stringify({
+        model,
+        response_format: { type: 'json_object' },
+        max_tokens: opts.maxTokens || 4096,
+        messages: [
+          { role: 'system', content: HERMES_SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(plan, opts) },
+        ],
+      }),
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      return { ok: false, code: 'OPENROUTER_TIMEOUT', error: `OpenRouter request timed out after ${timeoutMs}ms` };
+    }
+    return { ok: false, code: 'OPENROUTER_NETWORK_ERROR', error: err.message };
+  }
+  clearTimeout(timer);
+
+  if (!resp.ok) {
+    let body = '';
+    try { body = await resp.text(); } catch { /* ignore */ }
+    return {
+      ok: false,
+      code: 'OPENROUTER_HTTP_ERROR',
+      error: `OpenRouter returned ${resp.status}: ${body.slice(0, 500)}`,
+      httpStatus: resp.status,
+    };
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    return { ok: false, code: 'OPENROUTER_RESPONSE_NOT_JSON', error: err.message };
+  }
+
+  const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!content) {
+    return { ok: false, code: 'OPENROUTER_EMPTY_RESPONSE', error: 'OpenRouter response did not contain message content' };
+  }
+
+  let editPlan;
+  try {
+    editPlan = JSON.parse(content);
+  } catch (err) {
+    return {
+      ok: false,
+      code: 'OPENROUTER_PLAN_NOT_JSON',
+      error: `LLM did not return valid JSON: ${err.message}`,
+      raw_preview: content.slice(0, 200),
+    };
+  }
+
+  const usage = data.usage || {};
+  const applyResult = applyEditsToFilesystem(editPlan.edits, {
+    repoRoot: opts.repoRoot,
+    emptyCode: 'OPENROUTER_NO_EDITS',
+    invalidCode: 'OPENROUTER_EDIT_INVALID',
+    unsafeCode: 'OPENROUTER_EDIT_UNSAFE',
+    summary: `openrouter (${model}) applied ${(editPlan.edits || []).length} edit(s)`,
+  });
+
+  if (!applyResult.ok) return { ...applyResult, model };
+
   return {
-    ok: true,
-    touchedFiles: touched,
-    summary: `mock applied ${touched.length} edit(s) to ${touched.join(', ')}`,
+    ...applyResult,
+    model,
+    cost_usd: typeof usage.cost === 'number' ? usage.cost : null,
+    tokens_in: usage.prompt_tokens,
+    tokens_out: usage.completion_tokens,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Claude SDK engine (v0.5b — NOT YET IMPLEMENTED)
+// Claude SDK engine (alternative to openrouter — NOT YET IMPLEMENTED)
 // ---------------------------------------------------------------------------
 
 function claudeSdkEngine(_plan, _opts = {}) {
   return {
     ok: false,
     code: 'CLAUDE_SDK_NOT_IMPLEMENTED',
-    error: 'Claude Agent SDK engine is the v0.5b milestone — pending Dave\'s zero-deps decision',
+    error: 'Direct Claude Agent SDK is an alternative path; OpenRouter is the preferred v0.5b engine. See docs/hermes-runtime.md § 4.5.',
     next_steps: [
-      'npm install @anthropic-ai/claude-agent-sdk',
-      'Replace this stub with: const { Agent } = require("@anthropic-ai/claude-agent-sdk")',
-      'Wire plan.action.body → agent.run() with project CLAUDE.md + edit tool',
-      'Return { ok, touchedFiles, summary } per the engine contract',
+      'For Claude SDK path: npm install @anthropic-ai/claude-agent-sdk + replace this stub',
+      'For OpenRouter path: set OPENROUTER_API_KEY + use --engine=openrouter',
     ],
   };
 }
 
 // ---------------------------------------------------------------------------
-// Engine selection
+// Engine selection + applyAction (async)
 // ---------------------------------------------------------------------------
 
 const ENGINES = {
   mock: mockEngine,
+  openrouter: openrouterEngine,
   'claude-sdk': claudeSdkEngine,
 };
 
-// Default engine: claude-sdk (will fail until v0.5b lands).
-// Override via opts.engine ('mock' | 'claude-sdk') or env var HERMES_ENGINE.
 function selectEngine(opts = {}) {
-  const name = opts.engine || process.env.HERMES_ENGINE || 'claude-sdk';
+  const name = opts.engine || process.env.HERMES_ENGINE || 'openrouter';
   const engine = ENGINES[name];
   if (!engine) {
     return {
       name,
-      apply: () => ({
+      apply: async () => ({
         ok: false,
         code: 'UNKNOWN_ENGINE',
         error: `unknown action engine: ${name}; available: ${Object.keys(ENGINES).join(', ')}`,
@@ -146,16 +331,22 @@ function selectEngine(opts = {}) {
   return { name, apply: engine };
 }
 
-function applyAction(plan, opts = {}) {
+async function applyAction(plan, opts = {}) {
   const { name, apply } = selectEngine(opts);
-  const result = apply(plan, opts);
+  const result = await Promise.resolve(apply(plan, opts));
   return { ...result, engine: name };
 }
 
 module.exports = {
   applyAction,
   selectEngine,
+  applyEditsToFilesystem,
   mockEngine,
+  openrouterEngine,
   claudeSdkEngine,
+  buildUserPrompt,
+  HERMES_SYSTEM_PROMPT,
+  OPENROUTER_ENDPOINT,
+  DEFAULT_MODEL,
   ENGINES,
 };

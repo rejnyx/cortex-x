@@ -101,7 +101,7 @@ function getCleanTreeIgnoringHermes(repoRoot) {
   };
 }
 
-function runExecute(opts = {}) {
+async function runExecute(opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
   const engine = opts.engine || process.env.HERMES_ENGINE;
   const skipVerify = opts.skipVerify === true;
@@ -193,8 +193,8 @@ function runExecute(opts = {}) {
       return { ok: false, code: 'CHECKOUT_FAILED', error: checkout.stderr || checkout.error || 'unknown checkout error' };
     }
 
-    // Phase 6 — Apply action
-    const applyResult = actionEngine.applyAction(plan, { repoRoot, engine });
+    // Phase 6 — Apply action (async — engines may make network calls)
+    const applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
 
     if (!applyResult.ok) {
       // Rollback to original branch + delete the dead branch
@@ -303,8 +303,8 @@ function runExecute(opts = {}) {
       };
     }
 
-    // Phase 10 — Journal success
-    safeJournal(slug, {
+    // Phase 10 — Journal success (capture cost/tokens if engine reported them)
+    const successEntry = {
       ts: new Date().toISOString(),
       trigger: plan.trigger || 'manual',
       tier: 'T0',
@@ -314,7 +314,11 @@ function runExecute(opts = {}) {
       action_key: plan.action.action_key,
       action_id: plan.action_id,
       branch: plan.branch,
-    });
+    };
+    if (typeof applyResult.cost_usd === 'number') successEntry.cost_usd = applyResult.cost_usd;
+    if (typeof applyResult.tokens_in === 'number') successEntry.tokens_in = applyResult.tokens_in;
+    if (typeof applyResult.tokens_out === 'number') successEntry.tokens_out = applyResult.tokens_out;
+    safeJournal(slug, successEntry);
 
     return {
       ok: true,
@@ -327,6 +331,10 @@ function runExecute(opts = {}) {
       touched_files: touchedFiles,
       verifier: verifyResult ? verifier.summarizeResult(verifyResult) : 'skipped',
       engine: applyResult.engine,
+      cost_usd: applyResult.cost_usd,
+      tokens_in: applyResult.tokens_in,
+      tokens_out: applyResult.tokens_out,
+      model: applyResult.model,
     };
   } finally {
     lock.releaseLock(lockHandle);
@@ -375,12 +383,21 @@ if (require.main === module) {
   const planFile = flagValue('plan-file');
   const engine = flagValue('engine');
 
-  const result = runExecute({
-    planFile,
-    repoRoot: flagValue('repo-root'),
-    engine,
-    skipVerify,
+  // CLI is async because runExecute now awaits the action engine
+  (async () => {
+    const result = await runExecute({
+      planFile,
+      repoRoot: flagValue('repo-root'),
+      engine,
+      skipVerify,
+    });
+    return result;
+  })().then(handleResult).catch((err) => {
+    process.stderr.write(`Hermes execute crashed: ${err.message}\n`);
+    process.exit(1);
   });
+
+  function handleResult(result) {
 
   if (result.halted) {
     if (!quiet) process.stderr.write(`HALTED: ${result.reason}\n`);
@@ -407,7 +424,8 @@ if (require.main === module) {
     }
   }
 
-  if (result.ok) process.exit(0);
-  if (result.exitCode) process.exit(result.exitCode);
-  process.exit(1);
+    if (result.ok) process.exit(0);
+    if (result.exitCode) process.exit(result.exitCode);
+    process.exit(1);
+  }
 }

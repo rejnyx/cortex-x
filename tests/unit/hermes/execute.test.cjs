@@ -56,14 +56,14 @@ function buildPlan(overrides = {}) {
   };
 }
 
-function withEnv(env, fn) {
+async function withEnv(env, fn) {
   const prev = {};
   for (const k of Object.keys(env)) {
     prev[k] = process.env[k];
     if (env[k] === undefined) delete process.env[k];
     else process.env[k] = env[k];
   }
-  try { return fn(); } finally {
+  try { return await fn(); } finally {
     for (const k of Object.keys(env)) {
       if (prev[k] === undefined) delete process.env[k];
       else process.env[k] = prev[k];
@@ -74,44 +74,44 @@ function withEnv(env, fn) {
 // --- tests -----------------------------------------------------------------
 
 describe('execute: plan validation', () => {
-  test('missing --plan-file returns MISSING_PLAN_FILE', () => {
-    const result = execute.runExecute({});
+  test('missing --plan-file returns MISSING_PLAN_FILE', async () => {
+    const result = await execute.runExecute({});
     assert.equal(result.ok, false);
     assert.equal(result.code, 'MISSING_PLAN_FILE');
   });
 
-  test('non-existent plan file returns PLAN_FILE_NOT_FOUND', () => {
-    const result = execute.runExecute({ planFile: '/does/not/exist.json' });
+  test('non-existent plan file returns PLAN_FILE_NOT_FOUND', async () => {
+    const result = await execute.runExecute({ planFile: '/does/not/exist.json' });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_FILE_NOT_FOUND');
   });
 
-  test('malformed JSON returns PLAN_PARSE_ERROR', () => {
+  test('malformed JSON returns PLAN_PARSE_ERROR', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bad-plan-'));
     const f = path.join(tmp, 'bad.json');
     fs.writeFileSync(f, '{ not valid json', 'utf8');
-    const result = execute.runExecute({ planFile: f });
+    const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_PARSE_ERROR');
   });
 
-  test('plan missing commit_message returns PLAN_INCOMPLETE', () => {
+  test('plan missing commit_message returns PLAN_INCOMPLETE', async () => {
     const f = tmpPlanFile(buildPlan({ commit_message: undefined }));
-    const result = execute.runExecute({ planFile: f });
+    const result = await execute.runExecute({ planFile: f });
     assert.equal(result.ok, false);
     assert.equal(result.code, 'PLAN_INCOMPLETE');
   });
 });
 
 describe('execute: halt detection', () => {
-  test('HERMES_HALT sentinel halts before plan validation', () => {
+  test('HERMES_HALT sentinel halts before plan validation', async () => {
     const repoRoot = tmpProjectRepo('halt');
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
     fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'halt\n');
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({ CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'halt-data-')) }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    await withEnv({ CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'halt-data-')) }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.halted, true);
       assert.equal(result.exitCode, 75);
@@ -119,37 +119,50 @@ describe('execute: halt detection', () => {
   });
 });
 
-describe('execute: claude-sdk engine (default)', () => {
-  test('returns CLAUDE_SDK_NOT_IMPLEMENTED + exit 64', () => {
-    const repoRoot = tmpProjectRepo('claude-sdk');
+describe('execute: default engine (openrouter, post-Sprint-1.6.13)', () => {
+  test('without OPENROUTER_API_KEY returns OPENROUTER_KEY_MISSING + rolls back', async () => {
+    const repoRoot = tmpProjectRepo('openrouter-default');
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
-      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'sdk-data-')),
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'or-data-')),
       HERMES_ENGINE: undefined,
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+      OPENROUTER_API_KEY: undefined,
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'OPENROUTER_KEY_MISSING');
+      assert.equal(result.engine, 'openrouter');
+    });
+  });
+
+  test('claude-sdk engine still reachable via explicit flag', async () => {
+    const repoRoot = tmpProjectRepo('claude-sdk-explicit');
+    const planFile = tmpPlanFile(buildPlan());
+
+    await withEnv({
+      CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'sdk-data-')),
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot, engine: 'claude-sdk' });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'CLAUDE_SDK_NOT_IMPLEMENTED');
-      assert.equal(result.exitCode, 64);
-      assert.ok(Array.isArray(result.next_steps));
     });
   });
 });
 
 describe('execute: mock engine — happy path', () => {
-  test('mock engine applies edit + commits + journals success', () => {
+  test('mock engine applies edit + commits + journals success', async () => {
     const repoRoot = tmpProjectRepo('happy');
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'happy-data-')),
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'src/added.js', content: 'module.exports = "hermes";' }],
       }),
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
 
       assert.equal(result.ok, true, `unexpected failure: ${JSON.stringify(result)}`);
       assert.equal(result.engine, 'mock');
@@ -174,23 +187,23 @@ describe('execute: mock engine — happy path', () => {
 });
 
 describe('execute: mock engine — error paths', () => {
-  test('dirty working tree blocks execute', () => {
+  test('dirty working tree blocks execute', async () => {
     const repoRoot = tmpProjectRepo('dirty');
     fs.writeFileSync(path.join(repoRoot, 'README.md'), '# modified\n'); // dirty
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'dirty-data-')),
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'DIRTY_TREE');
     });
   });
 
-  test('verify failure rolls back + journals failure', () => {
+  test('verify failure rolls back + journals failure', async () => {
     const repoRoot = tmpProjectRepo('verify-fail');
     // Make npm test fail
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
@@ -201,12 +214,12 @@ describe('execute: mock engine — error paths', () => {
 
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-data-')),
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'VERIFY_FAILED');
 
@@ -221,16 +234,16 @@ describe('execute: mock engine — error paths', () => {
     });
   });
 
-  test('mock engine without HERMES_MOCK_PLAN env returns MOCK_NOT_SET + rolls back', () => {
+  test('mock engine without HERMES_MOCK_PLAN env returns MOCK_NOT_SET + rolls back', async () => {
     const repoRoot = tmpProjectRepo('mock-not-set');
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'mns-data-')),
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: undefined,
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'MOCK_NOT_SET');
 
@@ -241,15 +254,15 @@ describe('execute: mock engine — error paths', () => {
     });
   });
 
-  test('non-git directory returns NOT_GIT_REPO', () => {
+  test('non-git directory returns NOT_GIT_REPO', async () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'not-git-'));
     fs.writeFileSync(path.join(repoRoot, 'package.json'), '{}');
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'ng-data-')),
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'NOT_GIT_REPO');
     });
@@ -257,7 +270,7 @@ describe('execute: mock engine — error paths', () => {
 });
 
 describe('execute: lock semantics', () => {
-  test('lock collision returns LOCK_HELD without committing', () => {
+  test('lock collision returns LOCK_HELD without committing', async () => {
     const repoRoot = tmpProjectRepo('lock');
     const lockDir = path.join(repoRoot, 'cortex', 'journal', SLUG);
     fs.mkdirSync(lockDir, { recursive: true });
@@ -268,12 +281,12 @@ describe('execute: lock semantics', () => {
 
     const planFile = tmpPlanFile(buildPlan());
 
-    withEnv({
+    await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'lock-data-')),
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
-    }, () => {
-      const result = execute.runExecute({ planFile, repoRoot });
+    }, async () => {
+      const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
       assert.equal(result.code, 'LOCK_HELD');
       assert.equal(result.heldBy.action_id, 'other');
@@ -282,7 +295,7 @@ describe('execute: lock semantics', () => {
 });
 
 describe('execute: CLI', () => {
-  test('CLI --help exits 0 with usage', () => {
+  test('CLI --help exits 0 with usage', async () => {
     const result = spawnSync(process.execPath, [CLI, '--help'], {
       encoding: 'utf8', timeout: 5000,
     });
@@ -292,7 +305,7 @@ describe('execute: CLI', () => {
     assert.match(result.stdout, /--engine/);
   });
 
-  test('CLI without --plan-file exits 1', () => {
+  test('CLI without --plan-file exits 1', async () => {
     const result = spawnSync(process.execPath, [CLI, '--json'], {
       encoding: 'utf8', timeout: 5000,
     });
@@ -301,7 +314,7 @@ describe('execute: CLI', () => {
     assert.equal(parsed.code, 'MISSING_PLAN_FILE');
   });
 
-  test('CLI with mock engine + valid plan exits 0', () => {
+  test('CLI with mock engine + valid plan exits 0', async () => {
     const repoRoot = tmpProjectRepo('cli-happy');
     const planFile = tmpPlanFile(buildPlan());
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-data-'));
