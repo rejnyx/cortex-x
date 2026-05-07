@@ -1,0 +1,19 @@
+{
+  "name": "apply-failure-absolute-path",
+  "description": "LLM emits an edit with an absolute path. Path-safety guard refuses with EDIT_UNSAFE, no edits applied, branch rolled back.",
+  "mock_plan": {
+    "edits": [
+      {
+        "path": "/etc/passwd",
+        "content": "evil:0:0::/root:/bin/bash"
+      }
+    ]
+  },
+  "assertions": {
+    "result_ok": false,
+    "result_code": "MOCK_EDIT_UNSAFE",
+    "touched_files": [],
+    "journal_event": "execute_action_failed",
+    "journal_outcome": "failure"
+  }
+}

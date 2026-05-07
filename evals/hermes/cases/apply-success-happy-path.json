@@ -1,0 +1,32 @@
+{
+  "name": "apply-success-happy-path",
+  "description": "Action edits a single file. LLM emits valid bare JSON. Pipeline produces success + atomic commit + journal entry with cost.",
+  "plan_overrides": {
+    "action": {
+      "num": 1,
+      "title": "Add a comment to README",
+      "action_key": "hermes-dryrun#week-1"
+    }
+  },
+  "mock_plan": {
+    "edits": [
+      {
+        "path": "README.md",
+        "content": "# Project\n\n<!-- Updated by Hermes eval case -->\n"
+      }
+    ],
+    "usage": {
+      "cost_usd": 0.0008,
+      "tokens_in": 1500,
+      "tokens_out": 80
+    }
+  },
+  "assertions": {
+    "result_ok": true,
+    "result_code": null,
+    "touched_files": ["README.md"],
+    "journal_event": "action_completed",
+    "journal_outcome": "success",
+    "cost_captured": true
+  }
+}
