@@ -347,6 +347,34 @@ Decision deadline: before Sprint 4.0 (capability marketplace) or v0.1.0 public t
 
 ---
 
+### Sprint 4.8 — BIOS-style health dashboard (M effort, ergonomic upgrade)
+
+**Status**: idea logged 2026-05-09. Pitched by operator: "udělat něco jako health dashboard s UI ... něco jako když existuje BIOS a je k němu grafický přístup ovládání, tak něco takového pro Cortex."
+
+**Why now (in Tier 3, not earlier)**: Hermes has 9-kind palette + journal + lessons + cost ledger + halt + (1.9) spec_failures + (2.1) autoresearch signals + (2.2) judge verdicts + (2.3) mutation scores. CLI `cortex-hermes status` is server-grade access. Dashboard is the ergonomic-grade surface — like UEFI is over a motherboard. **Building before Tier 1+2 schemas stabilize = rework.** Wait until 1.9 / 2.1 / 2.2 / 2.3 ship.
+
+**Scope (v1)**:
+- **Local-first.** Next.js dev server `localhost:3737`, reads filesystem only, no backend.
+- **Sibling repo** `cortex-dashboard` — not a folder in cortex-x. Scaffolded by cortex-x's own profile system (new profile `cortex-dashboard`).
+- **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `HERMES_DAILY_USD_CAP`; halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
+- **v2 control**: halt button (writes `.cortex/HERMES_HALT` with reason), lesson edit/dismiss.
+
+**Architecture**:
+- Reads documented contracts: journal entry shape, lessons.jsonl shape, `cortex-hermes status --json`, `gh run list --json`.
+- Zero database. Filesystem IS the database. Defends "cortex-x stays zero-deps" — dashboard is sibling project with its own deps.
+- **Tier 4 evolution**: when Sprint 5.0 awakens cortex-x on home NAS, dashboard becomes always-on UI. Add WebSocket for live cron progress, voice-issue widget (post-Sprint 4.3), federated multi-project view (post-Sprint 4.5).
+
+**Acceptance criteria**:
+- [ ] `cortex-dashboard` repo scaffolded via cortex-x init flow.
+- [ ] Reads `cortex/journal/*.jsonl` from a configured cortex-x repo path.
+- [ ] Renders 5 panels: journal timeline, spec failures, cost ledger, lessons, halt status.
+- [ ] CLI parity check: every field shown in `cortex-hermes status --json` is reachable via dashboard.
+- [ ] No reverse coupling — cortex-x runtime has zero awareness of dashboard's existence.
+
+**Why sibling, not nested**: UI/UX is operator's domain expertise (17 years graphics). Belongs in its own session, own repo, own iteration cadence. cortex-x stays zero-deps; dashboard is free to use shadcn/Tailwind/whatever fits.
+
+---
+
 ## 5b. Tier 4 — Personal AI entity / Living cortex-x (weeks 21+, ⭐ VISION)
 
 **Status**: vision tier, not commitment. Surfaced 2026-05-09 by Dave (operator) after seeing a "Personal AI Wiki System" diagram (UGREEN NAS + Obsidian Vault + Hermes + multi-agent worker stack). The diagram resonated because cortex-x already has 80% of the components — just running in GHA cron context, not on a home always-on host.
