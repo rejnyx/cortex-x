@@ -1,6 +1,6 @@
 # cortex-x
 
-> **A persistent agent, not just a tool.** AI-agentic-first personal Claude Code framework by **Rejnyx**. Bootstrap new projects with agentic-ready architecture, senior-level orchestration, safety, and standards in under 3 minutes — then let Hermes maintain them autonomously, every night, forever.
+> **A persistent agent, not just a tool.** AI-agentic-first personal Claude Code framework by **Rejnyx**. Bootstrap new projects with agentic-ready architecture, senior-level orchestration, safety, and standards in under 3 minutes — then let Steward maintain them autonomously, every night, forever.
 
 ## 🧠 Mission
 
@@ -9,10 +9,10 @@ cortex-x is on a trajectory from "framework that scaffolds projects" to **persis
 Every sprint moves us toward one of three north-star metrics:
 
 1. **Verification fidelity** — % of agent edits that don't introduce regressions undetected by `npm test`.
-2. **Throughput per operator-hour** — net useful PRs Hermes opens per hour of operator review time.
+2. **Throughput per operator-hour** — net useful PRs Steward opens per hour of operator review time.
 3. **Self-evolution rate** — # of new capabilities/skills/strategies the agent itself contributes per week.
 
-Roadmap: [`docs/hermes-roadmap.md`](./docs/hermes-roadmap.md) (Tier 1 Foundation → Tier 2 Compound learners → Tier 3 Productization → Tier 4 Personal AI entity).
+Roadmap: [`docs/steward-roadmap.md`](./docs/steward-roadmap.md) (Tier 1 Foundation → Tier 2 Compound learners → Tier 3 Productization → Tier 4 Personal AI entity).
 
 ## 🧠 Positioning (2026)
 
@@ -34,17 +34,17 @@ Opens a new empty project folder → one command → you get:
 - Principles injected: **SSOT, Modular, Scalable, Security**
 - Optional: web research of 2026 best practices for your use case
 
-## Two AI surfaces — Claude Code by day, Hermes by night
+## Two AI surfaces — Claude Code by day, Steward by night
 
 cortex-x runs on **two AI surfaces** that share the same project memory.
 
 **Claude Code (interactive).** Your IDE-side AI partner — drives feature work, code review, refactors. Reads cortex-x hooks · skills · agents · standards from `~/.claude/`. Use it dev-time.
 
-**Hermes (autonomous nightly).** Your AI nightly autopilot. Drop a `cortex/recommendations.md` in your repo. Hermes reads it overnight, runs the LLM (~$0.0008/run), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject.
+**Steward (autonomous nightly).** Your AI nightly autopilot. Drop a `cortex/recommendations.md` in your repo. Steward reads it overnight, runs the LLM (~$0.0008/run), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject. (Steward shipped under the codename **Hermes** through Sprint 1.9.1; renamed in Sprint 4.7 to clear the 139k-star NousResearch/hermes-agent collision before public launch.)
 
-> **Safety primitives baked in.** Every Hermes run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/HERMES_HALT` stops it immediately · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
+> **Safety primitives baked in.** Every Steward run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/STEWARD_HALT` stops it immediately (legacy `HERMES_HALT` honored through v0.2.0) · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
 
-See [docs/hermes-usage.md](./docs/hermes-usage.md) to activate Hermes for your repo.
+See [docs/steward-usage.md](./docs/steward-usage.md) to activate Steward for your repo.
 
 ## Core Mental Model — SSOT respected
 
@@ -324,30 +324,30 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 
 **Phase 4 — Web research** ✅ shipped — `prompts/new-project.md` Phase 5 dispatches 3-5 parallel research agents, `research-protocol.md` defines the contract, results cached at `$CORTEX_DATA_HOME/research/<slug>-<date>.md`
 
-**Phase 5 — Self-improvement loop** ✅ Designed + specs (v1 — 2026-04-17) · ⏳ Automated runtime via Phase 7 (Hermes)
+**Phase 5 — Self-improvement loop** ✅ Designed + specs (v1 — 2026-04-17) · ⏳ Automated runtime via Phase 7 (Steward)
 - 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit) — **specified in `config/evolve.yaml`, not yet cron-wired**
 - Hard anti-hallucination gates (min_support=3, ≥2 projects, >7d spread, Bonferroni, citations required) — enforced when `cortex-evolve` prompt is manually invoked
 - Aider-style eval suite (10 canonical task rubrics in `evals/`, `evals/results/` empty pending first automated run)
 - PR-only mutations (framework never auto-edits its own source of truth) — discipline encoded, no automated PR pipeline yet
-- Meta-loop: every 30 insights → effectiveness review → threshold tuning — designed, awaits Hermes
+- Meta-loop: every 30 insights → effectiveness review → threshold tuning — designed, awaits Steward
 
 **Phase 6 — Memory upgrades** ⏳ designed — 6-signal scoring, graph expansion, DREAMS.md consolidation; awaits Phase 7
 
-**Phase 7 — Hermes runtime** ✅ v0.5b shipped 2026-05-07 · ⏳ v1 cron triggers pending
-- ✅ All 5 pre-Hermes RFC gates closed (Tier 4 hook contract + Tier 5 prompt regression + hermes-policy.md + hermes-runtime.md design + fixture)
-- ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` (halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist)
-- ✅ `bin/hermes/dry-run.cjs` orchestrator — reads recommendations.md, picks next action, builds Conventional-Commits-shaped commit message with Git trailers, journals run, releases lock
-- ✅ `bin/hermes/status.cjs` observability CLI — reports halt + lock + recommendations + journal rollup with cost ledger
-- ✅ **`bin/hermes/execute.cjs` (v0.5a)** — async runtime: dry-run plan → branch → engine apply → npm test gate → atomic commit → rollback on failure → journal cost
+**Phase 7 — Steward runtime (originally codenamed Hermes)** ✅ v0.5b shipped 2026-05-07 · ⏳ v1 cron triggers pending
+- ✅ All 5 pre-launch RFC gates closed (Tier 4 hook contract + Tier 5 prompt regression + steward-policy.md + steward-runtime.md design + fixture)
+- ✅ 6 zero-dep CJS primitives in `bin/steward/_lib/` (halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist)
+- ✅ `bin/steward/dry-run.cjs` orchestrator — reads recommendations.md, picks next action, builds Conventional-Commits-shaped commit message with Git trailers, journals run, releases lock
+- ✅ `bin/steward/status.cjs` observability CLI — reports halt + lock + recommendations + journal rollup with cost ledger
+- ✅ **`bin/steward/execute.cjs` (v0.5a)** — async runtime: dry-run plan → branch → engine apply → npm test gate → atomic commit → rollback on failure → journal cost
 - ✅ **OpenRouter engine (v0.5b)** — real LLM via `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout, JSON-mode response_format, default `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable seam: mock / openrouter / claude-sdk.
 - ✅ **First real OpenRouter call validated end-to-end** (Sprint 1.6.13 dogfood): LLM → JSON → edits → test gate → atomic rollback proven safe by reality.
-- ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `HERMES_MAX_TOKENS`, cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
-- ✅ **489 tests** across `tests/unit/hermes/` + `tests/integration/hermes-dryrun.test.cjs`. All 3 CI workflows green.
+- ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `STEWARD_MAX_TOKENS` (legacy `HERMES_MAX_TOKENS` honored), cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
+- ✅ **489 tests** across `tests/unit/steward/` + `tests/integration/steward-dryrun.test.cjs`. All 3 CI workflows green.
 - ⏳ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`HERMES_DAILY_USD_CAP`) + consecutive-failure circuit breaker.
-- ⏳ **v1:** uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
+- ⏳ **v1:** uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
 - ⏳ **v1.5+ hardening:** hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, `<untrusted>` delimiters, denylist expansion, eval suite + property tests + stateful simulation.
 
-See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [standards/hermes-policy.md](./standards/hermes-policy.md).
+See [docs/steward-rfc.md](./docs/steward-rfc.md), [docs/steward-runtime.md](./docs/steward-runtime.md), [standards/steward-policy.md](./standards/steward-policy.md).
 
 ## License
 

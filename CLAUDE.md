@@ -1,6 +1,6 @@
 # cortex-x — Persistent agent, not just a tool
 
-> **AI-agentic-first** personal Claude Code framework by Rejnyx. Today: bootstraps new projects with agentic-ready architecture + senior-level orchestration + safety + standards in under 3 minutes, plus an autonomous maintenance agent (Hermes) that runs nightly. Future: persistent autonomous entity living on operator's home infrastructure, curating knowledge + code + life across years. **See [docs/hermes-roadmap.md](./docs/hermes-roadmap.md) for the four-tier trajectory.**
+> **AI-agentic-first** personal Claude Code framework by Rejnyx. Today: bootstraps new projects with agentic-ready architecture + senior-level orchestration + safety + standards in under 3 minutes, plus an autonomous maintenance agent (**Steward**, codenamed Hermes through Sprint 1.9.1) that runs nightly. Future: persistent autonomous entity living on operator's home infrastructure, curating knowledge + code + life across years. **See [docs/steward-roadmap.md](./docs/steward-roadmap.md) for the four-tier trajectory.**
 
 ## Core trajectory
 
@@ -14,7 +14,7 @@ cortex-x is moving in 4 tiers from "excellent dev tool" to "operator's second br
 | 3 — Productization | ⏳ Sprint 4.0–4.7 | Capability marketplace, WaaS for clients, voice → recommendation, identity LoRA |
 | 4 — Persistent entity | 🔮 Sprint 5.0+ | Self-hosted home server, soul abstraction, Obsidian SSOT, multi-source life ingest |
 
-Operating principles (R1–R6) are non-negotiable per sprint: research-before-implement, review pipeline mandatory, one incident class = one defense layer + one regression test, cost ceiling preserved, human-only paths inviolate, backward-compatible by default. See [`docs/hermes-roadmap.md`](./docs/hermes-roadmap.md) §1.
+Operating principles (R1–R6) are non-negotiable per sprint: research-before-implement, review pipeline mandatory, one incident class = one defense layer + one regression test, cost ceiling preserved, human-only paths inviolate, backward-compatible by default. See [`docs/steward-roadmap.md`](./docs/steward-roadmap.md) §1.
 
 ## Core positioning (2026)
 
@@ -124,7 +124,7 @@ CI lanes (every PR + push to main):
 - **`.github/workflows/install-smoke.yml`** — 5-lane matrix: ubuntu-bash, macos-bash, windows-gitbash, windows-pwsh7, windows-ps5.1
 - **`.github/workflows/no-pii.yml`** — PII scanner (pre-existing)
 
-The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are HARD gates before Hermes runtime; Tier 6-8 gate public launch) is documented in [tests/README.md](./tests/README.md) § Tier mapping.
+The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are HARD gates before Steward runtime; Tier 6-8 gate public launch) is documented in [tests/README.md](./tests/README.md) § Tier mapping.
 
 ## Roadmap
 
@@ -134,7 +134,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20
 - Rule 2 Security extensions: § Agentic Security (lethal trifecta, 7 MUST patterns) + § **Browser Automation Security** (3 browser-specific MUSTs) — added 2026-04-20
 - Rule 2 Observability extension: § Runtime SLOs + circuit breakers + LLM obs — added 2026-04-20
-- Rule 3 **Skills** standard — agentskills.io SKILL.md open spec (portable Claude Code ↔ Hermes ↔ Codex ↔ Cursor) — added 2026-04-20
+- Rule 3 **Skills** standard — agentskills.io SKILL.md open spec (portable Claude Code ↔ Steward ↔ Codex ↔ Cursor) — added 2026-04-20
 - **`detectors/`** (NEW 2026-04-20) — deterministic profile + stage classifiers, <100ms, fail-open, feed session-start hook + cortex-doctor drift flow
 - **ai-patterns safe-tool v2** — adds loop detector + circuit breaker + per-tool retry budget (OWASP LLM10 defense) — 2026-04-20
 - Profiles: nextjs-saas + minimal fallback + `ai-agent` (7 MUST agentic-security + skills + tirith hook) + **`browser-agent`** (extends ai-agent with 3 browser MUSTs)
@@ -167,23 +167,23 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
 
-**Phase 7 — Hermes runtime** ✅ v0.5b shipped (2026-05-07) · ⏳ v1 cron triggers pending
-- ✅ All 5 pre-Hermes RFC gates closed
-- ✅ 6 zero-dep CJS primitives in `bin/hermes/_lib/` — halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist
-- ✅ `bin/hermes/dry-run.cjs` orchestrator — wires every primitive end-to-end with structured plan output (branch name, commit message with trailers, journal entry)
-- ✅ `bin/hermes/status.cjs` observability CLI — halt + lock + recommendations + journal rollup with per-action cost ledger
-- ✅ **`bin/hermes/execute.cjs` (v0.5a Sprint 1.6.11)** — async runtime taking dry-run plan to atomic commit, with verifier gate + rollback + per-phase journaling + lock mutex
+**Phase 7 — Steward runtime (originally codenamed Hermes)** ✅ v0.5b shipped (2026-05-07) · ⏳ v1 cron triggers pending
+- ✅ All 5 pre-launch RFC gates closed
+- ✅ 6 zero-dep CJS primitives in `bin/steward/_lib/` — halt-check, lock, journal, recommendations parser, git-trailer builder, policy denylist
+- ✅ `bin/steward/dry-run.cjs` orchestrator — wires every primitive end-to-end with structured plan output (branch name, commit message with trailers, journal entry)
+- ✅ `bin/steward/status.cjs` observability CLI — halt + lock + recommendations + journal rollup with per-action cost ledger
+- ✅ **`bin/steward/execute.cjs` (v0.5a Sprint 1.6.11)** — async runtime taking dry-run plan to atomic commit, with verifier gate + rollback + per-phase journaling + lock mutex
 - ✅ **OpenRouter engine (v0.5b Sprint 1.6.13)** — real LLM via built-in `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout via AbortController, JSON-mode `response_format`, default model `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable engine seam: `mock` / `openrouter` / `claude-sdk` (stub kept reachable via explicit flag).
 - ✅ **First real OpenRouter call validated end-to-end (Sprint 1.6.13 dogfood)** — LLM → JSON → edits → npm test gate → atomic rollback on failure → journal cost capture. Safety mechanika ověřena reálným testem.
 - ✅ **Sprint 1.6.14–1.6.17 hardening from real-world signal**: `HERMES_MAX_TOKENS` env (4096 default truncated multi-file plans), cost capture on all failure paths (`addCostFields` SSOT helper), JSON-fence stripping for Anthropic-via-OpenRouter quirk (`stripJsonFences`), cost forwarding pre-parse via `extractUsage`.
 - ✅ **Sprint 1.6.18 review-pipeline-driven hardening** — 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) on the v0.5b stack surfaced 8 fixes shipped same-day: tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), `data === null` guard, default model SSOT alignment, CLI help text corrections, MIGRATIONS.md backfill.
 - ✅ **Sprint 1.6.19 v0.5b finalization shipped** — `gh pr create --draft` integration in execute.cjs (push + PR open Phase 11), `HERMES_DAILY_USD_CAP` + consecutive-failure circuit breaker (`HERMES_FAILURE_BREAKER`).
-- ✅ **Sprint 1.9.0 spec-driven verification shipped 2026-05-09** — generalizes Sprint 1.8.13 hardcoded `EDIT_DESTRUCTIVE_REWRITE` into per-kind `acceptance_criteria[]` (5 criterion kinds: shell / file_predicate / regex / ears_text / llm_judge), new `bin/hermes/_lib/spec-verifier.cjs` runner gates between `applyAction` and `runNpmTest`. 8 new error codes (SPEC_VIOLATION through SPEC_LLM_JUDGE_NOT_IMPLEMENTED). Inline shrink check removed from action-engine.cjs (single source of truth = registry criterion). 871 tests, all 3 CI lanes green. R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`.
-- ✅ **Sprint 1.9.1 multi-window cost safety + loop detector shipped 2026-05-09** — `bin/hermes/_lib/cost-safety.cjs` adds `HERMES_WEEKLY_USD_CAP` ($25 default), `HERMES_MONTHLY_USD_CAP` ($80), `HERMES_TOKEN_VELOCITY_CAP` (50K/5min), cross-session loop detector (5x same criterion id in 7 days → write `HERMES_HALT`), `cortex-hermes status --forecast` flag. 4 new error codes. Operator-suggested gap analysis after 2026-05-09 audit ("daily $5 × 30 = $150/month would have passed without alarm"). Pre-2.x pojistka before Sprint 2.1 autoresearch.
+- ✅ **Sprint 1.9.0 spec-driven verification shipped 2026-05-09** — generalizes Sprint 1.8.13 hardcoded `EDIT_DESTRUCTIVE_REWRITE` into per-kind `acceptance_criteria[]` (5 criterion kinds: shell / file_predicate / regex / ears_text / llm_judge), new `bin/steward/_lib/spec-verifier.cjs` runner gates between `applyAction` and `runNpmTest`. 8 new error codes (SPEC_VIOLATION through SPEC_LLM_JUDGE_NOT_IMPLEMENTED). Inline shrink check removed from action-engine.cjs (single source of truth = registry criterion). 871 tests, all 3 CI lanes green. R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`.
+- ✅ **Sprint 1.9.1 multi-window cost safety + loop detector shipped 2026-05-09** — `bin/steward/_lib/cost-safety.cjs` adds `HERMES_WEEKLY_USD_CAP` ($25 default), `HERMES_MONTHLY_USD_CAP` ($80), `HERMES_TOKEN_VELOCITY_CAP` (50K/5min), cross-session loop detector (5x same criterion id in 7 days → write `HERMES_HALT`), `cortex-steward status --forecast` flag. 4 new error codes. Operator-suggested gap analysis after 2026-05-09 audit ("daily $5 × 30 = $150/month would have passed without alarm"). Pre-2.x pojistka before Sprint 2.1 autoresearch.
 - ✅ **923 unit + contract + integration tests** across 8 tier gates (Tier 0-7 + 8). All 3 CI workflows green (test / install-smoke / no-pii).
-- ⏳ **v1 cron triggers**: uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
+- ⏳ **v1 cron triggers**: uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
 - ⏳ **v1.5+ hardening backlog (Sprint 1.6.20+ + 1.9.1+)**: hardcode endpoint, extractUsage string coercion + multi-call ensemble shape (RouteLLM blocker), detached HEAD pre-flight, timeoutMs/maxTokens upper-bound clamps, `<untrusted>` delimiters around prompt-injected content, eval suite + property tests + stateful simulation per `standards/correctness.md`. Sprint 1.9.1: `kind: ears_text` runtime semantics, render `spec_failures` block in PR body, EISDIR + symlink hardening in applyEditsToFilesystem.
-- See [docs/hermes-rfc.md](./docs/hermes-rfc.md), [docs/hermes-runtime.md](./docs/hermes-runtime.md), [docs/hermes-usage.md](./docs/hermes-usage.md), [standards/hermes-policy.md](./standards/hermes-policy.md)
+- See [docs/steward-rfc.md](./docs/steward-rfc.md), [docs/steward-runtime.md](./docs/steward-runtime.md), [docs/steward-usage.md](./docs/steward-usage.md), [standards/steward-policy.md](./standards/steward-policy.md)
 
 ## License
 

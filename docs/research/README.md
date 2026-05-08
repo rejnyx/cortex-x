@@ -4,7 +4,7 @@
 
 ## Purpose
 
-`docs/hermes-roadmap.md` Operating Principle **R1** mandates a focused web-research dispatch before every sprint moves from "planned" to "in-progress." Each dispatch produces a structured **decision memo** that lives here.
+`docs/steward-roadmap.md` Operating Principle **R1** mandates a focused web-research dispatch before every sprint moves from "planned" to "in-progress." Each dispatch produces a structured **decision memo** that lives here.
 
 The memo:
 - Captures SOTA-as-of-the-day for the sprint's domain
@@ -93,5 +93,5 @@ sprint-3.1-self-extending-capabilities-2026-XX-XX.md
 
 ## Reference
 
-- [`docs/hermes-roadmap.md`](../hermes-roadmap.md) § 1 Operating Principle R1
-- [`docs/hermes-roadmap.md`](../hermes-roadmap.md) § 7 Per-sprint workflow ritual
+- [`docs/steward-roadmap.md`](../hermes-roadmap.md) § 1 Operating Principle R1
+- [`docs/steward-roadmap.md`](../hermes-roadmap.md) § 7 Per-sprint workflow ritual

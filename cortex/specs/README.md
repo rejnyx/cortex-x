@@ -1,13 +1,13 @@
 # cortex/specs/ — per-action_kind acceptance criteria archive
 
-**Status**: Sprint 1.9.0 shipped 2026-05-09. Active source of truth is **`bin/hermes/_lib/action-kinds.cjs`** — every shipped kind declares its `acceptance_criteria[]` array there directly. This directory now holds the **human-readable archive + extension specs** for kinds that need richer documentation than fits in the registry.
+**Status**: Sprint 1.9.0 shipped 2026-05-09. Active source of truth is **`bin/steward/_lib/action-kinds.cjs`** — every shipped kind declares its `acceptance_criteria[]` array there directly. This directory now holds the **human-readable archive + extension specs** for kinds that need richer documentation than fits in the registry.
 
 ## Authoritative location
 
-`bin/hermes/_lib/action-kinds.cjs` is the single source of truth. Each kind's `acceptance_criteria: [...]` array is loaded at runtime by `bin/hermes/_lib/spec-verifier.cjs` and gated by:
+`bin/steward/_lib/action-kinds.cjs` is the single source of truth. Each kind's `acceptance_criteria: [...]` array is loaded at runtime by `bin/steward/_lib/spec-verifier.cjs` and gated by:
 
 - **Contract test** [`tests/contract/action-kinds-acceptance.test.cjs`](../../tests/contract/action-kinds-acceptance.test.cjs) — every shipped kind declares ≥ 1 criterion; every criterion validates; ids are unique within a kind.
-- **Integration test** [`tests/integration/hermes-spec-verification.test.cjs`](../../tests/integration/hermes-spec-verification.test.cjs) — end-to-end PR #3 / PR #4 reproductions through `execute.cjs`.
+- **Integration test** [`tests/integration/steward-spec-verification.test.cjs`](../../tests/integration/steward-spec-verification.test.cjs) — end-to-end PR #3 / PR #4 reproductions through `execute.cjs`.
 
 If you need to read what criteria fire for a given kind right now, read the registry directly. The R1 decision memo deliberately rejected a parallel YAML schema to avoid two sources of truth diverging.
 
@@ -21,7 +21,7 @@ This directory is reserved for files that *extend* (never duplicate) the registr
 
 ## Schema (criterion shape — quick reference)
 
-The full schema lives in [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) at the top of the file. Quick reference:
+The full schema lives in [`bin/steward/_lib/spec-verifier.cjs`](../../bin/steward/_lib/spec-verifier.cjs) at the top of the file. Quick reference:
 
 ```js
 {
@@ -61,7 +61,7 @@ Inside a predicate string, these helpers are in scope (no `require`, no `process
 | 4 | Optional feature | `WHERE <feature> THE SYSTEM SHALL <response>` |
 | 5 | Unwanted behaviour | `IF <bad cond>, THEN [the system\|<actor>] SHALL <response>` |
 
-`validateCriterion` rejects clauses that don't match one of the five patterns. The runtime regex array lives in `EARS_PATTERNS` at [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) and is the SSOT — this table is narrative documentation kept in sync with that array.
+`validateCriterion` rejects clauses that don't match one of the five patterns. The runtime regex array lives in `EARS_PATTERNS` at [`bin/steward/_lib/spec-verifier.cjs`](../../bin/steward/_lib/spec-verifier.cjs) and is the SSOT — this table is narrative documentation kept in sync with that array.
 
 ## Failure-mode taxonomy
 
@@ -80,8 +80,8 @@ Every spec-verifier failure surfaces as `result.code` from `execute.cjs`:
 
 ## Reference
 
-- [`bin/hermes/_lib/action-kinds.cjs`](../../bin/hermes/_lib/action-kinds.cjs) — registry (authoritative)
-- [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) — runner + validator
+- [`bin/steward/_lib/action-kinds.cjs`](../../bin/steward/_lib/action-kinds.cjs) — registry (authoritative)
+- [`bin/steward/_lib/spec-verifier.cjs`](../../bin/steward/_lib/spec-verifier.cjs) — runner + validator
 - [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](../../docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) — R1 decision memo
 - [`docs/troubleshooting.md`](../../docs/troubleshooting.md) — operator-facing remediation guide
 - [`MIGRATIONS.md`](../../MIGRATIONS.md) § Sprint 1.9.0 — migration notes

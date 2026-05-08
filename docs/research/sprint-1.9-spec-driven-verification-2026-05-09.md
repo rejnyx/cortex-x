@@ -8,10 +8,10 @@ What schema, runner architecture, and failure-mode taxonomy should cortex-x adop
 
 **The verification gap (real, recent).** Two PRs on 2026-05-08 shipped through `npm test` cleanly while destroying real work:
 
-- **PR #3** `docs/hermes-usage.md`: −347 / +32 lines. Action body said "Add a Troubleshooting section." LLM rewrote the file. Tests passed because tests don't validate doc completeness.
+- **PR #3** `docs/steward-usage.md`: −347 / +32 lines. Action body said "Add a Troubleshooting section." LLM rewrote the file. Tests passed because tests don't validate doc completeness.
 - **PR #4** `MIGRATIONS.md`: −609 / +28 lines, plus fabricated Sprint 1.8.0–3 history that never existed. Tests passed.
 
-**Sprint 1.8.13 patch.** Hardcoded content-preservation guardrail in `bin/hermes/_lib/action-engine.cjs:213-232` — refuse if new file < 50% of existing size unless `edit.replace_all=true`. New error code `EDIT_DESTRUCTIVE_REWRITE`. It works (run 25556792186 caught the next destructive attempt). But it is **one rule, hardcoded, applies to every kind identically**. A `dep_update_patch` action shrinking a lockfile is fine; a `doc_drift` patch shrinking README is not. The pattern needs per-kind specs.
+**Sprint 1.8.13 patch.** Hardcoded content-preservation guardrail in `bin/steward/_lib/action-engine.cjs:213-232` — refuse if new file < 50% of existing size unless `edit.replace_all=true`. New error code `EDIT_DESTRUCTIVE_REWRITE`. It works (run 25556792186 caught the next destructive attempt). But it is **one rule, hardcoded, applies to every kind identically**. A `dep_update_patch` action shrinking a lockfile is fine; a `doc_drift` patch shrinking README is not. The pattern needs per-kind specs.
 
 **What `npm test` cannot catch (general taxonomy).**
 
@@ -25,10 +25,10 @@ What schema, runner architecture, and failure-mode taxonomy should cortex-x adop
 
 **Architecture today (from code inspection).**
 
-- `bin/hermes/_lib/action-kinds.cjs` — flat registry. 9 shipped kinds + `release_notes_drafter` parked. Each entry has `description / requires_llm / source / detector / cost_envelope / blast_radius / shipped_in`. **No `acceptance_criteria` field today.**
-- `bin/hermes/_lib/action-engine.cjs` — applies edits with denylist + traversal-guard + Sprint 1.8.13 shrink-guard. **Verification is hardcoded; the engine has no notion of a per-action spec.**
-- `bin/hermes/execute.cjs` — pipeline halt → lock → engine → `runNpmTest` → commit. **`runNpmTest` is the only gate.**
-- `bin/hermes/_lib/lessons.cjs` — ReasoningBank-lite already exists; spec failures are a perfect signal source for it.
+- `bin/steward/_lib/action-kinds.cjs` — flat registry. 9 shipped kinds + `release_notes_drafter` parked. Each entry has `description / requires_llm / source / detector / cost_envelope / blast_radius / shipped_in`. **No `acceptance_criteria` field today.**
+- `bin/steward/_lib/action-engine.cjs` — applies edits with denylist + traversal-guard + Sprint 1.8.13 shrink-guard. **Verification is hardcoded; the engine has no notion of a per-action spec.**
+- `bin/steward/execute.cjs` — pipeline halt → lock → engine → `runNpmTest` → commit. **`runNpmTest` is the only gate.**
+- `bin/steward/_lib/lessons.cjs` — ReasoningBank-lite already exists; spec failures are a perfect signal source for it.
 
 ## Sources Checked
 
@@ -94,7 +94,7 @@ The agent has **6 tools**: file-read, file-write, command-line execution, image-
 
 **Format.** Two layers:
 
-1. **`bin/hermes/_lib/action-kinds.cjs` registry gets a new `acceptance_criteria` field.** Type: array of criterion objects. Each criterion has the shape:
+1. **`bin/steward/_lib/action-kinds.cjs` registry gets a new `acceptance_criteria` field.** Type: array of criterion objects. Each criterion has the shape:
 
 ```js
 {
@@ -114,7 +114,7 @@ The agent has **6 tools**: file-read, file-write, command-line execution, image-
 
 2. **Per-action override.** A `dry-run.cjs` plan can carry `plan.acceptance_criteria` that *adds to* (never weakens) the kind-level array. This lets one specific recommendation say "this is an intentional rewrite" by including `{id: "allow_rewrite", kind: "regex", pattern: ".*", severity: "block"}` overrides — but the registry's defaults are the floor.
 
-3. **New verifier module.** `bin/hermes/_lib/spec-verifier.cjs` runs each criterion sequentially in `execute.cjs`'s pipeline, between the existing `applyAction` step and the existing `runNpmTest` step. **Order matters**: `npm test` is still the strongest objective signal, so it stays terminal. Spec verifier is the *additional* gate that catches the gaps.
+3. **New verifier module.** `bin/steward/_lib/spec-verifier.cjs` runs each criterion sequentially in `execute.cjs`'s pipeline, between the existing `applyAction` step and the existing `runNpmTest` step. **Order matters**: `npm test` is still the strongest objective signal, so it stays terminal. Spec verifier is the *additional* gate that catches the gaps.
 
 4. **Failure surfacing.** A failed criterion writes the criterion `id`, kind, expected/actual to the journal entry's `spec_failures: []` array, propagates a single `SPEC_VIOLATION` exit to `execute.cjs`, triggers atomic rollback exactly like the existing `EDIT_DESTRUCTIVE_REWRITE` path, and feeds `lessons.cjs` so the next run sees "criterion `doc_preservation_50pct` failed for action_key `<slug>#<num>`."
 
@@ -163,19 +163,19 @@ Rationale, ordered:
 ## Implementation Impact
 
 **New files:**
-- `bin/hermes/_lib/spec-verifier.cjs` — runner. ~150 LoC. Iterates `plan.action_kind`'s `acceptance_criteria` + plan-level overrides, executes each by `kind`, returns `{ok, failed_criteria: [{id, expected, actual}]}`.
-- `tests/unit/hermes/spec-verifier.test.js` — happy path + each kind + malformed-spec + override-merging. ~25 tests.
+- `bin/steward/_lib/spec-verifier.cjs` — runner. ~150 LoC. Iterates `plan.action_kind`'s `acceptance_criteria` + plan-level overrides, executes each by `kind`, returns `{ok, failed_criteria: [{id, expected, actual}]}`.
+- `tests/unit/steward/spec-verifier.test.js` — happy path + each kind + malformed-spec + override-merging. ~25 tests.
 - `tests/contract/hermes/action-kinds-acceptance.test.js` — schema invariant: every shipped kind declares ≥ 1 acceptance criterion with non-empty `id` and `kind`. ~6 tests.
 - `tests/integration/hermes/spec-verification.test.js` — execute.cjs end-to-end: PR #3 + PR #4 incident reproductions caught by criteria. ~8 tests.
 
 **Modified files:**
-- `bin/hermes/_lib/action-kinds.cjs` — add `acceptance_criteria: [...]` to all 9 shipped kinds. Each kind authors 1-3 entries.
-- `bin/hermes/_lib/action-engine.cjs` — `EDIT_DESTRUCTIVE_REWRITE` migrates from hardcoded inline check to a default criterion on the `recommendation` kind. Delete lines 211-232. (Keep code path reachable via the criterion runner.)
-- `bin/hermes/execute.cjs` — wire `spec-verifier.runChecks(plan, applyResult)` between `applyAction` and `runNpmTest`. Add `SPEC_VIOLATION` and `SPEC_MALFORMED` to exit-code map.
-- `bin/hermes/_lib/journal.cjs` — accept new `spec_failures: []` field in entry validator.
-- `bin/hermes/_lib/lessons.cjs` — `recordLesson` already accepts `root_cause`; `SPEC_VIOLATION` + criterion `id` becomes the new root cause for spec failures. Existing module unchanged.
-- `bin/hermes/status.cjs` — render `spec_failures` block in CLI rollup.
-- `docs/hermes-runtime.md` + `docs/hermes-usage.md` — document the schema, with the PR #3 / PR #4 case studies.
+- `bin/steward/_lib/action-kinds.cjs` — add `acceptance_criteria: [...]` to all 9 shipped kinds. Each kind authors 1-3 entries.
+- `bin/steward/_lib/action-engine.cjs` — `EDIT_DESTRUCTIVE_REWRITE` migrates from hardcoded inline check to a default criterion on the `recommendation` kind. Delete lines 211-232. (Keep code path reachable via the criterion runner.)
+- `bin/steward/execute.cjs` — wire `spec-verifier.runChecks(plan, applyResult)` between `applyAction` and `runNpmTest`. Add `SPEC_VIOLATION` and `SPEC_MALFORMED` to exit-code map.
+- `bin/steward/_lib/journal.cjs` — accept new `spec_failures: []` field in entry validator.
+- `bin/steward/_lib/lessons.cjs` — `recordLesson` already accepts `root_cause`; `SPEC_VIOLATION` + criterion `id` becomes the new root cause for spec failures. Existing module unchanged.
+- `bin/steward/status.cjs` — render `spec_failures` block in CLI rollup.
+- `docs/steward-runtime.md` + `docs/steward-usage.md` — document the schema, with the PR #3 / PR #4 case studies.
 
 **Test count estimate.** ~40 new tests. Total suite 790 → ~830. Well within "Tier 0–7 + 8" green-CI envelope.
 
@@ -197,11 +197,11 @@ New error codes Sprint 1.9 should add (all bubble up via `result.code` like exis
 ## Acceptance Criteria for the Sprint Itself
 
 - [ ] All 9 shipped `action_kind` entries declare a non-empty `acceptance_criteria` array (contract test).
-- [ ] `bin/hermes/_lib/spec-verifier.cjs` ships with `kind: "shell" | "file_predicate" | "regex"` runners; `ears_text` validates structure but is no-op at runtime; `llm_judge` throws `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`.
+- [ ] `bin/steward/_lib/spec-verifier.cjs` ships with `kind: "shell" | "file_predicate" | "regex"` runners; `ears_text` validates structure but is no-op at runtime; `llm_judge` throws `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`.
 - [ ] PR #3 reproduction (mock plan: 347-line file → 32-line replacement) is rejected by spec-verifier with `SPEC_VIOLATION` and criterion `id: "no_destructive_rewrite"` in the journal.
 - [ ] PR #4 reproduction (mock plan: 609-line MIGRATIONS.md → 28-line + fabricated content) is rejected by either size criterion or a new regex criterion `sprint_history_preserved` that requires `/^Sprint 1\.[78]\./m` to match in `MIGRATIONS.md` post-edit.
 - [ ] Hardcoded shrink check is **removed** from `action-engine.cjs`; only the registry-declared criterion enforces it (no parallel rule sources). Verified by deleting the inline check and running existing 1.8.13 tests against the new path.
-- [ ] `cortex-hermes status` renders `spec_failures: [...]` block in JSON + human modes.
+- [ ] `cortex-steward status` renders `spec_failures: [...]` block in JSON + human modes.
 - [ ] Lessons.cjs records `root_cause: "SPEC_VIOLATION:<criterion_id>"` for blocked runs.
 - [ ] `npm test` green at 830 ± 10 tests across all 3 CI lanes (test, install-smoke, no-pii).
 - [ ] Dogfood: at least one real cron run on cortex-x demonstrates either (a) clean spec pass, or (b) caught spec violation rolled back + lesson recorded.

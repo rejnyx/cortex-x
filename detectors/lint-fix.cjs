@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // lint-fix.cjs — Sprint 1.8.9 ESLint --fix + tsc --noEmit detector.
 //
-// Capability #8 from the Hermes evolution roadmap. Deterministic happy path:
+// Capability #8 from the Steward evolution roadmap. Deterministic happy path:
 //   1. Run `npx eslint --fix .` (if eslint present) — auto-fixes formatting,
 //      simple style violations, unused-import removal, etc.
 //   2. Run `npx tsc --noEmit` (if TypeScript present) — surfaces type errors
@@ -173,13 +173,13 @@ function formatIssueBody(typeError) {
   lines.push('');
   lines.push('## Why this is filed');
   lines.push('');
-  lines.push('Hermes\'s `lint_fix_shipper` capability runs `npx eslint --fix` (auto-fix) +');
+  lines.push('Steward\'s `lint_fix_shipper` capability runs `npx eslint --fix` (auto-fix) +');
   lines.push('`npx tsc --noEmit` (type check). ESLint auto-fixes ship as a separate commit;');
   lines.push('TypeScript errors are NOT auto-fixable, so they get filed as issues for human');
   lines.push('attention.');
   lines.push('');
   lines.push('---');
-  lines.push('Filed by Hermes (cortex-x) lint-fix-shipper.');
+  lines.push('Filed by Steward (cortex-x) lint-fix-shipper.');
   return lines.join('\n');
 }
 

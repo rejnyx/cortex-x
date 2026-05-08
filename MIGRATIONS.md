@@ -20,13 +20,104 @@
 
 ## Current
 
+### Sprint 4.7 — Hermes → Steward rebrand (2026-05-08)
+
+⭐ PRE-PUBLIC-TAG MUST. The 2026-05-09 web-research audit (see `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` and `docs/steward-roadmap.md` § Sprint 4.7) confirmed [NousResearch/hermes-agent](https://github.com/nousresearch/hermes-agent) is a **139k-star MIT project shipped Feb 2026** with dedicated `hermes-agent.nousresearch.com/.org/.ai` domains. Releasing cortex-x v0.1.0 with a `bin/hermes/` directory would compete in tag-search and brand recognition against an established project. Rebrand cost today (1 day mechanical refactor) is far cheaper than the same refactor in v0.2 plus undoing brand confusion in user docs.
+
+#### Non-breaking (everything works under both names through v0.2.0)
+
+**Directory + file renames** (history preserved via `git mv`):
+- `bin/hermes/` → `bin/steward/`
+- `bin/cortex-hermes{.cjs,.ps1,}` → `bin/cortex-steward{.cjs,.ps1,}` — old paths exist as 1-line shims that emit a stderr deprecation banner and forward to the new entrypoint.
+- `prompts/hermes-setup.md` → `prompts/steward-setup.md` — old path is a redirect markdown stub.
+- `standards/hermes-policy.md` → `standards/steward-policy.md` — same shim pattern.
+- `docs/hermes-{roadmap,runtime,usage,rfc,research-synthesis}.md` → `docs/steward-*.md` — same shim pattern.
+- `.github/workflows/hermes{,-todo-triage,-dep-patch,-harvest}.yml` → `.github/workflows/steward*.yml` (no shim — workflow filenames are not user-callable; cron schedules transfer with the rename).
+- `tests/unit/hermes/` → `tests/unit/steward/`, `tests/integration/hermes-*.test.cjs` → `tests/integration/steward-*.test.cjs`, `tests/fixtures/hermes-dryrun/` → `tests/fixtures/steward-dryrun/`, `evals/hermes/` → `evals/steward/`.
+
+**Env vars** `HERMES_*` → `STEWARD_*` with backward-compat layer in `bin/steward/_lib/env.cjs`:
+- `STEWARD_DAILY_USD_CAP` ⇐ `HERMES_DAILY_USD_CAP`
+- `STEWARD_WEEKLY_USD_CAP` ⇐ `HERMES_WEEKLY_USD_CAP`
+- `STEWARD_MONTHLY_USD_CAP` ⇐ `HERMES_MONTHLY_USD_CAP`
+- `STEWARD_TOKEN_VELOCITY_CAP` ⇐ `HERMES_TOKEN_VELOCITY_CAP`
+- `STEWARD_LOOP_THRESHOLD` ⇐ `HERMES_LOOP_THRESHOLD`
+- `STEWARD_LOOP_WINDOW_DAYS` ⇐ `HERMES_LOOP_WINDOW_DAYS`
+- `STEWARD_FAILURE_BREAKER` ⇐ `HERMES_FAILURE_BREAKER`
+- `STEWARD_MAX_TOKENS` ⇐ `HERMES_MAX_TOKENS`
+- `STEWARD_MODEL` ⇐ `HERMES_MODEL`
+- `STEWARD_ENGINE` ⇐ `HERMES_ENGINE`
+- `STEWARD_MOCK_PLAN` ⇐ `HERMES_MOCK_PLAN`
+- `STEWARD_NO_PUSH` ⇐ `HERMES_NO_PUSH`
+
+**`readEnv(name)` semantics** (SSOT helper): reads `STEWARD_<name>` first, falls back to `HERMES_<name>` with a one-time `[steward:deprecation]` warning to stderr. Set `STEWARD_SUPPRESS_DEPRECATION=1` to silence the banner (CI/test envs do this).
+
+**Halt sentinel** `.cortex/HERMES_HALT` → `.cortex/STEWARD_HALT`:
+- `halt-check.cjs` reads both filenames; the new name takes precedence when both exist in the same scope.
+- `execute.cjs` writes only the new name when the loop detector trips.
+- `policy-check.cjs` denylist preserves both `STEWARD_HALT_PRESERVE` (current) and `HERMES_HALT_PRESERVE` (legacy) rules so neither sentinel can be `rm`'d by Steward itself.
+
+**Git trailers** `Hermes-*` → `Steward-*`:
+- `git-trailers.cjs` `buildCommitMessage` writes `Steward-Action-Id`, `Steward-Trigger`, `Steward-Journal-Entry`, `Steward-Recommendation-Source`, `Co-Authored-By: Steward <steward@cortex-x.local>`.
+- `normalizeTrailerPrefixes(trailers)` (NEW export) auto-renames legacy `Hermes-<suffix>` keys passed in by pre-rebrand callers — no breaking change for external plan generators.
+- `parseTrailers` is prefix-agnostic; `getTrailer(parsed, 'Action-Id')` (NEW export) reads either prefix with `Steward-*` taking precedence.
+- Past commits in repo history retain their original `Hermes-*` trailers — those are immutable; future-Steward walks both prefixes via `getTrailer`.
+
+**Branch prefix** `hermes/<date>-<slug>-<id>` → `steward/<date>-<slug>-<id>`. Future PRs use the new prefix; pre-rebrand PRs keep their original branch names.
+
+**Engine HARD_DENYLIST** keeps both old and new patterns:
+- `bin/steward/`, `bin/cortex-steward` — protect current self-modification path
+- `bin/hermes/`, `bin/cortex-hermes` — protect projects forked from pre-rebrand cortex-x
+- `standards/steward-`, `standards/hermes-` — same
+- All other patterns (.env, .git, .ssh, .gnupg, package.json, .github/workflows) unchanged.
+
+**Detectors** `pr-review-responder.cjs` recognizes both `Steward (cortex-x)` and `Hermes (cortex-x)` as valid PR authors so cross-rename PR follow-up still works. Detectors that emit issue-body templates (todo-triage, doc-drift, lint-fix, flaky-test-repair, etc.) now sign off as "Filed by Steward (cortex-x)".
+
+**Test surface** 924 tests / 0 fail / 1 skipped post-rebrand. Net: +5 new tests covering backward-compat (legacy halt sentinel, legacy trailer prefix, prefix normalization).
+
+#### Migrate (non-blocking; existing setups keep working)
+
+```bash
+# 1. Update env-var names in your setup (CI / .env.local / cron):
+sed -i 's/HERMES_DAILY_USD_CAP/STEWARD_DAILY_USD_CAP/g' .env.local
+sed -i 's/HERMES_FAILURE_BREAKER/STEWARD_FAILURE_BREAKER/g' .env.local
+# (...repeat for other HERMES_* vars; the deprecation warning lists the exact key.)
+
+# 2. Replace `cortex-hermes` invocations:
+sed -i 's/cortex-hermes/cortex-steward/g' your-cron-script.sh
+
+# 3. (Optional) Move halt sentinel to the new name:
+mv ~/.cortex/HERMES_HALT ~/.cortex/STEWARD_HALT 2>/dev/null || true
+
+# 4. Rebrand any project-side workflow file you forked:
+# .github/workflows/hermes.yml → .github/workflows/steward.yml
+# (or just leave the old filename — GHA cron schedules transfer fine.)
+```
+
+#### Rollback
+
+The rebrand is unidirectional — `git revert` of the rebrand commit is large but mechanical. There is no anti-rollback hazard because every backward-compat shim is additive (alias reads, dual-prefix parsers). If a downstream project rolled back to v0.1.0-pre-Sprint-4.7 to investigate a regression, all the legacy paths still work.
+
+#### Deprecated (v0.2.0 removal)
+
+- `bin/cortex-hermes{.cjs,.ps1,}` — removed
+- `prompts/hermes-setup.md` — removed
+- `standards/hermes-policy.md` — removed
+- `docs/hermes-*.md` — removed
+- `.github/workflows/hermes*.yml` — removed
+- `HERMES_*` env-var aliases in `env.cjs` `readEnv` — removed; only `STEWARD_*` honored.
+- `.cortex/HERMES_HALT` legacy filename read in `halt-check.cjs` — removed; only `STEWARD_HALT` honored.
+- `Hermes-*` trailer prefix backward-compat in `normalizeTrailerPrefixes` — removed; only `Steward-*` keys accepted in trailer dicts (parsing past commits via `parseTrailers` + `getTrailer` remains supported indefinitely).
+- Engine `HARD_DENYLIST` legacy patterns (`bin/hermes/`, `bin/cortex-hermes`, `standards/hermes-`) — removed.
+- Backward-compat module exports `policy-check.HERMES_DENY`, `action-engine.HERMES_SYSTEM_PROMPT`, `execute.isHermesArtifact`, `pr-review-responder.{getHermesOpenPRs,isHermesAuthor}` — removed.
+- `'hermes'` as a valid `actor` value in `journal.cjs VALID_ACTORS` — removed; only `'steward'` and `'investigate-subagent'` honored. Existing journal entries with `actor: 'hermes'` remain readable (validation is on write, not on read).
+
 ### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector (2026-05-09)
 
 ⭐ PRE-2.x POJISTKA. Operator-suggested during 2026-05-09 audit. Today's `HERMES_DAILY_USD_CAP` ($5/day) + `HERMES_FAILURE_BREAKER` (3 fails/1h per-action_key) miss mid-week burst patterns and month-long slow drift. Real-incident anchor: April 2026 dev's $437 retry-loop bill ([Medium post-mortem](https://medium.com/@mohamedmsatfi1/i-spent-0-20-reproducing-the-multi-agent-loop-that-cost-someone-47k-7f57c51f3c06)). Daily cap $5 × 30 = $150/month would have passed without alarm.
 
 #### Non-breaking (env-additive, safe defaults)
 
-**New module — `bin/hermes/_lib/cost-safety.cjs`** (~280 LoC)
+**New module — `bin/steward/_lib/cost-safety.cjs`** (~280 LoC)
 
 Five new pre-flight gates layered above existing daily cap + per-action_key failure breaker. All gates honor `0` as explicit opt-out:
 
@@ -35,9 +126,9 @@ Five new pre-flight gates layered above existing daily cap + per-action_key fail
 - **`HERMES_TOKEN_VELOCITY_CAP`** (default 50,000 tokens / 5min sliding) — sub-daily burst protection (RouteLLM ensemble, Sprint 2.1 autoresearch).
 - **`HERMES_LOOP_THRESHOLD`** (default 5) + **`HERMES_LOOP_WINDOW_DAYS`** (default 7) — cross-session loop detector counts `spec_failures[].id` × `action_key` occurrences; on threshold trip, writes `.cortex/HERMES_HALT` with `LOOP_DETECTED:<criterion_id>:<action_key>`. Operator-cleared (manual `rm` per existing kill-switch UX).
 
-Pipeline order in `bin/hermes/execute.cjs`: daily → failure-breaker → weekly → monthly → velocity → loop-detector. All gates run BEFORE lock acquisition (same posture as existing daily cap).
+Pipeline order in `bin/steward/execute.cjs`: daily → failure-breaker → weekly → monthly → velocity → loop-detector. All gates run BEFORE lock acquisition (same posture as existing daily cap).
 
-**Forecast** — `cortex-hermes status --forecast` opt-in flag adds a `cost_forecast` block:
+**Forecast** — `cortex-steward status --forecast` opt-in flag adds a `cost_forecast` block:
 - Daily: spent / cap / percent / projected (rate × 24h scaled by hours-elapsed-today).
 - Weekly: spent / cap / percent (sliding window, no projected).
 - Monthly: spent / cap / percent / projected (rate × days-in-month / day-of-month).
@@ -53,8 +144,8 @@ JSON mode passes through unchanged; human-readable mode renders one line per win
 
 #### Tests (+23 across 6 suites; 901 → 924)
 
-- **Unit** [`tests/unit/hermes/cost-safety.test.cjs`](tests/unit/hermes/cost-safety.test.cjs) — 18 tests across env readers (defaults / opt-out / clamp negative+NaN), spend window readers (daily / weekly / monthly), token velocity (sums / window-cutoff), loop detector (below threshold / at threshold / cross-action_key isolation / threshold=0 disabled / outside window), gate evaluators (ok / cap-reached / 0=disabled), spendForecast shape.
-- **Integration** [`tests/integration/hermes-cost-safety-pipeline.test.cjs`](tests/integration/hermes-cost-safety-pipeline.test.cjs) — 5 end-to-end through `execute.cjs`: weekly cap trips with daily fine + 7-day accumulation, monthly cap trips, token velocity trips on 60K/min, loop detector writes `HERMES_HALT` on 5×SPEC_VIOLATION, daily cap regression preserved.
+- **Unit** [`tests/unit/steward/cost-safety.test.cjs`](tests/unit/steward/cost-safety.test.cjs) — 18 tests across env readers (defaults / opt-out / clamp negative+NaN), spend window readers (daily / weekly / monthly), token velocity (sums / window-cutoff), loop detector (below threshold / at threshold / cross-action_key isolation / threshold=0 disabled / outside window), gate evaluators (ok / cap-reached / 0=disabled), spendForecast shape.
+- **Integration** [`tests/integration/steward-cost-safety-pipeline.test.cjs`](tests/integration/steward-cost-safety-pipeline.test.cjs) — 5 end-to-end through `execute.cjs`: weekly cap trips with daily fine + 7-day accumulation, monthly cap trips, token velocity trips on 60K/min, loop detector writes `HERMES_HALT` on 5×SPEC_VIOLATION, daily cap regression preserved.
 - One existing test (`HERMES_DAILY_USD_CAP=0 disables cap`) updated to also disable new gates so its "$1000 spend allowed" premise stays valid.
 
 #### Migration impact for downstream consumers
@@ -69,7 +160,7 @@ export HERMES_TOKEN_VELOCITY_CAP=0
 export HERMES_LOOP_THRESHOLD=0
 ```
 
-`.github/workflows/hermes.yml` does NOT set the new env vars yet — production cron uses the defaults, so any month exceeding $80 will hard-halt and require operator review. This is the intentional safety posture; raise the caps explicitly if/when the project legitimately spends more.
+`.github/workflows/steward.yml` does NOT set the new env vars yet — production cron uses the defaults, so any month exceeding $80 will hard-halt and require operator review. This is the intentional safety posture; raise the caps explicitly if/when the project legitimately spends more.
 
 #### Follow-ups
 
@@ -81,11 +172,11 @@ export HERMES_LOOP_THRESHOLD=0
 
 ### Sprint 1.9.0 — Spec-driven verification: per-kind acceptance criteria gate (2026-05-09)
 
-The verification gap that produced PR #3 (−347 / +32 on `docs/hermes-usage.md`) and PR #4 (−609 / +28 on `MIGRATIONS.md` with fabricated history) generalizes from "one hardcoded shrink-rule in `applyEditsToFilesystem`" to "per-kind declarative `acceptance_criteria[]` enforced by a new `bin/hermes/_lib/spec-verifier.cjs` module." See [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) for the R1 decision memo (Option D, sub-rec A — operator approved 2026-05-09 with all 5 default answers).
+The verification gap that produced PR #3 (−347 / +32 on `docs/steward-usage.md`) and PR #4 (−609 / +28 on `MIGRATIONS.md` with fabricated history) generalizes from "one hardcoded shrink-rule in `applyEditsToFilesystem`" to "per-kind declarative `acceptance_criteria[]` enforced by a new `bin/steward/_lib/spec-verifier.cjs` module." See [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) for the R1 decision memo (Option D, sub-rec A — operator approved 2026-05-09 with all 5 default answers).
 
 #### Non-breaking (registry-additive)
 
-**New module — `bin/hermes/_lib/spec-verifier.cjs`** (~430 LoC)
+**New module — `bin/steward/_lib/spec-verifier.cjs`** (~430 LoC)
 
 - Five criterion kinds: `shell` (cmd exit 0), `file_predicate` (sandboxed JS expression over a curated context: `touchedFiles`, `fileSize(p)`, `fileExists(p)`, `fileContent(p)`, `prevSize(p)`, `edits`, `plan`), `regex` (must-match in target file with optional `applies_to` glob filter), `ears_text` (5 EARS pattern syntax-validation at registry load time, **runtime no-op in 1.9.0** — full runtime semantics deferred to 1.9.1+ per memo Q4), `llm_judge` (declared, throws `SPEC_LLM_JUDGE_NOT_IMPLEMENTED` until v2.0+). The R1 memo's Decision section preferred deferring the `ears_text` validator to 1.9.1; the AC list said "ships with structural validation in 1.9.0." Implementation follows the AC: kind authors who add an `ears_text` entry must hand-write a clause matching one of the 5 EARS patterns or registry load fails (`SPEC_MALFORMED`). This is documented here so a future sprint owner doesn't trip over the apparent contradiction.
 - Predicate sandboxing via `new Function` over a curated argument list (operator approved Q1=A). `require` is NOT in scope (module-level binding doesn't propagate into `new Function`'s `[[Scope]]`).
@@ -93,18 +184,18 @@ The verification gap that produced PR #3 (−347 / +32 on `docs/hermes-usage.md`
 - Plan-level overrides via `plan.acceptance_criteria` (Q3=A): MAY add new ids, MAY strengthen existing ids (severity warn → block, predicate stricter), MAY NOT downgrade severity, MAY NOT change kind for an existing id (`SPEC_OVERRIDE_REJECTED`).
 - Glob support (`applies_to: ['docs/**', '*.md']`) for regex/predicate scoping. `**` cross-segment, `*` within-segment, escapes regex metacharacters in literal segments. Windows backslash paths normalize to forward-slash before match.
 
-**Registry migration — `bin/hermes/_lib/action-kinds.cjs`**
+**Registry migration — `bin/steward/_lib/action-kinds.cjs`**
 
 - Every shipped kind (9 total: `recommendation`, `recommendation_harvest`, `dep_update_patch`, `flaky_test_repair`, `doc_drift`, `todo_triage`, `test_coverage_gap`, `lint_fix_shipper`, `pr_review_responder`) + the v1.0+ placeholder `release_notes_drafter` declares a non-empty `acceptance_criteria` array. Contract test [`tests/contract/action-kinds-acceptance.test.cjs`](tests/contract/action-kinds-acceptance.test.cjs) gates the invariant.
 - Shared exports `NO_DESTRUCTIVE_REWRITE_CRITERION` + `NO_DESTRUCTIVE_REWRITE_EARS` reused by `recommendation`, `flaky_test_repair`, and `release_notes_drafter`. The other deterministic kinds whose flow legitimately shrinks files (lockfile updates, lint-fix dead-code removal) intentionally omit the predicate.
 - Issue-only kinds (`doc_drift`, `todo_triage`, `test_coverage_gap`, `pr_review_responder`) declare `no_working_tree_edits` (`touchedFiles.length === 0`) so any future regression that starts editing files trips the gate immediately.
 
-**Engine seam — `bin/hermes/_lib/action-engine.cjs`**
+**Engine seam — `bin/steward/_lib/action-engine.cjs`**
 
 - `applyEditsToFilesystem` now captures `previousSizes: { [path]: bytes }` BEFORE writing each edit, and returns `edits: [{ path, replace_all }]` so spec-verifier predicates can read both the pre-edit baseline and the LLM's `replace_all` opt-in flag.
 - The Sprint 1.8.13 inline `EDIT_DESTRUCTIVE_REWRITE` rejection path is **REMOVED**. Single source of truth for the rule is now the `recommendation` kind's `no_destructive_rewrite` criterion (predicate: `touchedFiles.every(p => prevSize(p) < 200 || fileSize(p) >= prevSize(p) * 0.5 || ((edits.find(e => e && e.path === p) || {}).replace_all === true))`). Mock + OpenRouter engines no longer pass `shrinkCode` to `applyEditsToFilesystem`.
 
-**Pipeline wire — `bin/hermes/execute.cjs`**
+**Pipeline wire — `bin/steward/execute.cjs`**
 
 - New phase between successful `applyAction` and `runNpmTest` (Q5=BEFORE — fail fast on cheap deterministic checks). On `SPEC_VIOLATION` (block-severity criterion failed) or any fail-closed code, `execute.cjs`:
   1. Discards working-tree edits (`git checkout -- . && git clean -fd`)
@@ -127,10 +218,10 @@ The verification gap that produced PR #3 (−347 / +32 on `docs/hermes-usage.md`
 
 #### Tests
 
-- **Unit** [`tests/unit/hermes/spec-verifier.test.cjs`](tests/unit/hermes/spec-verifier.test.cjs) — 57 tests across `validateCriterion` (every kind + every malformed shape), glob matching, `mergeCriteria` (add/strengthen/reject-downgrade/reject-kind-change/reject-malformed), each runner happy + sad path, end-to-end `runChecks` (registry contract, strict-mode default, happy path, block + warn severity, plan override add, llm_judge runtime throw, malformed criterion).
+- **Unit** [`tests/unit/steward/spec-verifier.test.cjs`](tests/unit/steward/spec-verifier.test.cjs) — 57 tests across `validateCriterion` (every kind + every malformed shape), glob matching, `mergeCriteria` (add/strengthen/reject-downgrade/reject-kind-change/reject-malformed), each runner happy + sad path, end-to-end `runChecks` (registry contract, strict-mode default, happy path, block + warn severity, plan override add, llm_judge runtime throw, malformed criterion).
 - **Contract** [`tests/contract/action-kinds-acceptance.test.cjs`](tests/contract/action-kinds-acceptance.test.cjs) — 6 invariants: every shipped kind declares ≥ 1 criterion; every criterion validates; ids unique within a kind; descriptions present; `recommendation` inherits `no_destructive_rewrite`; issue-only kinds declare `no_working_tree_edits`.
-- **Integration** [`tests/integration/hermes-spec-verification.test.cjs`](tests/integration/hermes-spec-verification.test.cjs) — 7 end-to-end through `execute.cjs` against fresh tmp git repos: PR #3 reproduction (1000 → 4 bytes), PR #4 reproduction (~720 → 28 bytes), happy path (700/1000 = 70% preserved), `replace_all: true` escape hatch, small-file (< 200 bytes) bypass via predicate `prevSize(p) < 200` clause, journal `execute_spec_failed` payload, lesson `root_cause: SPEC_VIOLATION`.
-- Existing 1.8.13 unit tests in `tests/unit/hermes/action-engine.test.cjs` migrated from "engine returns `MOCK_EDIT_DESTRUCTIVE_REWRITE`" to "engine writes; `previousSizes` and `edits[]` returned correctly." End-to-end shrink rejection now lives in the integration suite.
+- **Integration** [`tests/integration/steward-spec-verification.test.cjs`](tests/integration/steward-spec-verification.test.cjs) — 7 end-to-end through `execute.cjs` against fresh tmp git repos: PR #3 reproduction (1000 → 4 bytes), PR #4 reproduction (~720 → 28 bytes), happy path (700/1000 = 70% preserved), `replace_all: true` escape hatch, small-file (< 200 bytes) bypass via predicate `prevSize(p) < 200` clause, journal `execute_spec_failed` payload, lesson `root_cause: SPEC_VIOLATION`.
+- Existing 1.8.13 unit tests in `tests/unit/steward/action-engine.test.cjs` migrated from "engine returns `MOCK_EDIT_DESTRUCTIVE_REWRITE`" to "engine writes; `previousSizes` and `edits[]` returned correctly." End-to-end shrink rejection now lives in the integration suite.
 - Total suite: 790 → **859 tests** (+69), all 3 CI lanes (test, install-smoke, no-pii) green locally.
 
 #### Migration impact for downstream cortex-x consumers
@@ -159,9 +250,9 @@ The phase that turns "v0.5b mostly works" into "v0.5b done": local-only execute 
 
 **Push + draft PR pipeline** (3 new modules + execute.cjs Phase 10 wire)
 
-- `bin/hermes/_lib/git-ops.cjs:117-138` — `pushBranch(repoRoot, branch, opts)` + `hasRemote(repoRoot, remote='origin')`. Push uses `--set-upstream` so subsequent `gh pr create` knows the head ref. Both reject flag-shaped branch/remote names (defense in depth).
-- `bin/hermes/_lib/gh-ops.cjs` (new file, ~140 LOC) — wraps `gh` CLI via `spawnSync`. Exports `hasGhCli()` (cached), `createDraftPR(opts)` (writes body to tmpfile + uses `--body-file` to avoid quoting issues with multi-line content). Returns `{ ok, url?, error?, code? }` matching git-ops contract. **gh CLI is OPTIONAL** — module degrades gracefully when absent (returns `code: 'GH_CLI_MISSING'`).
-- `bin/hermes/execute.cjs` — new helper `maybePushAndOpenPR()` between Phase 9 (post-verify) and Phase 11 (success journal). Best-effort, non-blocking: commit + journal always succeed; push/PR step adds `pr` substruct to result with status from one of:
+- `bin/steward/_lib/git-ops.cjs:117-138` — `pushBranch(repoRoot, branch, opts)` + `hasRemote(repoRoot, remote='origin')`. Push uses `--set-upstream` so subsequent `gh pr create` knows the head ref. Both reject flag-shaped branch/remote names (defense in depth).
+- `bin/steward/_lib/gh-ops.cjs` (new file, ~140 LOC) — wraps `gh` CLI via `spawnSync`. Exports `hasGhCli()` (cached), `createDraftPR(opts)` (writes body to tmpfile + uses `--body-file` to avoid quoting issues with multi-line content). Returns `{ ok, url?, error?, code? }` matching git-ops contract. **gh CLI is OPTIONAL** — module degrades gracefully when absent (returns `code: 'GH_CLI_MISSING'`).
+- `bin/steward/execute.cjs` — new helper `maybePushAndOpenPR()` between Phase 9 (post-verify) and Phase 11 (success journal). Best-effort, non-blocking: commit + journal always succeed; push/PR step adds `pr` substruct to result with status from one of:
   - `skipped` — `--no-push` CLI flag or `HERMES_NO_PUSH=1` env
   - `no_remote` — no `origin` remote configured (fresh `git init`)
   - `push_failed` — git push exited non-zero (auth, conflict, permission)
@@ -191,7 +282,7 @@ Two pre-flight gates run BEFORE lock acquisition. A tripped gate journals the re
 
 **+9 unit tests** (489 → 498 pass):
 
-`tests/unit/hermes/execute.test.cjs`:
+`tests/unit/steward/execute.test.cjs`:
 - Push + PR (4 tests): no-remote degrades, `--no-push` opts out, `HERMES_NO_PUSH=1` env opts out, bare-repo origin → push succeeds + status reflects gh-CLI presence
 - Budget cap (2 tests): blocks when today's spend >= cap, `HERMES_DAILY_USD_CAP=0` opt-out
 - Failure breaker (3 tests): trips at threshold, scoped to action_key (different keys don't trip), 1-hour window expires
@@ -216,8 +307,8 @@ export OPENROUTER_API_KEY=sk-or-v1-...
 export HERMES_MODEL=deepseek/deepseek-v4-flash
 export HERMES_MAX_TOKENS=16384
 export HERMES_DAILY_USD_CAP=5         # safety
-cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
-cortex-hermes execute --plan-file=/tmp/plan.json
+cortex-steward dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+cortex-steward execute --plan-file=/tmp/plan.json
 # → real OpenRouter call → file edits → npm test gate → atomic commit
 # → git push origin <branch> → gh pr create --draft
 # → journal logs cost_usd + tokens + pr_url
@@ -225,7 +316,7 @@ cortex-hermes execute --plan-file=/tmp/plan.json
 # → if action_key has 3+ failures in last hour, refuses with FAILURE_BREAKER_TRIPPED
 ```
 
-L3 (cron triggers) is now **safe to enable**: uncomment `.github/workflows/hermes.example.yml`, set `OPENROUTER_API_KEY` repo secret, rename to `hermes.yml`. The two budget gates close the cost-runaway risk class.
+L3 (cron triggers) is now **safe to enable**: uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, rename to `hermes.yml`. The two budget gates close the cost-runaway risk class.
 
 #### Out of scope (Sprint 1.6.20+ candidates)
 
@@ -241,16 +332,16 @@ Eval-suite + property tests + mutation testing + stateful simulation (T1, T2, T4
 
 #### Non-breaking (corrections + new error code + tightened guards)
 
-- **B1 — `applyEditsToFilesystem` path-safety hardened** (`bin/hermes/_lib/action-engine.cjs:95-128`):
+- **B1 — `applyEditsToFilesystem` path-safety hardened** (`bin/steward/_lib/action-engine.cjs:95-128`):
   Old `edit.path.includes('..')` substring check produced false-positives on legitimate paths like `docs/v1.2/notes.md` AND missed real attacks (NUL byte, leading-dash flag injection). New flow:
   1. Reject NUL bytes explicitly (`includes('\0')`)
   2. Reject `path.isAbsolute` and `startsWith('-')` (flag-injection defense)
   3. `path.resolve(repoRoot, edit.path)` then `path.relative` containment check
   Catches symlink composition that the old substring approach missed. Surfaced by Correctness Tier 1 + Security H3 + Edge Case audits.
-- **B2 — editPlan shape gate** (`bin/hermes/_lib/action-engine.cjs:316-326`): new `OPENROUTER_PLAN_SHAPE_INVALID` error code emitted when `JSON.parse(stripJsonFences(content))` returns a non-object, an array, or an object missing `edits[]`. Prior behaviour passed `editPlan.edits === undefined` to `applyEditsToFilesystem` which masked LLM-format-failures as NO_EDITS.
-- **B3 — `DEFAULT_MODEL` aligned with docs**: changed from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash` (`bin/hermes/_lib/action-engine.cjs:39`). All three doc sources (`hermes-usage.md`, `hermes-runtime.md`, `MIGRATIONS.md`) recommend V4 Flash since Sprint 1.6.13 — code default was the SSOT outlier.
+- **B2 — editPlan shape gate** (`bin/steward/_lib/action-engine.cjs:316-326`): new `OPENROUTER_PLAN_SHAPE_INVALID` error code emitted when `JSON.parse(stripJsonFences(content))` returns a non-object, an array, or an object missing `edits[]`. Prior behaviour passed `editPlan.edits === undefined` to `applyEditsToFilesystem` which masked LLM-format-failures as NO_EDITS.
+- **B3 — `DEFAULT_MODEL` aligned with docs**: changed from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash` (`bin/steward/_lib/action-engine.cjs:39`). All three doc sources (`hermes-usage.md`, `hermes-runtime.md`, `MIGRATIONS.md`) recommend V4 Flash since Sprint 1.6.13 — code default was the SSOT outlier.
 - **B4 — `execute.cjs` CLI help corrected** (3 sites): "default: claude-sdk" / "fallback to claude-sdk" → "default: openrouter" / "fallback to openrouter". Help was actively misleading users since Sprint 1.6.13 default-engine pivot.
-- **B5 — `data === null` guard** (`bin/hermes/_lib/action-engine.cjs:301`): `data && data.choices && ...` prevents uncaught TypeError when OpenRouter returns HTTP 200 with null body.
+- **B5 — `data === null` guard** (`bin/steward/_lib/action-engine.cjs:301`): `data && data.choices && ...` prevents uncaught TypeError when OpenRouter returns HTTP 200 with null body.
 
 #### Tests
 
@@ -312,13 +403,13 @@ No new tests (additive env override; existing test count preserved at 472).
 
 #### Non-breaking (additive — zero new npm deps)
 
-- **What landed:** v0.5b LLM-provider engine in `bin/hermes/_lib/action-engine.cjs`. Full pipeline now works with a real LLM via OpenRouter's OpenAI-compatible API. **Zero-deps preserved** — uses `fetch()` built into Node ≥18. +12 tests (460 → 472), all CI-green.
+- **What landed:** v0.5b LLM-provider engine in `bin/steward/_lib/action-engine.cjs`. Full pipeline now works with a real LLM via OpenRouter's OpenAI-compatible API. **Zero-deps preserved** — uses `fetch()` built into Node ≥18. +12 tests (460 → 472), all CI-green.
 
-  **Key change:** default engine pivoted from `claude-sdk` (stub) to `openrouter` (real implementation behind `OPENROUTER_API_KEY` env var). `claude-sdk` engine remains reachable via explicit `--engine=claude-sdk` flag for the alternative path described in `docs/hermes-runtime.md` § 4.5.
+  **Key change:** default engine pivoted from `claude-sdk` (stub) to `openrouter` (real implementation behind `OPENROUTER_API_KEY` env var). `claude-sdk` engine remains reachable via explicit `--engine=claude-sdk` flag for the alternative path described in `docs/steward-runtime.md` § 4.5.
 
   Three deliverables:
 
-  1. **`openrouterEngine` (~100 LOC)** in `bin/hermes/_lib/action-engine.cjs`. Async, `fetch`-based. Calls `https://openrouter.ai/api/v1/chat/completions` with `response_format: { type: "json_object" }`, parses LLM-returned `{edits: [...]}` JSON, applies via shared `applyEditsToFilesystem()`. Captures `cost_usd` + `tokens_in` + `tokens_out` from `data.usage`. Configurable timeout (default 2 min) via `AbortController`. 8 distinct error codes for observability:
+  1. **`openrouterEngine` (~100 LOC)** in `bin/steward/_lib/action-engine.cjs`. Async, `fetch`-based. Calls `https://openrouter.ai/api/v1/chat/completions` with `response_format: { type: "json_object" }`, parses LLM-returned `{edits: [...]}` JSON, applies via shared `applyEditsToFilesystem()`. Captures `cost_usd` + `tokens_in` + `tokens_out` from `data.usage`. Configurable timeout (default 2 min) via `AbortController`. 8 distinct error codes for observability:
      - `OPENROUTER_KEY_MISSING` — env var not set
      - `NO_FETCH` — Node < 18
      - `OPENROUTER_TIMEOUT` — request exceeded timeout
@@ -331,12 +422,12 @@ No new tests (additive env override; existing test count preserved at 472).
 
      Plus: `HERMES_SYSTEM_PROMPT` (rules: JSON-only output, no human_only paths, zero-deps, smallest-change), `buildUserPrompt()` (action body + citations + best-effort CLAUDE.md inclusion, capped at 4000 chars), test-injectable `opts.fetch` for mocked-fetch unit tests.
 
-  2. **Async refactor.** `applyAction()` becomes `async`. Sync engines (mock, claude-sdk-stub) are wrapped in `Promise.resolve(...)` for shape compatibility — they continue to return immediately. `bin/hermes/execute.cjs` `runExecute()` becomes async; `await actionEngine.applyAction(...)`. CLI wraps `runExecute()` call in an async IIFE chained with `.then(handleResult).catch(...)`.
+  2. **Async refactor.** `applyAction()` becomes `async`. Sync engines (mock, claude-sdk-stub) are wrapped in `Promise.resolve(...)` for shape compatibility — they continue to return immediately. `bin/steward/execute.cjs` `runExecute()` becomes async; `await actionEngine.applyAction(...)`. CLI wraps `runExecute()` call in an async IIFE chained with `.then(handleResult).catch(...)`.
 
   3. **`applyEditsToFilesystem` extracted as shared helper** + exported. Both mock + openrouter engines reduce to "write a list of edits to the filesystem with path-safety guards". Helper accepts custom error codes per caller (e.g. `MOCK_NO_EDITS` vs `OPENROUTER_NO_EDITS`) so failure observability stays distinguishable.
 
 - **Tests:**
-  - **+8 openrouter mock-fetch tests** in `tests/unit/hermes/action-engine.test.cjs` — all paths covered without making real API calls (test injects `opts.fetch`):
+  - **+8 openrouter mock-fetch tests** in `tests/unit/steward/action-engine.test.cjs` — all paths covered without making real API calls (test injects `opts.fetch`):
     - happy path with cost capture
     - correct headers + model + JSON-mode passed to OpenRouter
     - 4xx/5xx HTTP error handling
@@ -345,8 +436,8 @@ No new tests (additive env override; existing test count preserved at 472).
     - empty response
     - LLM-emits-path-traversal (defense in depth still applies to LLM output)
     - missing API key
-  - **+1 OpenRouter PII redaction test** in `tests/unit/hermes/journal.test.cjs` — explicit verification that `sk-or-v1-...` keys are caught by existing `sk-` regex (no separate pattern needed).
-  - **+2 default-engine tests** in `tests/unit/hermes/execute.test.cjs` — confirms post-Sprint-1.6.13 default is `openrouter`; `claude-sdk` still reachable via explicit `--engine=claude-sdk` flag.
+  - **+1 OpenRouter PII redaction test** in `tests/unit/steward/journal.test.cjs` — explicit verification that `sk-or-v1-...` keys are caught by existing `sk-` regex (no separate pattern needed).
+  - **+2 default-engine tests** in `tests/unit/steward/execute.test.cjs` — confirms post-Sprint-1.6.13 default is `openrouter`; `claude-sdk` still reachable via explicit `--engine=claude-sdk` flag.
   - All existing tests refactored to `async test(...)` + `await execute.runExecute(...)`. The `withEnv()` helper became async too (returns `await fn()` in the try block).
 
 - **Bugs caught by tests during implementation:**
@@ -367,21 +458,21 @@ No new tests (additive env override; existing test count preserved at 472).
   export OPENROUTER_API_KEY=sk-or-v1-...
   export HERMES_MODEL=anthropic/claude-sonnet-4.5  # or openai/gpt-5.4, etc.
 
-  cortex-hermes dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
-  cortex-hermes execute --plan-file=/tmp/plan.json
+  cortex-steward dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
+  cortex-steward execute --plan-file=/tmp/plan.json
   # → real OpenRouter call → file edits → npm test gate → atomic commit + trailers
   ```
 
-  **L2 Execution autonomy is now real.** L3 (cron triggers) is the next milestone — uncomment `schedule:` in `.github/workflows/hermes.example.yml`, add `OPENROUTER_API_KEY` repo secret, copy to `hermes.yml`.
+  **L2 Execution autonomy is now real.** L3 (cron triggers) is the next milestone — uncomment `schedule:` in `.github/workflows/steward.example.yml`, add `OPENROUTER_API_KEY` repo secret, copy to `hermes.yml`.
 
-- **Migrate:** none — additive. All existing tests refactored to async but signatures unchanged from the caller's perspective. Existing `mock` engine path unchanged. `claude-sdk` engine still reachable via `--engine=claude-sdk` (alternative path retained per docs/hermes-runtime.md § 4.5).
+- **Migrate:** none — additive. All existing tests refactored to async but signatures unchanged from the caller's perspective. Existing `mock` engine path unchanged. `claude-sdk` engine still reachable via `--engine=claude-sdk` (alternative path retained per docs/steward-runtime.md § 4.5).
 
 - **Rollback:** revert this commit. v0.5a (mock engine + execute pipeline) preserved.
 
 - **Pending Dave's go for first REAL API call:**
   - Set `OPENROUTER_API_KEY` env var on local machine OR as GitHub Actions secret
   - Set `HERMES_MODEL` to preferred model
-  - Run a single dogfood `cortex-hermes execute` against a fresh clone with a small action
+  - Run a single dogfood `cortex-steward execute` against a fresh clone with a small action
   - Validate: PR opens, journal records `cost_usd` + tokens, branch is correct shape, trailers parseable
   - If green for 1-2 weeks: enable GHA cron schedule
 
@@ -393,11 +484,11 @@ No new tests (additive env override; existing test count preserved at 472).
 
   1. **`.gitignore` adds `package-lock.json` + `yarn.lock` + `pnpm-lock.yaml`.** Sprint 1.6.11 dogfood discovered that `npm install` on a fresh clone creates `package-lock.json`, which then trips Hermes pre-flight `DIRTY_TREE` check. cortex-x intentionally ships no lockfile (single dev dep `c8`, no runtime deps). Lockfile is now gitignored so future dogfooders + CI clones don't hit the same friction. Comment block in .gitignore explains the why for future contributors.
 
-  2. **`docs/hermes-runtime.md` § 4.5 "v0.5b LLM provider — OpenRouter via fetch (zero-deps preserved)"** (NEW section, ~80 lines). Documents the architectural pivot from `@anthropic-ai/claude-agent-sdk` to OpenRouter's OpenAI-compatible chat-completions endpoint via built-in `fetch()`. Same `{edits: [...]}` JSON shape as the mock engine — same code path, no SDK lock-in. Includes pseudocode sketch, env vars (`OPENROUTER_API_KEY`, `HERMES_MODEL`, `HERMES_ENGINE`), bonus-over-direct-SDK comparison, async-refactor notes, safety considerations.
+  2. **`docs/steward-runtime.md` § 4.5 "v0.5b LLM provider — OpenRouter via fetch (zero-deps preserved)"** (NEW section, ~80 lines). Documents the architectural pivot from `@anthropic-ai/claude-agent-sdk` to OpenRouter's OpenAI-compatible chat-completions endpoint via built-in `fetch()`. Same `{edits: [...]}` JSON shape as the mock engine — same code path, no SDK lock-in. Includes pseudocode sketch, env vars (`OPENROUTER_API_KEY`, `HERMES_MODEL`, `HERMES_ENGINE`), bonus-over-direct-SDK comparison, async-refactor notes, safety considerations.
 
-  3. **`docs/hermes-rfc.md` step 9 updated** — "v0.5 milestone" now distinguishes v0.5a (mock engine + full pipeline, shipped Sprint 1.6.11) from v0.5b (real LLM provider, OpenRouter preferred path). `@anthropic-ai/claude-agent-sdk` documented as fallback alternative if OpenRouter ever stops being suitable.
+  3. **`docs/steward-rfc.md` step 9 updated** — "v0.5 milestone" now distinguishes v0.5a (mock engine + full pipeline, shipped Sprint 1.6.11) from v0.5b (real LLM provider, OpenRouter preferred path). `@anthropic-ai/claude-agent-sdk` documented as fallback alternative if OpenRouter ever stops being suitable.
 
-  4. **`docs/hermes-usage.md` rewritten L2 walkthroughs** — split into "L2 walkthrough — what v0.5a does TODAY (mock engine)" + "L2 walkthrough — what v0.5b will do (real LLM via OpenRouter)". Concrete commands for both. The "TODAY" section is the dogfood-validated path (Sprint 1.6.11 commit 2cf2ae0). File-by-file reference table updated to reflect Sprint 1.6.11's new primitives (verifier, git-ops, action-engine).
+  4. **`docs/steward-usage.md` rewritten L2 walkthroughs** — split into "L2 walkthrough — what v0.5a does TODAY (mock engine)" + "L2 walkthrough — what v0.5b will do (real LLM via OpenRouter)". Concrete commands for both. The "TODAY" section is the dogfood-validated path (Sprint 1.6.11 commit 2cf2ae0). File-by-file reference table updated to reflect Sprint 1.6.11's new primitives (verifier, git-ops, action-engine).
 
 - **Why these specifically:** Dave: "jinak udělej všechny ty drobnosti co jsi navrhnul" — closing the loose ends from the dogfood report (gitignore lockfile) and the OpenRouter conversation (document the pivot before any v0.5b code lands). No new code crosses zero-deps; v0.5b implementation deferred to a separate sprint.
 
@@ -412,7 +503,7 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **Rollback:** revert this commit; .gitignore + 3 doc updates form one logical unit.
 
-- **What's next (v0.5b):** implement `openrouterEngine` in `bin/hermes/_lib/action-engine.cjs` per the design at `docs/hermes-runtime.md` § 4.5. Make `applyAction` async, update `execute.cjs` to await it, mock `global.fetch` in tests. ~3-4h, single sprint.
+- **What's next (v0.5b):** implement `openrouterEngine` in `bin/steward/_lib/action-engine.cjs` per the design at `docs/steward-runtime.md` § 4.5. Make `applyAction` async, update `execute.cjs` to await it, mock `global.fetch` in tests. ~3-4h, single sprint.
 
 ### Sprint 1.6.11 — Hermes v0.5a: full execute infrastructure with mock engine (2026-05-07 night)
 
@@ -420,22 +511,22 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **What landed:** Hermes execute pipeline complete end-to-end with a mock action engine. v0.5b (real Claude Agent SDK) becomes a one-line swap. +40 tests (420 → 460).
 
-  1. **`bin/hermes/_lib/verifier.cjs`** (NEW, ~70 LOC) — runs `npm test` (or any npm script) via `spawnSync`, captures stdout/stderr/exitCode/durationMs, configurable timeout (default 5min). Windows compatibility: `npm.cmd` requires `shell: true` on Win since Node 16+ closed CVE-2024-27980 — args are static enums, no injection surface. Includes `summarizeResult()` that extracts test counts from `node --test` output for compact journal entries ("192/192 pass · 8.7s").
+  1. **`bin/steward/_lib/verifier.cjs`** (NEW, ~70 LOC) — runs `npm test` (or any npm script) via `spawnSync`, captures stdout/stderr/exitCode/durationMs, configurable timeout (default 5min). Windows compatibility: `npm.cmd` requires `shell: true` on Win since Node 16+ closed CVE-2024-27980 — args are static enums, no injection surface. Includes `summarizeResult()` that extracts test counts from `node --test` output for compact journal entries ("192/192 pass · 8.7s").
 
-  2. **`bin/hermes/_lib/git-ops.cjs`** (NEW, ~110 LOC) — atomic git operations wrapper. Provides `getCleanTreeStatus`, `getCurrentSha`, `getCurrentBranch`, `isInGitRepo`, `checkoutNewBranch`, `stage`, `commitWithMessageFile`, `revertCommit`. Defense in depth: rejects branch/path names starting with `-` (flag injection), validates SHA shape before revert, no shell invocation (spawnSync with array argv + `shell: false`), all paths passed after `--` separator.
+  2. **`bin/steward/_lib/git-ops.cjs`** (NEW, ~110 LOC) — atomic git operations wrapper. Provides `getCleanTreeStatus`, `getCurrentSha`, `getCurrentBranch`, `isInGitRepo`, `checkoutNewBranch`, `stage`, `commitWithMessageFile`, `revertCommit`. Defense in depth: rejects branch/path names starting with `-` (flag injection), validates SHA shape before revert, no shell invocation (spawnSync with array argv + `shell: false`), all paths passed after `--` separator.
 
-  3. **`bin/hermes/_lib/action-engine.cjs`** (NEW, ~120 LOC) — pluggable engine interface. Two engines:
+  3. **`bin/steward/_lib/action-engine.cjs`** (NEW, ~120 LOC) — pluggable engine interface. Two engines:
      - **`mock`** — env-driven (`HERMES_MOCK_PLAN` JSON). Writes specified files, returns touched paths. Defense: rejects absolute paths + path traversal (`..`).
      - **`claude-sdk`** — stub returning `CLAUDE_SDK_NOT_IMPLEMENTED`. v0.5b plugs the actual SDK call here (single function body change).
      Engine selection: `opts.engine` flag > `HERMES_ENGINE` env > default `claude-sdk`. The pluggable shape means v0.5b is a clean isolated PR — no architectural change.
 
-  4. **`bin/hermes/execute.cjs` rewritten** (~250 LOC, was ~140 LOC stub). Full 10-phase flow: halt check → plan validation → repo check → pre-flight clean-tree (filtering Hermes's own `cortex/journal/` runtime artifacts) → lock acquire → branch checkout → action-engine.applyAction → verifier.runNpmTest → stage → commit-with-message-file → post-commit verify → journal success → lock release. Rollback semantics for every failure mode: action engine fail → checkout original branch + delete dead branch; verify fail → `git checkout -- .` + `git clean -fd` + return original branch; lock collision → preserve held lock; halt → exit 75.
+  4. **`bin/steward/execute.cjs` rewritten** (~250 LOC, was ~140 LOC stub). Full 10-phase flow: halt check → plan validation → repo check → pre-flight clean-tree (filtering Hermes's own `cortex/journal/` runtime artifacts) → lock acquire → branch checkout → action-engine.applyAction → verifier.runNpmTest → stage → commit-with-message-file → post-commit verify → journal success → lock release. Rollback semantics for every failure mode: action engine fail → checkout original branch + delete dead branch; verify fail → `git checkout -- .` + `git clean -fd` + return original branch; lock collision → preserve held lock; halt → exit 75.
 
   5. **+40 tests across 4 files:**
-     - `tests/unit/hermes/verifier.test.cjs` — 10 tests (npm test ok/fail, stdout capture, durationMs, timeoutMs, runNpmScript, summarizeResult variants)
-     - `tests/unit/hermes/git-ops.test.cjs` — 13 tests (introspection, branch ops, stage+commit, revert, flag-injection rejection, invalid-SHA rejection)
-     - `tests/unit/hermes/action-engine.test.cjs` — 13 tests (mock single+multi edit, env vars, JSON parse errors, empty edits, path traversal defense, claude-sdk stub, engine selection precedence)
-     - `tests/unit/hermes/execute.test.cjs` rewritten — 15 tests (plan validation, halt detection, claude-sdk default returns 64, mock happy path commits + journals success, dirty tree blocks, verify failure rolls back, mock-not-set rolls back to original branch, NOT_GIT_REPO, lock collision, CLI happy path)
+     - `tests/unit/steward/verifier.test.cjs` — 10 tests (npm test ok/fail, stdout capture, durationMs, timeoutMs, runNpmScript, summarizeResult variants)
+     - `tests/unit/steward/git-ops.test.cjs` — 13 tests (introspection, branch ops, stage+commit, revert, flag-injection rejection, invalid-SHA rejection)
+     - `tests/unit/steward/action-engine.test.cjs` — 13 tests (mock single+multi edit, env vars, JSON parse errors, empty edits, path traversal defense, claude-sdk stub, engine selection precedence)
+     - `tests/unit/steward/execute.test.cjs` rewritten — 15 tests (plan validation, halt detection, claude-sdk default returns 64, mock happy path commits + journals success, dirty tree blocks, verify failure rolls back, mock-not-set rolls back to original branch, NOT_GIT_REPO, lock collision, CLI happy path)
 
 - **3 real bugs caught by tests during implementation:**
   1. Windows `spawnSync('npm.cmd', ...)` requires `shell: true` (CVE-2024-27980). Without it: EINVAL on every npm invocation. Fix: conditional `shell: isWindows`.
@@ -445,9 +536,9 @@ No new tests (additive env override; existing test count preserved at 472).
 - **What's autonomous TODAY (post-Sprint-1.6.11):**
   ```bash
   # Mock-engine end-to-end execute (real git commits in temp repo):
-  cortex-hermes dry-run --slug=hermes-dryrun --json > /tmp/plan.json
+  cortex-steward dry-run --slug=hermes-dryrun --json > /tmp/plan.json
   HERMES_ENGINE=mock HERMES_MOCK_PLAN='{"edits":[...]}' \
-    cortex-hermes execute --plan-file=/tmp/plan.json
+    cortex-steward execute --plan-file=/tmp/plan.json
   # → real branch checkout → real edit → real npm test gate → real commit
   ```
   This is L2 (Execution autonomy) **with a mock LLM**. Real LLM = swap 1 file (`action-engine.cjs` claude-sdk stub) when Dave decides on zero-deps.
@@ -461,8 +552,8 @@ No new tests (additive env override; existing test count preserved at 472).
 - **Rollback:** revert this sprint's commit; previous v0.5-stub state preserved.
 
 - **What's next (per RFC roadmap):**
-  - **v0.5b** = `bin/hermes/_lib/action-engine.cjs` `claudeSdkEngine` stub → real `@anthropic-ai/claude-agent-sdk` call. ~1 file changed substantively, ~1 dep added. Requires Dave's zero-deps decision.
-  - **v1** = Enable `.github/workflows/hermes.yml` (uncomment schedule + add `ANTHROPIC_API_KEY` secret).
+  - **v0.5b** = `bin/steward/_lib/action-engine.cjs` `claudeSdkEngine` stub → real `@anthropic-ai/claude-agent-sdk` call. ~1 file changed substantively, ~1 dep added. Requires Dave's zero-deps decision.
+  - **v1** = Enable `.github/workflows/steward.yml` (uncomment schedule + add `ANTHROPIC_API_KEY` secret).
   - **D-1** = git history PII purge (destructive force-push, Dave-only) before v0.1.0 tag.
 
 ### Sprint 1.6.10 — v0.5 seam stub + execute subcommand + user guide (2026-05-07 final)
@@ -471,11 +562,11 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **What landed:** three deliverables wrapping up Hermes v0 day-end:
 
-  1. **`bin/hermes/execute.cjs`** (NEW, ~140 LOC) — the v0.5 LLM seam, intentionally a stub. Returns `{ ok: false, code: 'V05_NOT_IMPLEMENTED' }` and exits 64 (`EX_USAGE`). Validates plan-file shape (5 error codes: MISSING_PLAN_FILE, PLAN_FILE_NOT_FOUND, PLAN_PARSE_ERROR, PLAN_INVALID, PLAN_INCOMPLETE), runs halt-check first, journals an `execute_not_implemented` entry so observability shows Hermes was invoked but didn't act. Why ship a stub: locks the CLI surface (`cortex-hermes execute --plan-file=...`) so the v0.5 PR is a clean SDK-integration patch instead of architectural change; documents the seam visibly so Dave reviews the boundary BEFORE deciding on the `@anthropic-ai/claude-agent-sdk` dependency that crosses zero-deps; lets `.github/workflows/hermes.example.yml` reference the execute step today. 11 unit tests covering plan validation, halt detection, journal contract, CLI exit codes.
+  1. **`bin/steward/execute.cjs`** (NEW, ~140 LOC) — the v0.5 LLM seam, intentionally a stub. Returns `{ ok: false, code: 'V05_NOT_IMPLEMENTED' }` and exits 64 (`EX_USAGE`). Validates plan-file shape (5 error codes: MISSING_PLAN_FILE, PLAN_FILE_NOT_FOUND, PLAN_PARSE_ERROR, PLAN_INVALID, PLAN_INCOMPLETE), runs halt-check first, journals an `execute_not_implemented` entry so observability shows Hermes was invoked but didn't act. Why ship a stub: locks the CLI surface (`cortex-steward execute --plan-file=...`) so the v0.5 PR is a clean SDK-integration patch instead of architectural change; documents the seam visibly so Dave reviews the boundary BEFORE deciding on the `@anthropic-ai/claude-agent-sdk` dependency that crosses zero-deps; lets `.github/workflows/steward.example.yml` reference the execute step today. 11 unit tests covering plan validation, halt detection, journal contract, CLI exit codes.
 
-  2. **`execute` subcommand wired into `bin/cortex-hermes.cjs`** dispatcher. `cortex-hermes execute --plan-file=...` now reachable; `cli-dispatch.test.cjs` extended with one test asserting reachability.
+  2. **`execute` subcommand wired into `bin/cortex-steward.cjs`** dispatcher. `cortex-steward execute --plan-file=...` now reachable; `cli-dispatch.test.cjs` extended with one test asserting reachability.
 
-  3. **`docs/hermes-usage.md`** (NEW, ~250 LOC) — the user guide. Defines the **4-level autonomy ladder** (L1 Planning ✅ shipped / L2 Execution ⏳ v0.5 / L3 Triggers ⏳ v1 / L4 Recommendations ⏳ Phase 5 + v1) + hardcoded NEVER autonomous (auto-merge, MUST-H6). Concrete commands for L1 dogfood, L2 preview walkthrough, L3 setup, troubleshooting (MISSING_RECOMMENDATIONS, LOCK_HELD, SLUG_MISMATCH, HALTED), file-by-file reference table.
+  3. **`docs/steward-usage.md`** (NEW, ~250 LOC) — the user guide. Defines the **4-level autonomy ladder** (L1 Planning ✅ shipped / L2 Execution ⏳ v0.5 / L3 Triggers ⏳ v1 / L4 Recommendations ⏳ Phase 5 + v1) + hardcoded NEVER autonomous (auto-merge, MUST-H6). Concrete commands for L1 dogfood, L2 preview walkthrough, L3 setup, troubleshooting (MISSING_RECOMMENDATIONS, LOCK_HELD, SLUG_MISMATCH, HALTED), file-by-file reference table.
 
 - **Full suite:** 408 → 420 tests (+12 from execute.test.cjs).
 - **`npm run test:hermes`:** 132 tests in ~700ms.
@@ -496,12 +587,12 @@ No new tests (additive env override; existing test count preserved at 472).
 
   1. **`cortex/recommendations.md`** for cortex-x itself. Six DO-* items (3 week + 3 sprint) derived from external review + Sprint 1.6.7-1.6.8 architectural decisions. cortex-x is now Hermes-targetable.
 
-  2. **First successful Hermes dry-run on the real cortex-x repo.** `node bin/cortex-hermes.cjs dry-run --slug=cortex-x --json` picked DO-this-week #1 ("Pivot v1 trigger to GitHub Actions"), generated branch name `hermes/2026-05-07-pivot-v1-trigger-model-from-crontab-to-g-bz83`, emitted Conventional-Commits-shaped commit message with valid Git trailers, journaled the run. Dogfood proved the v0 plumbing works on a non-fixture project.
+  2. **First successful Hermes dry-run on the real cortex-x repo.** `node bin/cortex-steward.cjs dry-run --slug=cortex-x --json` picked DO-this-week #1 ("Pivot v1 trigger to GitHub Actions"), generated branch name `hermes/2026-05-07-pivot-v1-trigger-model-from-crontab-to-g-bz83`, emitted Conventional-Commits-shaped commit message with valid Git trailers, journaled the run. Dogfood proved the v0 plumbing works on a non-fixture project.
 
   3. **v1 trigger model pivoted from local crontab to GitHub Actions** (commit message body of the planned commit became this commit's body — manual Hermes mode).
-     - `docs/hermes-runtime.md` § 1.2 expanded to v0a (local crontab, cortex-x dogfood only) + v0b (GitHub Actions cron, production projects) + rationale + reference workflow + when-to-self-host-runner.
-     - `docs/hermes-rfc.md` "Architecture sketch" §2 trigger model rewritten to lead with GitHub Actions.
-     - `.github/workflows/hermes.example.yml` (NEW, ~85 LOC) — disabled-by-default reference workflow with `concurrency:` group for mutex-by-repo, `permissions:` for contents+PR write, `actions/checkout@v5` + `actions/setup-node@v5` + `npm ci` + `bin/cortex-hermes.cjs dry-run`, journal artifact upload, commented-out v0.5 Claude Agent SDK + PR creation steps.
+     - `docs/steward-runtime.md` § 1.2 expanded to v0a (local crontab, cortex-x dogfood only) + v0b (GitHub Actions cron, production projects) + rationale + reference workflow + when-to-self-host-runner.
+     - `docs/steward-rfc.md` "Architecture sketch" §2 trigger model rewritten to lead with GitHub Actions.
+     - `.github/workflows/steward.example.yml` (NEW, ~85 LOC) — disabled-by-default reference workflow with `concurrency:` group for mutex-by-repo, `permissions:` for contents+PR write, `actions/checkout@v5` + `actions/setup-node@v5` + `npm ci` + `bin/cortex-steward.cjs dry-run`, journal artifact upload, commented-out v0.5 Claude Agent SDK + PR creation steps.
 
   4. **Self-referential PII helper** (`tools/lib/denylist-examples.cjs` + 12 tests). Single-line opt-out marker `<!-- denylist-example -->` — any line containing the marker is excluded from PII scan. All 3 verifiers (verify-prompts, verify-skills, verify-standards) now strip marker-bearing lines before applying the PII denylist regex. Closes the recurring self-bug pattern caught 3 times this week (Tier 5 fixture README, Tier 7 ship-ready.md, cortex-doctor §13.7 — each documented a denylist by quoting forbidden strings, regex caught them). Markers preserve line numbers for error messages by replacing matched lines with empty strings rather than removing them.
 
@@ -521,7 +612,7 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **Why:** Dave's "udělej nejlepší postup verzi" mandate post-isolation discussion. Combined the dogfood validation + the architectural decision (GitHub Actions for production) + the meta-fix for the 3-times-bitten PII pattern + the last pre-launch tier into one coherent sprint. Manual Hermes mode (Claude played the LLM seam) actually executed DO-this-week item #1 from the new recommendations.md.
 
-- **Migrate:** none — additive. Existing installs unaffected. `.github/workflows/hermes.example.yml` is disabled (no `schedule:` block) until v0.5 ships.
+- **Migrate:** none — additive. Existing installs unaffected. `.github/workflows/steward.example.yml` is disabled (no `schedule:` block) until v0.5 ships.
 
 - **Rollback:** revert this sprint's commit. The five deliverables form one logical unit.
 
@@ -530,15 +621,15 @@ No new tests (additive env override; existing test count preserved at 472).
 #### Non-breaking (additive — no migration required)
 
 - **What landed:** three additive deliverables across one autonomous run:
-  - **`bin/cortex-hermes.cjs`** — unified entrypoint that dispatches `dry-run` and `status` subcommands to existing `bin/hermes/<sub>.cjs` scripts. Single CLI surface for users; underlying scripts remain individually invocable. `cortex-hermes help` and `cortex-hermes --version` both implemented. 10 contract tests in `tests/unit/hermes/cli-dispatch.test.cjs`.
+  - **`bin/cortex-steward.cjs`** — unified entrypoint that dispatches `dry-run` and `status` subcommands to existing `bin/steward/<sub>.cjs` scripts. Single CLI surface for users; underlying scripts remain individually invocable. `cortex-steward help` and `cortex-steward --version` both implemented. 10 contract tests in `tests/unit/steward/cli-dispatch.test.cjs`.
   - **Tier 6 — bin/ tools contract tests** (`tests/contract/bin-tools-shape.test.cjs`, 13 tests). Black-box invocations of `cortex-bootstrap` (env-driven mode-new/existing/framework, marker-file shape, marker-overwrite, invalid-mode exit-2, non-interactive exit-2) + `cortex-gap-report` (graceful empty-log, --json schema, --help, --since filter, seeded-aggregate, --raw output). Closes one of the three pre-launch gates.
   - **Tier 7 — standards link integrity** (`tools/verify-standards.cjs` + `tests/contract/standards-shape.test.cjs`, 13 tests). Validator scans every `standards/*.md` for: file exists + non-empty, internal markdown link resolution (relative-to-file OR repo-root), code-fence balance, PII denylist (matcher matches the maintainer's local path + personal email). First run surfaced **3 real issues** in `standards/ship-ready.md`: 2 broken links to `research/beta-distribution-2026-04-17.md` (file moved to `$CORTEX_DATA_HOME/research/` per Sprint 1.6 XDG separation but standards/ kept the stale ../research/ relative link) + 1 PII self-reference (the file mentioned `davidrajnoha@` in a "what NOT to commit" example, which itself matched the denylist). All 3 fixed in this sprint. Tier 7 closes the second of the three pre-launch gates.
   - `prompts/cortex-doctor.md` gets new §13.7 "Standards link integrity" between §13.6 (prompt + SKILL.md regression) and §14 (citation drift). The three §13.x sections now form a complete structural-validation triad: §13.5 audit deliverables, §13.6 prompts + skills, §13.7 standards.
   - `tests/smoke/verify-install.cjs` extended to require `tools/verify-standards.cjs` as a warning-severity check (mirrors verify-prompts + verify-skills install verification).
 
 - **npm scripts added:**
-  - `npm run hermes` — passthrough to `bin/cortex-hermes.cjs`
-  - `npm run hermes:status` — passthrough to `bin/hermes/status.cjs`
+  - `npm run hermes` — passthrough to `bin/cortex-steward.cjs`
+  - `npm run hermes:status` — passthrough to `bin/steward/status.cjs`
   - `npm run test:standards` — Tier 7 contract tests only
   - `npm run test:bin` — Tier 6 contract tests only
   - `npm run verify:standards` — direct invocation of `tools/verify-standards.cjs`
@@ -559,23 +650,23 @@ No new tests (additive env override; existing test count preserved at 472).
 
 #### Non-breaking (additive — no migration required)
 
-- **What landed:** Hermes runtime v0 minus the Claude Agent SDK call. Six zero-dep CJS primitives in `bin/hermes/_lib/` + one orchestrator at `bin/hermes/dry-run.cjs` + 6 unit-test files (95 unit tests) + 1 integration suite (16 fixture-driven tests). Total +111 tests; full suite 227 → 338 green.
-  - **`bin/hermes/_lib/halt-check.cjs`** — file-based kill switch detection (MUST-H5). Two sentinel paths checked at every tool-call boundary: `~/.cortex/HERMES_HALT` (fleet) and `<repo>/.cortex/HERMES_HALT` (per-project). CLI mode exits 75 (EX_TEMPFAIL) if halted. Fleet sentinel takes precedence when both present.
-  - **`bin/hermes/_lib/lock.cjs`** — per-project mutex (MUST-H2). Atomic acquire via `fs.writeFileSync({flag: 'wx'})` to `cortex/journal/<slug>/.lock`. Stale-lock recovery if mtime > 2× action timeout (default 30 min). EEXIST_FRESH error with held-by metadata when lock is fresh.
-  - **`bin/hermes/_lib/journal.cjs`** — append-only structured writer (MUST-H4). Manual schema validation (zero-dep equivalent of Zod) on every entry: ts/trigger/tier/event required, cost_usd/tokens optional with non-negative constraints, outcome/actor enum-validated. PII redaction at write time: homedir → `<HOME>`, sk-…/ghp_…/Bearer …/eyJ… all replaced with `<REDACTED>` tokens. Per-day JSONL files at `$CORTEX_DATA_HOME/journal/<slug>/<YYYY-MM-DD>.jsonl`.
-  - **`bin/hermes/_lib/recommendations.cjs`** — parser for `cortex/recommendations.md`. Extracts YAML frontmatter (slug required), parses `## DO this week (cited)` and `## DO this sprint (cited)` sections, extracts numbered action items (`### N. Title`) with [audit:] / [src:] citations. `pickNextAction()` returns first DO-this-week item not yet present in journal-derived processed-actions set.
-  - **`bin/hermes/_lib/git-trailers.cjs`** — Conventional Commits + Git trailer builder (MUST-H3). ULID generator (zero-dep, monotonic), subject validation (≤72 chars, valid type), trailer validation (required keys present, no newlines in values), `parseTrailers()` round-trip-safe parser that mirrors `git interpret-trailers --parse` for cases we care about.
-  - **`bin/hermes/_lib/policy-check.cjs`** — Hermes Ring 1 denylist (over `block-destructive.cjs` Ring 2). 9 rules: HERMES_HALT preservation, human_only path protection (standards/, prompts/, profiles/, agents/, CLAUDE.md, README.md, module.yaml), auto-merge prevention (`gh pr merge`, `git merge main`), prod-mutation prevention (vercel deploy --prod, supabase db push --linked, kubectl prod), force-push + hard-reset (also caught by block-destructive.cjs at Ring 2). Tool-aware check separates Edit/Write/MultiEdit (file_path argument) from Bash (free-text command).
-  - **`bin/hermes/dry-run.cjs`** — orchestrator that wires all six primitives end-to-end. CLI invocation: `node bin/hermes/dry-run.cjs --slug=<slug> [--repo-root=<path>] [--trigger=cron|incident|pr-merged|manual] [--json]`. Library invocation: `runDryRun(opts)` returns the structured plan. Steps: halt check → lock acquire → recommendations parse → action pick (skip already-processed via journal) → build branch name (`hermes/<YYYY-MM-DD>-<slug>-<id>`) → build Conventional Commits + trailers commit message → policy pre-flight on action body → journal entry append → lock release. No Claude Agent SDK call; outputs WHAT Hermes would do, not the actual edits.
+- **What landed:** Hermes runtime v0 minus the Claude Agent SDK call. Six zero-dep CJS primitives in `bin/steward/_lib/` + one orchestrator at `bin/steward/dry-run.cjs` + 6 unit-test files (95 unit tests) + 1 integration suite (16 fixture-driven tests). Total +111 tests; full suite 227 → 338 green.
+  - **`bin/steward/_lib/halt-check.cjs`** — file-based kill switch detection (MUST-H5). Two sentinel paths checked at every tool-call boundary: `~/.cortex/HERMES_HALT` (fleet) and `<repo>/.cortex/HERMES_HALT` (per-project). CLI mode exits 75 (EX_TEMPFAIL) if halted. Fleet sentinel takes precedence when both present.
+  - **`bin/steward/_lib/lock.cjs`** — per-project mutex (MUST-H2). Atomic acquire via `fs.writeFileSync({flag: 'wx'})` to `cortex/journal/<slug>/.lock`. Stale-lock recovery if mtime > 2× action timeout (default 30 min). EEXIST_FRESH error with held-by metadata when lock is fresh.
+  - **`bin/steward/_lib/journal.cjs`** — append-only structured writer (MUST-H4). Manual schema validation (zero-dep equivalent of Zod) on every entry: ts/trigger/tier/event required, cost_usd/tokens optional with non-negative constraints, outcome/actor enum-validated. PII redaction at write time: homedir → `<HOME>`, sk-…/ghp_…/Bearer …/eyJ… all replaced with `<REDACTED>` tokens. Per-day JSONL files at `$CORTEX_DATA_HOME/journal/<slug>/<YYYY-MM-DD>.jsonl`.
+  - **`bin/steward/_lib/recommendations.cjs`** — parser for `cortex/recommendations.md`. Extracts YAML frontmatter (slug required), parses `## DO this week (cited)` and `## DO this sprint (cited)` sections, extracts numbered action items (`### N. Title`) with [audit:] / [src:] citations. `pickNextAction()` returns first DO-this-week item not yet present in journal-derived processed-actions set.
+  - **`bin/steward/_lib/git-trailers.cjs`** — Conventional Commits + Git trailer builder (MUST-H3). ULID generator (zero-dep, monotonic), subject validation (≤72 chars, valid type), trailer validation (required keys present, no newlines in values), `parseTrailers()` round-trip-safe parser that mirrors `git interpret-trailers --parse` for cases we care about.
+  - **`bin/steward/_lib/policy-check.cjs`** — Hermes Ring 1 denylist (over `block-destructive.cjs` Ring 2). 9 rules: HERMES_HALT preservation, human_only path protection (standards/, prompts/, profiles/, agents/, CLAUDE.md, README.md, module.yaml), auto-merge prevention (`gh pr merge`, `git merge main`), prod-mutation prevention (vercel deploy --prod, supabase db push --linked, kubectl prod), force-push + hard-reset (also caught by block-destructive.cjs at Ring 2). Tool-aware check separates Edit/Write/MultiEdit (file_path argument) from Bash (free-text command).
+  - **`bin/steward/dry-run.cjs`** — orchestrator that wires all six primitives end-to-end. CLI invocation: `node bin/steward/dry-run.cjs --slug=<slug> [--repo-root=<path>] [--trigger=cron|incident|pr-merged|manual] [--json]`. Library invocation: `runDryRun(opts)` returns the structured plan. Steps: halt check → lock acquire → recommendations parse → action pick (skip already-processed via journal) → build branch name (`hermes/<YYYY-MM-DD>-<slug>-<id>`) → build Conventional Commits + trailers commit message → policy pre-flight on action body → journal entry append → lock release. No Claude Agent SDK call; outputs WHAT Hermes would do, not the actual edits.
 
 - **Tests landed:**
-  - `tests/unit/hermes/halt-check.test.cjs` — 7 tests (clean-state default, project sentinel, fleet sentinel + precedence, contract surfaces)
-  - `tests/unit/hermes/lock.test.cjs` — 9 tests (acquire/release, idempotent release, EEXIST_FRESH collision, multi-slug isolation, stale-lock recovery, fresh-lock-not-recovered, lock dir mkdir)
-  - `tests/unit/hermes/journal.test.cjs` — 21 tests (8 schema validations, 5 PII-redaction scenarios, 4 append+read, 2 append-only contract, 1 contract surface, 1 PII at write-not-read)
-  - `tests/unit/hermes/recommendations.test.cjs` — 14 tests (frontmatter parse, action item extraction, citations, full parse, slug-required, DO-this-week-required, action picker dedup, fixture integration)
-  - `tests/unit/hermes/git-trailers.test.cjs` — 19 tests (ULID, subject validation, trailer validation, buildSubject, buildCommitMessage end-to-end, parseTrailers round-trip, contract surfaces)
-  - `tests/unit/hermes/policy-check.test.cjs` — 25 tests (sentinel preservation, source-of-truth protection per path family, auto-merge prevention, prod-mutation prevention, git destructive ops, allow-paths, utilities)
-  - `tests/integration/hermes-dryrun.test.cjs` — 16 tests (happy path, dedupe across runs, halt + lock semantics, error paths, journal contract, CLI entry)
+  - `tests/unit/steward/halt-check.test.cjs` — 7 tests (clean-state default, project sentinel, fleet sentinel + precedence, contract surfaces)
+  - `tests/unit/steward/lock.test.cjs` — 9 tests (acquire/release, idempotent release, EEXIST_FRESH collision, multi-slug isolation, stale-lock recovery, fresh-lock-not-recovered, lock dir mkdir)
+  - `tests/unit/steward/journal.test.cjs` — 21 tests (8 schema validations, 5 PII-redaction scenarios, 4 append+read, 2 append-only contract, 1 contract surface, 1 PII at write-not-read)
+  - `tests/unit/steward/recommendations.test.cjs` — 14 tests (frontmatter parse, action item extraction, citations, full parse, slug-required, DO-this-week-required, action picker dedup, fixture integration)
+  - `tests/unit/steward/git-trailers.test.cjs` — 19 tests (ULID, subject validation, trailer validation, buildSubject, buildCommitMessage end-to-end, parseTrailers round-trip, contract surfaces)
+  - `tests/unit/steward/policy-check.test.cjs` — 25 tests (sentinel preservation, source-of-truth protection per path family, auto-merge prevention, prod-mutation prevention, git destructive ops, allow-paths, utilities)
+  - `tests/integration/steward-dryrun.test.cjs` — 16 tests (happy path, dedupe across runs, halt + lock semantics, error paths, journal contract, CLI entry)
 
 - **Bugs caught by tests during implementation:**
   - `parseTrailers` mishandled commit messages with trailing newlines (the canonical case — `git commit -F -` always trails) — fixed by stripping trailing empties before scanning, plus rewriting the algorithm to find the LAST blank line and walk forward instead of finding the first blank from end
@@ -583,7 +674,7 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **npm scripts added:**
   - `npm run test:hermes` — runs unit + integration tests for Hermes only (~110 tests in ~1s)
-  - `npm run hermes:dry-run` — CLI passthrough to `bin/hermes/dry-run.cjs`
+  - `npm run hermes:dry-run` — CLI passthrough to `bin/steward/dry-run.cjs`
 
 - **Why:** Hermes RFC pre-merge checklist gate 5 ("First Hermes-driven PR auto-generated against a fixture project") needed to land before runtime code. Dry-run orchestrator IS the first deliverable: it produces a valid Conventional-Commits-shaped commit message with Git trailers, identifies the action to take, journals the run — every step EXCEPT the Claude Agent SDK call. The remaining LLM integration becomes a single seam to wire in v0.5.
 
@@ -599,16 +690,16 @@ No new tests (additive env override; existing test count preserved at 472).
 
 - **What landed:** three commits closing the third pre-Hermes RFC gate:
   - **README/CLAUDE.md alignment** (commit `58857bf`) — external senior review flagged Phase 5 as overpromising ("✅ v1 done 2026-04-17" implied an automated runtime; reality is prompts + config + eval rubrics). Status calibrated to "✅ designed + specs / ⏳ runtime in Phase 7". Phase 7 — Hermes runtime added explicitly. Phase 1 marked ✅ shipped (Tier 0-5 QA infrastructure landed). Phase 2-4 marked ⚠️ partial with concrete what-ships-vs-what-defers. New "XDG separation (Sprint 1.6)" callout under repo structure explains the empty-looking `projects/` dir holds README only; actual project library entries live in `$CORTEX_DATA_HOME/projects/`.
-  - **Hermes pre-work design pass** (commit `a4844c1`) — three parallel background research agents dispatched (topology, triggers/safety, git workflow), each returned 800-1200 word brief grounded in production-agent precedent (Devin, Sweep, Copilot, Aider, Cline, Cognition essay, Anthropic SDK docs, OWASP LLM10, Temporal mutex). Three new files: `docs/hermes-research-synthesis.md` (decisions taken — 11-row table per architectural concern, 9 RFC open questions answered), `standards/hermes-policy.md` (Tier 2 — 7 hardcoded refusals + 7 Hermes-specific MUST patterns + denylist + cost ceilings + 4-tier escalation), `docs/hermes-runtime.md` (5 components + 4 ASCII sequence flows + v0 explicit non-scope). Three architectural pivots from RFC stub: (1) `hermes/<date>` daily-rolling → `hermes/<YYYY-MM-DD>-<slug>-<id>` branch-per-action (matches Devin/Sweep/Copilot precedent); (2) free-text journal lookup → Git trailers (`Hermes-Action-Id`, `Hermes-Journal-Entry`, `Hermes-Trigger`, `Hermes-Reverts` parseable via `git interpret-trailers`); (3) vague safety layer → file-based poison pill at `~/.cortex/HERMES_HALT` + `<repo>/.cortex/HERMES_HALT`. RFC checklist updated: 4 of 5 gates closed (fixture remains).
-  - **hermes-dryrun fixture + 18-test contract** (commit `9fc3a5b`) — `tests/fixtures/hermes-dryrun/` shipped: README, CLAUDE.md, package.json, src/index.js, tests/smoke.test.cjs, cortex/recommendations.md (frontmatter + ## DO this week section with 3 trivial action items + citation markers). New contract test `tests/contract/hermes-fixture-shape.test.cjs` with 18 assertions across 5 describe blocks (structural shape, recommendations.md parseable contract, PII + env safety, package.json hygiene, smoke-test sanity). First run caught a self-bug: README documented "no davidrajnoha@" as PII example, which itself matched the PII regex — fixed by switching to generic phrasing. Suite: 207 → 227 tests, all green; test:fast 197 → 217 tests in ~1.6s.
+  - **Hermes pre-work design pass** (commit `a4844c1`) — three parallel background research agents dispatched (topology, triggers/safety, git workflow), each returned 800-1200 word brief grounded in production-agent precedent (Devin, Sweep, Copilot, Aider, Cline, Cognition essay, Anthropic SDK docs, OWASP LLM10, Temporal mutex). Three new files: `docs/steward-research-synthesis.md` (decisions taken — 11-row table per architectural concern, 9 RFC open questions answered), `standards/steward-policy.md` (Tier 2 — 7 hardcoded refusals + 7 Hermes-specific MUST patterns + denylist + cost ceilings + 4-tier escalation), `docs/steward-runtime.md` (5 components + 4 ASCII sequence flows + v0 explicit non-scope). Three architectural pivots from RFC stub: (1) `hermes/<date>` daily-rolling → `hermes/<YYYY-MM-DD>-<slug>-<id>` branch-per-action (matches Devin/Sweep/Copilot precedent); (2) free-text journal lookup → Git trailers (`Hermes-Action-Id`, `Hermes-Journal-Entry`, `Hermes-Trigger`, `Hermes-Reverts` parseable via `git interpret-trailers`); (3) vague safety layer → file-based poison pill at `~/.cortex/HERMES_HALT` + `<repo>/.cortex/HERMES_HALT`. RFC checklist updated: 4 of 5 gates closed (fixture remains).
+  - **hermes-dryrun fixture + 18-test contract** (commit `9fc3a5b`) — `tests/fixtures/steward-dryrun/` shipped: README, CLAUDE.md, package.json, src/index.js, tests/smoke.test.cjs, cortex/recommendations.md (frontmatter + ## DO this week section with 3 trivial action items + citation markers). New contract test `tests/contract/steward-fixture-shape.test.cjs` with 18 assertions across 5 describe blocks (structural shape, recommendations.md parseable contract, PII + env safety, package.json hygiene, smoke-test sanity). First run caught a self-bug: README documented "no davidrajnoha@" as PII example, which itself matched the PII regex — fixed by switching to generic phrasing. Suite: 207 → 227 tests, all green; test:fast 197 → 217 tests in ~1.6s.
 
-- **Why:** external review (2026-05-07) ranked README↔reality alignment as the #1 next move; honest status is also a prerequisite to Hermes runtime work (you can't tell users "Hermes runs Phase 5 cron" if Phase 5 is ⏳ pending). Hermes pre-work: per RFC, both `standards/hermes-policy.md` + `docs/hermes-runtime.md` had to land before any runtime code merges. Fixture: per RFC checklist gate 5, "First Hermes-driven PR auto-generated against a fixture project" needs the fixture to exist first.
+- **Why:** external review (2026-05-07) ranked README↔reality alignment as the #1 next move; honest status is also a prerequisite to Hermes runtime work (you can't tell users "Hermes runs Phase 5 cron" if Phase 5 is ⏳ pending). Hermes pre-work: per RFC, both `standards/steward-policy.md` + `docs/steward-runtime.md` had to land before any runtime code merges. Fixture: per RFC checklist gate 5, "First Hermes-driven PR auto-generated against a fixture project" needs the fixture to exist first.
 
 - **Migrate:** none — purely additive. Existing installs unaffected.
 
 - **Rollback:** revert commits `9fc3a5b` `a4844c1` `58857bf` (in any order — they don't depend on each other).
 
-- **Pre-Hermes RFC checklist (per `docs/hermes-rfc.md`):**
+- **Pre-Hermes RFC checklist (per `docs/steward-rfc.md`):**
   - [x] Tier 4 hook contract (Sprint 1.6.5)
   - [x] Tier 5 prompt + SKILL.md regression (Sprint 1.6.5)
   - [x] hermes-policy.md drafted (this sprint, commit `a4844c1`)

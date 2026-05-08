@@ -5,12 +5,12 @@
 // observations for cortex/recommendations.md. Deterministic — no LLM call,
 // no source-code edits, no blast radius beyond appending to one markdown file.
 //
-// Used by Hermes when action_kind === 'recommendation_harvest'. The harvester
+// Used by Steward when action_kind === 'recommendation_harvest'. The harvester
 // runs read-only signal collection, then dedupes against existing
 // recommendations to produce a small list of NEW candidate observations.
 //
 // Why this matters for the nightly cron: when cortex/recommendations.md is
-// drained (all "## DO this week" items processed), Hermes has nothing to do
+// drained (all "## DO this week" items processed), Steward has nothing to do
 // → no_actionable_step → exit clean. Harvester turns "nothing to do" into
 // "draft PR appending 1-3 new observations sourced from real signal" —
 // recommendations.md becomes a living document instead of one-shot input.
@@ -152,13 +152,13 @@ function candidatesFromMergedPRs(prs) {
 function candidatesFromOpenIssues(issues) {
   const candidates = [];
   // Issues labeled "good-first-issue" or "easy" are candidates for harvest;
-  // they're scoped enough that Hermes's recommendation pipeline can act on them.
+  // they're scoped enough that Steward's recommendation pipeline can act on them.
   for (const issue of issues) {
     const labels = (issue.labels || []).map((l) => (l.name || '').toLowerCase());
     if (labels.includes('good-first-issue') || labels.includes('easy')) {
       candidates.push({
         title: `Address issue #${issue.number}: ${issue.title}`,
-        body: `Open issue tagged easy/good-first-issue — small enough for Hermes to triage in a single recommendation cycle.`,
+        body: `Open issue tagged easy/good-first-issue — small enough for Steward to triage in a single recommendation cycle.`,
         source: 'open_issue',
         source_url: issue.url || '',
         dedup_key: `issue-${issue.number}`,

@@ -65,8 +65,8 @@ The 8-tier mapping (see [tests/README.md](./tests/README.md) § Tier mapping) go
 | `profiles/<name>.yaml` | `tests/fixtures/<name>-mini/` (real-shape) + expectation in `tests/unit/detect-profile.test.cjs` |
 | `detectors/*.cjs` | `tests/unit/detect-*.test.cjs` (logic) + `tests/contract/profile-yaml-schema.test.cjs` (parser invariants) |
 | `tools/verify-audit-output.cjs` | `tests/unit/audit-validator.test.cjs` + new fixture if a new failure class |
-| `prompts/*.md` | (Tier 5 — landing pre-Hermes) |
-| `shared/hooks/*.cjs` | (Tier 4 — landing pre-Hermes) |
+| `prompts/*.md` | (Tier 5 — landing pre-Steward) |
+| `shared/hooks/*.cjs` | (Tier 4 — landing pre-Steward) |
 | `bin/*.cjs` | (Tier 6 — landing pre-launch) |
 | `standards/*.md` | (Tier 7 — landing pre-launch) |
 | `shared/skills/*/SKILL.md` | (Tier 8 — landing pre-launch) |

@@ -5,7 +5,7 @@
 // age (older than threshold = stable enough to ticket), dedupes against
 // open issues, returns the candidates that warrant a fresh gh issue.
 //
-// Used by Hermes when action_kind === 'todo_triage'. Deterministic — no LLM.
+// Used by Steward when action_kind === 'todo_triage'. Deterministic — no LLM.
 // Each candidate produces ONE gh issue with body assembled from the source
 // line + surrounding context + git blame author/date. No code edits.
 //
@@ -317,7 +317,7 @@ function formatIssueBody(candidate) {
   }
   lines.push('---');
   lines.push('');
-  lines.push('Filed by Hermes (cortex-x) automated TODO triage. Close if no longer applicable.');
+  lines.push('Filed by Steward (cortex-x) automated TODO triage. Close if no longer applicable.');
   return lines.join('\n');
 }
 

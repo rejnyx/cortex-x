@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // test-coverage-gap.cjs — Sprint 1.8.10 coverage gap detector.
 //
-// Capability #6 from the Hermes evolution roadmap. Pragmatic v1: parse a
+// Capability #6 from the Steward evolution roadmap. Pragmatic v1: parse a
 // `coverage/coverage-summary.json` file (c8 / istanbul / jest output) +
 // `git log --since=14days --name-only` to cross-reference. Files with
 // coverage below threshold AND recently edited get filed as gh issues.
@@ -163,7 +163,7 @@ function formatIssueBody(candidate) {
   lines.push('');
   lines.push(`## Why this is filed`);
   lines.push('');
-  lines.push('Hermes\'s `test_coverage_gap` capability cross-references the project\'s');
+  lines.push('Steward\'s `test_coverage_gap` capability cross-references the project\'s');
   lines.push(`coverage report (\`coverage/coverage-summary.json\`) against \`git log\` to`);
   lines.push(`find files that are BOTH undertested (statements < ${candidate.threshold}%) AND`);
   lines.push(`recently edited. The combination is a strong signal that uncovered paths`);
@@ -175,7 +175,7 @@ function formatIssueBody(candidate) {
   lines.push('3. Re-run coverage report to verify lift');
   lines.push('');
   lines.push('---');
-  lines.push('Filed by Hermes (cortex-x) test-coverage-gap. Deterministic — no LLM analysis.');
+  lines.push('Filed by Steward (cortex-x) test-coverage-gap. Deterministic — no LLM analysis.');
   return lines.join('\n');
 }
 

@@ -1,0 +1,121 @@
+# steward.yml — autonomous Steward runtime workflow (renamed from hermes.yml
+# in Sprint 4.7).
+#
+# Sprint 1.6.13–1.6.19 shipped v0.5b OpenRouter engine + push + draft PR
+# pipeline + budget cap + circuit breaker. This workflow runs the full
+# autonomous loop: dry-run → execute (real LLM via OpenRouter) → file edits
+# → npm test gate → atomic commit → git push → gh pr create --draft.
+#
+# Required repo secret: OPENROUTER_API_KEY (INFERENCE key, NOT provisioning —
+# provisioning keys cannot make /chat/completions calls). Set with:
+#   printf %s "$KEY" | gh secret set OPENROUTER_API_KEY    # ✅ no trailing \n
+#   gh secret set OPENROUTER_API_KEY --body "$KEY"         # ✅ equivalent
+#   echo "$KEY" | gh secret set OPENROUTER_API_KEY         # ❌ trailing \n
+# Trailing \n silently strips the Authorization header in undici fetch and
+# OpenRouter returns confusing 401 "Missing Authentication header"
+# (field-tested 2026-05-08, run 25550701886). The runtime defensively
+# trims and rejects malformed values via OPENROUTER_KEY_MALFORMED.
+#
+# Optional env knobs: STEWARD_MODEL (default deepseek/deepseek-v4-flash),
+# STEWARD_MAX_TOKENS (default 4096, recommend 16384), STEWARD_DAILY_USD_CAP
+# (default $5), STEWARD_FAILURE_BREAKER (default 3).
+# (Sprint 4.7 rebrand: legacy HERMES_* names still honored through v0.2.0.)
+#
+# See docs/steward-runtime.md § 1.2 "Trigger model" for design rationale.
+# See docs/steward-usage.md § Model selection for STEWARD_MODEL recommendations.
+
+name: steward nightly
+
+on:
+  workflow_dispatch:        # manual run via GH UI / `gh workflow run steward.yml`
+  schedule:
+    - cron: '0 4 * * *'     # Daily 04:00 UTC — first nightly run is the morning after merge.
+                            # Cost ceiling: STEWARD_DAILY_USD_CAP=$5/day; typical run ~$0.0008.
+                            # Failure ceiling: STEWARD_FAILURE_BREAKER=3 per-action_key in 1-hour window.
+                            # If recommendations.md is exhausted, dry-run returns no_actionable_step → exit clean (no spend).
+
+# Mutex-by-repo per MUST-H2: at most one running Steward per repo at a time.
+# `cancel-in-progress: false` because Steward actions are stateful (mid-action
+# cancellation could leave a partial commit on steward/<branch>); we'd rather
+# queue.
+concurrency:
+  group: steward-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-run:
+    name: steward nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write           # commit on steward/<date>-<slug>-<id> branch + push
+      pull-requests: write      # gh pr create --draft
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # Steward journal lookup needs full git history
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Verify pre-Steward gates
+        run: |
+          npm test
+          # Pre-flight: if the project's own test suite is red, do NOT run Steward —
+          # Steward verifies via npm test, so a red baseline = false positives.
+
+      - name: Configure git identity (Steward commits)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --json > /tmp/steward-plan.json
+          cat /tmp/steward-plan.json
+          # Set step output: has_action=true iff dry-run produced an actionable plan
+          if jq -e '.mode == "dry-run"' /tmp/steward-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "Dry-run returned no actionable step — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+
+      - name: Steward execute (real LLM via OpenRouter, atomic commit, push, draft PR)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-plan.json
+        env:
+          OPENROUTER_API_KEY:      ${{ secrets.OPENROUTER_API_KEY }}
+          # MUST match DEFAULT_MODEL in bin/steward/_lib/action-engine.cjs.
+          # Regression test: tests/contract/default-model-ssot.test.cjs
+          STEWARD_MODEL:           deepseek/deepseek-v4-flash
+          STEWARD_MAX_TOKENS:      '16384'
+          STEWARD_DAILY_USD_CAP:   '5'
+          STEWARD_FAILURE_BREAKER: '3'
+          CORTEX_DATA_HOME:        ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                ${{ github.token }}   # for `gh pr create --draft` inside execute
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

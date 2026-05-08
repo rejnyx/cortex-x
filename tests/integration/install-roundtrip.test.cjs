@@ -154,11 +154,11 @@ describe('install.sh roundtrip', { skip: !bashAvailable() }, () => {
     assert.match(content, /^language:\s*en$/m, 'language field should be "en" from CORTEX_LANGUAGE');
   });
 
-  test('Sprint 1.7.3 — cortex-hermes shim installed + delegates via cortex-source.yaml', () => {
-    const shimPath = path.join(isolatedHome, '.claude', 'shared', 'bin', 'cortex-hermes');
+  test('Sprint 1.7.3 — cortex-steward shim installed + delegates via cortex-source.yaml', () => {
+    const shimPath = path.join(isolatedHome, '.claude', 'shared', 'bin', 'cortex-steward');
     assert.ok(fs.existsSync(shimPath), `bash shim missing at ${shimPath}`);
     // pwsh shim too (for Windows users)
-    const pwshShim = path.join(isolatedHome, '.claude', 'shared', 'bin', 'cortex-hermes.ps1');
+    const pwshShim = path.join(isolatedHome, '.claude', 'shared', 'bin', 'cortex-steward.ps1');
     assert.ok(fs.existsSync(pwshShim), `pwsh shim missing at ${pwshShim}`);
     // cortex-source.yaml must exist (shim depends on it for delegation)
     const sourceYaml = path.join(isolatedHome, '.claude', 'shared', 'cortex-source.yaml');
@@ -172,7 +172,7 @@ describe('install.sh roundtrip', { skip: !bashAvailable() }, () => {
       env: { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome },
     });
     assert.equal(r.status, 0, `shim exited ${r.status}\nstdout:\n${r.stdout}\nstderr:\n${r.stderr}`);
-    assert.match(r.stdout, /^cortex-hermes \d+\.\d+\.\d+/, `unexpected version output: ${r.stdout}`);
+    assert.match(r.stdout, /^cortex-steward \d+\.\d+\.\d+/, `unexpected version output: ${r.stdout}`);
   });
 
   test('Sprint 1.7.6 — session-start hook produces valid JSON with additionalContext', () => {

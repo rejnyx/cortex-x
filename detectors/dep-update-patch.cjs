@@ -6,7 +6,7 @@
 // Patch updates are bug fixes by convention — Renovate, Dependabot, and every
 // modern auto-update tool treats them as auto-mergeable when tests pass.
 //
-// Used by Hermes when action_kind === 'dep_update_patch'. Deterministic — no
+// Used by Steward when action_kind === 'dep_update_patch'. Deterministic — no
 // LLM call. Happy path: detect → npm install patches → npm test → commit + PR.
 // Failure path: tests rejected → rollback + lesson recorded for next run.
 //
