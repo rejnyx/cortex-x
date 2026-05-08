@@ -15,18 +15,10 @@
 // `p` is tested against the joined string of all string-valued args.
 const STEWARD_DENY = [
   // Sentinel preservation — Steward cannot remove its own kill switch.
-  // Sprint 4.7 rebrand: both STEWARD_HALT (current) and HERMES_HALT (legacy
-  // alias through v0.2.0) are protected so a partially-migrated repo with
-  // an old halt sentinel still in place stays unkillable by the agent.
   {
     code: 'STEWARD_HALT_PRESERVE',
     p: /(\brm\b|\bunlink\b|\bRemove-Item\b)\s+.*\.cortex[/\\]STEWARD_HALT/,
     reason: 'Steward cannot remove its own kill switch (STEWARD_HALT)',
-  },
-  {
-    code: 'HERMES_HALT_PRESERVE',
-    p: /(\brm\b|\bunlink\b|\bRemove-Item\b)\s+.*\.cortex[/\\]HERMES_HALT/,
-    reason: 'Steward cannot remove its legacy kill switch (HERMES_HALT, pre-Sprint-4.7)',
   },
 
   // Source-of-truth protection — also enforced via tool-aware check below for
@@ -189,7 +181,4 @@ module.exports = {
   flattenArgs,
   checkWriteTool,
   STEWARD_DENY,
-  // Backward-compat alias for callers that imported the pre-Sprint-4.7 name.
-  // Removed in v0.2.0.
-  HERMES_DENY: STEWARD_DENY,
 };

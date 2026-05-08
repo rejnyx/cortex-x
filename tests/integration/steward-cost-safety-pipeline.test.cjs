@@ -7,7 +7,7 @@
  *   - weekly + monthly cap trip BEFORE the daily cap when daily is fine but
  *     7-day or month accumulation has reached the higher cap
  *   - token velocity gate trips for sub-daily token bursts
- *   - cross-session loop detector writes HERMES_HALT when a criterion id
+ *   - cross-session loop detector writes STEWARD_HALT when a criterion id
  *     fires ≥ threshold times in window
  *   - existing daily cap + failure breaker behaviour unchanged
  */
@@ -94,11 +94,11 @@ describe('Sprint 1.9.1 integration: weekly cap trips even when daily is fine', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_DAILY_USD_CAP: '5',
-      HERMES_WEEKLY_USD_CAP: '20',
-      HERMES_MONTHLY_USD_CAP: '0', // disable monthly to isolate weekly
-      HERMES_TOKEN_VELOCITY_CAP: '0',
-      HERMES_LOOP_THRESHOLD: '0',
+      STEWARD_DAILY_USD_CAP: '5',
+      STEWARD_WEEKLY_USD_CAP: '20',
+      STEWARD_MONTHLY_USD_CAP: '0', // disable monthly to isolate weekly
+      STEWARD_TOKEN_VELOCITY_CAP: '0',
+      STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
       // Seed 6 prior days at $4 each → total $24 in 7-day sliding window.
       // Today: $0 spent → daily cap fine; weekly cap should fire.
@@ -132,11 +132,11 @@ describe('Sprint 1.9.1 integration: monthly cap', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_DAILY_USD_CAP: '0',
-      HERMES_WEEKLY_USD_CAP: '0',
-      HERMES_MONTHLY_USD_CAP: '15',
-      HERMES_TOKEN_VELOCITY_CAP: '0',
-      HERMES_LOOP_THRESHOLD: '0',
+      STEWARD_DAILY_USD_CAP: '0',
+      STEWARD_WEEKLY_USD_CAP: '0',
+      STEWARD_MONTHLY_USD_CAP: '15',
+      STEWARD_TOKEN_VELOCITY_CAP: '0',
+      STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
       // Multiple dates this month accumulating > $15.
       // Use yesterday's date (always same calendar month except midnight edge).
@@ -179,11 +179,11 @@ describe('Sprint 1.9.1 integration: token velocity', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_DAILY_USD_CAP: '0',
-      HERMES_WEEKLY_USD_CAP: '0',
-      HERMES_MONTHLY_USD_CAP: '0',
-      HERMES_TOKEN_VELOCITY_CAP: '50000',
-      HERMES_LOOP_THRESHOLD: '0',
+      STEWARD_DAILY_USD_CAP: '0',
+      STEWARD_WEEKLY_USD_CAP: '0',
+      STEWARD_MONTHLY_USD_CAP: '0',
+      STEWARD_TOKEN_VELOCITY_CAP: '50000',
+      STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
       const now = new Date().toISOString();
       seedJournal([{
@@ -212,12 +212,12 @@ describe('Sprint 1.9.1 integration: loop detector writes HERMES_HALT', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_DAILY_USD_CAP: '0',
-      HERMES_WEEKLY_USD_CAP: '0',
-      HERMES_MONTHLY_USD_CAP: '0',
-      HERMES_TOKEN_VELOCITY_CAP: '0',
-      HERMES_LOOP_THRESHOLD: '5',
-      HERMES_LOOP_WINDOW_DAYS: '7',
+      STEWARD_DAILY_USD_CAP: '0',
+      STEWARD_WEEKLY_USD_CAP: '0',
+      STEWARD_MONTHLY_USD_CAP: '0',
+      STEWARD_TOKEN_VELOCITY_CAP: '0',
+      STEWARD_LOOP_THRESHOLD: '5',
+      STEWARD_LOOP_WINDOW_DAYS: '7',
     }, async () => {
       const entries = [];
       for (let d = 0; d < 5; d += 1) {
@@ -260,11 +260,11 @@ describe('Sprint 1.9.1 integration: existing daily cap regression', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_DAILY_USD_CAP: '1',
-      HERMES_WEEKLY_USD_CAP: '0',
-      HERMES_MONTHLY_USD_CAP: '0',
-      HERMES_TOKEN_VELOCITY_CAP: '0',
-      HERMES_LOOP_THRESHOLD: '0',
+      STEWARD_DAILY_USD_CAP: '1',
+      STEWARD_WEEKLY_USD_CAP: '0',
+      STEWARD_MONTHLY_USD_CAP: '0',
+      STEWARD_TOKEN_VELOCITY_CAP: '0',
+      STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
       seedJournal([{
         date: dateMinus(0),

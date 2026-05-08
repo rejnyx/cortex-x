@@ -6,26 +6,26 @@ const assert = require('node:assert/strict');
 const {
   isAllowed,
   flattenArgs,
-  HERMES_DENY,
+  STEWARD_DENY,
 } = require('../../../bin/steward/_lib/policy-check.cjs');
 
 describe('policy-check: kill-switch preservation', () => {
-  test('rm of fleet HERMES_HALT blocked', () => {
-    const r = isAllowed('Bash', { command: 'rm ~/.cortex/HERMES_HALT' });
+  test('rm of fleet STEWARD_HALT blocked', () => {
+    const r = isAllowed('Bash', { command: 'rm ~/.cortex/STEWARD_HALT' });
     assert.equal(r.allowed, false);
-    assert.equal(r.code, 'HERMES_HALT_PRESERVE');
+    assert.equal(r.code, 'STEWARD_HALT_PRESERVE');
   });
 
-  test('rm of project HERMES_HALT blocked', () => {
-    const r = isAllowed('Bash', { command: 'rm /repo/.cortex/HERMES_HALT' });
+  test('rm of project STEWARD_HALT blocked', () => {
+    const r = isAllowed('Bash', { command: 'rm /repo/.cortex/STEWARD_HALT' });
     assert.equal(r.allowed, false);
-    assert.equal(r.code, 'HERMES_HALT_PRESERVE');
+    assert.equal(r.code, 'STEWARD_HALT_PRESERVE');
   });
 
-  test('Remove-Item of HERMES_HALT (PowerShell) blocked', () => {
-    const r = isAllowed('Bash', { command: 'Remove-Item C:\\repo\\.cortex\\HERMES_HALT' });
+  test('Remove-Item of STEWARD_HALT (PowerShell) blocked', () => {
+    const r = isAllowed('Bash', { command: 'Remove-Item C:\\repo\\.cortex\\STEWARD_HALT' });
     assert.equal(r.allowed, false);
-    assert.equal(r.code, 'HERMES_HALT_PRESERVE');
+    assert.equal(r.code, 'STEWARD_HALT_PRESERVE');
   });
 });
 
@@ -155,8 +155,8 @@ describe('policy-check: utilities', () => {
     assert.match(nested, /bar/);
   });
 
-  test('HERMES_DENY rules each have code + reason + RegExp pattern', () => {
-    for (const rule of HERMES_DENY) {
+  test('STEWARD_DENY rules each have code + reason + RegExp pattern', () => {
+    for (const rule of STEWARD_DENY) {
       assert.ok(rule.code, 'rule must have code');
       assert.ok(rule.reason, 'rule must have reason');
       assert.ok(rule.p instanceof RegExp, 'rule.p must be RegExp');

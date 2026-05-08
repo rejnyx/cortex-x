@@ -1,6 +1,6 @@
 {
   "name": "apply-failure-denylist-package-json",
-  "description": "LLM emits an edit to package.json (Sprint 1.6.20 T8 hard denylist — npm dep changes are governed by hermes-policy.md MUST-H4 zero-deps). Refuses with EDIT_DENYLISTED.",
+  "description": "LLM emits an edit to package.json (Sprint 1.6.20 T8 hard denylist — npm dep changes are governed by steward-policy.md MUST-H4 zero-deps). Refuses with EDIT_DENYLISTED.",
   "mock_plan": {
     "edits": [
       {

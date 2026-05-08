@@ -121,7 +121,7 @@ describe('status: halt + lock detection', () => {
     const repoRoot = freshFixture('halt');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'steward-status-data-'));
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'halt\n');
+    fs.writeFileSync(path.join(repoRoot, '.cortex', 'STEWARD_HALT'), 'halt\n');
 
     withDataHome(dataHome, () => {
       const result = status.getStatus({ slug: SLUG, repoRoot });

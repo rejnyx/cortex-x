@@ -210,7 +210,7 @@ describe('property: addCostFields', () => {
         tier: 'T0',
         event: 'foo',
         outcome: 'success',
-        actor: 'hermes',
+        actor: 'steward',
         custom_field: 'should not be removed',
       };
       const before = Object.keys(entry).sort();

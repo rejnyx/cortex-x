@@ -33,7 +33,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 | **R1** | **Research-before-implement.** Every sprint kicks off with a focused web-research dispatch (general-purpose agent, ~600-1200 word brief) on the SOTA for that specific direction *as of the day work starts*. The 2026 frontier shifts in weeks; the cached 2026-05 research expires fast. | Sprint cannot move from "planned" to "in-progress" without a `docs/research/<sprint>-<topic>-<date>.md` decision memo committed. |
 | **R2** | **Review pipeline mandatory.** Every sprint that touches `bin/steward/_lib/` or any Rule 1/2 module gets the 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) before commit lands on main. Pattern proven in Sprint 1.6.18 + reused continuously. | `cortex-evolve` review pipeline run, all blocker-severity findings closed. |
 | **R3** | **One incident class = one defense layer = one regression test.** Sprint 1.8.12/1.8.13 set the precedent: every real failure mode shipped today produced a code defense + a regression test. No class is fully closed without both. | Test count grows monotonically. Today: 790. After v1.0: ≥1500. |
-| **R4** | **Cost ceiling preserved.** Current full-cadence Steward spend is ~$0.024/month. Multi-agent / overnight burst sprints will raise this — but never above $5/month at full cadence per project. Anything bigger needs explicit operator authorization. | `HERMES_DAILY_USD_CAP` enforcement + monthly journal cost rollup. |
+| **R4** | **Cost ceiling preserved.** Current full-cadence Steward spend is ~$0.024/month. Multi-agent / overnight burst sprints will raise this — but never above $5/month at full cadence per project. Anything bigger needs explicit operator authorization. | `STEWARD_DAILY_USD_CAP` enforcement + monthly journal cost rollup. |
 | **R5** | **No human-only edits become Steward-able.** `standards/`, `prompts/`, `profiles/`, `agents/`, top-level `CLAUDE.md`/`README.md`/`module.yaml` are human-only forever. Any sprint extending Steward capability that wants to relax this is automatically rejected. | `bin/steward/_lib/policy-check.cjs` HUMAN_ONLY_PATH + HUMAN_ONLY_TOPLEVEL rules. |
 | **R6** | **Backward-compatible by default.** Existing 9 action_kinds keep working through every sprint. New capabilities are additive. Breaking changes are reserved for explicit `vN.0.0` major bumps. | `MIGRATIONS.md` entry per sprint + tests for all 9 existing kinds stay green. |
 
@@ -80,13 +80,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector (S effort, ⭐ PRE-2.x POJISTKA)
 
-**Why before Sprint 2.x**: today we have `HERMES_DAILY_USD_CAP` $5/day + `HERMES_FAILURE_BREAKER` 3 fails/1h per-action_key. Mid-week burst (Sprint 2.1 autoresearch overnight) or month-long slow drift (Sprint 2.0 Langfuse instrumentation that hits provider's hot path every action) can quietly accumulate $150/month before any single day trips the daily cap. Real-incident anchor: April 2026 dev's $437 retry-loop bill. Lower-effort sprint with high blast-radius reduction; ship before unleashing autoresearch.
+**Why before Sprint 2.x**: today we have `STEWARD_DAILY_USD_CAP` $5/day + `STEWARD_FAILURE_BREAKER` 3 fails/1h per-action_key. Mid-week burst (Sprint 2.1 autoresearch overnight) or month-long slow drift (Sprint 2.0 Langfuse instrumentation that hits provider's hot path every action) can quietly accumulate $150/month before any single day trips the daily cap. Real-incident anchor: April 2026 dev's $437 retry-loop bill. Lower-effort sprint with high blast-radius reduction; ship before unleashing autoresearch.
 
 **Scope**:
-- `HERMES_WEEKLY_USD_CAP` (default $25) — sliding 7-day journal window sum.
-- `HERMES_MONTHLY_USD_CAP` (default $80) — calendar-month journal window sum.
-- `HERMES_TOKEN_VELOCITY_CAP` (default 50K tokens / 5min sliding window) — burst protection for ensemble + autoresearch.
-- **Cross-session loop detector**: same `spec_failures[0].id` fires ≥ 5x in last 7 days for same action_key → write `.cortex/HERMES_HALT` with reason `LOOP_DETECTED:<criterion_id>:<action_key>`. Halt is operator-cleared (manual `rm` per existing kill-switch UX).
+- `STEWARD_WEEKLY_USD_CAP` (default $25) — sliding 7-day journal window sum.
+- `STEWARD_MONTHLY_USD_CAP` (default $80) — calendar-month journal window sum.
+- `STEWARD_TOKEN_VELOCITY_CAP` (default 50K tokens / 5min sliding window) — burst protection for ensemble + autoresearch.
+- **Cross-session loop detector**: same `spec_failures[0].id` fires ≥ 5x in last 7 days for same action_key → write `.cortex/STEWARD_HALT` with reason `LOOP_DETECTED:<criterion_id>:<action_key>`. Halt is operator-cleared (manual `rm` per existing kill-switch UX).
 - **Budget warnings**: when current spend reaches 80% of daily/weekly/monthly cap, journal a `budget_warning` event (not blocking) so `cortex-steward status` shows the operator they're approaching the cap.
 - `cortex-steward status --forecast` flag: extrapolate current rate × days remaining in window → projected end-of-window spend. JSON + human modes both expose forecast block.
 
@@ -94,7 +94,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 - `BUDGET_WEEKLY_CAP_REACHED` (parallel to existing `BUDGET_CAP_REACHED` for daily)
 - `BUDGET_MONTHLY_CAP_REACHED`
 - `TOKEN_VELOCITY_CAP_REACHED`
-- `LOOP_DETECTED` (halt reason in HERMES_HALT)
+- `LOOP_DETECTED` (halt reason in STEWARD_HALT)
 
 **Acceptance criteria for the sprint itself**:
 - [ ] All 3 caps work in the existing pre-flight gate location (before lock acquisition, like daily cap).
@@ -452,7 +452,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 - **Sibling repo** `cortex-dashboard` — not a folder in cortex-x. Scaffolded by cortex-x's own profile system (new profile `cortex-dashboard`).
 - **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `STEWARD_DAILY_USD_CAP` / `STEWARD_TREE_USD_CAP` (post-2.2); halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
 - **Anthill view (post-2.2 / 2.3 — operator-pitched 2026-05-08).** When Sprint 2.2 ships supervisor + worker spawning, dashboard wraps the OTLP traces from Sprint 2.0 (Phoenix/Langfuse) and renders the live tree: supervisor at root, N workers as children, per-node cost + token + status, fan-out/fan-in animation. **Don't reinvent the trace store** — Phoenix already has the OTLP HTTP API; dashboard is just the Steward-flavored UI. See [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md) §9 for visualization options surveyed.
-- **v2 control**: halt button (writes `.cortex/STEWARD_HALT` with reason; legacy `HERMES_HALT` filename also honored through v0.2.0), lesson edit/dismiss.
+- **v2 control**: halt button (writes `.cortex/STEWARD_HALT` with reason; legacy `STEWARD_HALT` filename also honored through v0.2.0), lesson edit/dismiss.
 
 **Architecture**:
 - Reads documented contracts: journal entry shape, lessons.jsonl shape, `cortex-steward status --json`, `gh run list --json`.

@@ -22,10 +22,10 @@ const { resolveCortexDataHome } = require('../../../tools/lib/resolve-cortex-hom
 const VALID_TRIGGERS = ['cron', 'incident', 'pr-merged', 'manual'];
 const VALID_TIERS = ['T0', 'T1', 'T2', 'T3'];
 const VALID_OUTCOMES = ['success', 'failure', 'skipped', 'halted'];
-// Sprint 4.7 rebrand: 'steward' is the canonical actor going forward;
-// 'hermes' remains valid so historical journal data + any
-// pre-rebrand-running scripts still pass validation through v0.2.0.
-const VALID_ACTORS = ['steward', 'hermes', 'investigate-subagent'];
+// Canonical actors. v0.2.0 dropped the legacy 'hermes' actor; existing
+// journal entries with `actor: 'hermes'` remain readable (validation
+// applies on write only — readJournal does not re-validate).
+const VALID_ACTORS = ['steward', 'investigate-subagent'];
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD

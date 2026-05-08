@@ -2,8 +2,7 @@
 // pr-review-responder.cjs — Sprint 1.8.11 PR review comment monitor.
 //
 // Capability #9 from the Steward evolution roadmap. Polls open PRs authored
-// by Steward ("Steward (cortex-x)" or legacy "Hermes (cortex-x)" pre-Sprint-4.7
-// rebrand) that have unresolved reviewer comments.
+// by Steward ("Steward (cortex-x)") that have unresolved reviewer comments.
 // Pragmatic v1: file an aggregation issue summarizing the comments per PR.
 // Maintainer addresses on the PR or in code; Steward does NOT auto-patch.
 //
@@ -30,11 +29,7 @@ const { execSync } = require('child_process');
 
 const SIGNAL_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_CANDIDATES = 5;
-// Sprint 4.7 rebrand: PRs authored under either name need to be recognized.
-// Steward is the canonical going forward; Hermes-authored PRs from before
-// the rename remain in flight until merged or closed.
 const STEWARD_AUTHOR = 'Steward (cortex-x)';
-const LEGACY_HERMES_AUTHOR = 'Hermes (cortex-x)';
 
 function safeExec(cmd, opts = {}) {
   try {
@@ -58,19 +53,13 @@ function ghAuthed() {
   return !!safeExec('gh auth status', { timeout: 2000 });
 }
 
-// Fetch open PRs authored by Steward (or by legacy Hermes name).
-// Returns array of { number, title, author }.
+// Fetch open PRs authored by Steward. Returns array of { number, title, author }.
 function isStewardAuthor(pr) {
   const name = pr.author && (pr.author.name || pr.author.login || '');
   return name.includes('Steward')
-      || name.includes('Hermes')
       || name === STEWARD_AUTHOR
-      || name === LEGACY_HERMES_AUTHOR
-      || name === 'steward-cortex-x'
-      || name === 'hermes-cortex-x';
+      || name === 'steward-cortex-x';
 }
-// Backward-compat alias for callers that imported the pre-rebrand name.
-const isHermesAuthor = isStewardAuthor;
 
 function getStewardOpenPRs({ cwd, mockOpenPRs }) {
   let parsed;
@@ -87,8 +76,6 @@ function getStewardOpenPRs({ cwd, mockOpenPRs }) {
   }
   return parsed.filter(isStewardAuthor);
 }
-// Backward-compat alias for callers that imported the pre-rebrand name.
-const getHermesOpenPRs = getStewardOpenPRs;
 
 // Fetch review comments for a single PR. Returns array of { author, body, file, line }.
 function getPRComments({ cwd, prNumber, mockComments }) {
@@ -129,8 +116,8 @@ function detectReviewComments({
       : getPRComments({ cwd: repoRoot, prNumber: pr.number });
 
     const externalComments = comments.filter((c) =>
-      c.author !== 'hermes-cortex-x' &&
-      !((c.author || '').toLowerCase().includes('hermes')),
+      c.author !== 'steward-cortex-x' &&
+      !((c.author || '').toLowerCase().includes('steward')),
     );
     if (externalComments.length === 0) continue;
 
@@ -222,9 +209,6 @@ module.exports = {
   detectReviewComments,
   getStewardOpenPRs,
   isStewardAuthor,
-  // Sprint 4.7 backward-compat aliases — removed in v0.2.0.
-  getHermesOpenPRs,
-  isHermesAuthor,
   getPRComments,
   formatIssueTitle,
   formatIssueBody,

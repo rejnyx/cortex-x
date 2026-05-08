@@ -16,8 +16,7 @@
 //
 // Default engine is `openrouter` (Sprint 1.6.13 — real LLM via fetch).
 // `claude-sdk` is a stub kept reachable via explicit `--engine=claude-sdk`.
-// Override via env `STEWARD_ENGINE=mock` for tests + dogfood
-// (legacy `HERMES_ENGINE` honored through v0.2.0).
+// Override via env `STEWARD_ENGINE=mock` for tests + dogfood.
 //
 // CLI:
 //   node bin/steward/execute.cjs --plan-file=<path-to-dry-run-json>
@@ -1180,8 +1179,6 @@ async function _runExecuteInner(opts, ctx) {
   // ≥ STEWARD_LOOP_THRESHOLD times in the last STEWARD_LOOP_WINDOW_DAYS days
   // for the same action_key indicates the model cannot satisfy this
   // criterion. Halt is operator-cleared (write STEWARD_HALT, return).
-  // Sprint 4.7 rebrand: write the new sentinel filename; halt-check.cjs
-  // also reads legacy `HERMES_HALT` for backward compat through v0.2.0.
   const loop = costSafety.detectCriterionLoop(slug);
   if (loop.tripped) {
     const reason = `LOOP_DETECTED:${loop.criterionId}:${loop.actionKey} count=${loop.count} threshold=${loop.threshold} window=${loop.windowDays}d`;
@@ -1796,9 +1793,6 @@ module.exports = {
   runPRResponderAction,
   // Sprint 1.8.12 — halt-check artifact filter exported for unit testing
   isStewardArtifact,
-  // Sprint 4.7 backward-compat alias for callers that imported the
-  // pre-rebrand name. Removed in v0.2.0.
-  isHermesArtifact: isStewardArtifact,
   EX_USAGE,
 };
 
@@ -1827,7 +1821,6 @@ if (require.main === module) {
     console.log('  --help               this help');
     console.log('');
     console.log('Engine selection (precedence): --engine flag > STEWARD_ENGINE env > openrouter');
-    console.log('  (legacy HERMES_ENGINE alias honored through v0.2.0)');
     console.log('');
     console.log('openrouter engine: real LLM via fetch (zero-deps). Requires OPENROUTER_API_KEY.');
     console.log('  See docs/steward-usage.md § Model selection for STEWARD_MODEL recommendations.');

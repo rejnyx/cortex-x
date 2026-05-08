@@ -17,10 +17,12 @@
 //   Steward-Reverts: <original-sha>     (revert commits only — bidirectional audit)
 //   Co-Authored-By: Steward <steward@cortex-x.local>
 //
-// Backward-compat: callers passing legacy `Hermes-*` trailer keys are silently
-// normalized to `Steward-*` so pre-Sprint-4.7 plan generators still work
-// through v0.2.0. Past commits in repo history retain their original
-// `Hermes-*` trailers — those are immutable; parser is prefix-agnostic.
+// Past commits in repo history retain their original `Hermes-*` trailers
+// from before the Sprint 4.7 rename — those are immutable. parseTrailers is
+// prefix-agnostic (matches any `Word-Word: value` shape) and `getTrailer`
+// reads either prefix from the parsed map so future-Steward can walk history
+// without two lookups. Builder + validator are Steward-* only (v0.2.0
+// dropped the legacy normalization shim).
 //
 // Contract:
 //   - Pure function, no side effects, no fs, no process spawn
@@ -74,23 +76,6 @@ function validateConventionalSubject(opts) {
   }
 }
 
-// Sprint 4.7 rebrand: rename any Hermes-<suffix> trailer key to Steward-<suffix>.
-// Returns a new object — does not mutate input. If both forms coexist on the
-// same input, Steward-* wins (caller's explicit choice).
-function normalizeTrailerPrefixes(trailers) {
-  if (!trailers || typeof trailers !== 'object') return trailers;
-  const out = {};
-  for (const [k, v] of Object.entries(trailers)) {
-    if (k.startsWith('Hermes-')) {
-      const newKey = `Steward-${k.slice('Hermes-'.length)}`;
-      if (out[newKey] === undefined) out[newKey] = v;
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
 function validateTrailers(trailers) {
   for (const suffix of REQUIRED_TRAILER_SUFFIXES) {
     const k = `Steward-${suffix}`;
@@ -120,10 +105,10 @@ function buildSubject({ type, scope, breaking, subject }) {
 function buildCommitMessage(opts) {
   validateConventionalSubject(opts);
 
-  const normalized = normalizeTrailerPrefixes(opts.trailers || {});
+  const incoming = opts.trailers || {};
   const trailers = {
-    ...normalized,
-    'Co-Authored-By': normalized['Co-Authored-By'] || 'Steward <steward@cortex-x.local>',
+    ...incoming,
+    'Co-Authored-By': incoming['Co-Authored-By'] || 'Steward <steward@cortex-x.local>',
   };
   validateTrailers(trailers);
 
@@ -195,7 +180,6 @@ module.exports = {
   ulid,
   validateConventionalSubject,
   validateTrailers,
-  normalizeTrailerPrefixes,
   VALID_TYPES,
   VALID_TRIGGERS,
   REQUIRED_TRAILER_SUFFIXES,

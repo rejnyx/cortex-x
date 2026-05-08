@@ -347,21 +347,16 @@ try {
   // Marker unreadable — silently skip; bootstrap is augmentation, not blocker.
 }
 
-// Sprint 1.7.6 — Steward activation surface (renamed from Hermes in Sprint 4.7).
-// If the project has a recommendations.md (the Steward input file) but no
-// steward.yml workflow AND no halt switch active, surface ONE line nudge so the
-// user discovers the autopilot without re-grepping docs. Both new and legacy
-// halt-sentinel filenames are honored through v0.2.0.
+// Sprint 1.7.6 — Steward activation surface. If the project has a
+// recommendations.md (the Steward input file) but no steward.yml workflow
+// AND no halt switch active, surface ONE line nudge so the user discovers
+// the autopilot without re-grepping docs.
 try {
   const os = require('os');
   const recsPath = path.join(ROOT, 'cortex', 'recommendations.md');
   const stewardWorkflow = path.join(ROOT, '.github', 'workflows', 'steward.yml');
-  const legacyHermesWorkflow = path.join(ROOT, '.github', 'workflows', 'hermes.yml');
   const stewardHalt = path.join(os.homedir(), '.cortex', 'STEWARD_HALT');
-  const legacyHermesHalt = path.join(os.homedir(), '.cortex', 'HERMES_HALT');
-  const workflowExists = fs.existsSync(stewardWorkflow) || fs.existsSync(legacyHermesWorkflow);
-  const haltActive = fs.existsSync(stewardHalt) || fs.existsSync(legacyHermesHalt);
-  if (fs.existsSync(recsPath) && !workflowExists && !haltActive) {
+  if (fs.existsSync(recsPath) && !fs.existsSync(stewardWorkflow) && !fs.existsSync(stewardHalt)) {
     ctx.push('');
     ctx.push('→ Steward ready to activate: paste ~/.claude/shared/prompts/steward-setup.md');
     ctx.push('  (autonomous nightly autopilot: reads recommendations.md, opens draft PR overnight, ~$0.0008/run)');

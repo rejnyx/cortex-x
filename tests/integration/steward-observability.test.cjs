@@ -187,7 +187,7 @@ describe('Sprint 2.0 observability: AC-4 (endpoint UNSET → fail-open, journal 
       await withEnv({
         CORTEX_DATA_HOME: dataHome,
         STEWARD_OTEL_ENDPOINT: undefined,
-        HERMES_OTEL_ENDPOINT: undefined,
+        STEWARD_OTEL_ENDPOINT: undefined,
         STEWARD_DAILY_USD_CAP: '0',
         STEWARD_WEEKLY_USD_CAP: '0',
         STEWARD_MONTHLY_USD_CAP: '0',

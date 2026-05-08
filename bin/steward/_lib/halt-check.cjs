@@ -6,11 +6,11 @@
 //   ~/.cortex/STEWARD_HALT          fleet-wide halt (every project)
 //   <repo>/.cortex/STEWARD_HALT     per-project halt
 //
-// Sprint 4.7 rebrand backward-compat: `HERMES_HALT` (legacy filename pre-rebrand)
-// is also honored so existing operator setups keep halting through v0.2.0. New
-// halts are written as `STEWARD_HALT` (see execute.cjs loop detector).
+// (Pre-Sprint-4.7 the sentinel was named `HERMES_HALT`; the v0.2.0 release
+// dropped that legacy filename. Operators with old halt files must
+// `mv ~/.cortex/HERMES_HALT ~/.cortex/STEWARD_HALT`.)
 //
-// Steward itself MUST NOT be able to remove either file. block-destructive.cjs
+// Steward itself MUST NOT be able to remove the file. block-destructive.cjs
 // denylist (Ring 2) extended to forbid `rm`/`unlink`/`Remove-Item` of these
 // paths. Removal is human-only — typically `rm ~/.cortex/STEWARD_HALT` after
 // the human resolves whatever caused the halt.
@@ -29,15 +29,11 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { resolveCortexDataHome } = require('../../../tools/lib/resolve-cortex-home.cjs');
 
 const SENTINEL_FILENAME = 'STEWARD_HALT';
-// Legacy pre-Sprint-4.7 filename. Removed in v0.2.0; honored through this
-// release so operators with old halts in place keep halting.
-const LEGACY_SENTINEL_FILENAME = 'HERMES_HALT';
 const EX_TEMPFAIL = 75;
 
 function fleetSentinelPath() {
@@ -48,18 +44,8 @@ function projectSentinelPath(repoRoot) {
   return path.join(repoRoot, '.cortex', SENTINEL_FILENAME);
 }
 
-function fleetLegacySentinelPath() {
-  return path.join(resolveCortexDataHome(), LEGACY_SENTINEL_FILENAME);
-}
-
-function projectLegacySentinelPath(repoRoot) {
-  return path.join(repoRoot, '.cortex', LEGACY_SENTINEL_FILENAME);
-}
-
-// Returns { halted: boolean, reason?: string, sentinelPath?: string, legacy?: boolean }.
-// Fleet sentinel checked first (fleet-wide halt is more severe). New filename
-// (`STEWARD_HALT`) checked before legacy (`HERMES_HALT`) so the operator's
-// freshest decision wins on machines that have both during migration.
+// Returns { halted: boolean, reason?: string, sentinelPath?: string }.
+// Fleet sentinel checked first (fleet-wide halt is more severe).
 function isHalted(opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
 
@@ -71,15 +57,6 @@ function isHalted(opts = {}) {
       sentinelPath: fleetPath,
     };
   }
-  const fleetLegacy = fleetLegacySentinelPath();
-  if (fs.existsSync(fleetLegacy)) {
-    return {
-      halted: true,
-      reason: 'fleet_sentinel_present',
-      sentinelPath: fleetLegacy,
-      legacy: true,
-    };
-  }
 
   const projectPath = projectSentinelPath(repoRoot);
   if (fs.existsSync(projectPath)) {
@@ -87,15 +64,6 @@ function isHalted(opts = {}) {
       halted: true,
       reason: 'project_sentinel_present',
       sentinelPath: projectPath,
-    };
-  }
-  const projectLegacy = projectLegacySentinelPath(repoRoot);
-  if (fs.existsSync(projectLegacy)) {
-    return {
-      halted: true,
-      reason: 'project_sentinel_present',
-      sentinelPath: projectLegacy,
-      legacy: true,
     };
   }
 
@@ -106,10 +74,7 @@ module.exports = {
   isHalted,
   fleetSentinelPath,
   projectSentinelPath,
-  fleetLegacySentinelPath,
-  projectLegacySentinelPath,
   SENTINEL_FILENAME,
-  LEGACY_SENTINEL_FILENAME,
   EX_TEMPFAIL,
 };
 

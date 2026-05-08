@@ -11,26 +11,19 @@ const {
   ulid,
   validateConventionalSubject,
   validateTrailers,
-  normalizeTrailerPrefixes,
   VALID_TYPES,
   VALID_TRIGGERS,
 } = require('../../../bin/steward/_lib/git-trailers.cjs');
 
-// Sprint 4.7 rebrand: trailers now use canonical Steward-* prefix.
-// Legacy Hermes-* prefix is auto-normalized inside buildCommitMessage and
-// covered by an explicit backward-compat test below.
+// Trailers use canonical Steward-* prefix. Pre-Sprint-4.7 commits in repo
+// history retain their original Hermes-* trailers — those are immutable;
+// parseTrailers is prefix-agnostic and getTrailer reads either prefix from
+// the parsed map (read-only backward-compat for history walking).
 const TRAILERS = {
   'Steward-Action-Id': '01HXG9F7Z8M2K9ABCDEFGHJKMN',
   'Steward-Journal-Entry': '~/.cortex/journal/test/2026-05-07.jsonl#L1',
   'Steward-Trigger': 'cron',
   'Steward-Recommendation-Source': 'cortex/recommendations.md#do-this-week-1',
-};
-
-const LEGACY_HERMES_TRAILERS = {
-  'Hermes-Action-Id': '01HXG9F7Z8M2K9ABCDEFGHJKMN',
-  'Hermes-Journal-Entry': '~/.cortex/journal/test/2026-05-07.jsonl#L1',
-  'Hermes-Trigger': 'cron',
-  'Hermes-Recommendation-Source': 'cortex/recommendations.md#do-this-week-1',
 };
 
 describe('git-trailers: ULID', () => {
@@ -103,27 +96,8 @@ describe('git-trailers: trailer validation', () => {
   });
 });
 
-describe('git-trailers: Sprint 4.7 backward-compat (Hermes-* prefix)', () => {
-  test('normalizeTrailerPrefixes converts Hermes-* keys to Steward-*', () => {
-    const out = normalizeTrailerPrefixes(LEGACY_HERMES_TRAILERS);
-    assert.equal(out['Steward-Action-Id'], '01HXG9F7Z8M2K9ABCDEFGHJKMN');
-    assert.equal(out['Steward-Trigger'], 'cron');
-    assert.equal(out['Hermes-Action-Id'], undefined);
-  });
-
-  test('buildCommitMessage accepts legacy Hermes-* trailer keys (auto-normalize)', () => {
-    const msg = buildCommitMessage({
-      type: 'feat',
-      subject: 'legacy caller',
-      trailers: LEGACY_HERMES_TRAILERS,
-    });
-    assert.match(msg, /Steward-Action-Id: 01HXG9F7Z8M2K9ABCDEFGHJKMN/);
-    assert.match(msg, /Steward-Trigger: cron/);
-    // Legacy keys do NOT appear in the output — they were normalized away.
-    assert.doesNotMatch(msg, /^Hermes-Action-Id:/m);
-  });
-
-  test('getTrailer reads either prefix from parsed map', () => {
+describe('git-trailers: read-only legacy support (history walking)', () => {
+  test('getTrailer reads either prefix from parsed map (Steward wins; Hermes fallback)', () => {
     const legacyParsed = { 'Hermes-Action-Id': 'OLD' };
     const currentParsed = { 'Steward-Action-Id': 'NEW' };
     const both = { 'Hermes-Action-Id': 'OLD', 'Steward-Action-Id': 'NEW' };

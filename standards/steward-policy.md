@@ -39,7 +39,7 @@ If verification fails, the action is marked `tainted` in the journal and Steward
 
 ### MUST-H2 — Branch-per-action with mutex-by-slug
 
-Branch naming: `hermes/<YYYY-MM-DD>-<action-slug>-<short-id>` (e.g. `hermes/2026-05-07-bump-zod-a3f2`).
+Branch naming: `steward/<YYYY-MM-DD>-<action-slug>-<short-id>` (e.g. `hermes/2026-05-07-bump-zod-a3f2`).
 
 Mutex enforcement: a **lock file** at `cortex/journal/<slug>/.lock` containing `{pid, start_ts, action_id}`. Steward refuses to start action B if the lock is held; on stale-lock detection (`>2× declared action timeout`) it logs `lock_recovered` and proceeds.
 
@@ -85,12 +85,12 @@ const StewardJournalEntry = z.object({
 ### MUST-H5 — File-based kill switch
 
 Two paths checked at every tool-call boundary:
-- `~/.cortex/HERMES_HALT` (fleet-wide, halts every Steward run)
-- `<repo>/.cortex/HERMES_HALT` (per-project)
+- `~/.cortex/STEWARD_HALT` (fleet-wide, halts every Steward run)
+- `<repo>/.cortex/STEWARD_HALT` (per-project)
 
 Presence = immediate clean shutdown, journal entry `{event: "halted_by_sentinel"}`, exit code 75 (`EX_TEMPFAIL`).
 
-**Steward cannot remove either file.** `block-destructive.cjs` denylist extended to block any `rm`/`unlink`/`Remove-Item` of either path. Removal is human-only — typically `rm ~/.cortex/HERMES_HALT` after the human resolves whatever caused the halt.
+**Steward cannot remove either file.** `block-destructive.cjs` denylist extended to block any `rm`/`unlink`/`Remove-Item` of either path. Removal is human-only — typically `rm ~/.cortex/STEWARD_HALT` after the human resolves whatever caused the halt.
 
 ### MUST-H6 — Draft PR by default, promote on green
 
@@ -160,12 +160,12 @@ Defaults override-able in `~/.cortex/hermes.yaml`. Soft-cap = T1 journal flag. H
 | **T0 silent journal** | Soft warning (50 % cost, 1 retry, low-stakes ambiguity) | Append to `~/.cortex/journal/<slug>/<date>.jsonl` and continue |
 | **T1 needs_review flag** | 80 % budget, 3 retries, confidence < 85 % on Rule-2 action | Journal entry with `needs_review: true`; surface in next `cortex doctor` |
 | **T2 human ping + pause** | Hard cap reached, forbidden-action blocked, loop tripped, `MUST-H1` verification failed, conflict-on-pull | Slack DM (or email fallback after 10 min) with replayable journal pointer; **agent pauses**, no auto-retry |
-| **T3 halt** | T2 unanswered ≥ 30 min, OR `HERMES_HALT` sentinel present, OR same incident triggers within rolling hour | Full stop, state saved, `~/.cortex/journal/<slug>/HALTED` sentinel written, `cortex doctor` blocks further runs until human clears |
+| **T3 halt** | T2 unanswered ≥ 30 min, OR `STEWARD_HALT` sentinel present, OR same incident triggers within rolling hour | Full stop, state saved, `~/.cortex/journal/<slug>/HALTED` sentinel written, `cortex doctor` blocks further runs until human clears |
 
 ## 6. Steward policy checklist (verified on every Steward run)
 
 - [ ] Pre-action `git status --porcelain` empty (or stash applied)
-- [ ] Branch name matches `hermes/<YYYY-MM-DD>-<slug>-<id>`
+- [ ] Branch name matches `steward/<YYYY-MM-DD>-<slug>-<id>`
 - [ ] Lock file `cortex/journal/<slug>/.lock` acquired
 - [ ] Every commit carries `Steward-Action-Id` + `Steward-Journal-Entry` + `Steward-Trigger` trailers
 - [ ] Post-commit `git rev-parse HEAD` matches journal SHA
@@ -173,7 +173,7 @@ Defaults override-able in `~/.cortex/hermes.yaml`. Soft-cap = T1 journal flag. H
 - [ ] PR opened as draft, not ready-for-review
 - [ ] No write-attempt to `human_only:` paths (denylist enforced)
 - [ ] No `gh pr merge` invocation
-- [ ] `HERMES_HALT` checked at every tool-call boundary
+- [ ] `STEWARD_HALT` checked at every tool-call boundary
 - [ ] Cost meter under hard-cap; tool-call retry under budget
 - [ ] On exit, lock file released; journal `outcome` recorded
 
@@ -186,7 +186,7 @@ Defaults override-able in `~/.cortex/hermes.yaml`. Soft-cap = T1 journal flag. H
 - ❌ Steward calls `gh pr merge` or `git merge main`
 - ❌ Edit to `standards/`, `prompts/`, `profiles/`, `agents/`, `CLAUDE.md`, `README.md`, `module.yaml` from a Steward branch
 - ❌ Journal write that contains absolute paths under `~/` or env-var values
-- ❌ `HERMES_HALT` removal in Steward commit
+- ❌ `STEWARD_HALT` removal in Steward commit
 - ❌ `git reset --hard` or `git push --force` in Steward journal (should be impossible — `block-destructive.cjs` blocks; if it appears, the hook regressed)
 - ❌ Steward runs without `cortex/journal/<slug>/.lock` acquired
 
