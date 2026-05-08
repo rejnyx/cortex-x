@@ -568,6 +568,18 @@ function buildOpenRouterRequestBody(plan, model, opts = {}) {
     }
   }
 
+  // Sprint 2.x.1 hardening: Anthropic Opus 4.7 rejects temperature/top_p/top_k
+  // and thinking.budget_tokens with 400 errors per release notes 2026-04-16.
+  // Strip these silently when the model is Opus 4.7 (or future variants) so
+  // the autoresearch path doesn't 400 when it bursts on the premium tier.
+  // Per Opus 4.7 R1 research dispatch 2026-05-09 + Anthropic platform docs.
+  if (typeof model === 'string' && /opus-4-?7/i.test(model)) {
+    delete body.temperature;
+    delete body.top_p;
+    delete body.top_k;
+    if (body.thinking && typeof body.thinking === 'object') delete body.thinking.budget_tokens;
+  }
+
   return body;
 }
 

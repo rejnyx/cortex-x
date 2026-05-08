@@ -11,6 +11,14 @@ const auth = require('../../../bin/discord-bridge/auth.cjs');
 const TEST_SECRET = 'a'.repeat(64); // 64-hex-char placeholder
 const TEST_ACTION_ID = 'halt-1234567890-abcdef';
 
+// Sprint 2.6.1: clear consumed-tokens between tests so HMAC reuse defense
+// doesn't bleed state across cases.
+const { test: t2 } = require('node:test');
+function freshAuth() {
+  auth._resetConsumedActionTokens();
+  return auth;
+}
+
 describe('auth.loadAllowedUserIds', () => {
   test('returns empty Set when env var missing (fail-closed)', () => {
     const prev = process.env.STEWARD_DISCORD_ALLOWED_USER_IDS;
@@ -89,6 +97,7 @@ describe('auth.isUserAllowed', () => {
 
 describe('auth.generateActionToken / verifyActionToken', () => {
   test('generated token verifies in same window', () => {
+    freshAuth();
     const now = new Date('2026-05-09T12:00:00Z');
     const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
     assert.match(token, /^[0-9a-f]{8}$/, 'token is 8 hex chars');
@@ -96,14 +105,36 @@ describe('auth.generateActionToken / verifyActionToken', () => {
   });
 
   test('token verifies in NEXT window (90s replay window)', () => {
+    freshAuth();
     const now1 = new Date('2026-05-09T12:00:00Z');
     const now2 = new Date('2026-05-09T12:01:00Z'); // +60s, same window
     const now3 = new Date('2026-05-09T12:01:31Z'); // +91s, next window
+    // Sprint 2.6.1: pass markConsumed:false so the same token can be tested
+    // against multiple windows without one-time-use defense interfering.
     const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now: now1 });
-    // Same window — verifies.
-    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now: now2 }), true);
-    // Next window — still verifies (looks back one window).
-    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now: now3 }), true);
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now: now2, markConsumed: false }), true);
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now: now3, markConsumed: false }), true);
+  });
+
+  test('Sprint 2.6.1 R2 fix: token CANNOT be replayed (one-time-use defense)', () => {
+    freshAuth();
+    const now = new Date('2026-05-09T12:00:00Z');
+    const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
+    // First verify — succeeds + marks consumed.
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now }), true);
+    // Replay — REJECTED.
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now }), false);
+  });
+
+  test('Sprint 2.6.1 R2 fix: markConsumed:false allows read-only verification', () => {
+    freshAuth();
+    const now = new Date('2026-05-09T12:00:00Z');
+    const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now, markConsumed: false }), true);
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now, markConsumed: false }), true);
+    // After actual consumption — replay rejected.
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now }), true);
+    assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: TEST_SECRET, now }), false);
   });
 
   test('token does NOT verify after 2 windows (180s+)', () => {
@@ -114,18 +145,21 @@ describe('auth.generateActionToken / verifyActionToken', () => {
   });
 
   test('token does not verify with wrong actionId', () => {
+    freshAuth();
     const now = new Date('2026-05-09T12:00:00Z');
     const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
     assert.equal(auth.verifyActionToken('different-action-id', token, { secret: TEST_SECRET, now }), false);
   });
 
   test('token does not verify with wrong secret', () => {
+    freshAuth();
     const now = new Date('2026-05-09T12:00:00Z');
     const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
     assert.equal(auth.verifyActionToken(TEST_ACTION_ID, token, { secret: 'b'.repeat(64), now }), false);
   });
 
   test('verifyActionToken rejects malformed tokens', () => {
+    freshAuth();
     const now = new Date('2026-05-09T12:00:00Z');
     assert.equal(auth.verifyActionToken(TEST_ACTION_ID, '', { secret: TEST_SECRET, now }), false);
     assert.equal(auth.verifyActionToken(TEST_ACTION_ID, 'too-short', { secret: TEST_SECRET, now }), false);
@@ -136,6 +170,7 @@ describe('auth.generateActionToken / verifyActionToken', () => {
   });
 
   test('verifyActionToken case-insensitive', () => {
+    freshAuth();
     const now = new Date('2026-05-09T12:00:00Z');
     const token = auth.generateActionToken(TEST_ACTION_ID, { secret: TEST_SECRET, now });
     const upper = token.toUpperCase();
@@ -155,6 +190,21 @@ describe('auth.generateActionToken / verifyActionToken', () => {
     } finally {
       if (prev !== undefined) process.env.STEWARD_DISCORD_SECRET = prev;
     }
+  });
+
+  test('Sprint 2.6.1 R2 fix HIGH-5: secret must be ≥32 chars (was ≥16)', () => {
+    const prev = process.env.STEWARD_DISCORD_SECRET;
+    process.env.STEWARD_DISCORD_SECRET = 'a'.repeat(20); // ≥16 but <32
+    try {
+      assert.throws(() => auth.generateActionToken(TEST_ACTION_ID), (err) => err.code === 'STEWARD_DISCORD_SECRET_MISSING');
+    } finally {
+      if (prev === undefined) delete process.env.STEWARD_DISCORD_SECRET;
+      else process.env.STEWARD_DISCORD_SECRET = prev;
+    }
+  });
+
+  test('HMAC_MIN_SECRET_LENGTH constant exposes 32', () => {
+    assert.equal(auth.HMAC_MIN_SECRET_LENGTH, 32);
   });
 });
 

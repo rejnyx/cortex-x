@@ -17,16 +17,20 @@ function tmpRepo(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `disc-cmd-${prefix}-`));
 }
 
-describe('commands — registry shape', () => {
-  test('COMMANDS map exposes 6 commands', () => {
+describe('commands — registry shape (Sprint 2.6.1 hardening)', () => {
+  test('COMMANDS map exposes 6 Discord-legal commands (no ! prefix)', () => {
     const names = Object.keys(commands.COMMANDS);
     assert.ok(names.includes('status'));
     assert.ok(names.includes('forecast'));
     assert.ok(names.includes('why'));
-    assert.ok(names.includes('!halt'));
-    assert.ok(names.includes('!resume'));
-    assert.ok(names.includes('!recommend'));
+    assert.ok(names.includes('halt'));
+    assert.ok(names.includes('resume'));
+    assert.ok(names.includes('recommend'));
     assert.equal(names.length, 6);
+    // Sprint 2.6.1: NO `!` prefix anywhere — Discord rejects those.
+    for (const n of names) {
+      assert.equal(n.startsWith('!'), false, `${n} must not start with ! (Discord rejects)`);
+    }
   });
 
   test('COMMAND_SPECS metadata aligns with registry', () => {
@@ -37,11 +41,16 @@ describe('commands — registry shape', () => {
     }
   });
 
-  test('mutation commands all have name prefixed with !', () => {
+  test('all command names match Discord regex [a-z0-9_-]{1,32}', () => {
+    const re = /^[a-z0-9_-]{1,32}$/;
     for (const spec of commands.COMMAND_SPECS) {
-      if (spec.mutation) assert.ok(spec.name.startsWith('!'), `mutation spec ${spec.name} must use ! prefix`);
-      else assert.ok(!spec.name.startsWith('!'), `read-only spec ${spec.name} must NOT use ! prefix`);
+      assert.match(spec.name, re, `${spec.name} must match Discord identifier regex`);
     }
+  });
+
+  test('mutation commands flagged via spec.mutation (not name prefix)', () => {
+    const mutationNames = commands.COMMAND_SPECS.filter((s) => s.mutation).map((s) => s.name);
+    assert.deepEqual(mutationNames.sort(), ['halt', 'recommend', 'resume']);
   });
 });
 

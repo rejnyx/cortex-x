@@ -156,18 +156,55 @@ function formatLessonsForPrompt(lessons) {
 // Convenience: convert an executor result.code + error string into a default
 // lesson_text. Captures the typical "what went wrong" without requiring
 // callers to hand-craft prose every time.
+// Sprint 2.8.1 hardening (R2 retro H5): SSOT impact classifier. Each entry
+// is { regex, impact } evaluated in order; first match wins. Adding a new
+// error code class means appending one entry — no scattered regex drift.
+//
+// Coverage targets ALL error codes from Sprint 2.4 (CLAUDE_CLI_*) and
+// Sprint 2.5 (TECH_DEBT_*) explicitly:
+//   - blocker: state-integrity violations, leaks, denylist hits, forbidden flags
+//   - warning: config / auth / quota issues operator can fix
+//   - advisory: transient network / protocol drift (retry-able)
+const IMPACT_CLASSIFIER = Object.freeze([
+  // BLOCKER: state-integrity, billing, destructive, hard policy violations
+  { regex: /BILLING_LEAK/, impact: 'blocker' },
+  { regex: /SPEC_VIOLATION/, impact: 'blocker' },
+  { regex: /EDIT_DESTRUCTIVE/, impact: 'blocker' },
+  { regex: /EDIT_DENYLISTED/, impact: 'blocker' },
+  { regex: /EDIT_UNSAFE/, impact: 'blocker' },
+  { regex: /FORBIDDEN_FLAG/, impact: 'blocker' },
+  { regex: /TECH_DEBT_SNAPSHOT_CORRUPT/, impact: 'blocker' },
+  { regex: /STEWARD_CROSS_REPO_EDIT/, impact: 'blocker' },
+  { regex: /SIBLING_REALPATH_OUTSIDE_ROOT/, impact: 'blocker' },
+  { regex: /SIBLING_WRITE_ATTEMPTED/, impact: 'blocker' },
+  // WARNING: operator-fixable config / auth / quota issues
+  { regex: /AUTH_REJECTED/, impact: 'warning' },
+  { regex: /AUTH_NOT_CONFIGURED/, impact: 'warning' },
+  { regex: /KEY_MISSING/, impact: 'warning' },
+  { regex: /KEY_MALFORMED/, impact: 'warning' },
+  { regex: /NOT_CONFIGURED/, impact: 'warning' },
+  { regex: /QUOTA_EXHAUSTED/, impact: 'warning' },
+  { regex: /BUDGET_(DAILY|WEEKLY|MONTHLY)_CAP_REACHED/, impact: 'warning' },
+  { regex: /TECH_DEBT_THRESHOLD_EXCEEDED/, impact: 'warning' },
+  { regex: /TOKEN_VELOCITY_CAP_REACHED/, impact: 'warning' },
+  { regex: /LOOP_DETECTED/, impact: 'warning' },
+  { regex: /FAILURE_BREAKER_TRIPPED/, impact: 'warning' },
+  // Everything else (transient network, protocol drift, timeouts) → advisory
+]);
+
+function classifyImpact(code) {
+  if (typeof code !== 'string') return 'advisory';
+  for (const entry of IMPACT_CLASSIFIER) {
+    if (entry.regex.test(code)) return entry.impact;
+  }
+  return 'advisory';
+}
+
 function lessonFromExecuteResult(result, ctx = {}) {
   if (!result || result.ok) return null; // success — nothing to learn from
-  // Sprint 2.8: derive impact from result.code class. Spec violations and
-  // billing leaks are blockers; missing keys / config issues are warnings;
-  // network/transient/protocol-drift items default to advisory.
+  // Sprint 2.8: derive impact from result.code class via SSOT classifier.
   const code = String(result.code || '');
-  let impact = 'advisory';
-  if (/SPEC_VIOLATION|BILLING_LEAK|EDIT_DESTRUCTIVE|EDIT_DENYLISTED|FORBIDDEN_FLAG/.test(code)) {
-    impact = 'blocker';
-  } else if (/AUTH_REJECTED|KEY_MISSING|KEY_MALFORMED|NOT_CONFIGURED|QUOTA_EXHAUSTED/.test(code)) {
-    impact = 'warning';
-  }
+  const impact = classifyImpact(code);
   // Sprint 2.8: failure_origin captures distinct provenance so retrieval-at-
   // decision-time can filter by failure class, not just root_cause string.
   const failureOrigin = code.includes(':')
@@ -262,4 +299,8 @@ module.exports = {
   formatLessonsForPrompt,
   lessonFromExecuteResult,
   lessonsPath,
+  // Sprint 2.8.1 hardening (R2 retro H5): SSOT impact classifier exported
+  // for tests + future cross-module consumers.
+  IMPACT_CLASSIFIER,
+  classifyImpact,
 };

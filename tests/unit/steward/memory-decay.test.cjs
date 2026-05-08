@@ -48,10 +48,19 @@ describe('halfLifeForImpact', () => {
 });
 
 describe('ageDays', () => {
-  test('returns 0 for missing ts', () => {
+  test('returns 0 for missing ts (backward compat with Sprint 1.8.3 lessons)', () => {
+    // Sprint 2.8.1 R2 retro M4: missing ts → fresh (0); malformed ts → max-decay.
     assert.equal(decay.ageDays({}, new Date()), 0);
     assert.equal(decay.ageDays({ ts: null }, new Date()), 0);
-    assert.equal(decay.ageDays({ ts: 'not-a-date' }, new Date()), 0);
+    assert.equal(decay.ageDays({ ts: undefined }, new Date()), 0);
+  });
+
+  test('Sprint 2.8.1 R2 retro M4: malformed ts → Infinity (score → 0 via decay)', () => {
+    // Distinguishes "missing field" (treat as fresh) from "corrupted journal
+    // entry with garbage ts" (rank below all healthy items).
+    assert.equal(decay.ageDays({ ts: 'not-a-date' }, new Date()), Infinity);
+    assert.equal(decay.ageDays({ ts: 'Infinity' }, new Date()), Infinity);
+    assert.equal(decay.ageDays({ ts: 'garbage' }, new Date()), Infinity);
   });
 
   test('clamps negative ages to 0 (future timestamps)', () => {
@@ -242,6 +251,46 @@ describe('isBucketExpired', () => {
   });
 });
 
+describe('Sprint 2.8.1 R2 hardening', () => {
+  test('H1: ancient items maintain relative ordering by impact (no underflow to 0)', () => {
+    const now = new Date('2026-05-09T00:00:00Z');
+    // Use truly ancient ts (50,000 days ≈ 137 years).
+    const ts = new Date(now.getTime() - 50_000 * 24 * 60 * 60 * 1000).toISOString();
+    const blocker = decay.computeImportanceScore({ ts, impact: 'blocker' }, { now });
+    const advisory = decay.computeImportanceScore({ ts, impact: 'advisory' }, { now });
+    // Both decayed near 0 but blocker > advisory still.
+    assert.ok(blocker > advisory, `ancient blocker=${blocker} must rank above advisory=${advisory}`);
+  });
+
+  test('H1: malformed ts (Infinity ageDays) scores at minimum decay floor', () => {
+    const score = decay.computeImportanceScore({ ts: 'garbage', impact: 'blocker' });
+    // Infinity * lambda → -Infinity → exp → 0. Floored at 1e-12.
+    // Score = base * 1e-12. base for blocker = 2 * 1.0 = 2. So score ≈ 2e-12.
+    assert.ok(score > 0 && score < 1e-9, `floored score should be near 0 but positive: ${score}`);
+  });
+
+  test('H3: small-list (≥10 items) archives at least 1 even at 5% fraction', () => {
+    const now = new Date('2026-05-09T00:00:00Z');
+    const items = [];
+    for (let i = 0; i < 10; i += 1) {
+      items.push({ ts: new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString(), impact: 'advisory' });
+    }
+    // 10 * 0.05 = 0.5 → floor=0. With min_archive_floor=10, ceil-equivalent kicks in.
+    const result = decay.decayPass(items, { now });
+    assert.ok(result.archive.length >= 1, `expected ≥1 archived, got ${result.archive.length}`);
+  });
+
+  test('H3: very small list (<10 items) still archives 0 (no decay shock for early adopters)', () => {
+    const now = new Date('2026-05-09T00:00:00Z');
+    const items = [];
+    for (let i = 0; i < 5; i += 1) {
+      items.push({ ts: now.toISOString(), impact: 'advisory' });
+    }
+    const result = decay.decayPass(items, { now });
+    assert.equal(result.archive.length, 0, '<10 items should not archive (avoid decay shock)');
+  });
+});
+
 describe('lessons schema extension (Sprint 2.8 R1 §10)', () => {
   const lessons = require('../../../bin/steward/_lib/lessons.cjs');
   const fs = require('node:fs');
@@ -283,5 +332,34 @@ describe('lessons schema extension (Sprint 2.8 R1 §10)', () => {
     // Generic transient → advisory
     const adv = lessons.lessonFromExecuteResult({ ok: false, code: 'OPENROUTER_NETWORK_ERROR', error: 'transient' });
     assert.equal(adv.impact, 'advisory');
+  });
+
+  test('Sprint 2.8.1 R2 retro H5: classifyImpact covers Sprint 2.4 + 2.5 codes', () => {
+    const lessons = require('../../../bin/steward/_lib/lessons.cjs');
+    // Sprint 2.4 codes
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_BILLING_LEAK'), 'blocker');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_FORBIDDEN_FLAG'), 'blocker');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_AUTH_REJECTED'), 'warning');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_AUTH_NOT_CONFIGURED'), 'warning');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_QUOTA_EXHAUSTED'), 'warning');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_RATE_LIMITED'), 'advisory');
+    assert.equal(lessons.classifyImpact('CLAUDE_CLI_PROTOCOL_DRIFT'), 'advisory');
+    // Sprint 2.5 codes
+    assert.equal(lessons.classifyImpact('TECH_DEBT_SNAPSHOT_CORRUPT'), 'blocker');
+    assert.equal(lessons.classifyImpact('TECH_DEBT_THRESHOLD_EXCEEDED'), 'warning');
+    assert.equal(lessons.classifyImpact('TECH_DEBT_QLTY_MISSING'), 'advisory');
+    // Sprint 2.7 codes
+    assert.equal(lessons.classifyImpact('STEWARD_CROSS_REPO_EDIT'), 'blocker');
+    assert.equal(lessons.classifyImpact('SIBLING_REALPATH_OUTSIDE_ROOT'), 'blocker');
+    assert.equal(lessons.classifyImpact('SIBLING_WRITE_ATTEMPTED'), 'blocker');
+    // Unknown → advisory floor
+    assert.equal(lessons.classifyImpact('SOMETHING_TOTALLY_NEW'), 'advisory');
+    assert.equal(lessons.classifyImpact(null), 'advisory');
+  });
+
+  test('IMPACT_CLASSIFIER is exported as frozen array', () => {
+    const lessons = require('../../../bin/steward/_lib/lessons.cjs');
+    assert.ok(Array.isArray(lessons.IMPACT_CLASSIFIER));
+    assert.ok(Object.isFrozen(lessons.IMPACT_CLASSIFIER));
   });
 });

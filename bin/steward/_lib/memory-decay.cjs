@@ -57,13 +57,27 @@ function halfLifeForImpact(impact, params = DEFAULT_PARAMS) {
 }
 
 // Compute age in days between item.ts and now. Negative ages clamp to 0.
+//
+// Sprint 2.8.1 hardening (R2 retro M4): distinguish "missing ts" (return 0,
+// item is fresh — backward compat with Sprint 1.8.3 lessons) from "malformed
+// ts" (return Infinity, score → 0 via decay). Previously NaN-ts was silently
+// treated as fresh, which meant `{ts:'Infinity', impact:'blocker'}` scored
+// 2.0 (max). That hid clock corruption in journal data.
 function ageDays(item, now) {
-  if (!item || !item.ts) return 0;
+  if (!item || item.ts === undefined || item.ts === null) return 0;
   const ts = Date.parse(item.ts);
-  if (Number.isNaN(ts)) return 0;
+  if (Number.isNaN(ts)) return Infinity; // malformed → max-decay (score → 0)
   const ageMs = now.getTime() - ts;
   return Math.max(0, ageMs / DAY_MS);
 }
+
+// Sprint 2.8.1 hardening (R2 retro H1): floor decay so ancient items with
+// huge ages (e.g., 14,300 days where Math.exp underflows to 0) keep relative
+// ordering by impact tier. Without this, every legacy item drops to score=0
+// simultaneously and decayPass({thresholdScore: X}) loses signal for blocker
+// vs advisory tier preservation. Floor at 1e-12 keeps differences visible
+// while still ranking aged items below fresh ones.
+const DECAY_FLOOR = 1e-12;
 
 // Compute importance score for a single item.
 function computeImportanceScore(item, opts = {}) {
@@ -75,7 +89,9 @@ function computeImportanceScore(item, opts = {}) {
   const halfLife = halfLifeForImpact(item.impact, params);
   const lambda = halfLifeToLambda(halfLife);
   const days = ageDays(item, now);
-  const decay = Math.exp(-lambda * days);
+  // Floor decay at DECAY_FLOOR so ancient items still preserve relative
+  // ordering by impact (Sprint 2.8.1 R2 retro H1).
+  const decay = Math.max(Math.exp(-lambda * days), DECAY_FLOOR);
   const base = (params.w_freq * freq) + (params.w_impact * impact);
   return base * decay;
 }
@@ -113,7 +129,20 @@ function decayPass(items, opts = {}) {
   const fraction = typeof opts.archiveBottomFraction === 'number'
     ? Math.max(0, Math.min(1, opts.archiveBottomFraction))
     : 0.05;
-  const archiveCount = Math.floor(items.length * fraction);
+  // Sprint 2.8.1 hardening (R2 retro H3): for small lists where floor()
+  // would archive 0 items (e.g. 10 items × 0.05 = 0), use Math.ceil so the
+  // sweep produces at least 1 archived item once items.length crosses
+  // MIN_ARCHIVE_FLOOR (default 10). Avoids "decay shock" where the first
+  // 19 weeks archive nothing and the 20th suddenly archives 1, then 2.
+  const minArchiveFloor = typeof opts.minArchiveFloor === 'number'
+    ? Math.max(1, Math.floor(opts.minArchiveFloor))
+    : 10;
+  let archiveCount;
+  if (items.length >= minArchiveFloor && fraction > 0) {
+    archiveCount = Math.max(1, Math.floor(items.length * fraction));
+  } else {
+    archiveCount = Math.floor(items.length * fraction);
+  }
   if (archiveCount === 0) {
     return { keep: scored, archive: [], params };
   }

@@ -248,7 +248,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.4 — Anthropic `claude-cli` engine via Max subscription (S effort, ⭐ COST PIVOT)
+### Sprint 2.4 — Anthropic `claude-cli` engine via Max subscription ✅ SHIPPED 2026-05-09 (commit `3f9575d`, ⭐ COST PIVOT)
+
+**Status**: ✅ Shipped 2026-05-09. New `claudeCliEngine` inline in `bin/steward/_lib/action-engine.cjs` (~470 LoC including helpers). Three-layer billing-leak defense: env scrub + `total_cost_usd === 0` assert + fleet `STEWARD_HALT` write. Auth via `CLAUDE_CODE_OAUTH_TOKEN` only; `--bare` hard-prohibited via `CLAUDE_CLI_FORBIDDEN_FLAGS` freeze-list. R2 review pipeline (6 agents in parallel) found 1 BLOCKER + 3 HIGH + 11 MAJOR + 14 MINOR; 13 must-fix items applied pre-commit. R1 memo: [`docs/research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md`](research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md). 1158 → 1164 tests (29 new).
+
+**(Original sprint memo retained below for design context.)**
+
+
 
 **Why**: research dispatch 2026-05-08 (R3 — see [`docs/research/sprint-2.4-anthropic-max-routing-2026-05-08.md`](./research/sprint-2.4-anthropic-max-routing-2026-05-08.md) when written) confirmed that Anthropic Max x20 subscription is **programmatically reachable via `claude -p` non-interactive CLI** with `CLAUDE_CODE_OAUTH_TOKEN` set + `ANTHROPIC_API_KEY` unset. ToS explicitly permits this for personal autonomous agents on operator's own repos (Green Tier per claudefa.st safe-use guide). Anthropic April 2026 OpenClaw crackdown was specifically token-extraction in third-party harnesses — not legitimate `claude` subprocess invocation.
 
@@ -285,7 +291,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.5 — `tech_debt_audit` action_kind (M effort, deterministic)
+### Sprint 2.5 — `tech_debt_audit` action_kind ✅ SHIPPED 2026-05-09 (commit `b9d25b5`)
+
+**Status**: ✅ Shipped 2026-05-09. 10th action_kind, deterministic (zero LLM cost), runs nightly, snapshots code-health to `cortex/debt-snapshot.json` (committed audit trail). qlty + knip toolchain. Fail-open on missing tools. R2 review pipeline (6 agents) found 2 BLOCKER + 3 HIGH + 11 MAJOR + many MINOR; 14 must-fix items applied pre-commit (dispatcher wire, scrubEnv, byte-cap, parser hardening, fs walk symlink protection, error-code reconciliation, 3 fixture-based integration tests). R1 memo: [`docs/research/sprint-2.5-tech-debt-audit-2026-05-08.md`](research/sprint-2.5-tech-debt-audit-2026-05-08.md). 1187 → 1199 tests (35 new).
+
+**(Original sprint memo retained below for design context.)**
+
+
 
 **Why**: research dispatch 2026-05-08 (R5) flagged "nightly janitor" as high-payoff deterministic kind. Compounds with autoresearch (Sprint 2.1) — every overnight run optionally surfaces tech-debt drift before agent productivity work begins. Zero LLM cost (pure heuristics + qlty CLI), so it can run on every cron tick.
 
@@ -323,7 +335,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.6 — Discord remote control (S/M effort, mobile UX)
+### Sprint 2.6 — Discord remote control ✅ SHIPPED 2026-05-09 (commit `27c3529`, v0 alpha; hardening 2.6.1 follow-up)
+
+**Status**: ✅ Shipped 2026-05-09. `bin/discord-bridge/` sibling-folder pattern preserves zero-deps Steward core; bridge has its own `package.json` with `discord.js` 14.x. v0 ships testable zero-deps parts (auth + commands + journal-tail); Gateway WebSocket wiring deferred to operator setup. R2 retro review found 2 BLOCKER + 5 HIGH + 5 MAJOR; all BLOCKERs and most HIGHs landed in same-day Sprint 2.6.1 hardening commit (HMAC token reuse defense via consumed-tokens Set, SECRET ≥32 enforcement, ephemeral:true on all mutation embeds, `crypto.randomBytes` actionId, `!` prefix removed from Discord-side names per API spec, `appendRecommendation` mkdirSync + symlink TOCTOU defense). R1 memo: [`docs/research/sprint-2.6-discord-remote-control-2026-05-08.md`](research/sprint-2.6-discord-remote-control-2026-05-08.md). 1262 → ~1276 tests.
+
+**(Original sprint memo retained below for design context.)**
+
+
 
 **Why**: research dispatch 2026-05-08 (R5) compared Telegram vs Discord vs Slack vs email for single-operator mobile control. **Discord wins on channel organization** (`#alerts` / `#research` / `#failures` / `#cost`) which is the right shape as cortex-x adds more capabilities. Telegram has higher 4K char limit but no native channel structure for one operator — turns into a single chat scroll fast. Email is YAGNI (Mailgun free 1-route only solves async batch ingest, not interactive control). Slack is B2B-shaped — wrong tool. **Operator confirmed Discord 2026-05-08 conversation.**
 
@@ -361,7 +379,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.7 — Cross-project `pattern_transfer` action_kind (M effort, ⭐ FEDERATION SEED)
+### Sprint 2.7 — Cross-project `pattern_transfer` action_kind ✅ SHIPPED 2026-05-09 (commit `b80ebdf`, v0; hardening 2.7.1 follow-up)
+
+**Status**: ✅ Shipped 2026-05-09. 11th action_kind, LLM-driven, journal-only. v0 ships testable zero-deps parts (manifest validator + sibling-reader path safety + glob matcher + assertEditWithinCwd); LLM dispatch deferred to Sprint 2.7.1 (needs operator-populated `cortex/sibling-projects.json`). R2 retro review found 2 BLOCKER + 4 HIGH + 3 MAJOR; both BLOCKERs landed in same-day Sprint 2.7.1 hardening commit (acceptance predicate now rejects UNC paths `\\server\share`, dispatcher returns `ACTION_KIND_NOT_DISPATCHABLE` until LLM wiring lands so cron operators see the gap explicitly). `assertEditWithinCwd` documented as wired-but-dormant pending dispatcher wiring. R1 memo: [`docs/research/sprint-2.7-pattern-transfer-2026-05-08.md`](research/sprint-2.7-pattern-transfer-2026-05-08.md). 1307 → ~1315 tests.
+
+**(Original sprint memo retained below for design context.)**
+
+
 
 **Why**: research dispatch 2026-05-08 (R5) confirmed cross-project pattern transfer is a **known 2026 pattern** (repowise, meta-repo pattern, Karpathy LLM-wiki). Operator-pitched: cortex-x reads from `c:\Users\david\Desktop\APPs\amd-hackathon-2026`, `back-office-bot`, `kiosek-main`, `portfolio` for pattern inspiration without write access. **R5 strong recommendation: don't build full repowise; build narrow allowlist + read-only + new LLM action_kind.**
 
@@ -396,7 +420,13 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.8 — Memory Foundation: Anthropic Memory Tool + ReasoningBank failures + decay (M effort, ⭐ MEMORY GATE)
+### Sprint 2.8 — Memory Foundation v0 ✅ SHIPPED 2026-05-09 (commit `86b2472`, ⭐ MEMORY GATE; hardening 2.8.1 follow-up)
+
+**Status**: ✅ Shipped 2026-05-09. v0 ships zero-deps memory-decay primitive (`bin/steward/_lib/memory-decay.cjs`, ~150 LoC) + lessons.cjs schema extension (agent_id, failure_origin, impact, frequency forward-compat fields). Anthropic Memory Tool migration + retrieval-at-decision-time MaTTS + LLM failure-distillation deferred to Sprint 2.8.1 (operator-cost-validated). R2 retro review found 0 BLOCKER + 5 HIGH + 4 MAJOR + 4 MINOR; key HIGHs landed in same-day Sprint 2.8.1 hardening commit (decay floor at 1e-12 to prevent ancient-item underflow ranking loss, SSOT impact classifier covering all CLAUDE_CLI_* + TECH_DEBT_* + SIBLING_* error codes, small-list archive policy avoids decay-shock under 10 items, malformed ts → score 0 instead of fresh). R1 memo: [`docs/research/sprint-2.8-memory-foundation-2026-05-08.md`](research/sprint-2.8-memory-foundation-2026-05-08.md). 1337 → ~1345 tests.
+
+**(Original sprint memo retained below for design context.)**
+
+
 
 **Why before Tier 2**: Tier 2's Sprint 3.0 (AlphaEvolve prompt evolution) needs a *reliable* memory + lessons substrate to evolve against. Research dispatch 2026-05-08 (R1 + R4 converged independently): three changes give **+39% (Anthropic memory tool) + +34% (ReasoningBank failures) + +10% (importance-weighted decay)** with **zero new runtime deps**. Doing AlphaEvolve before this = evolving against rotting markdown.
 

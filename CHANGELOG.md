@@ -4,6 +4,35 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Fixed (2026-05-09 — Hardening pass after retrospective R2 review of Sprints 2.6 / 2.7 / 2.8 + Opus 4.7 research)
+Operator-requested hardening pass after the 5-sprint Tier-1-expansion run. Three retrospective R2 reviews + Opus 4.7 research dispatch surfaced findings that warranted same-day fixes rather than deferred 2.x.1 commits.
+
+**Sprint 2.6.1 Discord bridge hardening** (R2 retro: 2 BLOCKER + 5 HIGH + 5 MAJOR; addressed BLOCKERs + HIGH-2/3/5 + MAJOR-1):
+- **BLOCKER B1: HMAC token reuse defense.** `auth.cjs` now maintains a process-local `Map<actionId+token, expiresAt>` set with 6-minute TTL (4× HMAC window). Replay of an already-consumed `(actionId, token)` pair returns `false` even within the 90s+90s verify window. Test-only `_resetConsumedActionTokens` exposed for test isolation; `markConsumed: false` opt-out for read-only verification flows.
+- **BLOCKER B2: `appendRecommendation` no-mkdir + symlink TOCTOU.** `commands.cjs defaultCtx` now `mkdirSync(cortexDir, { recursive: true })` before append (prevents ENOENT on first-ever `/recommend`) and `lstatSync` checks for symlinks (refuses with `DISCORD_RECOMMEND_SYMLINK_REFUSED` rather than following outside repoRoot).
+- **HIGH H2: `crypto.randomBytes(8)` actionId** replaces `Math.random().toString(36)` (~30 bits → 128 bits entropy). Combined with B1 consumed-tokens Set, blocks actionId guessing attacks even if confirmation embeds leak.
+- **HIGH H3: ephemeral mutation embeds.** All `/halt` / `/resume` / `/recommend` reply objects now `ephemeral: true` so token + reason text are operator-only — no leak to other guild members.
+- **HIGH H5: SECRET ≥32 chars.** `HMAC_MIN_SECRET_LENGTH = 32` (was 16). Matches R1 spec ("32+ bytes recommended"). README's `openssl rand -hex 32` produces 64 chars so no operator setup breaks.
+- **MAJOR M1: `!` prefix removed from Discord-side names.** Discord API spec rejects slash command names matching `!halt` (regex `[a-z0-9_-]{1,32}`). Renamed Discord-visible names to `halt` / `resume` / `recommend`; mutation flag now lives in `COMMAND_SPECS[].mutation` and `MUTATION_NAMES` Set rather than name-prefix inspection. Existing `isMutationCommand('!halt')` → `isMutationCommandName('halt')`.
+
+**Sprint 2.7.1 pattern_transfer hardening** (R2 retro: 2 BLOCKER + 4 HIGH + 3 MAJOR; addressed BLOCKERs + HIGH-4):
+- **BLOCKER B1: `pattern_transfer_no_cross_repo_edit` predicate UNC bypass.** Old predicate `!p.match(/^[A-Za-z]:/) && !p.startsWith("/")` accepted `\\server\share\file` (UNC paths — no leading `/`, no drive letter). New predicate splits on both `/` and `\\` separators, rejects `..` segments per-segment (not substring), rejects bare backslash (`\\`), and rejects UNC prefix (`\\\\`).
+- **BLOCKER B2 + HIGH H4: dispatcher loud-fail.** `execute.cjs` now has `else if (plan.action_kind === 'pattern_transfer')` branch that returns `{ ok: false, code: 'ACTION_KIND_NOT_DISPATCHABLE' }` until Sprint 2.7.1 wires the LLM dispatch path. Without this, an operator dropping `cortex/sibling-projects.json` today would fall through to the default LLM branch with no sibling-reader gate. `assertEditWithinCwd` remains exposed as wired-but-dormant pending the dispatcher commit.
+
+**Sprint 2.8.1 Memory Foundation hardening** (R2 retro: 0 BLOCKER + 5 HIGH + 4 MAJOR; addressed HIGH-1/3/5 + M4):
+- **HIGH H1: Decay floor at 1e-12.** `memory-decay.cjs computeImportanceScore` previously had `Math.exp(-lambda * days)` underflow to 0 at age ≈ 14,300 days, losing relative ordering between blocker and advisory tiers (everything dropped to score 0 simultaneously, defeating `decayPass({thresholdScore: X})` retention logic). Floor at `Math.max(Math.exp(...), 1e-12)` keeps tier ordering visible across centuries while still ranking aged items below fresh ones. Test exercises ranking stability at 50,000-day age.
+- **HIGH H3: Small-list archive policy.** `decayPass` previously archived `floor(items.length * 0.05)` = 0 items for any list under 20 entries (including the typical first-90-days ≤200/slug case). Now archives `Math.max(1, floor(...))` once `items.length >= minArchiveFloor` (default 10) — avoids "decay shock" where weeks 1-19 archive nothing then week 20 abruptly archives 1.
+- **HIGH H5: SSOT impact classifier.** Two scattered regexes in `lessonFromExecuteResult` were missing every `CLAUDE_CLI_*`, `TECH_DEBT_*`, and `SIBLING_*` error code shipped in Sprints 2.4/2.5/2.7 — `TECH_DEBT_SNAPSHOT_CORRUPT` was classified as `advisory` instead of `blocker`. New `IMPACT_CLASSIFIER` frozen array (regex → impact) + `classifyImpact(code)` SSOT function covers 22 explicit code patterns. Adding a new code class is one freeze-list entry, no scattered regex drift.
+- **M4: NaN-ts handling.** `ageDays` previously returned 0 for malformed `ts: 'garbage'` (silently treating corrupt journal entries as fresh). Now returns `Infinity` → score → 0 → archived. Distinguishes "missing field" (Sprint 1.8.3 backward compat, treat as fresh) from "corrupted journal".
+
+**Anthropic Opus 4.7 hardening** (research dispatch 2026-05-09):
+- New `bin/steward/_lib/action-engine.cjs buildOpenRouterRequestBody` strips `temperature`, `top_p`, `top_k`, and `thinking.budget_tokens` from the request body when the model matches `/opus-4-?7/i`. Per Anthropic platform docs (2026-04-16 release): Opus 4.7 returns 400 errors on these parameters. Defense-in-depth — Sprint 2.1 autoresearch sets temperature for diversity, but autoresearch is gated to `recommendation` kind which currently routes to Opus 4.6 in premium tier. The strip helper makes 4.7 routing safe for any future kind.
+- Routing-table flip to Opus 4.7 in `recommendation.premium` / `pattern_transfer.premium` / `architecture_review.premium` deferred to Sprint 2.0c — operator-cost-validated canary first (Opus 4.7 has +10.9pp on SWE-bench Pro but +12-27% effective token cost via 35% tokenizer inflation).
+
+**Roadmap markers updated**: ✅ SHIPPED tags on Sprints 2.4 / 2.5 / 2.6 / 2.7 / 2.8 with hardening-status callouts; original sprint memos retained below each marker for design-context preservation.
+
+**Tests: 1337 → 1349 (+12 hardening tests).** All 3 CI lanes pending push.
+
 ### Added (2026-05-09 — Sprint 2.8: Memory Foundation v0 — decay primitive + lessons schema extension, ⭐ MEMORY GATE)
 - **`bin/steward/_lib/memory-decay.cjs`** (zero-deps, ~150 LoC) — importance-weighted memory decay primitive replacing the Sprint 1.8.3 time-only "3-month unused → delete" rule:
   - Score formula per R1 §6: `U(item, t) = (w_freq × frequency + w_impact × impact) × e^(−λ × age_days)`

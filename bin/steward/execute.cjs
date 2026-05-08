@@ -1759,6 +1759,16 @@ async function _runExecuteInner(opts, ctx) {
         dryRunGh: opts.dryRunGh,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'pattern_transfer') {
+      // Sprint 2.7.1 hardening (R2 retro HIGH-4): kind is registered + routed
+      // but executor not yet wired (LLM dispatch deferred to dedicated Sprint
+      // 2.7.1 commit). Until then, fail loud rather than fall through to the
+      // default LLM branch with no sibling manifest gate.
+      applyResult = {
+        ok: false,
+        code: 'ACTION_KIND_NOT_DISPATCHABLE',
+        error: 'pattern_transfer kind is registered but executor not yet implemented. Wait for Sprint 2.7.1 dedicated commit that wires sibling-reader + LLM dispatch + assertEditWithinCwd spec-verifier hook. To prevent silent runs, this branch returns a hard failure so cron operators see the gap explicitly.',
+      };
     } else if (plan.action_kind === 'tech_debt_audit') {
       // Sprint 2.5 — deterministic tech debt snapshot. No LLM call.
       const techDebtAudit = require('./_lib/tech-debt-audit.cjs');
