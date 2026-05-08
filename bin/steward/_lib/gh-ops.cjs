@@ -89,12 +89,18 @@ function writeTmpBody(content, prefix = 'hermes-pr-body-') {
 // Returns { ok, url?, error?, code? }. The URL is parsed from gh's stdout
 // (gh pr create prints the PR URL on success).
 function createDraftPR(opts = {}) {
-  const { title, body = '', base = 'main', head, repoRoot } = opts;
+  const { title, body = '', base = 'main', head, repoRoot, labels } = opts;
 
   if (!title || typeof title !== 'string') return { ok: false, code: 'PR_NO_TITLE', error: 'PR title required' };
   if (!head || typeof head !== 'string') return { ok: false, code: 'PR_NO_HEAD', error: 'PR head branch required' };
   if (head.startsWith('-') || base.startsWith('-')) return { ok: false, code: 'PR_INVALID_REF', error: 'flag-shaped branch ref' };
   if (!repoRoot) return { ok: false, code: 'PR_NO_REPO', error: 'repoRoot required' };
+  // Sprint 2.1 R2 fix: optional labels[] array for marker labels like
+  // `judge-disagreement` (autoresearch when forward+reverse judge picks
+  // diverged). Filter to safe label names (no flag-shaped, no whitespace).
+  const safeLabels = Array.isArray(labels)
+    ? labels.filter((l) => typeof l === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(l))
+    : [];
 
   if (!hasGhCli()) {
     return {
@@ -106,14 +112,18 @@ function createDraftPR(opts = {}) {
 
   const bodyFile = writeTmpBody(body);
   try {
-    const r = gh(repoRoot, [
+    const args = [
       'pr', 'create',
       '--draft',
       '--title', title,
       '--body-file', bodyFile,
       '--base', base,
       '--head', head,
-    ]);
+    ];
+    for (const label of safeLabels) {
+      args.push('--label', label);
+    }
+    const r = gh(repoRoot, args);
 
     if (!r.ok) {
       return {

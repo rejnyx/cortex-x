@@ -602,12 +602,22 @@ function runChecks(plan, applyResult, opts = {}) {
     }
   }
 
+  // Sprint 2.1 R2 fix (edge MAJOR): always return criteria_passed +
+  // criteria_total so consumers (autoresearch delta-anomaly detector) can
+  // compute spec margin. Pre-fix: return shape only had `spec_failures` —
+  // autoresearch's `winner.spec_criteria_passed - 0` was always 0, the entire
+  // delta-anomaly mechanism dead-on-arrival.
+  const criteriaTotal = merge.criteria.length;
+  const criteriaPassed = criteriaTotal - blockFailures.length - warnFailures.length;
+
   if (blockFailures.length > 0) {
     return {
       ok: false,
       code: 'SPEC_VIOLATION',
       error: `${blockFailures.length} block criterion failure(s): ${blockFailures.map((f) => f.id).join(', ')}`,
       spec_failures: [...blockFailures, ...warnFailures],
+      criteria_passed: criteriaPassed,
+      criteria_total: criteriaTotal,
     };
   }
   if (warnFailures.length > 0) {
@@ -616,9 +626,16 @@ function runChecks(plan, applyResult, opts = {}) {
       code: 'SPEC_WARNING',
       warnings: warnFailures.length,
       spec_failures: warnFailures,
+      criteria_passed: criteriaPassed,
+      criteria_total: criteriaTotal,
     };
   }
-  return { ok: true, spec_failures: [] };
+  return {
+    ok: true,
+    spec_failures: [],
+    criteria_passed: criteriaTotal,
+    criteria_total: criteriaTotal,
+  };
 }
 
 module.exports = {
