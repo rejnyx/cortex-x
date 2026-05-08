@@ -4,6 +4,36 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.6: Discord remote-control bridge v0 alpha, sibling-folder pattern)
+- **`bin/discord-bridge/` sibling folder** — Sprint 2.6 v0 alpha. Zero-deps Steward core (`bin/steward/_lib/*.cjs`) preserved; bridge has its own `package.json` with `discord.js` 14.x as the only top-level dep. Mirrors Sprint 4.8 dashboard sibling-repo pattern.
+- **`auth.cjs`** (zero-deps, 100% testable) — 4-layer security per R1 §2:
+  1. **Whitelist**: `STEWARD_DISCORD_ALLOWED_USER_IDS` snowflake-shape regex (`^\d{10,32}$`) — fail-closed (empty list = nobody allowed).
+  2. **HMAC**: `crypto.createHmac` + `timingSafeEqual` against current + previous 90s window (replay protected). 8-hex-char display token; 32+ byte server secret.
+  3. **Token rotation**: 90-day operator runbook in README.
+  4. **Read-only by default**: `/!` prefix marks mutations explicitly via `isMutationCommand`.
+- **`commands.cjs`** (zero-deps, fully testable) — 6 slash command handlers + dispatcher + `defaultCtx` factory:
+  - `/status` — JSON summary of halt + last journal entry + cost ledger
+  - `/forecast` — Sprint 1.9.1 cap forecast block
+  - `/why <sha>` — render commit's journal entry as embed (validates SHA shape)
+  - `/!halt <reason>` — write `STEWARD_HALT` (HMAC-confirmed two-step flow)
+  - `/!resume` — clear `STEWARD_HALT` (HMAC-confirmed)
+  - `/!recommend <text>` — append to `cortex/recommendations.md` (HMAC-confirmed)
+  - All mutation handlers return `requiresHmac: true` on first call with displayable token; bridge dispatches second confirmation call.
+- **`journal-tail.cjs`** (zero-deps, fully testable) — channel routing rules + NDJSON parser + tail-follower factory:
+  - `routeJournalEvent(entry)` → 4-channel routing (`#steward-cost` / `#steward-research` / `#steward-failures` / `#steward-alerts`) per first-match-wins regex matching against `event` + `code` fields.
+  - `parseNDJSON(content)` → resilient NDJSON parser (skips malformed lines silently).
+  - `makeTailFollower(filePath, onEvent, opts)` → factory that wraps fs.statSync + readSync at offset for incremental tail; tests use injected `fs` for determinism.
+- **`README.md`** — full operator setup guide (Discord bot creation, env config, NSSM Windows / systemd Linux supervision, slash command registration runbook).
+- **What's deferred to Sprint 2.6.1** (per README "Sprint 2.6.1 roadmap" §):
+  - `bridge.cjs` Gateway WebSocket wiring via discord.js (operator setup gated — needs bot token + guild ID).
+  - E2E test against fixture Discord guild (manual).
+  - Voice attachment dispatch → Whisper → recommendations (Sprint 4.3 link).
+  - PATH-walk well-known-paths preference for `node` resolution.
+  - Operator-tier opt-out signing (HMAC over `repoRoot + operator-secret`).
+- **Tests**: 63 unit tests (auth + commands + journal-tail) — all zero-deps via `node:test`. discord.js itself NOT installed in this commit; operator runs `cd bin/discord-bridge && npm install` separately.
+- **Manual verification**: `auth.generateActionToken('halt-test', { secret: 'a'.repeat(64) })` → 8-hex display token; `verifyActionToken` confirms in same + previous window. `routeJournalEvent` correctly maps cost / research / auth events to the right channels.
+- **Why discord.js (not zero-deps WebSocket)**: R1 §1 evaluated zero-deps Gateway implementation — heartbeat + identify + zombie detection + resume + reconnect = ~400 LoC of fragile protocol code for a single-operator bridge. discord.js encapsulates all of that; sibling-folder isolation preserves the zero-deps invariant for **Steward core**, which is what the invariant actually covers.
+
 ### Added (2026-05-09 — Sprint 2.5: tech_debt_audit action_kind, deterministic 10th capability)
 - **New action_kind `tech_debt_audit`** registered in `bin/steward/_lib/action-kinds.cjs` — deterministic, requires_llm=false, cost_envelope=free, blast_radius=minimal, shipped_in='0.3.0'. Runs nightly, snapshots code-health metrics to `cortex/debt-snapshot.json` (committed audit trail), computes drift triggers vs prior snapshot. v1 = snapshot-only (no PR opening); R1 §9 explicitly defers PR generation to v2 once operator action-rate is measured.
 - **3-stage pipeline**: detector probe (`detectors/tech-debt-audit.cjs`) → snapshot capture (`bin/steward/_lib/tech-debt-audit.cjs`) → drift comparison (`bin/steward/_lib/snapshot-diff.cjs`).
