@@ -448,7 +448,91 @@ function buildUserPrompt(plan, opts = {}) {
   return lines.join('\n');
 }
 
+// Sprint 2.0 — thin wrapper that emits an LLM span over the inner engine
+// run. opts.tracer + opts.parentSpan are honored when passed in by execute.cjs;
+// no-op when absent (every test suite that doesn't plumb them keeps working).
+//
+// Span lifecycle: span MUST end on every exit path — success, soft-error
+// (result.ok=false), and hard-throw from the inner function. Pre-Sprint-2.0
+// review caught a leak where an inner throw skipped llmSpan.end(); the
+// fix wraps the inner call in try/catch/finally and rethrows.
 async function openrouterEngine(plan, opts = {}) {
+  const tracer = opts.tracer;
+  const parentSpan = opts.parentSpan;
+  const modelForSpan = opts.model || readEnv('MODEL') || DEFAULT_MODEL;
+  const llmSpan = tracer && typeof tracer.startSpan === 'function'
+    ? tracer.startSpan({
+      name: 'llm.openrouter',
+      kind: 'LLM',
+      parent: parentSpan,
+      attributes: {
+        'gen_ai.system': 'openrouter',
+        'gen_ai.operation.name': 'chat',
+        'gen_ai.request.model': modelForSpan,
+        'llm.provider': 'openrouter',
+        'llm.model_name': modelForSpan,
+      },
+    })
+    : null;
+
+  let result;
+  try {
+    result = await _openrouterEngineInner(plan, opts);
+    return result;
+  } catch (err) {
+    // Inner threw — propagate, but tag the span so the trace shows the failure.
+    if (llmSpan) {
+      try {
+        llmSpan.setAttribute('llm.error_code', 'INNER_THREW');
+        llmSpan.setStatus(2 /* ERROR */, err && err.message);
+      } catch { /* best-effort tagging */ }
+    }
+    throw err;
+  } finally {
+    if (llmSpan) {
+      try {
+        // Coerce token / cost numbers from string-shaped responses (some
+        // OpenRouter providers return prompt_tokens as string).
+        const toNumOrUndef = (v) => {
+          if (typeof v === 'number' && Number.isFinite(v)) return v;
+          if (typeof v === 'string') {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : undefined;
+          }
+          return undefined;
+        };
+        const tokensIn = result ? toNumOrUndef(result.tokens_in) : undefined;
+        const tokensOut = result ? toNumOrUndef(result.tokens_out) : undefined;
+        const costUsd = result ? toNumOrUndef(result.cost_usd) : undefined;
+
+        // Always tag usage fields, defaulting to 0 on error paths so cost
+        // dashboards differentiate "no LLM call attempted" from "LLM call,
+        // no usage reported" (correctness review H2). The inner function's
+        // result determines whether 0 means "actually zero" or "missing".
+        llmSpan.setAttribute('gen_ai.usage.input_tokens', tokensIn !== undefined ? tokensIn : 0);
+        llmSpan.setAttribute('gen_ai.usage.output_tokens', tokensOut !== undefined ? tokensOut : 0);
+        llmSpan.setAttribute('llm.token_count.prompt', tokensIn !== undefined ? tokensIn : 0);
+        llmSpan.setAttribute('llm.token_count.completion', tokensOut !== undefined ? tokensOut : 0);
+        if (tokensIn !== undefined && tokensOut !== undefined) {
+          llmSpan.setAttribute('llm.token_count.total', tokensIn + tokensOut);
+        }
+        if (costUsd !== undefined) {
+          llmSpan.setAttribute('llm.cost_usd', costUsd);
+        }
+        if (result && result.code) {
+          llmSpan.setAttribute('llm.error_code', result.code);
+        }
+        // Only set status here if not already set by the catch block above.
+        if (llmSpan._status && llmSpan._status.code === 0 /* UNSET */) {
+          llmSpan.setStatus(result && result.ok ? 1 /* OK */ : 2 /* ERROR */, result && result.error);
+        }
+      } catch { /* tagging best-effort, never fail the run */ }
+      try { llmSpan.end(); } catch { /* idempotent */ }
+    }
+  }
+}
+
+async function _openrouterEngineInner(plan, opts = {}) {
   // Sprint 1.8.12 (b): trim trailing whitespace/newlines from secret. GitHub
   // Actions secrets set via `echo "key" | gh secret set` retain a trailing
   // newline; Node's undici fetch silently strips the Authorization header

@@ -20,6 +20,76 @@
 
 ## Current
 
+### Sprint 2.0 — Phoenix observability via zero-deps OTLP emitter (2026-05-08)
+
+⭐ TIER 1 OBSERVABILITY GATE. R1-grounded by [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./docs/research/sprint-2.0-langfuse-observability-2026-05-08.md). Pivots default observability stack from Langfuse (6-container, ClickHouse disk-growth footgun, Tier-2 features paywalled) to Phoenix (1-container, SQLite, native OpenInference + native OpenRouter, Tier-2 features open). Helicone parked as RIP (Mintlify acquisition 2026-03-03).
+
+#### Non-breaking (off by default; opt-in via env var)
+
+**New module — `bin/steward/_lib/otel-emitter.cjs`** (~530 LoC)
+- `createTracer({ runId, agentName, serviceVersion, fetchImpl, allowRemote })` returns a `Tracer` instance. Reads `STEWARD_OTEL_ENDPOINT` (legacy `HERMES_OTEL_ENDPOINT` alias through v0.2.0).
+- `tracer.startSpan({ name, kind, parent, attributes })` returns a `Span`; emits OpenInference (`openinference.span.kind`, `llm.*`, `tool.*`) AND OTel `gen_ai.*` semconv on every span.
+- `tracer.flush()` → batched OTLP HTTP/JSON POST. Idempotent (returns `{reason:'already-flushed'}` on second call). Fail-open everywhere — no endpoint → `{reason:'no-endpoint'}`, unreachable → `{reason:'fetch-failed'}`, oversized payload → `{reason:'payload-too-large'}`, JSON-encode failure → `{reason:'serialize-failed'}`.
+- `tracer.withSpan({...}, fn)` convenience: auto-end on resolve/reject; respects callers that already set a status (does NOT overwrite UNSET → OK if caller set ERROR for soft-failure return values).
+
+**Endpoint allow-list (security regression vs Sprint 1.6.20 H2)**
+- Loopback only by default: `127.0.0.1`, `localhost`, `::1`. Path must end with `/v1/traces` or `/v1/logs`. Scheme must be `http` or `https`.
+- `STEWARD_OTEL_ALLOW_REMOTE=1` opts in to non-loopback hosts (cron / shared dev contexts).
+- Validation rejection emits one stderr warning per process and disables the tracer; **never fails the run**.
+- Defends against the same threat model as Sprint 1.6.20 H2 (operator-controllable egress URL → SSRF + reconnaissance + data exfil via span attributes).
+
+**Wire-format hardening**
+- `toAnyValue` handles NaN/Infinity (→ stringValue, JSON-safe), Symbol/Function (→ named placeholder), Date (→ ISO string), Buffer (→ base64), BigInt (→ string). Object recursion depth-limited to 4 levels.
+- Per-attribute string truncation: 8 KB max (any value beyond is suffixed `…`).
+- Per-payload size cap: 1 MB total per flush. Oversized payload returns `{reason:'payload-too-large'}` BEFORE any HTTP call.
+- `setStatus` redacts absolute filesystem paths from error messages (POSIX `/Users|/home|/opt|...`, Windows `C:\Users\…`, UNC `\\share\…` → `<path>`) and truncates to 200 bytes (CWE-117/209 mitigation).
+- NoopSpan as parent (all-zero spanId from a disabled tracer) is treated as no parent — avoids invalid parent_span_id on the wire.
+
+**Plumbing in `bin/steward/execute.cjs`**
+- AGENT root span created at the very top of `runExecute` outer wrapper, BEFORE any pre-flight gate. Every exit path — halt-check fail, plan-load fail, daily/weekly/monthly cap, token velocity, loop-detector, lock-held, dirty tree, detached HEAD — produces a trace.
+- Plan-derived attributes (`steward.action_kind`, `steward.action_id`, `steward.action_key`, `steward.trigger`, `steward.slug`) are added once the plan is loaded.
+- Outer wrapper runs `tracer.flush()` in `finally` regardless of throw / early-return; result-shape (`steward.code`, `steward.commit_sha`, `steward.branch`, `steward.exit_code`) tagged on the AGENT span before flush.
+- TOOL spans (`spec_verifier.runChecks`, `verifier.npm_test`, `gh.push_and_pr`) wrapped in try/finally so spans always end even if the wrapped call throws. Throws still propagate.
+
+**LLM span in `bin/steward/_lib/action-engine.cjs`**
+- `openrouterEngine` is now a thin try/catch/finally wrapper over `_openrouterEngineInner`. The wrapper emits an LLM-kind span around the call; tags `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `llm.token_count.{prompt,completion,total}`, `llm.cost_usd`, `llm.error_code`. Coerces string-shaped numbers (some OpenRouter providers return `prompt_tokens` as a string).
+- Defaults to `0` for missing usage fields so cost dashboards differentiate "no LLM call attempted" from "LLM call, no usage reported".
+
+**Phoenix template — `templates/observability/docker-compose.phoenix.yml` + README**
+- Single-container Phoenix recipe. Bound to `127.0.0.1:6006` (web + OTLP HTTP/JSON), `127.0.0.1:4317` (OTLP gRPC, unused but available), `127.0.0.1:4318` (alt OTLP HTTP).
+- SQLite at `/mnt/data/phoenix.db` via named volume `cortex-phoenix-data`. Postgres backend optional via `PHOENIX_SQL_DATABASE_URL`.
+- README documents bring-up, tear-down, span tree shape, fail-open contract, and the Langfuse-vs-Phoenix decision rationale.
+
+**Operator docs — `docs/steward-usage.md` § Observability**
+- Privacy posture, fail-open contract, span tree shape, env var reference.
+
+#### Migrate (non-blocking, opt-in)
+
+```bash
+# 1. Start Phoenix:
+docker compose -f templates/observability/docker-compose.phoenix.yml up -d
+
+# 2. Tell Steward where to flush spans:
+export STEWARD_OTEL_ENDPOINT=http://localhost:6006/v1/traces
+
+# 3. Run a Steward action — spans flush at run end:
+cortex-steward execute --plan-file=plan.json
+
+# 4. Inspect: open http://localhost:6006 → projects → cortex-x → traces.
+```
+
+#### Rollback
+
+Trivial — unset `STEWARD_OTEL_ENDPOINT` and Steward runs identically to pre-2.0. Journal SSOT preserved; no Phoenix data is load-bearing.
+
+#### Test surface
+
+924 → 978 tests (+54). 49 unit tests (`tests/unit/steward/otel-emitter.test.cjs`), 5 integration tests (`tests/integration/steward-observability.test.cjs`). Coverage: AGENT span structure, parent-child propagation, OTLP wire format, dual-attribute set, attribute coercion (NaN/Infinity/Symbol/Function/Date/Buffer/BigInt), endpoint allow-list (8 allow/deny variants), STEWARD_OTEL_ALLOW_REMOTE opt-in, /v1/logs path, NoopSpan parent skip, payload-too-large cap, withSpan-doesn't-overwrite-status, service.version semconv, path-redaction in setStatus, fail-open under unset/unreachable/non-loopback.
+
+#### R2 review pipeline (pre-merge)
+
+4 specialized agents in parallel: blind-hunter, security-auditor, correctness-auditor, edge-case-hunter. Surfaced 12 must-fix items (3 HIGH SSRF/lifecycle, 6 MED hardening, 3 LOW polish), all applied + regression-tested before commit. Critical regression dodged: Sprint 1.6.20 H2 hardcoded `OPENROUTER_ENDPOINT` precisely because operator-controllable egress is an SSRF + reconnaissance vector; the OTLP path reintroduced the same threat model and is now closed by the allow-list.
+
 ### Sprint 4.7 — Hermes → Steward rebrand (2026-05-08)
 
 ⭐ PRE-PUBLIC-TAG MUST. The 2026-05-09 web-research audit (see `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` and `docs/steward-roadmap.md` § Sprint 4.7) confirmed [NousResearch/hermes-agent](https://github.com/nousresearch/hermes-agent) is a **139k-star MIT project shipped Feb 2026** with dedicated `hermes-agent.nousresearch.com/.org/.ai` domains. Releasing cortex-x v0.1.0 with a `bin/hermes/` directory would compete in tag-search and brand recognition against an established project. Rebrand cost today (1 day mechanical refactor) is far cheaper than the same refactor in v0.2 plus undoing brand confusion in user docs.

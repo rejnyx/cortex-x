@@ -51,6 +51,10 @@ const actionKinds = require('./_lib/action-kinds.cjs');
 const specVerifier = require('./_lib/spec-verifier.cjs');
 // Sprint 4.7 — STEWARD_* env vars with HERMES_* backward-compat alias.
 const { readEnv } = require('./_lib/env.cjs');
+// Sprint 2.0 — zero-deps OTLP HTTP emitter for OpenInference + gen_ai spans.
+// Tracer is no-op when STEWARD_OTEL_ENDPOINT is unset; otherwise spans flush
+// at runExecute end. Journal SSOT preserved — Phoenix is additive.
+const otelEmitter = require('./_lib/otel-emitter.cjs');
 // Sprint 1.9.1 — multi-window cost safety + loop detector. Pre-flight gates
 // layer above existing daily cap + per-action_key failure breaker.
 const costSafety = require('./_lib/cost-safety.cjs');
@@ -982,7 +986,50 @@ function getCleanTreeIgnoringSteward(repoRoot) {
   };
 }
 
+// Sprint 2.0 — wraps the existing runExecute body so EVERY exit path
+// (including pre-flight rejections that return early) gets an AGENT span
+// in the trace. The inner function still does the actual work; this
+// outer shell just owns tracer lifecycle.
 async function runExecute(opts = {}) {
+  const tracer = otelEmitter.createTracer({ agentName: 'steward' });
+  const agentSpan = tracer.startSpan({
+    name: 'steward.run',
+    kind: otelEmitter.KINDS.AGENT,
+    attributes: {
+      'gen_ai.operation.name': 'agent',
+      'steward.engine': opts.engine || readEnv('ENGINE') || 'openrouter',
+    },
+  });
+
+  let result;
+  try {
+    result = await _runExecuteInner(opts, { tracer, agentSpan });
+    return result;
+  } finally {
+    try {
+      // Tag AGENT span with the run's result-shape so the trace is useful
+      // even before the operator drills into children.
+      if (result && typeof result === 'object') {
+        if (result.code) agentSpan.setAttribute('steward.code', result.code);
+        if (result.commit_sha) agentSpan.setAttribute('steward.commit_sha', result.commit_sha);
+        if (result.branch) agentSpan.setAttribute('steward.branch', result.branch);
+        if (result.exitCode !== undefined) agentSpan.setAttribute('steward.exit_code', result.exitCode);
+        agentSpan.setStatus(result.ok ? otelEmitter.OTEL_STATUS.OK : otelEmitter.OTEL_STATUS.ERROR, result.error);
+      }
+    } catch (_) { /* best-effort tagging */ }
+    try { agentSpan.end(); } catch (_) { /* idempotent */ }
+    try {
+      const flushResult = await tracer.flush();
+      if (!flushResult.ok && tracer.enabled) {
+        process.stderr.write(`[steward:otel] flush failed (reason=${flushResult.reason}${flushResult.error ? ', error=' + flushResult.error : ''})\n`);
+      }
+    } catch (_) { /* tracer flush must never fail the run */ }
+  }
+}
+
+async function _runExecuteInner(opts, ctx) {
+  const tracer = ctx.tracer;
+  const agentSpan = ctx.agentSpan;
   const repoRoot = opts.repoRoot || process.cwd();
   const engine = opts.engine || readEnv('ENGINE');
   const skipVerify = opts.skipVerify === true;
@@ -1236,6 +1283,15 @@ async function runExecute(opts = {}) {
     throw err;
   }
 
+  // Sprint 2.0 — refine AGENT span attributes now that the plan is loaded.
+  // Tracer + base AGENT span were created at the top of runExecute; we just
+  // enrich them with plan-derived metadata once we have a valid plan in hand.
+  agentSpan.setAttribute('steward.action_kind', plan.action_kind || 'recommendation');
+  agentSpan.setAttribute('steward.action_key', plan.action.action_key);
+  agentSpan.setAttribute('steward.action_id', plan.action_id);
+  agentSpan.setAttribute('steward.trigger', plan.trigger || 'manual');
+  agentSpan.setAttribute('steward.slug', slug);
+
   let originalBranch = null;
 
   try {
@@ -1332,7 +1388,7 @@ async function runExecute(opts = {}) {
         maxCandidates: opts.maxCandidates,
       });
     } else {
-      applyResult = await actionEngine.applyAction(plan, { repoRoot, engine });
+      applyResult = await actionEngine.applyAction(plan, { repoRoot, engine, tracer, parentSpan: agentSpan });
     }
 
     if (!applyResult.ok) {
@@ -1427,9 +1483,28 @@ async function runExecute(opts = {}) {
       // bug in any runner (path.resolve(undefined), regex throw at runtime,
       // etc.) cannot leave the working tree dirty + dead branch checked out.
       // Treat uncaught throws as SPEC_MALFORMED — fail-closed.
+      const specSpan = tracer.startSpan({
+        name: 'spec_verifier.runChecks',
+        kind: otelEmitter.KINDS.TOOL,
+        parent: agentSpan,
+        attributes: {
+          'tool.name': 'spec_verifier',
+          'gen_ai.operation.name': 'tool',
+          'steward.action_kind': plan.action_kind || 'recommendation',
+        },
+      });
       try {
         specResult = specVerifier.runChecks(plan, applyResult, { repoRoot });
+        specSpan.setAttribute('spec.ok', !!specResult.ok);
+        if (!specResult.ok) {
+          specSpan.setAttribute('spec.code', specResult.code || 'unknown');
+          specSpan.setAttribute('spec.failure_count', (specResult.spec_failures || []).length);
+          specSpan.setStatus(otelEmitter.OTEL_STATUS.ERROR, specResult.error || specResult.code);
+        } else {
+          specSpan.setStatus(otelEmitter.OTEL_STATUS.OK);
+        }
       } catch (err) {
+        specSpan.setStatus(otelEmitter.OTEL_STATUS.ERROR, err && err.message);
         specResult = {
           ok: false,
           code: 'SPEC_MALFORMED',
@@ -1442,6 +1517,8 @@ async function runExecute(opts = {}) {
             error: err && err.message ? err.message : String(err),
           }],
         };
+      } finally {
+        specSpan.end();
       }
       if (!specResult.ok) {
         // Discard working-tree edits, return to original branch, drop dead branch.
@@ -1487,7 +1564,30 @@ async function runExecute(opts = {}) {
     // Phase 7 — Verifier
     let verifyResult = null;
     if (!skipVerify) {
-      verifyResult = verifier.runNpmTest({ repoRoot, timeoutMs: opts.verifyTimeoutMs });
+      // Sprint 2.0 review (blind/edge HIGH): wrap in try/finally so the span
+      // always ends even if runNpmTest itself throws (e.g. EBUSY on Windows
+      // npm cache, EAGAIN on spawned process). Throw still propagates.
+      const verifySpan = tracer.startSpan({
+        name: 'verifier.npm_test',
+        kind: otelEmitter.KINDS.TOOL,
+        parent: agentSpan,
+        attributes: {
+          'tool.name': 'npm_test',
+          'gen_ai.operation.name': 'tool',
+        },
+      });
+      try {
+        verifyResult = verifier.runNpmTest({ repoRoot, timeoutMs: opts.verifyTimeoutMs });
+        verifySpan.setAttribute('verify.ok', !!verifyResult.ok);
+        if (verifyResult.exitCode !== undefined) verifySpan.setAttribute('verify.exit_code', verifyResult.exitCode);
+        if (verifyResult.durationMs !== undefined) verifySpan.setAttribute('verify.duration_ms', verifyResult.durationMs);
+        verifySpan.setStatus(verifyResult.ok ? otelEmitter.OTEL_STATUS.OK : otelEmitter.OTEL_STATUS.ERROR);
+      } catch (err) {
+        verifySpan.setStatus(otelEmitter.OTEL_STATUS.ERROR, err && err.message);
+        throw err;
+      } finally {
+        verifySpan.end();
+      }
       if (!verifyResult.ok) {
         // Discard the working-tree edits, return to original branch, drop the
         // dead branch — pre-commit failures DON'T leave a tainted commit.
@@ -1599,9 +1699,38 @@ async function runExecute(opts = {}) {
     // The commit ALWAYS lands locally; remote propagation is the optional
     // upgrade path. cron + GHA contexts will have remote + GH_TOKEN +
     // gh CLI; local dogfood may not.
-    const prResult = await maybePushAndOpenPR({
-      repoRoot, plan, slug, skipPush,
+    // Sprint 2.0 review (blind/edge HIGH): wrap in try/finally so the span
+    // always ends even if maybePushAndOpenPR throws (gh CLI may exit with
+    // unexpected error shapes; auth races; network drops mid-call).
+    const prSpan = tracer.startSpan({
+      name: 'gh.push_and_pr',
+      kind: otelEmitter.KINDS.TOOL,
+      parent: agentSpan,
+      attributes: {
+        'tool.name': 'git_commit_and_pr',
+        'gen_ai.operation.name': 'tool',
+        'steward.skip_push': !!skipPush,
+      },
     });
+    let prResult;
+    try {
+      prResult = await maybePushAndOpenPR({
+        repoRoot, plan, slug, skipPush,
+      });
+      prSpan.setAttribute('pr.status', prResult.status || 'unknown');
+      if (prResult.url) prSpan.setAttribute('pr.url', prResult.url);
+      if (prResult.reason) prSpan.setAttribute('pr.reason', prResult.reason);
+      prSpan.setStatus(
+        prResult.status === 'created' || prResult.status === 'pushed' || prResult.status === 'skipped'
+          ? otelEmitter.OTEL_STATUS.OK
+          : otelEmitter.OTEL_STATUS.ERROR,
+      );
+    } catch (err) {
+      prSpan.setStatus(otelEmitter.OTEL_STATUS.ERROR, err && err.message);
+      throw err;
+    } finally {
+      prSpan.end();
+    }
 
     // Phase 11 — Journal success (cost/tokens via shared addCostFields helper)
     safeJournal(slug, addCostFields({
@@ -1634,8 +1763,12 @@ async function runExecute(opts = {}) {
       tokens_out: applyResult.tokens_out,
       model: applyResult.model,
       pr: prResult,
+      trace_id: tracer.traceId,
     };
   } finally {
+    // Sprint 2.0 — AGENT span end + tracer flush moved to the outer wrapper
+    // (runExecute), so even pre-flight returns get a trace. Lock release
+    // stays here because lockHandle scope is local to this inner function.
     lock.releaseLock(lockHandle);
   }
 }
