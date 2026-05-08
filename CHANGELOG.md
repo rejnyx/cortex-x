@@ -4,6 +4,27 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.4: Anthropic claude-cli engine via Max subscription, ⭐ COST PIVOT)
+- **`claudeCliEngine` in `bin/steward/_lib/action-engine.cjs`** (~470 LoC including helpers + comments) — 4th LLM engine that spawns the local `claude -p` binary under the operator's Anthropic Max subscription OAuth token, driving marginal LLM cost to **$0** for all `recommendation`-class actions.
+- **Three-layer billing-leak defense** to mitigate the GH `anthropics/claude-code#43333` / `#37686` ($1,800 incident) class:
+  1. **Env scrub**: `scrubClaudeCliEnv` deletes `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` from spawned env. Win32 case-insensitive (catches lowercase `anthropic_api_key` from user dotfiles).
+  2. **Strict billing assertion**: `total_cost_usd === 0` after JSON parse; rejects NaN/Infinity at parser via `Number.isFinite` (defense-in-depth).
+  3. **Fleet halt on leak**: nonzero cost writes `STEWARD_HALT` (fleet sentinel) — refuses subsequent runs until operator clears the file.
+- **CLI integration**: new `STEWARD_ENGINE=claude-cli` env / `--engine claude-cli` flag; default stays `openrouter` (R6 backward-compat). Help text derives engine list from `Object.keys(ENGINES)` (SSOT — no drift).
+- **OAuth-only auth**: requires `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`); `--bare` flag is **explicitly forbidden** (would skip OAuth and force API billing). `CLAUDE_CLI_FORBIDDEN_FLAGS` freeze-list extracted as SSOT.
+- **Hardened argv validation**: `extraArgs` rejects `--bare` variants (case-insensitive, with leading/trailing whitespace, `--bare=value`, `--BARE`) AND any arg containing shell metacharacters `& | ; < > " \` $ ( ) ^ \n \r \0` (CWE-77 defense for Windows `.cmd` `shell:true` invocation).
+- **Subprocess hardening**: `child_process.spawn` (not exec), AbortController-based 120s timeout (clamped `[1s, 10min]`), explicit `stdin.end()`, `windowsHide: true`, scrubbed env, 8 MB stdout/stderr UTF-8 byte-length caps (multibyte-safe via `Buffer.byteLength`), no-op `'error'` handler post-resolve to prevent unhandled-error crashes.
+- **Path resolution**: `STEWARD_CLAUDE_CLI_PATH` env override (verified via `fs.statSync().isFile()`) → PATH walk (`claude.cmd` → `.exe` → bare on win32; reversed POSIX). Rejects directory paths + paths with shell metacharacters when forced into `shell:true` (`.cmd`/`.bat`).
+- **Concurrency semaphore**: in-process cap `STEWARD_CLAUDE_CLI_MAX_CONCURRENCY=1` for v0; Sprint 2.2 worktree supervisor revisits global vs per-worktree.
+- **Span lifecycle**: tracer/parentSpan span tagging mirrors `openrouterEngine` — `gen_ai.usage.input_tokens` / `output_tokens` / `llm.cost_usd` / `llm.error_code` always tagged; idempotent end on every exit path.
+- **Secret redaction**: `redactSecrets` masks Anthropic OAuth tokens (`sk-ant-oat##-…`) + `Bearer …` headers in all stderr surfaces flowing into journal/PR/halt-file content (CWE-532 defense).
+- **11 new error codes**: `CLAUDE_CLI_AUTH_NOT_CONFIGURED`, `CLAUDE_CLI_AUTH_REJECTED`, `CLAUDE_CLI_BILLING_LEAK`, `CLAUDE_CLI_FORBIDDEN_FLAG`, `CLAUDE_CLI_NOT_FOUND`, `CLAUDE_CLI_OUTPUT_TOO_LARGE`, `CLAUDE_CLI_PLAN_NOT_JSON`, `CLAUDE_CLI_PLAN_SHAPE_INVALID`, `CLAUDE_CLI_PROTOCOL_DRIFT`, `CLAUDE_CLI_QUOTA_EXHAUSTED`, `CLAUDE_CLI_RATE_LIMITED`, `CLAUDE_CLI_SERVER_ERROR`, `CLAUDE_CLI_SPAWN_FAILED`, `CLAUDE_CLI_TIMEOUT`.
+- **R1 memo**: `docs/research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md` — full research + decision rationale + 25 GH issue / docs citations.
+- **R2 review pipeline (6 agents in parallel)**: acceptance + blind + correctness + security + ssot + edge-case → consolidated **1 BLOCKER + 3 HIGH + 11 MAJOR + 14 MINOR** findings; 13 must-fix items applied pre-commit. Defer list (`Sprint 2.4.1`): E2E integration test under real `CLAUDE_CODE_OAUTH_TOKEN`, Windows SIGTERM grandchild via `taskkill /T /F`, PATH walk well-known-paths preference, semaphore concurrency stateful test, `parseClaudeCliResponse` adversarial fuzz table, transient-network stderr regex, parent-exit signal forwarding, spec-criteria registration in `action-kinds.cjs`.
+- **Tests**: 1158 → 1187 (+29 unit tests covering all 14 R2 review-fix paths). All 3 CI lanes pending push.
+- **Manual verification (operator-machine)**: `claude --version` (v2.1.119) + `resolveClaudeCliPath` finds `C:\Users\david\AppData\Roaming\npm\claude.cmd` (useShell:true) + helpers (scrubEnv / parse / categorize / matchForbiddenFlag / containsShellMetacharacters / redactSecrets) all return expected values. Real end-to-end against operator's Max sub deferred to operator dogfood gate (per Sprint 2.0.1 lesson §13: "Spec-permissive ≠ receiver-permissive").
+- **New helper file**: `tests/helpers/fake-spawn.cjs` (~85 LoC) — reusable `EventEmitter`-based `spawn` fake for deterministic subprocess tests without requiring a real binary. Pattern reusable for future engines.
+
 ### Fixed (2026-05-08 — Sprint 2.0.1: OTLP protobuf encoder for Phoenix compatibility) — commit `2981ea7`
 - **Zero-deps OTLP protobuf encoder** (`bin/steward/_lib/otel-protobuf.cjs`, ~370 LoC) — replaces Sprint 2.0's OTLP/JSON encoding that Phoenix 15.5.1 rejected with HTTP 415 Unsupported Media Type.
 - Switched emitter `Content-Type: application/json` → `application/x-protobuf`. Wire format now spec-compliant binary OTLP per [`opentelemetry-proto`](https://github.com/open-telemetry/opentelemetry-proto).
