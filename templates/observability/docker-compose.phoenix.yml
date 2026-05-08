@@ -1,0 +1,62 @@
+# docker-compose.phoenix.yml — Sprint 2.0 single-container Phoenix template.
+#
+# Phoenix (Arize) is the OpenInference reference implementation for LLM
+# observability. Single container, SQLite persistence, native OpenInference +
+# OTel gen_ai support, native OpenRouter integration. Steward emits spans via
+# its own zero-deps OTLP HTTP emitter (bin/steward/_lib/otel-emitter.cjs);
+# Phoenix is the receiver + UI.
+#
+# Why Phoenix over Langfuse: see docs/research/sprint-2.0-langfuse-observability-2026-05-08.md
+# (TL;DR: Langfuse v3 is 6 containers with documented unbounded ClickHouse
+# disk growth; Phoenix is 1 container with bounded SQLite and the Tier-2
+# evolution features unpaywalled).
+#
+# Quick start:
+#   1. (one-time) From this dir:
+#        docker compose -f docker-compose.phoenix.yml up -d
+#   2. Phoenix UI:    http://localhost:6006
+#   3. OTLP receiver: http://localhost:6006/v1/traces (HTTP/JSON)
+#   4. Tell Steward:
+#        export STEWARD_OTEL_ENDPOINT=http://localhost:6006/v1/traces
+#   5. Run a Steward action:
+#        node bin/cortex-steward.cjs execute --plan-file=path/to/plan.json
+#   6. Open the trace at http://localhost:6006 — projects → cortex-x → traces.
+#
+# Tear down (data persists in the named volume):
+#   docker compose -f docker-compose.phoenix.yml down
+#
+# Wipe data + tear down:
+#   docker compose -f docker-compose.phoenix.yml down -v
+#
+# Operational reality:
+#   - Steady-state disk usage on cortex-x dogfood: <50 MB after 30 days.
+#   - Phoenix has no auth by default. Bind to 127.0.0.1 (default below) or
+#     run behind a reverse proxy if exposing beyond localhost.
+#   - Phoenix is OPTIONAL. If `STEWARD_OTEL_ENDPOINT` is unset, Steward runs
+#     identically — journal stays the SSOT, no spans get emitted.
+
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: cortex-phoenix
+    restart: unless-stopped
+    # Bind to localhost only by default. Change to "6006:6006" / "4317:4317" /
+    # "4318:4318" if you need access from another host (and add auth via the
+    # PHOENIX_ENABLE_AUTH env var first).
+    ports:
+      - "127.0.0.1:6006:6006"   # Web UI + OTLP HTTP/JSON receiver
+      - "127.0.0.1:4317:4317"   # OTLP gRPC receiver (unused by Steward but available)
+      - "127.0.0.1:4318:4318"   # Alternate OTLP HTTP receiver (semconv-default)
+    environment:
+      # SQLite at /mnt/data/phoenix.db. Override to PHOENIX_SQL_DATABASE_URL=
+      # postgresql://... for a postgres backend if you outgrow SQLite.
+      PHOENIX_WORKING_DIR: /mnt/data
+      # Disable auth for local-only dev. For shared/remote deployment, set
+      # PHOENIX_ENABLE_AUTH=true and PHOENIX_SECRET to a long random string.
+      PHOENIX_ENABLE_AUTH: "false"
+    volumes:
+      - phoenix-data:/mnt/data
+
+volumes:
+  phoenix-data:
+    name: cortex-phoenix-data

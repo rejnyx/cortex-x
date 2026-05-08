@@ -200,6 +200,66 @@ cortex-steward status --slug=$(basename $PWD)
 # Shows: cost_usd_total: $X.YYYY, tokens: in=N, out=M (when > 0)
 ```
 
+### Observability — live trace view (Sprint 2.0)
+
+Optional. When unset, Steward runs identically; the journal stays the
+single source of truth. When set, every run emits OpenInference + OTel
+gen_ai spans to the configured OTLP HTTP endpoint, giving you a live
+tree view of `AGENT → LLM/TOOL → ...` per run.
+
+**Recommended local stack: Phoenix (Arize)** — single container, SQLite,
+native OpenInference + native OpenRouter, the Tier-2 prompt-evolution
+features Steward will need (Prompt Playground, LLM-as-Judge evals,
+annotation queues) are open in the self-host (paywalled in Langfuse).
+See [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./research/sprint-2.0-langfuse-observability-2026-05-08.md)
+for the full comparison + decision rationale.
+
+```bash
+# 1. (one-time) Start Phoenix as a sidecar:
+docker compose -f templates/observability/docker-compose.phoenix.yml up -d
+
+# 2. Phoenix UI: http://localhost:6006
+#    OTLP receiver: http://localhost:6006/v1/traces
+
+# 3. Tell Steward where to flush spans (per-shell or in your env file):
+export STEWARD_OTEL_ENDPOINT=http://localhost:6006/v1/traces
+
+# 4. Run a Steward action — spans batch + flush at run end:
+cortex-steward execute --plan-file=plan.json
+
+# 5. Open http://localhost:6006 → projects → cortex-x → traces
+```
+
+**Span tree per run:**
+
+```
+AGENT (workflow=steward-nightly)
+├── LLM   (provider=openrouter, model=..., op=chat)         # recommendation kind only
+├── TOOL  (name=spec_verifier)
+├── TOOL  (name=npm_test)
+└── TOOL  (name=git_commit_and_pr)
+```
+
+Every span carries BOTH OpenInference attributes (`openinference.span.kind`,
+`llm.token_count.{prompt,completion,total}`, `llm.cost_usd`) AND OTel
+gen_ai semconv (`gen_ai.system`, `gen_ai.usage.{input,output}_tokens`).
+Phoenix renders OpenInference natively; future OTel-compatible backends
+(Jaeger, Tempo, Grafana, future Langfuse upgrade) read gen_ai.
+
+**Fail-open contract:**
+
+- Endpoint unset → tracer is a no-op; run is identical to pre-2.0.
+- Endpoint unreachable → run completes; one stderr warning per run
+  (not per span); journal still written.
+- Tracer errors NEVER fail the action.
+- Journal SSOT preserved — every event a span captures is also in the
+  JSONL journal at `~/.cortex/journal/<slug>/<date>.jsonl`. Phoenix is
+  the **visual surface**, not the canonical record.
+
+**Privacy posture:** Phoenix runs locally in Docker, binds to
+`127.0.0.1` only, no telemetry leaves your machine. The `STEWARD_OTEL_ENDPOINT`
+env var is the single switch — turn it off and you're back to journal-only.
+
 ### Troubleshooting
 
 - **`OPENROUTER_PLAN_NOT_JSON`** + truncation around char 14000: bump
