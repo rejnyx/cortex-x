@@ -118,18 +118,30 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.0 — Observability-as-a-service (S effort, easy win)
 
-**Why second**: zero meaningful evolution without measurement. Current journal is fine for forensics but useless for "did week-over-week prompt change improve recommendation quality?" Self-hosted Langfuse runs in Docker, OpenLLMetry-compatible, no telemetry leak.
+**REFINED 2026-05-08 (Sprint 2.0 R1 memo)** — see [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./research/sprint-2.0-langfuse-observability-2026-05-08.md). Original plan was Langfuse self-hosted; **research flipped this to Phoenix (Arize)** as the default, Langfuse parked as a documented opt-in upgrade for Tier 3. Five findings drove the flip:
 
-**Scope**:
-- Self-hosted Langfuse via `docker compose` in `infra/observability/` (new dir, not in main repo — separate `ops/` repo or maintainer-private compose file).
-- Wrap OpenRouter `fetch()` call in `action-engine.cjs` with OpenLLMetry tracer.
-- Mirror `journal.cjs` writes to Langfuse traces.
-- Dashboards: cost per kind / week, prompt regression diff, action_key failure cluster, latency p50/p95.
+1. **Langfuse v3 is a 6-container stack** (postgres + clickhouse + redis + minio + 2× pods) with documented unbounded ClickHouse log-table growth — fresh installs filling 100 GB/day at zero activity unless TTLs pre-tuned. Footgun for single-dev ops.
+2. **Phoenix is `docker run -p 6006:6006 arizephoenix/phoenix:latest`** — single container, SQLite persistence, native OpenInference + native OpenRouter integration. Zero ops drama for ~1 trace/night.
+3. **Langfuse paywalls** the Tier 2 features Steward's prompt-evolution roadmap actually wants (Prompt Playground, LLM-as-Judge evals, prompt experiments, annotation queues are EE-only on self-host). Phoenix has them open.
+4. **Helicone is RIP** (Mintlify acquisition 2026-03-03, self-host code untouched, dropped from candidate list).
+5. **Langfuse's built-in cost tracking** doesn't cover DeepSeek/V4-Flash (Steward's default model) — would need community sync script. Steward's own `addCostFields` is already authoritative; Langfuse UI just wouldn't display correct numbers.
 
-**Pre-implementation research dispatch**:
-- "Langfuse vs Phoenix vs Helicone (RIP) for self-hosted agent observability 2026-05. OpenLLMetry semantic conventions for tool-calling agents. Single-developer setup constraints."
+**Why second** (unchanged): zero meaningful evolution without measurement. Current journal is fine for forensics but useless for "did week-over-week prompt change improve recommendation quality?"
 
-**Stolen from**: Langfuse self-hosted reference architecture.
+**Scope (refined)**:
+- Self-hosted **Phoenix** via `templates/observability/docker-compose.phoenix.yml` (single container, SQLite at `PHOENIX_WORKING_DIR`, OTLP receiver on `:4317`).
+- Land `bin/steward/_lib/otel-emitter.cjs` — zero-deps hand-rolled OTLP HTTP POST against the OpenInference attribute set. Honors Steward's "zero runtime deps" principle (no `@opentelemetry/api`).
+- Plumb emitter through `execute.cjs` Phase boundaries: AGENT root span (workflow=steward-nightly) → LLM child (provider=openrouter, model=...) → TOOL children (npm_test, spec_verifier, git_commit_and_pr).
+- Journal stays SSOT — Phoenix is **additive**, never replaces JSONL. Both write on every run.
+- Fail-open: with `STEWARD_OTEL_ENDPOINT` unset or unreachable, Steward must complete normally and log a single warning per run (not per span).
+
+**Acceptance criteria** (full list in memo §6):
+- `docker compose -f templates/observability/docker-compose.phoenix.yml up` starts Phoenix in <30 s on a clean machine.
+- A Steward dry-run with `STEWARD_OTEL_ENDPOINT` set produces a parent AGENT span with ≥1 LLM child and ≥1 TOOL child, viewable at `localhost:6006`.
+- Cost numbers from `gen_ai.usage.input_tokens`/`output_tokens` match `addCostFields` output to rounding error on 5 dogfood runs.
+- Journal still writes (SSOT preserved).
+
+**Stolen from**: Phoenix (Arize) self-hosted reference deployment + OpenInference semantic-conventions spec + OTel `gen_ai.*` semconv. Langfuse path documented as Tier 3 upgrade for prompt-evolution sprints.
 
 ---
 
@@ -178,19 +190,31 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.2 — Worktree supervisor + agent-as-judge ensemble (L effort)
 
-**Why after 2.1**: 2.1 proves the multi-strategy pattern serial; 2.2 makes it parallel via git worktrees. Composio Agent Orchestrator is the open-source reference.
+**REFINED 2026-05-08 (anthill R1 memo)** — see [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md). Operator's "anthill" intuition is real (+90.2% on Anthropic research evals via role-routed sub-agents) but comes with three hard constraints: **15× token overhead, multi-agent is wrong for shared-context coding tasks** (so ~6 of our 9 capability kinds stay single-process), and the **DeepMind Dec-2025 finding shows unstructured agent networks amplify errors up to 17.2×** vs single-agent baseline. The memo's verdict: **verifier > spawner**. Our 1.9.0 spec-verifier is the architectural moat. Sprint 2.2 ships **MVP only** — 1 supervisor + 1 spawned worker, **`recommendation_harvest_parallel` only** (breadth-first kind, ideal shape) — not "all 9 kinds become multi-agent."
 
-**Scope**:
+**Why after 2.1**: 2.1 proves the multi-strategy pattern serial; 2.2 makes it parallel via git worktrees. Claude Agent SDK's orchestrator-worker primitive is the reference (depth-cap=2 built-in, per-sub-agent maxTurns/effort/model/permissionMode, but **no built-in per-tree token cap — we must implement**).
+
+**Scope (refined)**:
+- New capability kind `recommendation_harvest_parallel` (does NOT replace 1.8.2c kind — coexists, opt-in).
 - Split `runExecute()` into `runSupervisor()` + `runWorker(N)`.
-- `git worktree add cortex/hermes-run-{N}` per worker.
+- `git worktree add cortex/steward-run-{N}` per worker.
 - Lock manager generalized from 1-mutex to N-mutex.
 - Judge agent prompt evaluates N branches against spec criteria + commit clarity + cost.
-- 4 workers in parallel = 4× throughput at ~4× cost (still <$10/month full cadence).
+- 4 workers in parallel = ~4× throughput at ~4× cost; per-tree cap keeps total <$10/month at full cadence.
+
+**Pre-work (must land before 2.2 implementation)**:
+- **Per-tree token cap**: new env `STEWARD_TREE_USD_CAP` ($1.50 default, ~2× single-call dogfood). Cap enforced at supervisor *before* spawning; running tally from `extractUsage` on every sub-agent return. Adds 4th window alongside daily/weekly/monthly (1.9.1).
+- **Cross-tree loop detector**: 1.9.1 detector operates on single-agent fingerprints — wouldn't catch the public **$47K runaway-loop incident** (2-agent ping-pong, 11 days, no useful output). Extend detector to write criterion-id × parent-tree-id fingerprints; 3× repeat in 24h → `STEWARD_HALT`.
+- **Per-worker spec-verifier gate**: spec-verifier runs *per worker output* AND once on synthesized plan. Both must pass before `applyAction`.
+
+**Acceptance criteria (10 items)** — see anthill memo §10. Includes failure-injection test (single worker returns garbage JSON → supervisor completes with N-1 workers, no retry-storm) + cost-cap test (artificial cost spike mid-fan-out → supervisor halts cleanly, journals `STEWARD_TREE_CAP_EXCEEDED`).
 
 **Pre-implementation research dispatch**:
 - "Composio Agent Orchestrator + Cursor Parallel Agents + Claude Code Agent Teams + Grok Build worktree patterns. State-of-the-art supervisor↔worker protocols 2026-05. Conflict resolution + judge prompting techniques."
 
-**Stolen from**: Composio AO + agent-zero subordinate hierarchy + Team Atlanta ensemble patching.
+**Stolen from**: Anthropic multi-agent research stack (orchestrator-Opus + worker-Sonnet + Haiku-navigator) + Claude Agent SDK orchestrator-worker primitive + Composio AO + agent-zero subordinate hierarchy + Team Atlanta ensemble patching.
+
+**Where multi-agent is WRONG for cortex-x**: `dep_update_patch`, `lint_fix_shipper`, `flaky_test_repair`, `test_coverage_gap`, `doc_drift`, `todo_triage` — all need shared context with the codebase mutation. Single-agent + spec-verifier (1.9.0 architecture) stays the right shape. Don't multi-agent these. Memo §10 lists explicit kinds that DO benefit (recommendation_harvest, future whole_repo_security_audit, pr_review_responder).
 
 ---
 
@@ -426,8 +450,9 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 **Scope (v1)**:
 - **Local-first.** Next.js dev server `localhost:3737`, reads filesystem only, no backend.
 - **Sibling repo** `cortex-dashboard` — not a folder in cortex-x. Scaffolded by cortex-x's own profile system (new profile `cortex-dashboard`).
-- **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `HERMES_DAILY_USD_CAP`; halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
-- **v2 control**: halt button (writes `.cortex/HERMES_HALT` with reason), lesson edit/dismiss.
+- **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `STEWARD_DAILY_USD_CAP` / `STEWARD_TREE_USD_CAP` (post-2.2); halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
+- **Anthill view (post-2.2 / 2.3 — operator-pitched 2026-05-08).** When Sprint 2.2 ships supervisor + worker spawning, dashboard wraps the OTLP traces from Sprint 2.0 (Phoenix/Langfuse) and renders the live tree: supervisor at root, N workers as children, per-node cost + token + status, fan-out/fan-in animation. **Don't reinvent the trace store** — Phoenix already has the OTLP HTTP API; dashboard is just the Steward-flavored UI. See [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md) §9 for visualization options surveyed.
+- **v2 control**: halt button (writes `.cortex/STEWARD_HALT` with reason; legacy `HERMES_HALT` filename also honored through v0.2.0), lesson edit/dismiss.
 
 **Architecture**:
 - Reads documented contracts: journal entry shape, lessons.jsonl shape, `cortex-steward status --json`, `gh run list --json`.
