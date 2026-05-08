@@ -58,6 +58,17 @@ function recordLesson(slug, lesson) {
   const file = lessonsPath(slug);
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
+  // Sprint 2.8 R1 §10 — schema extension for memory foundation:
+  //   agent_id      — forward-compat for per-agent memory split (defaults
+  //                   to 'default'; Tier 2 Sprint 3.1 may revisit splitting).
+  //   failure_origin — distinct provenance: "spec_failures[N].id" or
+  //                   "error_code:<code>" — feeds Sprint 2.8 retrieval-at-
+  //                   decision-time filtering.
+  //   impact        — "advisory" | "warning" | "blocker" — drives
+  //                   memory-decay.cjs half-life selection (advisory 30d,
+  //                   warning 60d, blocker 120d).
+  //   frequency     — retrieval count, increments when a lesson is recalled
+  //                   into a prompt. Used by importance-weighted scoring.
   const enriched = {
     ts: lesson.ts || new Date().toISOString(),
     action_kind: lesson.action_kind || 'recommendation',
@@ -65,6 +76,11 @@ function recordLesson(slug, lesson) {
     root_cause: lesson.root_cause || 'UNKNOWN',
     lesson_text: lesson.lesson_text || '',
     hint: lesson.hint || null,
+    // Sprint 2.8 schema fields (forward-compat; older readers ignore).
+    agent_id: lesson.agent_id || 'default',
+    failure_origin: lesson.failure_origin || null,
+    impact: lesson.impact || 'advisory',
+    frequency: typeof lesson.frequency === 'number' && lesson.frequency >= 0 ? lesson.frequency : 0,
   };
 
   fs.appendFileSync(file, JSON.stringify(enriched) + '\n', 'utf8');
@@ -142,11 +158,29 @@ function formatLessonsForPrompt(lessons) {
 // callers to hand-craft prose every time.
 function lessonFromExecuteResult(result, ctx = {}) {
   if (!result || result.ok) return null; // success — nothing to learn from
+  // Sprint 2.8: derive impact from result.code class. Spec violations and
+  // billing leaks are blockers; missing keys / config issues are warnings;
+  // network/transient/protocol-drift items default to advisory.
+  const code = String(result.code || '');
+  let impact = 'advisory';
+  if (/SPEC_VIOLATION|BILLING_LEAK|EDIT_DESTRUCTIVE|EDIT_DENYLISTED|FORBIDDEN_FLAG/.test(code)) {
+    impact = 'blocker';
+  } else if (/AUTH_REJECTED|KEY_MISSING|KEY_MALFORMED|NOT_CONFIGURED|QUOTA_EXHAUSTED/.test(code)) {
+    impact = 'warning';
+  }
+  // Sprint 2.8: failure_origin captures distinct provenance so retrieval-at-
+  // decision-time can filter by failure class, not just root_cause string.
+  const failureOrigin = code.includes(':')
+    ? code // SPEC_VIOLATION:no_destructive_rewrite — already namespaced
+    : `error_code:${code || 'UNKNOWN'}`;
   const lesson = {
     action_kind: ctx.action_kind || 'recommendation',
     action_key: ctx.action_key || null,
     root_cause: result.code || 'UNKNOWN',
     lesson_text: result.error || 'no error message provided',
+    impact,
+    failure_origin: failureOrigin,
+    agent_id: ctx.agent_id || 'default',
   };
   // Heuristic hints for known root causes.
   // Sprint 1.8.13: normalize engine namespace (OPENROUTER_/MOCK_) so a single

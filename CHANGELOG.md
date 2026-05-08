@@ -4,6 +4,32 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.8: Memory Foundation v0 — decay primitive + lessons schema extension, ⭐ MEMORY GATE)
+- **`bin/steward/_lib/memory-decay.cjs`** (zero-deps, ~150 LoC) — importance-weighted memory decay primitive replacing the Sprint 1.8.3 time-only "3-month unused → delete" rule:
+  - Score formula per R1 §6: `U(item, t) = (w_freq × frequency + w_impact × impact) × e^(−λ × age_days)`
+  - Default weights: `w_freq=1.0`, `w_impact=2.0` (impact dominates)
+  - Half-lives: 30d advisory / 60d warning / 120d blocker (R1 §6 defensible defaults)
+  - `computeImportanceScore(item, opts)` — pure function over `{ ts, impact, frequency }`
+  - `decayPass(items, opts)` — sorts by score, archives bottom N (default 5%, configurable via `archiveBottomFraction` or absolute `thresholdScore`)
+  - `archiveBucket(now)` → `YYYY-WNN` weekly key for archive grouping
+  - `isBucketExpired(key, now, retentionWeeks=12)` — 12-week archive retention then hard-delete (R1 §7)
+  - Pure logic; fs binding stays in lessons.cjs / journal.cjs callers.
+- **`bin/steward/_lib/lessons.cjs` schema extension** (R1 §10):
+  - `agent_id` field (default `'default'`) — forward-compat for per-agent memory split (Tier 2 Sprint 3.1 may revisit; for now everything is "default" agent).
+  - `failure_origin` field — distinct provenance: `SPEC_VIOLATION:no_destructive_rewrite` for spec violations, `error_code:OPENROUTER_KEY_MISSING` for execute errors. Feeds retrieval-at-decision-time filtering.
+  - `impact` field — `advisory` / `warning` / `blocker`, drives `memory-decay.cjs` half-life selection. Auto-derived in `lessonFromExecuteResult`:
+    - `SPEC_VIOLATION` / `BILLING_LEAK` / `EDIT_DESTRUCTIVE` / `EDIT_DENYLISTED` / `FORBIDDEN_FLAG` → `blocker`
+    - `AUTH_REJECTED` / `KEY_MISSING` / `KEY_MALFORMED` / `NOT_CONFIGURED` / `QUOTA_EXHAUSTED` → `warning`
+    - All other transient/protocol-drift codes → `advisory`
+  - `frequency` field (default `0`) — retrieval count for importance scoring (Sprint 2.8.1 will increment on every recall).
+- **What's deferred to Sprint 2.8.1 (per R1 §13 + extracted from R2 implementation reality):**
+  - Anthropic Memory Tool (`memory_20250818`) integration — required dedicated API surface work, defers until claude-cli engine (Sprint 2.4) Max-sub dogfood validates the auth model in production.
+  - Retrieval-at-decision-time MaTTS pattern (R1 §5) — currently lessons load at boot; per-action pre-LLM retrieval with K=3 default + K=5 hard cap requires action-engine.cjs integration.
+  - Weekly archive sweep cron — `decayPass` is the primitive but the scheduled invocation (operator's nightly cron + 12-week retention enforcement) wires in 2.8.1.
+  - ReasoningBank failure-distillation LLM call — schema fields `impact` + `failure_origin` are in place; the actual LLM call (~$0.0002/op via cheap tier) that distills raw `spec_failures` into preventative principles is operator-cost-validated in 2.8.1.
+- **Tests**: 30 unit tests covering halfLifeToLambda (NaN/zero/negative guards), impactValue, halfLifeForImpact, ageDays (negative + missing ts clamps), computeImportanceScore (blocker > advisory invariant, frequency boost, half-life decay validation at exact thresholds), scoreItems (no-mutation), decayPass (bottom-5% default + threshold variant + fraction clamping), archiveBucket, isBucketExpired (12-week default + custom retention), lessons schema extension end-to-end (agent_id default, lessonFromExecuteResult impact derivation by code class).
+- **Manual verification**: blocker scoring at age=0 ≈ 2.0; advisory at age=30d ≈ 0.05 (1/2 of fresh advisory 0.1, confirms 30-day half-life); blocker at age=120d ≈ 1.0 (1/2 of fresh blocker 2.0, confirms 120-day half-life). `archiveBucket(2026-05-09)` → `2026-W19` (correct ISO-week-style numbering).
+
 ### Added (2026-05-09 — Sprint 2.7: pattern_transfer cross-project kind v0, ⭐ FEDERATION SEED)
 - **New action_kind `pattern_transfer`** registered as 11th capability (LLM-driven, journal-only). Reads allowlisted sibling projects read-only via `cortex/sibling-projects.json`, distills cross-project patterns into the **current** project's `lessons-learned.jsonl`. **Never** edits sibling repos; spec-verifier guarantees touched files are within `cwd` only.
 - **`bin/steward/_lib/sibling-manifest.cjs`** (zero-deps validator):
