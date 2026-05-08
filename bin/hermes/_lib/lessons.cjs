@@ -151,7 +151,13 @@ function lessonFromExecuteResult(result, ctx = {}) {
   // Heuristic hints for known root causes
   switch (result.code) {
     case 'OPENROUTER_KEY_MISSING':
-      lesson.hint = 'Set OPENROUTER_API_KEY env var or gh secret before next run';
+      lesson.hint = 'Set OPENROUTER_API_KEY env var or gh secret before next run. For gh: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY (avoid echo — trailing newline silently strips Authorization header).';
+      break;
+    case 'OPENROUTER_KEY_MALFORMED':
+      lesson.hint = 'Key contains whitespace/control chars after trim. Re-set: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY.';
+      break;
+    case 'OPENROUTER_AUTH_REJECTED':
+      lesson.hint = 'OpenRouter returned 401/403 with valid-format key. Most likely: provisioning key (cannot make /chat/completions calls) instead of inference key, OR key revoked, OR account zero credit. Verify: curl -s -H "Authorization: Bearer $KEY" https://openrouter.ai/api/v1/auth/key | jq .data — should return is_provisioning_key:false.';
       break;
     case 'OPENROUTER_PLAN_SHAPE_INVALID':
       lesson.hint = 'LLM returned invalid edits[] shape; check max_tokens (default 4096 may truncate)';

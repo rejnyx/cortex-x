@@ -255,6 +255,8 @@ describe('lessons: lessonFromExecuteResult', () => {
   test('attaches hint for known error codes', () => {
     const knownCodes = [
       'OPENROUTER_KEY_MISSING',
+      'OPENROUTER_KEY_MALFORMED',  // Sprint 1.8.12b
+      'OPENROUTER_AUTH_REJECTED',  // Sprint 1.8.12c
       'OPENROUTER_PLAN_SHAPE_INVALID',
       'EDIT_DENYLISTED',
       'NPM_TEST_FAILED',
@@ -266,6 +268,26 @@ describe('lessons: lessonFromExecuteResult', () => {
       assert.ok(lesson.hint, `code ${code} should have a hint`);
       assert.equal(typeof lesson.hint, 'string');
     }
+  });
+
+  test('Sprint 1.8.12: AUTH_REJECTED hint mentions provisioning vs inference key', () => {
+    const lesson = lessons.lessonFromExecuteResult({
+      ok: false,
+      code: 'OPENROUTER_AUTH_REJECTED',
+      error: 'OpenRouter rejected credentials',
+    });
+    assert.match(lesson.hint, /provisioning/);
+    assert.match(lesson.hint, /is_provisioning_key/);
+  });
+
+  test('Sprint 1.8.12: KEY_MISSING hint warns against echo (trailing newline trap)', () => {
+    const lesson = lessons.lessonFromExecuteResult({
+      ok: false,
+      code: 'OPENROUTER_KEY_MISSING',
+      error: 'env var unset',
+    });
+    assert.match(lesson.hint, /printf/);
+    assert.match(lesson.hint, /echo/);
   });
 
   test('hint is null for unknown codes', () => {
