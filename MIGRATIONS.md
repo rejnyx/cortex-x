@@ -20,6 +20,78 @@
 
 ## Current
 
+### Sprint 1.9.0 — Spec-driven verification: per-kind acceptance criteria gate (2026-05-09)
+
+The verification gap that produced PR #3 (−347 / +32 on `docs/hermes-usage.md`) and PR #4 (−609 / +28 on `MIGRATIONS.md` with fabricated history) generalizes from "one hardcoded shrink-rule in `applyEditsToFilesystem`" to "per-kind declarative `acceptance_criteria[]` enforced by a new `bin/hermes/_lib/spec-verifier.cjs` module." See [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) for the R1 decision memo (Option D, sub-rec A — operator approved 2026-05-09 with all 5 default answers).
+
+#### Non-breaking (registry-additive)
+
+**New module — `bin/hermes/_lib/spec-verifier.cjs`** (~430 LoC)
+
+- Five criterion kinds: `shell` (cmd exit 0), `file_predicate` (sandboxed JS expression over a curated context: `touchedFiles`, `fileSize(p)`, `fileExists(p)`, `fileContent(p)`, `prevSize(p)`, `edits`, `plan`), `regex` (must-match in target file with optional `applies_to` glob filter), `ears_text` (5 EARS pattern syntax-validation at registry load time, **runtime no-op in 1.9.0** — full runtime semantics deferred to 1.9.1+ per memo Q4), `llm_judge` (declared, throws `SPEC_LLM_JUDGE_NOT_IMPLEMENTED` until v2.0+). The R1 memo's Decision section preferred deferring the `ears_text` validator to 1.9.1; the AC list said "ships with structural validation in 1.9.0." Implementation follows the AC: kind authors who add an `ears_text` entry must hand-write a clause matching one of the 5 EARS patterns or registry load fails (`SPEC_MALFORMED`). This is documented here so a future sprint owner doesn't trip over the apparent contradiction.
+- Predicate sandboxing via `new Function` over a curated argument list (operator approved Q1=A). `require` is NOT in scope (module-level binding doesn't propagate into `new Function`'s `[[Scope]]`).
+- Fail-closed defaults (Q2=YES strict mode): unknown action_kind → `SPEC_MALFORMED`; kind without `acceptance_criteria` array → `SPEC_MALFORMED`; predicate compile error → caught at registry-validate time → `SPEC_MALFORMED`; predicate runtime throw → `SPEC_PREDICATE_THREW`.
+- Plan-level overrides via `plan.acceptance_criteria` (Q3=A): MAY add new ids, MAY strengthen existing ids (severity warn → block, predicate stricter), MAY NOT downgrade severity, MAY NOT change kind for an existing id (`SPEC_OVERRIDE_REJECTED`).
+- Glob support (`applies_to: ['docs/**', '*.md']`) for regex/predicate scoping. `**` cross-segment, `*` within-segment, escapes regex metacharacters in literal segments. Windows backslash paths normalize to forward-slash before match.
+
+**Registry migration — `bin/hermes/_lib/action-kinds.cjs`**
+
+- Every shipped kind (9 total: `recommendation`, `recommendation_harvest`, `dep_update_patch`, `flaky_test_repair`, `doc_drift`, `todo_triage`, `test_coverage_gap`, `lint_fix_shipper`, `pr_review_responder`) + the v1.0+ placeholder `release_notes_drafter` declares a non-empty `acceptance_criteria` array. Contract test [`tests/contract/action-kinds-acceptance.test.cjs`](tests/contract/action-kinds-acceptance.test.cjs) gates the invariant.
+- Shared exports `NO_DESTRUCTIVE_REWRITE_CRITERION` + `NO_DESTRUCTIVE_REWRITE_EARS` reused by `recommendation`, `flaky_test_repair`, and `release_notes_drafter`. The other deterministic kinds whose flow legitimately shrinks files (lockfile updates, lint-fix dead-code removal) intentionally omit the predicate.
+- Issue-only kinds (`doc_drift`, `todo_triage`, `test_coverage_gap`, `pr_review_responder`) declare `no_working_tree_edits` (`touchedFiles.length === 0`) so any future regression that starts editing files trips the gate immediately.
+
+**Engine seam — `bin/hermes/_lib/action-engine.cjs`**
+
+- `applyEditsToFilesystem` now captures `previousSizes: { [path]: bytes }` BEFORE writing each edit, and returns `edits: [{ path, replace_all }]` so spec-verifier predicates can read both the pre-edit baseline and the LLM's `replace_all` opt-in flag.
+- The Sprint 1.8.13 inline `EDIT_DESTRUCTIVE_REWRITE` rejection path is **REMOVED**. Single source of truth for the rule is now the `recommendation` kind's `no_destructive_rewrite` criterion (predicate: `touchedFiles.every(p => prevSize(p) < 200 || fileSize(p) >= prevSize(p) * 0.5 || ((edits.find(e => e && e.path === p) || {}).replace_all === true))`). Mock + OpenRouter engines no longer pass `shrinkCode` to `applyEditsToFilesystem`.
+
+**Pipeline wire — `bin/hermes/execute.cjs`**
+
+- New phase between successful `applyAction` and `runNpmTest` (Q5=BEFORE — fail fast on cheap deterministic checks). On `SPEC_VIOLATION` (block-severity criterion failed) or any fail-closed code, `execute.cjs`:
+  1. Discards working-tree edits (`git checkout -- . && git clean -fd`)
+  2. Returns to original branch + deletes the dead branch
+  3. Journals `event: execute_spec_failed`, `outcome: failure`, with the full `spec_failures: [...]` payload
+  4. Records a lesson via `safeRecordLesson` with `root_cause: 'SPEC_VIOLATION'` and the criterion id encoded into the lesson text
+  5. Returns `{ ok: false, code: 'SPEC_VIOLATION', spec_failures: [...] }` to the caller
+- Skip flag `opts.skipSpecVerifier` for tests that need to bypass (no production code path uses it).
+
+#### New error codes (all surfaced via `result.code`)
+
+- `SPEC_VIOLATION` — at least one `severity: 'block'` criterion failed; rolled back. Successor to the old `EDIT_DESTRUCTIVE_REWRITE`.
+- `SPEC_WARNING` — only `severity: 'warn'` criteria failed; the action commits but the result carries `warnings: N` and `spec_failures: [...]`.
+- `SPEC_MALFORMED` — registry typo, missing kind-specific field, or unknown action_kind. Fail-closed BEFORE edits.
+- `SPEC_PREDICATE_THREW` — `file_predicate` JS threw at compile or runtime. Fail-closed.
+- `SPEC_SHELL_TIMEOUT` — `kind: shell` exceeded `timeoutMs` (default 30s, max 5min).
+- `SPEC_REGEX_NO_MATCH` — `kind: regex` required pattern absent from target file post-edit.
+- `SPEC_OVERRIDE_REJECTED` — plan-level override tried to weaken (downgrade severity, change kind).
+- `SPEC_LLM_JUDGE_NOT_IMPLEMENTED` — `kind: llm_judge` placeholder; reserved for v2.0+.
+
+#### Tests
+
+- **Unit** [`tests/unit/hermes/spec-verifier.test.cjs`](tests/unit/hermes/spec-verifier.test.cjs) — 57 tests across `validateCriterion` (every kind + every malformed shape), glob matching, `mergeCriteria` (add/strengthen/reject-downgrade/reject-kind-change/reject-malformed), each runner happy + sad path, end-to-end `runChecks` (registry contract, strict-mode default, happy path, block + warn severity, plan override add, llm_judge runtime throw, malformed criterion).
+- **Contract** [`tests/contract/action-kinds-acceptance.test.cjs`](tests/contract/action-kinds-acceptance.test.cjs) — 6 invariants: every shipped kind declares ≥ 1 criterion; every criterion validates; ids unique within a kind; descriptions present; `recommendation` inherits `no_destructive_rewrite`; issue-only kinds declare `no_working_tree_edits`.
+- **Integration** [`tests/integration/hermes-spec-verification.test.cjs`](tests/integration/hermes-spec-verification.test.cjs) — 7 end-to-end through `execute.cjs` against fresh tmp git repos: PR #3 reproduction (1000 → 4 bytes), PR #4 reproduction (~720 → 28 bytes), happy path (700/1000 = 70% preserved), `replace_all: true` escape hatch, small-file (< 200 bytes) bypass via predicate `prevSize(p) < 200` clause, journal `execute_spec_failed` payload, lesson `root_cause: SPEC_VIOLATION`.
+- Existing 1.8.13 unit tests in `tests/unit/hermes/action-engine.test.cjs` migrated from "engine returns `MOCK_EDIT_DESTRUCTIVE_REWRITE`" to "engine writes; `previousSizes` and `edits[]` returned correctly." End-to-end shrink rejection now lives in the integration suite.
+- Total suite: 790 → **859 tests** (+69), all 3 CI lanes (test, install-smoke, no-pii) green locally.
+
+#### Migration impact for downstream cortex-x consumers
+
+This is non-breaking for any project that DOESN'T override `action-kinds.cjs`. For projects that have forked the registry:
+
+1. Add an `acceptance_criteria: []` field to every custom kind (strict mode requires it). Minimum: copy `NO_DESTRUCTIVE_REWRITE_CRITERION` for LLM kinds; copy `no_working_tree_edits` for issue-only kinds.
+2. If any custom code in `applyEditsToFilesystem` relied on the old `EDIT_DESTRUCTIVE_REWRITE` rejection, it will no longer fire. The replacement is the `no_destructive_rewrite` criterion at the registry level — express the rule there instead.
+3. The result shape from `applyAction` now includes `previousSizes` and `edits` keys. Existing callers that did not destructure those keys are unaffected.
+
+#### Follow-ups unlocked
+
+- **Sprint 1.9.1** — `kind: 'ears_text'` per-kind contract documentation (every kind authors a human-readable EARS clause beside its predicate). Most kinds already have it from this sprint.
+- **Sprint 1.9.2** — render `spec_failures` block in PR body so reviewers see which criterion fired without diving into the journal.
+- **Sprint 2.0** — `kind: 'llm_judge'` implementation. Requires judge model selection + Cronbach's-α calibration per [arXiv 2510.24367](https://arxiv.org/pdf/2510.24367).
+- **Sprint 2.1 (autoresearch)** — autoresearch's `recommendation` output flows through the same spec-verifier; no additional wiring needed.
+- **Sprint 2.3 (mutation testing)** — property-based tests for spec-verifier itself.
+
+---
+
 ### Sprint 1.6.19 — v0.5b finalization: push + draft PR + budget gates (2026-05-07 night)
 
 The phase that turns "v0.5b mostly works" into "v0.5b done": local-only execute now closes the loop with `git push` + `gh pr create --draft`, and a security-required pair of pre-flight gates (daily spend cap + consecutive-failure circuit breaker) shipped as defense-in-depth before Phase 7 cron triggers can land safely.

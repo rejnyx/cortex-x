@@ -152,9 +152,15 @@ function lessonFromExecuteResult(result, ctx = {}) {
   // Sprint 1.8.13: normalize engine namespace (OPENROUTER_/MOCK_) so a single
   // case clause covers both runtime + test paths. e.g. OPENROUTER_EDIT_DENYLISTED
   // and EDIT_DENYLISTED hit the same hint.
-  const normalizedCode = String(result.code || '')
+  // Sprint 1.9.0: root_cause may carry a `:<criterion_id>` suffix
+  // (e.g. `SPEC_VIOLATION:no_destructive_rewrite`). Strip the suffix for
+  // hint matching, but keep the full string in lesson.root_cause so recall
+  // can surface per-criterion patterns. Also strip engine namespaces.
+  const rawCode = String(result.code || '');
+  const normalizedCode = rawCode
     .replace(/^OPENROUTER_/, '')
-    .replace(/^MOCK_/, '');
+    .replace(/^MOCK_/, '')
+    .replace(/:.*$/, '');
   switch (normalizedCode) {
     case 'KEY_MISSING':
       lesson.hint = 'Set OPENROUTER_API_KEY env var or gh secret before next run. For gh: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY (avoid echo — trailing newline silently strips Authorization header).';
@@ -172,7 +178,32 @@ function lessonFromExecuteResult(result, ctx = {}) {
       lesson.hint = 'LLM tried to edit a hardcoded-denylist path; reword recommendation to target auto_improves area';
       break;
     case 'EDIT_DESTRUCTIVE_REWRITE':
+      // Pre-1.9 legacy code; kept for journal back-compat. Same hint as SPEC_VIOLATION.
       lesson.hint = 'LLM returned <50% of existing file content (PR #3/#4 pattern 2026-05-08). Reword recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If the rewrite is intentional, set "replace_all": true on the edit in the plan. Watch for fabricated content (LLM may hallucinate prior history when rewriting).';
+      break;
+    case 'SPEC_VIOLATION':
+      // Sprint 1.9.0 — generic spec-violation hint. The criterion id is in the
+      // raw root_cause suffix (rawCode after `:`); a recall reader can drill
+      // into the specific criterion if needed.
+      lesson.hint = 'Per-kind acceptance criterion rejected the action. Read the criterion id from rawCode after the ":" suffix, then inspect bin/hermes/_lib/action-kinds.cjs for that kind\'s acceptance_criteria[]. Most common: "no_destructive_rewrite" — set "replace_all": true on the edit OR reword the recommendation to APPEND/INSERT only.';
+      break;
+    case 'SPEC_PREDICATE_THREW':
+      lesson.hint = 'A file_predicate criterion threw at runtime. Likely registry typo: predicate references a helper that does not exist (only touchedFiles, fileSize, fileExists, fileContent, prevSize, edits, plan are in scope) or has a syntax error that compiled but threw on call. Read action-kinds.cjs predicate strings.';
+      break;
+    case 'SPEC_SHELL_TIMEOUT':
+      lesson.hint = 'A shell criterion exceeded timeoutMs. Either the cmd genuinely runs too long (raise timeoutMs in the criterion, max 5min) OR the shell is hung (no stdout). Try the cmd manually outside Hermes to confirm.';
+      break;
+    case 'SPEC_REGEX_NO_MATCH':
+      lesson.hint = 'A regex criterion required a pattern that the post-edit file did not contain. Either the LLM removed the matched content (regression) or the criterion pattern needs updating to reflect the new file shape.';
+      break;
+    case 'SPEC_OVERRIDE_REJECTED':
+      lesson.hint = 'A plan-level override tried to weaken a registry criterion (severity downgrade or kind change). Plan overrides may only ADD criteria or strengthen existing ones (warn → block). Remove the conflicting override from plan.acceptance_criteria.';
+      break;
+    case 'SPEC_MALFORMED':
+      lesson.hint = 'Registry typo or unknown action_kind. Run the contract test (tests/contract/action-kinds-acceptance.test.cjs) to surface the exact malformed criterion. Common: missing kind-specific field (cmd for shell, predicate for file_predicate, pattern for regex, ears for ears_text).';
+      break;
+    case 'SPEC_LLM_JUDGE_NOT_IMPLEMENTED':
+      lesson.hint = 'kind: "llm_judge" is reserved for v2.0+ and throws at runtime. Remove the criterion from action-kinds.cjs or downgrade to a deterministic kind (shell / file_predicate / regex).';
       break;
     case 'NPM_TEST_FAILED':
       lesson.hint = 'Verifier rejected; LLM produced syntactically valid but semantically broken code';

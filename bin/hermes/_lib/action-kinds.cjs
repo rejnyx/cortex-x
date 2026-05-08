@@ -14,11 +14,45 @@
 //   1. Define entry below
 //   2. Add detector in detectors/<kind>.cjs (read-only signal source)
 //   3. Wire LLM step in execute.cjs switch (or skip-LLM for deterministic kinds)
+//   4. Declare acceptance_criteria — every shipped kind MUST declare ≥ 1
+//      criterion (Sprint 1.9.0 strict mode). Empty array → SPEC_MALFORMED.
 //
 // All Sprint 1.7.X / 1.6.X plans default to action_kind: "recommendation"
 // (backwards-compatible — pre-1.8.1 plans had implicit kind = recommendation).
 
 'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprint 1.9.0 — common acceptance criteria reused across kinds.
+// Per memo: kind-level criteria can compose from a shared library. Each kind
+// then layers its own kind-specific criteria on top.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// PR #3 / PR #4 (2026-05-08) regression. Generalizes the pre-1.9 hardcoded
+// EDIT_DESTRUCTIVE_REWRITE check from action-engine.cjs into a per-kind
+// declarative criterion. Recommendation kind opts in by default; deterministic
+// kinds whose normal flow legitimately shrinks files (lockfile updates, lint
+// fixes that delete dead code) MUST NOT include this criterion.
+const NO_DESTRUCTIVE_REWRITE_CRITERION = {
+  id: 'no_destructive_rewrite',
+  kind: 'file_predicate',
+  description: 'Edits targeting an existing file >= 200 bytes must not shrink it below 50% of original size unless edit.replace_all=true. Generalizes Sprint 1.8.13 EDIT_DESTRUCTIVE_REWRITE incident class (PR #3, PR #4 — LLM destructive-rewrite pattern with fabricated content).',
+  predicate:
+    'touchedFiles.every((p) => prevSize(p) < 200 || fileSize(p) >= prevSize(p) * 0.5 || ((edits.find((e) => e && e.path === p) || {}).replace_all === true))',
+  severity: 'block',
+};
+
+// Documentation companion to NO_DESTRUCTIVE_REWRITE_CRITERION. ears_text is
+// runtime no-op in 1.9.0 (validateCriterion enforces the EARS pattern at
+// registry load time). Lives next to the predicate so kind authors document
+// the human-readable contract.
+const NO_DESTRUCTIVE_REWRITE_EARS = {
+  id: 'no_destructive_rewrite_ears',
+  kind: 'ears_text',
+  description: 'Human-readable EARS clause documenting the no_destructive_rewrite predicate.',
+  ears: 'WHEN edit.replace_all is false AND the existing file size is at least 200 bytes THE SYSTEM SHALL preserve at least 50 percent of the existing file content',
+  severity: 'block',
+};
 
 const ACTION_KINDS = {
   // ── Currently shipped (Sprint 1.6.13 → 1.7.7) ─────────────────────────
@@ -31,6 +65,10 @@ const ACTION_KINDS = {
     cost_envelope: 'normal', // ~$0.0008/run via deepseek-v4-flash
     blast_radius: 'medium', // arbitrary file edits; bounded by denylist
     shipped_in: '1.6.13',
+    acceptance_criteria: [
+      NO_DESTRUCTIVE_REWRITE_CRITERION,
+      NO_DESTRUCTIVE_REWRITE_EARS,
+    ],
   },
 
   // ── Future kinds (Sprint 1.8.X roadmap, declared but not implemented) ─
@@ -46,6 +84,25 @@ const ACTION_KINDS = {
     cost_envelope: 'free', // no LLM call
     blast_radius: 'minimal', // appends to recommendations.md only
     shipped_in: '0.1.0', // Sprint 1.8.2c — executor wired in execute.cjs runHarvestAction
+    acceptance_criteria: [
+      // Harvester ALWAYS appends to recommendations.md. The file must remain
+      // larger after the action — never shrink (which would mean we deleted
+      // existing recommendations).
+      {
+        id: 'recommendations_md_grows_or_stable',
+        kind: 'file_predicate',
+        description: 'Harvester only appends; recommendations.md size must not shrink.',
+        predicate:
+          'touchedFiles.every((p) => p !== "cortex/recommendations.md" || fileSize(p) >= prevSize(p))',
+        severity: 'block',
+      },
+      {
+        id: 'harvester_appends_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN the harvester runs THE SYSTEM SHALL only append to cortex/recommendations.md and never shrink it',
+        severity: 'block',
+      },
+    ],
   },
 
   dep_update_patch: {
@@ -57,6 +114,25 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'medium', // package.json + lockfile + node_modules state
     shipped_in: '0.1.0', // Sprint 1.8.4
+    acceptance_criteria: [
+      // dep_update_patch CAN legitimately shrink package-lock.json (when a
+      // transitive dep is consolidated). So we explicitly do NOT include the
+      // no_destructive_rewrite criterion here. Instead, we require the
+      // package-lock to remain readable + non-empty.
+      {
+        id: 'lockfile_present_after_update',
+        kind: 'file_predicate',
+        description: 'After dep_update_patch, package-lock.json must still exist and be non-empty.',
+        predicate: '!fileExists("package-lock.json") || fileSize("package-lock.json") > 0',
+        severity: 'block',
+      },
+      {
+        id: 'dep_update_ears',
+        kind: 'ears_text',
+        ears: 'WHEN dep_update_patch applies edits THE SYSTEM SHALL keep package-lock.json readable and non-empty',
+        severity: 'block',
+      },
+    ],
   },
 
   flaky_test_repair: {
@@ -68,6 +144,17 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'low', // adds .skip in test files + opens GH issue
     shipped_in: '0.1.0', // Sprint 1.8.5
+    acceptance_criteria: [
+      // flaky_test_repair only adds `.skip` markers — file size grows by ~5
+      // chars per quarantine. NEVER shrinks. Inherit no_destructive_rewrite.
+      NO_DESTRUCTIVE_REWRITE_CRITERION,
+      {
+        id: 'flaky_repair_adds_skip',
+        kind: 'ears_text',
+        ears: 'WHEN flaky_test_repair quarantines a test THE SYSTEM SHALL add a .skip marker without removing prior content',
+        severity: 'block',
+      },
+    ],
   },
 
   doc_drift: {
@@ -79,6 +166,24 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'minimal', // gh issues only — no doc edits in v1
     shipped_in: '0.1.0', // Sprint 1.8.6
+    acceptance_criteria: [
+      // doc_drift v1 ONLY files gh issues — no working-tree edits. Therefore
+      // touchedFiles MUST be empty. If something edits files, that's a
+      // regression we want to catch.
+      {
+        id: 'no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'doc_drift v1 only files gh issues; touched files must be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'doc_drift_issues_only_ears',
+        kind: 'ears_text',
+        ears: 'WHILE doc_drift is in v1 mode THE SYSTEM SHALL only file gh issues without editing files',
+        severity: 'block',
+      },
+    ],
   },
 
   todo_triage: {
@@ -90,6 +195,21 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'minimal', // gh issue create only; no file edits
     shipped_in: '0.1.0', // Sprint 1.8.7
+    acceptance_criteria: [
+      {
+        id: 'no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'todo_triage only files gh issues; touched files must be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'todo_triage_issues_only_ears',
+        kind: 'ears_text',
+        ears: 'WHILE todo_triage is processing THE SYSTEM SHALL only file gh issues without editing files',
+        severity: 'block',
+      },
+    ],
   },
 
   // ── Future kinds (Sprint 1.9+ roadmap) ─────────────────────────────────
@@ -105,6 +225,21 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'minimal', // gh issues only
     shipped_in: '0.1.0', // Sprint 1.8.10
+    acceptance_criteria: [
+      {
+        id: 'no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'test_coverage_gap v1 files gh issues only; touched files must be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'coverage_gap_issues_only_ears',
+        kind: 'ears_text',
+        ears: 'WHILE test_coverage_gap runs in v1 detection mode THE SYSTEM SHALL only file gh issues',
+        severity: 'block',
+      },
+    ],
   },
 
   lint_fix_shipper: {
@@ -116,6 +251,24 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'medium', // arbitrary file edits via auto-fixers
     shipped_in: '0.1.0', // Sprint 1.8.9
+    acceptance_criteria: [
+      // ESLint --fix can legitimately delete unused imports / dead code, so
+      // edits may shrink files. We do NOT include no_destructive_rewrite.
+      // We only require that edits don't truncate to an empty file.
+      {
+        id: 'no_empty_files_post_lint',
+        kind: 'file_predicate',
+        description: 'ESLint --fix should not produce an empty file from a non-empty original.',
+        predicate: 'touchedFiles.every((p) => prevSize(p) === 0 || fileSize(p) > 0)',
+        severity: 'block',
+      },
+      {
+        id: 'lint_fix_no_empty_ears',
+        kind: 'ears_text',
+        ears: 'WHEN lint_fix_shipper applies edits THE SYSTEM SHALL not produce an empty file from a non-empty original',
+        severity: 'block',
+      },
+    ],
   },
 
   pr_review_responder: {
@@ -127,6 +280,21 @@ const ACTION_KINDS = {
     cost_envelope: 'free',
     blast_radius: 'minimal', // gh issues only
     shipped_in: '0.1.0', // Sprint 1.8.11
+    acceptance_criteria: [
+      {
+        id: 'no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'pr_review_responder v1 surfaces via gh issues only; touched files must be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'pr_responder_issues_only_ears',
+        kind: 'ears_text',
+        ears: 'WHILE pr_review_responder runs in v1 surfacing mode THE SYSTEM SHALL only file gh issues',
+        severity: 'block',
+      },
+    ],
   },
 
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
@@ -139,6 +307,16 @@ const ACTION_KINDS = {
     cost_envelope: 'normal',
     blast_radius: 'low', // appends to CHANGELOG.md
     shipped_in: null, // Sprint 1.10.x or v1.0
+    acceptance_criteria: [
+      // Same pattern as recommendation: LLM drafts, must not destroy CHANGELOG history.
+      NO_DESTRUCTIVE_REWRITE_CRITERION,
+      {
+        id: 'release_notes_appends_ears',
+        kind: 'ears_text',
+        ears: 'WHEN release_notes_drafter runs THE SYSTEM SHALL append release notes without removing prior CHANGELOG history',
+        severity: 'block',
+      },
+    ],
   },
 
   // ReasoningBank-lite memory ISN'T an action_kind — it's a cross-cutting
@@ -177,4 +355,7 @@ module.exports = {
   isShippedKind,
   listKinds,
   listShippedKinds,
+  // Sprint 1.9.0 — exported for shared use across kinds + tests
+  NO_DESTRUCTIVE_REWRITE_CRITERION,
+  NO_DESTRUCTIVE_REWRITE_EARS,
 };

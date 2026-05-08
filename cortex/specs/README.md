@@ -1,67 +1,87 @@
-# cortex/specs/ — per-action_kind acceptance criteria
+# cortex/specs/ — per-action_kind acceptance criteria archive
 
-**Status**: scaffolded 2026-05-09 (placeholder), populated by Sprint 1.9.
+**Status**: Sprint 1.9.0 shipped 2026-05-09. Active source of truth is **`bin/hermes/_lib/action-kinds.cjs`** — every shipped kind declares its `acceptance_criteria[]` array there directly. This directory now holds the **human-readable archive + extension specs** for kinds that need richer documentation than fits in the registry.
 
-## Purpose
+## Authoritative location
 
-Each shipped action_kind in [`bin/hermes/_lib/action-kinds.cjs`](../../bin/hermes/_lib/action-kinds.cjs) gets a paired `<kind>.spec.yaml` here. The spec declares **acceptance criteria** that must hold post-edit for the action to be considered successful.
+`bin/hermes/_lib/action-kinds.cjs` is the single source of truth. Each kind's `acceptance_criteria: [...]` array is loaded at runtime by `bin/hermes/_lib/spec-verifier.cjs` and gated by:
 
-`bin/hermes/_lib/eval-agent.cjs` (Sprint 1.9) loads the relevant spec at runtime and evaluates each criterion **after `npm test` passes**. Any criterion failure → `EDIT_SPEC_VIOLATION` → atomic rollback.
+- **Contract test** [`tests/contract/action-kinds-acceptance.test.cjs`](../../tests/contract/action-kinds-acceptance.test.cjs) — every shipped kind declares ≥ 1 criterion; every criterion validates; ids are unique within a kind.
+- **Integration test** [`tests/integration/hermes-spec-verification.test.cjs`](../../tests/integration/hermes-spec-verification.test.cjs) — end-to-end PR #3 / PR #4 reproductions through `execute.cjs`.
 
-This generalizes Sprint 1.8.13's hardcoded content-preservation guardrail (`new content < 50% of existing → reject`) into a per-kind, per-criterion declarative pattern.
+If you need to read what criteria fire for a given kind right now, read the registry directly. The R1 decision memo deliberately rejected a parallel YAML schema to avoid two sources of truth diverging.
 
-## Schema (provisional, finalized by Sprint 1.9 R1 research dispatch)
+## What lives here
 
-The exact YAML schema is **TBD pending R1 research dispatch on 2026-05-09** comparing GitHub Spec Kit, AWS Kiro, and EvalAgent (arXiv 2510.24358). Once decision memo lands at `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`, this README will be updated with the chosen schema.
+This directory is reserved for files that *extend* (never duplicate) the registry:
 
-Provisional shape:
+- **Per-kind expanded EARS contracts** — when a kind grows beyond ~5 criteria and the inline `description` field in `action-kinds.cjs` becomes cramped, lift the human-readable narrative here. Filename: `<kind>.spec.md` (markdown, not YAML).
+- **Plan-level override examples** — illustrative `plan.acceptance_criteria` overrides showing how a one-off `recommendation` action can strengthen the registry's defaults (e.g. "this specific edit requires 80% byte preservation, not 50%").
+- **Cross-kind invariants** — criteria that should fire on EVERY kind (e.g. denylist-untouched, no-secrets-in-content). Naming: `_common.spec.md`.
 
-```yaml
-# cortex/specs/<kind>.spec.yaml
-kind: recommendation
-description: Standard cortex/recommendations.md item, LLM produces edits, gates on npm test, atomic commit, draft PR.
+## Schema (criterion shape — quick reference)
 
-acceptance_criteria:
-  - id: existing-file-not-truncated
-    description: Edits targeting an existing file >= 200 bytes must not shrink it below 50% of original size.
-    type: predicate
-    runner: js
-    code: |
-      ({ existingSize, newSize }) => existingSize < 200 || newSize >= existingSize * 0.5
+The full schema lives in [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) at the top of the file. Quick reference:
 
-  - id: no-fabricated-history
-    description: New content must not contain fabricated dates, sprint numbers, or version references that don't exist in git history.
-    type: llm_judge
-    judge_model: deepseek/deepseek-v4-flash
-    prompt: |
-      Given the diff below, identify any references to dates, sprint numbers, or
-      versions that do not exist in the prior file content. Output JSON
-      { "fabricated": boolean, "examples": string[] }.
-    fail_on:
-      - fabricated == true
-
-  # ... per-kind criteria here
+```js
+{
+  id: 'no_destructive_rewrite',           // stable string key, unique within kind
+  kind: 'shell' | 'file_predicate' | 'regex' | 'ears_text' | 'llm_judge',
+  description: 'human-readable purpose',  // surfaces in journal + PR body
+  severity: 'block' | 'warn',             // default 'block'
+  applies_to: ['docs/**'],                // optional glob; null/missing = all touched
+  // kind-specific:
+  cmd: 'npm run lint -- --no-fix',                                      // shell
+  predicate: 'touchedFiles.every(p => fileSize(p) >= prevSize(p)*0.5)', // file_predicate
+  pattern: '^Sprint 1\\.[78]\\.', flags: 'm',                           // regex
+  ears: 'WHEN edit.replace_all=false THE SYSTEM SHALL preserve >= 50%', // ears_text
+  timeoutMs: 30000,                                                     // shell timeout cap
+}
 ```
 
-## Directory layout (post Sprint 1.9)
+### file_predicate context (curated argument list)
 
-```
-cortex/specs/
-├── README.md                       (this file)
-├── recommendation.spec.yaml        (LLM-driven file edits)
-├── recommendation_harvest.spec.yaml
-├── dep_update_patch.spec.yaml
-├── todo_triage.spec.yaml
-├── flaky_test_repair.spec.yaml
-├── doc_drift.spec.yaml
-├── lint_fix_shipper.spec.yaml
-├── test_coverage_gap.spec.yaml
-├── pr_review_responder.spec.yaml
-└── _common.spec.yaml               (criteria shared across all kinds)
-```
+Inside a predicate string, these helpers are in scope (no `require`, no `process`, no module-scope bindings):
+
+- `touchedFiles` — array of relative paths edited this action
+- `fileSize(rel)` — current size in bytes (post-edit)
+- `fileExists(rel)` — boolean
+- `fileContent(rel)` — UTF-8 string
+- `prevSize(rel)` — pre-edit size in bytes (0 if file did not exist)
+- `edits` — array of `{ path, replace_all }` from `applyEditsToFilesystem`
+- `plan` — full plan object
+
+### EARS patterns (5 canonical forms, runtime no-op in 1.9.0)
+
+| # | Form | Pattern |
+|---|------|---------|
+| 1 | Ubiquitous | `THE SYSTEM SHALL <response>` |
+| 2 | Event-driven | `WHEN <trigger> THE SYSTEM SHALL <response>` |
+| 3 | State-driven | `WHILE <state> THE SYSTEM SHALL <response>` |
+| 4 | Optional feature | `WHERE <feature> THE SYSTEM SHALL <response>` |
+| 5 | Unwanted behaviour | `IF <bad cond>, THEN [the system\|<actor>] SHALL <response>` |
+
+`validateCriterion` rejects clauses that don't match one of the five patterns. The runtime regex array lives in `EARS_PATTERNS` at [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) and is the SSOT — this table is narrative documentation kept in sync with that array.
+
+## Failure-mode taxonomy
+
+Every spec-verifier failure surfaces as `result.code` from `execute.cjs`:
+
+| Code | When |
+|------|------|
+| `SPEC_VIOLATION` | A `severity: 'block'` criterion failed → atomic rollback |
+| `SPEC_WARNING` | Only `severity: 'warn'` criteria failed → ok=true, warnings logged |
+| `SPEC_MALFORMED` | Registry typo, missing kind-specific field, unknown action_kind |
+| `SPEC_PREDICATE_THREW` | `file_predicate` JS threw at compile or runtime |
+| `SPEC_SHELL_TIMEOUT` | `shell` cmd exceeded `timeoutMs` |
+| `SPEC_REGEX_NO_MATCH` | `regex` pattern absent from target file post-edit |
+| `SPEC_OVERRIDE_REJECTED` | Plan override tried to weaken (downgrade / change kind) |
+| `SPEC_LLM_JUDGE_NOT_IMPLEMENTED` | `kind: llm_judge` reserved for v2.0+ |
 
 ## Reference
 
-- [`docs/hermes-roadmap.md`](../../docs/hermes-roadmap.md) § 3 Sprint 1.9 scope
-- [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](../../docs/research/) — R1 decision memo (pending)
-- [`bin/hermes/_lib/action-engine.cjs`](../../bin/hermes/_lib/action-engine.cjs) — current Sprint 1.8.13 hardcoded guardrail (will be replaced by spec criterion in Sprint 1.9)
+- [`bin/hermes/_lib/action-kinds.cjs`](../../bin/hermes/_lib/action-kinds.cjs) — registry (authoritative)
+- [`bin/hermes/_lib/spec-verifier.cjs`](../../bin/hermes/_lib/spec-verifier.cjs) — runner + validator
+- [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](../../docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) — R1 decision memo
+- [`docs/troubleshooting.md`](../../docs/troubleshooting.md) — operator-facing remediation guide
+- [`MIGRATIONS.md`](../../MIGRATIONS.md) § Sprint 1.9.0 — migration notes
