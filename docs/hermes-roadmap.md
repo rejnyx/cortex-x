@@ -58,29 +58,61 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 **Goal**: close the verification gap, enable multi-agent throughput, get measurable observability. Each Tier 1 sprint is a hard prerequisite for at least one Tier 2 sprint.
 
-### Sprint 1.9 — Spec-driven verification (M effort, ⭐ HIGHEST PRIORITY)
+### Sprint 1.9 — Spec-driven verification ✅ SHIPPED 2026-05-09
 
-**Why first**: directly fixes today's incident class (LLM destructive rewrite of MIGRATIONS.md slipped past `npm test`). Industry trend (GitHub Spec Kit at 84k stars + AWS Kiro). Slot into existing per-kind structure (`action-kinds.cjs` registry). Unblocks Sprint 2.2 (worktree workers each verify against same spec) and Sprint 3.0 (evolution needs richer fitness signal than `npm test`).
+**Status**: ✅ Shipped 2026-05-09 (commit `c5d0c8f`). 871/871 → 900/900 tests across all 3 CI lanes. R1 decision memo: [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](research/sprint-1.9-spec-driven-verification-2026-05-09.md). Operator approved Option D with all 5 default answers.
+
+**What shipped (vs original scope)**:
+- ❌ NOT `cortex/specs/<kind>.spec.yaml` — operator-approved memo Option D rejected the YAML schema for in-registry declaration. SSOT = `bin/hermes/_lib/action-kinds.cjs acceptance_criteria[]`. cortex/specs/ kept as extension-spec archive (markdown narrative + plan-override examples).
+- ✅ New module `bin/hermes/_lib/spec-verifier.cjs` (~530 LoC) — 5 criterion kinds (shell, file_predicate, regex, ears_text, llm_judge), runs BEFORE `npm test` (Q5 default).
+- ✅ 8 new error codes: `SPEC_VIOLATION`, `SPEC_WARNING`, `SPEC_MALFORMED`, `SPEC_PREDICATE_THREW`, `SPEC_SHELL_TIMEOUT`, `SPEC_REGEX_NO_MATCH`, `SPEC_OVERRIDE_REJECTED`, `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`.
+- ✅ Sprint 1.8.13's hardcoded `EDIT_DESTRUCTIVE_REWRITE` removed from action-engine.cjs; lives only as `recommendation` kind's `no_destructive_rewrite` criterion.
+- ✅ Defense-in-depth: `PREDICATE_DENYLIST` blocks `process|require|globalThis|Function|eval|child_process|...` tokens at validateCriterion time.
+- ✅ 81 new tests (69 unit + 6 contract + 7 integration; old 1.8.13 tests migrated).
+- ✅ `cortex-hermes status` renders `spec_violations` rollup (by_criterion_id + recent failures).
+- ✅ R2 review pipeline ran 5/6 agents (blind-hunter blocked on path); 9 must-fix items applied before commit (partial-write rollback, Promise predicate detection, ENOENT vs SHELL_TIMEOUT, applies_to:[] semantics, runChecks try/catch, system prompt SSOT, EARS doc 4→5 patterns, lessons root_cause encoding, status spec_failures rendering).
+
+**Follow-up sprints unlocked**: 2.0 (Langfuse), 2.0b (model routing — see PIVOT below), 2.1 (autoresearch fitness signal feeds spec-verifier), 2.3 (mutation testing of spec-verifier itself), 5.1 (souls have their own acceptance_criteria).
+
+**Sprint 1.9.1 backlog**: ears_text runtime semantics, render `spec_failures` block in PR body, EISDIR + symlink hardening in applyEditsToFilesystem, property tests for spec-verifier invariants.
+
+---
+
+### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector (S effort, ⭐ PRE-2.x POJISTKA)
+
+**Why before Sprint 2.x**: today we have `HERMES_DAILY_USD_CAP` $5/day + `HERMES_FAILURE_BREAKER` 3 fails/1h per-action_key. Mid-week burst (Sprint 2.1 autoresearch overnight) or month-long slow drift (Sprint 2.0 Langfuse instrumentation that hits provider's hot path every action) can quietly accumulate $150/month before any single day trips the daily cap. Real-incident anchor: April 2026 dev's $437 retry-loop bill. Lower-effort sprint with high blast-radius reduction; ship before unleashing autoresearch.
 
 **Scope**:
-- New file `cortex/specs/<kind>.spec.yaml` per action_kind (10 specs total — 9 shipped + release_notes_drafter parked).
-- Each spec has `acceptance_criteria: []` — list of shell commands or JS predicates that return 0 (pass) or non-zero (fail) post-edit.
-- New module `bin/hermes/_lib/eval-agent.cjs` — runs criteria after `npm test`, journals each criterion's result.
-- `execute.cjs` Phase X (after npm test, before commit) runs eval-agent. Any criterion fail → `EDIT_SPEC_VIOLATION`, rollback.
-- Sprint 1.8.13's hardcoded 50% rule becomes one criterion in `recommendation.spec.yaml` (universal across all file-edit kinds).
+- `HERMES_WEEKLY_USD_CAP` (default $25) — sliding 7-day journal window sum.
+- `HERMES_MONTHLY_USD_CAP` (default $80) — calendar-month journal window sum.
+- `HERMES_TOKEN_VELOCITY_CAP` (default 50K tokens / 5min sliding window) — burst protection for ensemble + autoresearch.
+- **Cross-session loop detector**: same `spec_failures[0].id` fires ≥ 5x in last 7 days for same action_key → write `.cortex/HERMES_HALT` with reason `LOOP_DETECTED:<criterion_id>:<action_key>`. Halt is operator-cleared (manual `rm` per existing kill-switch UX).
+- **Budget warnings**: when current spend reaches 80% of daily/weekly/monthly cap, journal a `budget_warning` event (not blocking) so `cortex-hermes status` shows the operator they're approaching the cap.
+- `cortex-hermes status --forecast` flag: extrapolate current rate × days remaining in window → projected end-of-window spend. JSON + human modes both expose forecast block.
 
-**Pre-implementation research dispatch**:
-- "GitHub Spec Kit + AWS Kiro + EvalAgent (arXiv 2510.24358) — 2026-05 SOTA on spec-driven verification for autonomous agents. What schema do they use? What are the acceptance criterion idioms? How do they handle non-deterministic evals?"
+**New error codes**:
+- `BUDGET_WEEKLY_CAP_REACHED` (parallel to existing `BUDGET_CAP_REACHED` for daily)
+- `BUDGET_MONTHLY_CAP_REACHED`
+- `TOKEN_VELOCITY_CAP_REACHED`
+- `LOOP_DETECTED` (halt reason in HERMES_HALT)
 
-**Acceptance criteria** for the sprint itself:
-- 10 specs committed
-- eval-agent runs all criteria + journals
-- Sprint 1.8.13's rule lives as a spec criterion (not hardcoded in action-engine)
-- Tests: ≥10 new (1 per kind spec parsing + 5 for criterion runner + 4 for failure paths)
-- Full suite stays green
-- 6-agent review pipeline clean
+**Acceptance criteria for the sprint itself**:
+- [ ] All 3 caps work in the existing pre-flight gate location (before lock acquisition, like daily cap).
+- [ ] Token velocity gate has 5-min sliding window precision.
+- [ ] Loop detector triggers on simulated 5x same-criterion failure pattern (integration test).
+- [ ] Forecast shown when spend > 50% of any cap.
+- [ ] Existing daily cap behaviour unchanged (regression).
+- [ ] ≥ 15 new tests, full suite stays green.
 
-**Stolen from**: GitHub Spec Kit + AWS Kiro + EvalAgent paper.
+**Implementation files**:
+- New `bin/hermes/_lib/cost-safety.cjs` (~200 LoC) — window-sum + velocity computation.
+- `bin/hermes/execute.cjs` — hook the new gates in pre-flight order: daily → weekly → monthly → velocity → loop.
+- `bin/hermes/status.cjs` — render new caps + forecast block.
+- New `tests/unit/hermes/cost-safety.test.cjs` (~12 tests) + `tests/integration/cost-safety-pipeline.test.cjs` (~5 tests).
+
+**Out of scope**: alerting (email/Telegram). Operator reads status output during normal cadence; alert pipeline waits for Sprint 2.0 (Langfuse handles it).
+
+**Stolen from**: industry incident response patterns + cortex-x's own R3 principle (one incident = one defense layer + one regression test). Audit-of-the-audit: the absence of monthly/velocity gates was flagged by operator's intuition during 2026-05-09 review, validated by web research showing Anthropic OAuth restrictions + similar runaway-cost incidents.
 
 ---
 
@@ -101,19 +133,28 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.0b — Model routing + cheap-model ensembles (S effort)
+### Sprint 2.0b — Action-kind-based model routing (S effort, PIVOT 2026-05-09)
 
-**Why parallel with 2.0**: doubling runs/$ unlocks Sprint 2.1 (overnight burst) cost-wise.
+**PIVOT rationale (2026-05-09 web research)**: original scope was RouteLLM-style query-difficulty classification. 2026 SOTA literature converges on **role/task-type routing**: Augment Code (Opus coordinate / Sonnet implement / Haiku navigate / GPT-5.2 review), Anthropic multi-agent research (role-routed +90.2% over single-Opus on retrieval), Karpathy compound-systems framing. NousResearch hermes-agent's 4-mode pattern (`cheap` / `fix` / `code` / `plan`) is the same idea.
+
+**Cortex-x has the taxonomy for free**: 9 `action_kinds` are already a clean role taxonomy. RouteLLM-style classifier training is unnecessary.
 
 **Scope**:
-- Complexity classifier: simple deterministic kinds (`todo_triage`, `dep_update_patch`) route to cheapest model (e.g. `qwen3-coder-flash`).
-- `recommendation` kind: route to ensemble of 3 cheap models (deepseek-v4-flash + qwen3-coder + gpt-5.2-mini), agent-as-judge votes 2/3 consensus before applying.
-- New env: `HERMES_ROUTING_PROFILE=cheap|balanced|premium`.
+- Per-`action_kind` model mapping in `bin/hermes/_lib/action-kinds.cjs` (or sibling `model-routing.cjs` to keep registry focused on contracts):
+  - **cheap tier** (no LLM): `recommendation_harvest`, `dep_update_patch`, `flaky_test_repair`, `doc_drift`, `todo_triage`, `test_coverage_gap`, `lint_fix_shipper`, `pr_review_responder` — already deterministic, no model call.
+  - **balanced tier**: `recommendation` → `deepseek/deepseek-v4-flash` (today's default).
+  - **premium tier**: future `architecture_review`, `release_notes_drafter` → `claude-opus-4-7` or `gpt-5.3`.
+  - **ensemble tier** (optional): `recommendation` can route to 3-cheap-model ensemble + agent-as-judge consensus before applying — kept as opt-in `HERMES_ROUTING_PROFILE=ensemble`.
+- New env knob: `HERMES_ROUTING_PROFILE=cheap|balanced|premium|ensemble` (default: `balanced`).
+- New CLI flag: `--mode plan|code|fix|cheap` (NousResearch hermes-agent UX surface) — ergonomic override that maps to balanced/balanced/cheap/cheap.
+- `extractUsage` already accepts array shape (Sprint pre-2.0 housekeeping) — ensemble tier ready to use without further refactor.
 
-**Pre-implementation research dispatch**:
-- "RouteLLM / GorillaLLM / Augment 2026 routing patterns. Cheap-model ensembles vs single-flagship for code edits. Real cost/quality tradeoffs in 2026-05 model landscape."
+**Pre-implementation research dispatch (R1)**:
+- "Q2 2026 update on Augment Code role-based routing + Anthropic multi-agent research. Specific model pairings for 9 action_kinds × 4 routing profiles. Cost/latency reality of DeepSeek V4 Flash vs Qwen3 Coder Flash vs GPT-5.2 Mini for code-edit + judge use."
 
-**Stolen from**: RouteLLM (lm-sys/RouteLLM, Berkeley).
+**Stolen from**: Augment Code routing guide 2026 + Anthropic multi-agent research stack + NousResearch hermes-agent mode UX.
+
+**Effort drop**: was M (RouteLLM training + classifier serving), now S (mapping table + env knob + CLI flag).
 
 ---
 
@@ -334,16 +375,45 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 4.7 — Naming-collision decision (S effort, branding)
+### Sprint 4.7 — Rebrand "Hermes" → **Steward** (S-M effort, ⭐ PRE-PUBLIC-TAG MUST)
 
-**Status**: deferred decision.
+**Status**: 🔴 PROMOTED 2026-05-09 from "deferred decision" to **PRE-PUBLIC-TAG MUST**. Web research confirmed NousResearch/hermes-agent: **139k stars, MIT, Feb 2026, active domains `hermes-agent.nousresearch.com/.org/.ai`, $5 VPS deploy, 5 backends, DSPy + GEPA self-evolution loop**. The collision is unrecoverable — top-tier dominant production project + dedicated `.com/.org/.ai` namespace = cortex-x cannot win SEO, community awareness, or any tag-search query for "hermes agent." Operator approved 2026-05-09: rebrand to **Steward**.
 
-NousResearch/hermes-agent has 139k stars + production-running messaging assistant. cortex-x's "Hermes" is internal name today. Before public launch:
-- **Option A**: rebrand internal Hermes → "Pulse" / "Drift" / "Steward" / "Sentry" / "Forge" (TBD by Dave).
-- **Option B**: lean into namespace clarity — public-facing always "cortex-Hermes", never just "Hermes".
-- **Option C**: ignore and accept the collision (not recommended).
+**Why "Steward"**: matches "senior engineer compressed" + "persistent agent that curates the operator's code/knowledge/life" framing. Translates cleanly to Czech as "správce." Passes the "could you say it on a podcast without explanation" test. Available as GitHub org/repo handle, npm package name, domain TLDs.
 
-Decision deadline: before Sprint 4.0 (capability marketplace) or v0.1.0 public tag, whichever first.
+**Scope**:
+- `bin/hermes/` → `bin/steward/`
+- `bin/hermes/_lib/` → `bin/steward/_lib/`
+- `bin/cortex-hermes.cjs` → `bin/cortex-steward.cjs` (keep `cortex-hermes` as deprecation shim until v0.2.0)
+- `prompts/hermes-setup.md` → `prompts/steward-setup.md` (ditto shim)
+- `standards/hermes-policy.md` → `standards/steward-policy.md` (ditto shim)
+- `docs/hermes-runtime.md` → `docs/steward-runtime.md` (ditto shim)
+- `docs/hermes-usage.md` → `docs/steward-usage.md` (ditto shim)
+- `docs/hermes-roadmap.md` → `docs/steward-roadmap.md` (THIS file; ditto shim)
+- `.github/workflows/hermes*.yml` → `.github/workflows/steward*.yml`
+- Env vars: `HERMES_*` → `STEWARD_*` (with backward-compat alias for one minor release: read both; emit deprecation log when `HERMES_*` is set)
+- Memory entries: keep historical names ("Hermes v0.5b", "Hermes' first PR #5") — they're snapshots, not live identifiers.
+- README.md / CLAUDE.md / project_cortex_*.md: search-and-replace `Hermes` → `Steward` for PRESENT-TENSE descriptions; keep past-tense incident references intact.
+- Test files: `tests/unit/hermes/` → `tests/unit/steward/`; rename test descriptions.
+- Action_kind names: keep verbatim (`recommendation`, `dep_update_patch`, etc.) — they're not Hermes-branded.
+
+**Backward compat (v0.1.0 → v0.2.0)**:
+- Old `bin/cortex-hermes.cjs` + `prompts/hermes-setup.md` etc. exist as 1-line shim files: `require('./cortex-steward.cjs')` + emit deprecation warning to stderr.
+- Old `HERMES_*` env vars read with deprecation log; documented to be removed in v0.2.0.
+- Old `.github/workflows/hermes*.yml` kept for one minor release as redirects.
+
+**Effort**: S-M (1-2 days focused). Most is mechanical search-and-replace + git mv. Risk: missing references in templates/.cjs that get baked into freshly-scaffolded projects.
+
+**Acceptance criteria for the rebrand sprint itself**:
+- [ ] All NEW project scaffolds (via `prompts/new-project.md` flow) emit `Steward`, not `Hermes`.
+- [ ] Existing user installations (operator + future RELO) continue to work with `HERMES_*` env vars + `bin/cortex-hermes` shim, with deprecation warning.
+- [ ] Full suite green at ≥900 tests.
+- [ ] No `bin/hermes/` / `bin/cortex-hermes.cjs` paths in any active runtime code path; only deprecation shim points back.
+- [ ] CHANGELOG.md `## [Unreleased]` documents the rename + v0.2.0 removal target.
+
+**Why before public launch**: 139k-star NousResearch with active `.com/.org/.ai` means our v0.1.0 GitHub release would compete in search + tag-discovery against a project that's already the established meaning of "hermes agent." Anyone seeing cortex-x v0.1.0 with a `bin/hermes/` directory will assume fork-or-derivative. The rebrand cost is multi-day mechanical refactor today; cost in 6 months is the same refactor PLUS undoing brand confusion in user docs/blog posts/community.
+
+**Stolen from**: NousResearch hermes-agent's existence convinced us to move. Steward as a name is operator-original.
 
 ---
 
@@ -383,16 +453,32 @@ Decision deadline: before Sprint 4.0 (capability marketplace) or v0.1.0 public t
 
 **This is post-v1.0 territory.** Tier 1+2+3 must ship before this is even proposed. But tracking it here so it's on the radar.
 
-### Sprint 5.0 — Self-hosted always-on Hermes (M-L effort)
+### Sprint 5.0 — Self-hosted always-on Steward + adopt Khoj as knowledge layer (M-L effort)
 
-**Why first in this tier**: GHA cron is "1 run per scheduled tick." Home NAS is "24/7 responsive listener." Voice memo at 3pm → recommendation harvested by 3:01pm. GitHub issue commented at 11am → Hermes considers + drafts response by 11:05.
+**Why first in this tier**: GHA cron is "1 run per scheduled tick." Home NAS is "24/7 responsive listener." Voice memo at 3pm → recommendation harvested by 3:01pm. GitHub issue commented at 11am → cortex-x considers + drafts response by 11:05.
 
 **Hardware**: UGREEN NAS / Beelink SER9 / Mac Mini M4 (~$500-1200 one-time).
 
-**Software**: cortex-x packaged as systemd / launchd service. Local LLM via Ollama (Qwen 3 32B or Llama 3.3 70B quantized). Hybrid routing — local for sensitive, OpenRouter for premium.
+**Software architecture (decided 2026-05-09 via web research)**: cortex-x is the *agentic* layer; **Khoj** is the adopted *knowledge* layer. Sprint 5.2 Obsidian sync becomes a Khoj plugin (it has Obsidian native integration), saving 2-3 sprints of from-scratch wiki + Obsidian bridge work. cortex-x packaged as systemd / launchd service alongside Khoj's Docker compose. Local LLM via Ollama (Qwen 3 32B or Llama 3.3 70B quantized) shared between Steward + Khoj. Hybrid routing — local for sensitive, OpenRouter for premium.
 
-**Pre-implementation research dispatch**:
-- "Self-hosted always-on personal AI agent stacks 2026-Q3. Khoj / Reor / AnythingLLM / Open WebUI architectures. Local LLM hardware sweet spot for 32B-70B inference. Network-isolated agent security patterns."
+**Why Khoj over alternatives** (2026-05-09 web research):
+- **Mature** in 2026-Q2: Obsidian/Emacs/desktop/phone/WhatsApp clients, self-hostable, supports any LLM.
+- **Karpathy llm-wiki gist (2026-04-04)** white-hot momentum; Khoj's wiki-curation pattern matches the Personal AI Wiki diagram operator showed 2026-05-09.
+- AnythingLLM = broader/less Obsidian-tight; Reor = less mature; Open WebUI + Ollama = generic chat, not wiki-curating.
+
+**Steward's role vs Khoj's role**:
+- **Khoj**: knowledge curator (notes, PDFs, meetings, LinkedIn, health) → topic pages + summaries + index. Continuous ingestion.
+- **Steward**: action executor (recommendations.md → edits → PR / draft response). Reads Khoj's curated knowledge as additional context.
+
+**Deployment templates** (no formal packaging spec exists in 2026; de facto = systemd + Ollama-style one-liner):
+- Hetzner $5 VPS recipe (community standard for $5 VPS deploy, NousResearch hermes-agent's installer is the canonical Python+uv+systemd analog for our zero-deps Node).
+- Local Mac Mini M4 launchd plist.
+- UGREEN NAS Docker compose alongside Khoj's compose.
+
+**Pre-implementation research dispatch (R1)**:
+- "Khoj plugin model + extension API in 2026-Q3 (we'll be building cortex-x as a Khoj sibling agent). systemd unit hardening for self-hosted personal AI 2026 SOTA. Network-isolated agent security patterns. Mac Mini M4 vs UGREEN NAS vs Beelink SER9 thermal/inference benchmarks for 32B-70B local LLM."
+
+**Documentation**: dedicated migration guide for "from cortex-x cron to home Steward" — 30-min setup recipe.
 
 ---
 
@@ -410,14 +496,19 @@ Decision deadline: before Sprint 4.0 (capability marketplace) or v0.1.0 public t
 
 ---
 
-### Sprint 5.2 — Obsidian Vault as second SSOT (M effort)
+### Sprint 5.2 — Obsidian Vault as second SSOT via Khoj (M → S effort, PIVOT 2026-05-09)
 
-**Why**: Dave's life knowledge isn't in `cortex/recommendations.md` — it's in Obsidian (notes, meetings, ideas). Two-way sync between Obsidian and cortex-x markdown lets Hermes harvest recommendations from real life-context, not just gh signals.
+**PIVOT (2026-05-09 web research)**: Khoj has native Obsidian plugin + Obsidian sync. Sprint 5.0 adopts Khoj as the knowledge layer; Sprint 5.2 becomes "configure Khoj to bridge Obsidian ↔ cortex/recommendations.md ↔ Steward harvester." Effort dropped from M to S — most of the integration work is Khoj configuration, not custom code.
+
+**Why**: Dave's life knowledge isn't in `cortex/recommendations.md` — it's in Obsidian (notes, meetings, ideas). Khoj indexes Obsidian content; Steward's recommendation_harvest detector reads Khoj's curated topic pages as additional signal alongside gh PR/issue/CI signals.
 
 **Scope**:
-- Obsidian plugin (or symlink-based bridge) that exposes vault content to cortex-x.
-- Recommendations harvester reads Obsidian daily notes / meetings / "ideas inbox."
-- Hermes can write back: action items extracted from notes → tracked in `cortex/recommendations.md` → merged PRs reflect back to Obsidian as "shipped this week."
+- Configure Khoj's Obsidian plugin for the operator's vault (read-only access by default).
+- Steward's `detectors/recommendation-harvest.cjs` extends to read Khoj's "actionable" topic pages alongside gh signals (Khoj exposes a local API).
+- Two-way: Steward's merged PRs become "shipped this week" entries that Khoj surfaces back into Obsidian daily-note rollup.
+- Privacy: Khoj indexes locally; Obsidian content never leaves the home server (Khoj uses Ollama by default for ingestion).
+
+**Stolen from**: Khoj's Obsidian integration. We're not building, we're configuring + writing one detector adapter.
 
 ---
 
