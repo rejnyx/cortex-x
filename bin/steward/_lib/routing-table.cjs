@@ -102,6 +102,22 @@ const ROUTING_TABLE = {
     },
   },
 
+  // Sprint 2.7: pattern_transfer reads sibling repos read-only and
+  // distills cross-project patterns. Reasoning-heavy (compare arch
+  // patterns across repos), benefits from larger context window.
+  pattern_transfer: {
+    cheap: 'deepseek/deepseek-v4-flash',
+    balanced: 'anthropic/claude-sonnet-4.6',
+    premium: 'anthropic/claude-opus-4.6',
+    ensemble: {
+      workers: [
+        'anthropic/claude-sonnet-4.6',
+        'deepseek/deepseek-v4-flash',
+      ],
+      judge: 'anthropic/claude-haiku-4.5',
+    },
+  },
+
   security_review: {
     // Always cross-family — single-family review can miss family-specific
     // blind spots (DryRun Security March 2026 report).

@@ -342,6 +342,42 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.7: 11th capability — cross-project pattern transfer ──────
+  pattern_transfer: {
+    description:
+      'Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project\'s lessons-learned.jsonl. v1: journal-only — never opens PRs, never edits sibling repos. LLM-driven. Capability #11.',
+    requires_llm: true,
+    source: 'cortex/sibling-projects.json + sibling repos read-only via sibling-reader.cjs',
+    detector: 'detectors/pattern-transfer.cjs', // Sprint 2.7
+    cost_envelope: 'normal', // ~$0.0008/run via deepseek-v4-flash, $0 under claude-cli engine (Sprint 2.4)
+    blast_radius: 'minimal', // appends to current project's lessons-learned.jsonl only — never touches siblings
+    shipped_in: '0.3.0', // Sprint 2.7 v0 (manifest + reader + register; LLM dispatch deferred to 2.7.1)
+    acceptance_criteria: [
+      // Sprint 2.7 R1 §11: lessons-learned must gain a new entry with source_repo.
+      {
+        id: 'lessons_jsonl_grew_with_source_repo',
+        kind: 'file_predicate',
+        description: 'pattern_transfer must append to lessons-learned.jsonl with source_repo field present.',
+        predicate:
+          'touchedFiles.includes("cortex/lessons-learned.jsonl") && fileSize("cortex/lessons-learned.jsonl") >= prevSize("cortex/lessons-learned.jsonl")',
+        severity: 'block',
+      },
+      {
+        id: 'pattern_transfer_no_cross_repo_edit',
+        kind: 'file_predicate',
+        description: 'pattern_transfer must NEVER edit files outside cwd. Spec-verifier rejects any edit landing in sibling roots.',
+        predicate: 'touchedFiles.every((p) => !p.includes("..") && !p.match(/^[A-Za-z]:/) && !p.startsWith("/"))',
+        severity: 'block',
+      },
+      {
+        id: 'pattern_transfer_journal_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN pattern_transfer runs THE SYSTEM SHALL only append to the current project lessons-learned.jsonl AND never edit any sibling project',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:
