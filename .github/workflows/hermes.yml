@@ -5,7 +5,16 @@
 # autonomous loop: dry-run → execute (real LLM via OpenRouter) → file edits
 # → npm test gate → atomic commit → git push → gh pr create --draft.
 #
-# Required repo secret: OPENROUTER_API_KEY (inference key, not provisioning).
+# Required repo secret: OPENROUTER_API_KEY (INFERENCE key, NOT provisioning —
+# provisioning keys cannot make /chat/completions calls). Set with:
+#   printf %s "$KEY" | gh secret set OPENROUTER_API_KEY    # ✅ no trailing \n
+#   gh secret set OPENROUTER_API_KEY --body "$KEY"         # ✅ equivalent
+#   echo "$KEY" | gh secret set OPENROUTER_API_KEY         # ❌ trailing \n
+# Trailing \n silently strips the Authorization header in undici fetch and
+# OpenRouter returns confusing 401 "Missing Authentication header"
+# (field-tested 2026-05-08, run 25550701886). The runtime defensively
+# trims and rejects malformed values via OPENROUTER_KEY_MALFORMED.
+#
 # Optional env knobs: HERMES_MODEL (default deepseek/deepseek-v4-flash),
 # HERMES_MAX_TOKENS (default 4096, recommend 16384), HERMES_DAILY_USD_CAP
 # (default $5), HERMES_FAILURE_BREAKER (default 3).

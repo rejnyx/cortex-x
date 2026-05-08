@@ -435,6 +435,20 @@ async function openrouterEngine(plan, opts = {}) {
   if (!resp.ok) {
     let body = '';
     try { body = await resp.text(); } catch { /* ignore */ }
+    // Sprint 1.8.12c — distinct error code for 401/403 to surface auth issues
+    // separately from generic transport errors. Real-world incident
+    // 2026-05-08: GHA secret rejected by OpenRouter with confusing "Missing
+    // Authentication header" message even though Bearer header was sent.
+    // Distinct code lets cron drivers + lessons.cjs hint guide user to
+    // diagnostic curl + key-type check (provisioning vs inference).
+    if (resp.status === 401 || resp.status === 403) {
+      return {
+        ok: false,
+        code: 'OPENROUTER_AUTH_REJECTED',
+        error: `OpenRouter rejected credentials (HTTP ${resp.status}): ${body.slice(0, 500)}. Verify the secret with: curl -s -H "Authorization: Bearer $KEY" https://openrouter.ai/api/v1/auth/key | jq .data — should return is_provisioning_key:false. Re-set with: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY`,
+        httpStatus: resp.status,
+      };
+    }
     return {
       ok: false,
       code: 'OPENROUTER_HTTP_ERROR',

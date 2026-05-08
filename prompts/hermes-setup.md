@@ -72,10 +72,17 @@ curl -s -H "Authorization: Bearer $KEY" https://openrouter.ai/api/v1/auth/key | 
 
 Should return `{ "is_provisioning_key": false, ... }`. If `is_provisioning_key: true`, the user needs a different key.
 
-Then set the secret:
+Then set the secret. **Critical: use `--body` or `printf %s` — never `echo`.** `echo` appends a trailing newline; Node's undici `fetch()` silently strips Authorization headers whose values contain `\r\n`, producing OpenRouter 401 "Missing Authentication header" with no useful diagnostic (field-tested 2026-05-08 incident, run 25550701886):
 
 ```bash
+# Preferred — --body takes the literal string, no newline
 gh secret set OPENROUTER_API_KEY --body "$KEY"
+
+# Equivalent — explicit no-newline pipe
+printf %s "$KEY" | gh secret set OPENROUTER_API_KEY
+
+# DO NOT — echo adds \n which corrupts the secret silently
+echo "$KEY" | gh secret set OPENROUTER_API_KEY  # ❌
 ```
 
 Verify with `gh secret list`. Never paste the key into chat — accept it via env var or one-liner only. Remind the user to rotate if they did paste it.
