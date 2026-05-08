@@ -1,6 +1,20 @@
-# cortex-x — AI-Agentic-First Claude Code Framework
+# cortex-x — Persistent agent, not just a tool
 
-> **AI-agentic-first** personal Claude Code framework by Rejnyx. Bootstraps new projects with agentic-ready architecture + senior-level orchestration + safety + standards in under 3 minutes.
+> **AI-agentic-first** personal Claude Code framework by Rejnyx. Today: bootstraps new projects with agentic-ready architecture + senior-level orchestration + safety + standards in under 3 minutes, plus an autonomous maintenance agent (Hermes) that runs nightly. Future: persistent autonomous entity living on operator's home infrastructure, curating knowledge + code + life across years. **See [docs/hermes-roadmap.md](./docs/hermes-roadmap.md) for the four-tier trajectory.**
+
+## Core trajectory
+
+cortex-x is moving in 4 tiers from "excellent dev tool" to "operator's second brain in markdown form":
+
+| Tier | Status | Theme |
+|---|---|---|
+| 0 — Foundation | ✅ shipped (v0.8 + Sprint 1.8.13) | Scaffold + 9-kind capability palette + safety mechanics |
+| 1 — Verification + multi-agent | ⏳ Sprint 1.9–2.3 (next 6 weeks) | Spec-driven verification, autoresearch overnight burst, worktree supervisor, mutation-testing fitness |
+| 2 — Compound learners | ⏳ Sprint 3.0–3.3 | AlphaEvolve prompt evolution, self-extending capabilities, FTS5 skills, GraphRAG |
+| 3 — Productization | ⏳ Sprint 4.0–4.7 | Capability marketplace, WaaS for clients, voice → recommendation, identity LoRA |
+| 4 — Persistent entity | 🔮 Sprint 5.0+ | Self-hosted home server, soul abstraction, Obsidian SSOT, multi-source life ingest |
+
+Operating principles (R1–R6) are non-negotiable per sprint: research-before-implement, review pipeline mandatory, one incident class = one defense layer + one regression test, cost ceiling preserved, human-only paths inviolate, backward-compatible by default. See [`docs/hermes-roadmap.md`](./docs/hermes-roadmap.md) §1.
 
 ## Core positioning (2026)
 
