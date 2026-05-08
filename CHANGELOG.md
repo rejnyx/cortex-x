@@ -4,6 +4,34 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.7: pattern_transfer cross-project kind v0, ⭐ FEDERATION SEED)
+- **New action_kind `pattern_transfer`** registered as 11th capability (LLM-driven, journal-only). Reads allowlisted sibling projects read-only via `cortex/sibling-projects.json`, distills cross-project patterns into the **current** project's `lessons-learned.jsonl`. **Never** edits sibling repos; spec-verifier guarantees touched files are within `cwd` only.
+- **`bin/steward/_lib/sibling-manifest.cjs`** (zero-deps validator):
+  - JSON schema (R1 §2 rejects YAML to preserve zero-deps invariant): `version: 1`, `siblings[]: { id (kebab-case), root, read_only: true, purpose, paths_allowed[], paths_denied[] }`.
+  - Env expansion: `${HOME}` and `${USERPROFILE}` only — both resolve via `os.homedir()`. Other `${VAR}` references rejected (prevents `${PATH}` traversal).
+  - Path normalization: forward-slash + lowercased drive letter on win32.
+  - Duplicate-id detection at manifest level.
+  - `read_only !== true` rejected (v1 enforces — write-capable siblings deferred forever).
+- **`bin/steward/_lib/sibling-reader.cjs`** (zero-deps read facade):
+  - `readSiblingFile(sib, relPath)` — allow-list prefix match → deny-list glob match (deny wins) → realpath containment → size cap (1 MB default) → returns content or distinct error code (`SIBLING_NOT_ALLOWLISTED`, `SIBLING_DENIED_PATH`, `SIBLING_REALPATH_OUTSIDE_ROOT`, `SIBLING_SYMLINK_LOOP`, `SIBLING_FILE_TOO_LARGE`, etc.).
+  - `listSiblingFiles(sib)` — recursive walk capped at 5K files / depth 12; visited-inode set breaks symlink loops; `e.isSymbolicLink()` skip.
+  - `assertEditWithinCwd(path, cwd)` — exposed for execute.cjs spec-verifier hook to enforce the "never edits sibling" invariant.
+  - `matchesAnyGlob(relPath, patterns)` — hand-rolled glob matcher supporting `*`, `**`, trailing-slash subtree match, and bare-name match for patterns like `.env*` at any depth.
+- **`pattern_transfer` action_kind acceptance criteria**:
+  - `lessons_jsonl_grew_with_source_repo` (file_predicate): touched files include `cortex/lessons-learned.jsonl` and the file size ≥ prev size.
+  - `pattern_transfer_no_cross_repo_edit` (file_predicate): touched files contain no `..` traversal, no absolute paths.
+  - `pattern_transfer_journal_only_ears` (ears_text): WHEN pattern_transfer runs THE SYSTEM SHALL only append to current project lessons-learned.jsonl AND never edit any sibling project.
+- **What's deferred to Sprint 2.7.1** (per R1 §13 backlog):
+  - `detectors/pattern-transfer.cjs` (currently referenced in registry but not yet implemented; v1 detector is a no-op skip when manifest absent).
+  - LLM dispatch in execute.cjs — operator must populate `cortex/sibling-projects.json` + sibling repos before this is dogfood-able. Hook will follow the existing routing-table model selection (Sprint 2.0b) + claude-cli engine (Sprint 2.4) for $0 marginal cost.
+  - BM25 retrieval over filenames + first-line + sibling lessons (R1 §4 design); replaced in v0 by simple `listSiblingFiles` + per-file `readSiblingFile`.
+  - `<untrusted_source>` delimiter rollout to all LLM action_kinds (Sprint 1.6.20 backlog item promoted by R1 §13).
+  - Engine-version pin `>=22.16.1` in package.json (CVE-2025-55130 remediation).
+  - TOCTOU `O_NOFOLLOW` last-segment hardening.
+  - MCP transport seam research (defer to Sprint 3.x).
+- **Tests**: 45 unit tests covering manifest validator (env expansion, kebab-case id, read_only enforcement, duplicate detection, JSON parse errors, schema rejection, env var allowlist) + sibling-reader (allow-list, deny-list precedence, realpath escape, traversal rejection, size cap, symlink loop, glob patterns) + registry presence.
+- **Manual verification**: synthetic sibling fixture in `/tmp` exercised; readSiblingFile correctly rejects `secrets/api.key` via deny-list, `.env.local` via glob, traversal `src/../../../etc/passwd` via path validator, and a symlink to outside the sibling root via realpath containment.
+
 ### Added (2026-05-09 — Sprint 2.6: Discord remote-control bridge v0 alpha, sibling-folder pattern)
 - **`bin/discord-bridge/` sibling folder** — Sprint 2.6 v0 alpha. Zero-deps Steward core (`bin/steward/_lib/*.cjs`) preserved; bridge has its own `package.json` with `discord.js` 14.x as the only top-level dep. Mirrors Sprint 4.8 dashboard sibling-repo pattern.
 - **`auth.cjs`** (zero-deps, 100% testable) — 4-layer security per R1 §2:
