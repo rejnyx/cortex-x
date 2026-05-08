@@ -18,21 +18,39 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const auth = require('./auth.cjs');
 
+// Sprint 2.6.1 hardening (R2 retro HIGH-2): replace Math.random.toString(36)
+// (~30 bits entropy) with crypto.randomBytes (128 bits). Combined with the
+// HMAC consumed-tokens Set in auth.cjs, this blocks actionId guessing
+// attacks even if the public confirmation embed leaks the token.
+function _newActionId(prefix) {
+  return `${prefix}-${crypto.randomBytes(8).toString('hex')}`;
+}
+
 // Slash command registry — each entry maps the Discord command name to
 // a handler function. Mutating commands prefixed with `!` per R1 §2 layer 4.
+// Sprint 2.6.1 hardening (R2 retro MAJOR-1): renamed `!halt`/`!resume`/
+// `!recommend` to Discord-legal identifiers. Mutation flag now comes from
+// COMMAND_SPECS / MUTATION_NAMES, not name-prefix inspection.
 const COMMANDS = {
   status: handleStatus,
   forecast: handleForecast,
   why: handleWhy,
-  '!halt': handleHalt,
-  '!resume': handleResume,
-  '!recommend': handleRecommend,
+  halt: handleHalt,
+  resume: handleResume,
+  recommend: handleRecommend,
 };
 
-// Slash command metadata for Discord's /commands registration step.
+// Sprint 2.6.1 hardening (R2 retro MAJOR-1): Discord slash command names
+// must match `[a-z0-9_-]{1,32}` per Discord API spec — `!` prefix would
+// fail registration. Refactored: command names are now Discord-legal
+// identifiers (`halt`, `resume`, `recommend`) and the mutation flag lives
+// in the spec itself. Internal registry still keys by the same name; the
+// dispatcher uses the spec's `mutation` boolean instead of name-prefix
+// inspection.
 const COMMAND_SPECS = [
   {
     name: 'status',
@@ -53,24 +71,30 @@ const COMMAND_SPECS = [
     mutation: false,
   },
   {
-    name: '!halt',
+    name: 'halt',
     description: 'MUTATION: write STEWARD_HALT (requires HMAC confirmation reply)',
     options: [{ name: 'reason', description: 'Why are you halting?', type: 3, required: true }],
     mutation: true,
   },
   {
-    name: '!resume',
+    name: 'resume',
     description: 'MUTATION: clear STEWARD_HALT (requires HMAC confirmation reply)',
     options: [],
     mutation: true,
   },
   {
-    name: '!recommend',
+    name: 'recommend',
     description: 'MUTATION: append a recommendation to recommendations.md',
     options: [{ name: 'text', description: 'Recommendation body', type: 3, required: true }],
     mutation: true,
   },
 ];
+
+// Build a quick-lookup of mutation flags from the specs.
+const MUTATION_NAMES = new Set(COMMAND_SPECS.filter((s) => s.mutation).map((s) => s.name));
+function isMutationCommandName(name) {
+  return typeof name === 'string' && MUTATION_NAMES.has(name);
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Handlers — pure logic, return structured reply objects.
@@ -116,44 +140,45 @@ function handleWhy(args, ctx) {
 // Mutation handlers — return requiresHmac:true on first invocation,
 // expecting the operator to reply with the displayed token. Bridge.cjs
 // orchestrates the two-step flow.
+// Sprint 2.6.1 hardening (R2 retro HIGH-3): all mutation embeds are now
+// `ephemeral: true` so the token + reason text don't leak to other guild
+// members watching the channel. Operator-only visibility.
 function handleHalt(args, ctx) {
   const reason = String(args.reason || '').trim().slice(0, 500);
   if (!reason) {
     return { content: 'reason required', ephemeral: true };
   }
-  // Step 1: generate action_id + token, ask operator to confirm.
   if (!args._confirmed) {
-    const actionId = `halt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const actionId = _newActionId('halt');
     const token = auth.generateActionToken(actionId, ctx);
     return {
       content: `⚠️ Confirm halt by replying with token: \`${token}\` (90s window)\n\nReason: ${reason}`,
       requiresHmac: true,
       actionId,
-      ephemeral: false,
+      ephemeral: true,
     };
   }
-  // Step 2: write halt file via injected primitive.
   if (ctx.writeHalt) {
     ctx.writeHalt(reason);
-    return { content: `🛑 Halt written. Reason: ${reason.slice(0, 200)}`, ephemeral: false };
+    return { content: `🛑 Halt written. Reason: ${reason.slice(0, 200)}`, ephemeral: true };
   }
   return { content: 'writeHalt primitive not available', ephemeral: true };
 }
 
 function handleResume(args, ctx) {
   if (!args._confirmed) {
-    const actionId = `resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const actionId = _newActionId('resume');
     const token = auth.generateActionToken(actionId, ctx);
     return {
       content: `⚠️ Confirm resume by replying with token: \`${token}\` (90s window)`,
       requiresHmac: true,
       actionId,
-      ephemeral: false,
+      ephemeral: true,
     };
   }
   if (ctx.clearHalt) {
     ctx.clearHalt();
-    return { content: '✅ Halt cleared.', ephemeral: false };
+    return { content: '✅ Halt cleared.', ephemeral: true };
   }
   return { content: 'clearHalt primitive not available', ephemeral: true };
 }
@@ -164,18 +189,18 @@ function handleRecommend(args, ctx) {
     return { content: 'text required', ephemeral: true };
   }
   if (!args._confirmed) {
-    const actionId = `recommend-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const actionId = _newActionId('recommend');
     const token = auth.generateActionToken(actionId, ctx);
     return {
       content: `⚠️ Confirm recommendation by replying with token: \`${token}\` (90s window)\n\n> ${text.slice(0, 200)}`,
       requiresHmac: true,
       actionId,
-      ephemeral: false,
+      ephemeral: true,
     };
   }
   if (ctx.appendRecommendation) {
     ctx.appendRecommendation(text);
-    return { content: `📝 Recommendation appended.`, ephemeral: false };
+    return { content: `📝 Recommendation appended.`, ephemeral: true };
   }
   return { content: 'appendRecommendation primitive not available', ephemeral: true };
 }
@@ -204,7 +229,24 @@ function defaultCtx(opts = {}) {
       try { fs.unlinkSync(fleetPath); } catch { /* already gone */ }
     },
     appendRecommendation(text) {
-      const recPath = path.join(repoRoot, 'cortex/recommendations.md');
+      // Sprint 2.6.1 hardening (R2 retro BLOCKER B2): ensure cortex/ exists
+      // (mkdirSync recursive — no-op if already there) so the first ever
+      // /recommend on a fresh repo doesn't ENOENT-throw. Also: guard
+      // symlink TOCTOU by checking lstat before append — if the path is a
+      // symlink, refuse rather than follow outside repoRoot.
+      const cortexDir = path.join(repoRoot, 'cortex');
+      fs.mkdirSync(cortexDir, { recursive: true });
+      const recPath = path.join(cortexDir, 'recommendations.md');
+      try {
+        const st = fs.lstatSync(recPath);
+        if (st.isSymbolicLink()) {
+          throw Object.assign(new Error('cortex/recommendations.md is a symlink — refusing to append (TOCTOU defense)'), {
+            code: 'DISCORD_RECOMMEND_SYMLINK_REFUSED',
+          });
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err; // file may not exist yet — that's fine
+      }
       const ts = new Date().toISOString();
       const block = `\n\n## ${ts} — via Discord bridge\n\n${text}\n`;
       fs.appendFileSync(recPath, block, 'utf8');

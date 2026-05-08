@@ -365,8 +365,13 @@ const ACTION_KINDS = {
       {
         id: 'pattern_transfer_no_cross_repo_edit',
         kind: 'file_predicate',
-        description: 'pattern_transfer must NEVER edit files outside cwd. Spec-verifier rejects any edit landing in sibling roots.',
-        predicate: 'touchedFiles.every((p) => !p.includes("..") && !p.match(/^[A-Za-z]:/) && !p.startsWith("/"))',
+        description: 'pattern_transfer must NEVER edit files outside cwd. Spec-verifier rejects any edit landing in sibling roots. Sprint 2.7.1 hardening: tightened against UNC paths (\\\\server\\share), Windows drive-letters, traversal segments (..), and double-quote tricks.',
+        // Sprint 2.7.1 fix (R2 retro BLOCKER B1): UNC paths `\\\\server\\share` were
+        // previously bypass-prone (no leading `/`, no drive letter). Now reject
+        // any path containing `\\` (backslash sequence — typical UNC marker),
+        // any `..` segment (not just substring `..`), and absolute paths.
+        // Splits on both `/` and `\\` to defend against mixed separators.
+        predicate: 'touchedFiles.every((p) => typeof p === "string" && p.length > 0 && !p.includes("\\\\") && !p.split(/[\\\\\\/]/).includes("..") && !p.match(/^[A-Za-z]:/) && !p.startsWith("/") && !p.startsWith("\\\\"))',
         severity: 'block',
       },
       {

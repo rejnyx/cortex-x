@@ -47,10 +47,14 @@ function isUserAllowed(userId, allowedSet = loadAllowedUserIds()) {
 const HMAC_WINDOW_MS = 90_000;
 const HMAC_DISPLAY_LENGTH = 8;
 
+// Sprint 2.6.1 hardening (R2 retro HIGH-5): tighten threshold from ≥16 to
+// ≥32 chars to match R1 spec ("32+ bytes recommended"). README's
+// `openssl rand -hex 32` produces 64 chars, so no operator setup breaks.
+const HMAC_MIN_SECRET_LENGTH = 32;
 function _readHmacSecret() {
   const s = _readTrimmedEnv('STEWARD_DISCORD_SECRET');
-  if (!s || s.length < 16) {
-    throw Object.assign(new Error('STEWARD_DISCORD_SECRET must be set and ≥16 chars (32+ bytes recommended)'), {
+  if (!s || s.length < HMAC_MIN_SECRET_LENGTH) {
+    throw Object.assign(new Error(`STEWARD_DISCORD_SECRET must be set and ≥${HMAC_MIN_SECRET_LENGTH} chars (use \`openssl rand -hex 32\` to generate)`), {
       code: 'STEWARD_DISCORD_SECRET_MISSING',
     });
   }
@@ -75,8 +79,46 @@ function generateActionToken(actionId, opts = {}) {
   return _windowToken(actionId, secret, windowIndex);
 }
 
+// Sprint 2.6.1 hardening (R2 retro BLOCKER B1): one-time-use defense.
+// Process-local Set of consumed (actionId+token) pairs prevents replay
+// within the 90s+90s verify window. Without this, an attacker who
+// observes the operator's confirmation reply (channel-visible until H3
+// ephemeral fix) can re-fire /!halt or /!recommend.
+//
+// In-memory Set is sufficient because the bridge is a long-running single
+// process; restart clears the consumed set, but in-flight tokens within
+// 180s of restart fall outside the verify window anyway. For multi-process
+// bridge deployments (Sprint 2.6.2+) replace with Redis or filesystem-
+// backed lock.
+const _consumedActionTokens = new Map(); // key: `${actionId}:${token}` → expiresAt
+const _CONSUMED_TTL_MS = 4 * HMAC_WINDOW_MS; // 6 minutes — buffer past verify window
+
+function _gcConsumedTokens(nowMs) {
+  for (const [key, expiresAt] of _consumedActionTokens) {
+    if (expiresAt < nowMs) _consumedActionTokens.delete(key);
+  }
+}
+
+function _markActionTokenConsumed(actionId, token, nowMs) {
+  _consumedActionTokens.set(`${actionId}:${token}`, nowMs + _CONSUMED_TTL_MS);
+  if (_consumedActionTokens.size > 1000) _gcConsumedTokens(nowMs);
+}
+
+function _isActionTokenConsumed(actionId, token, nowMs) {
+  _gcConsumedTokens(nowMs);
+  const expiresAt = _consumedActionTokens.get(`${actionId}:${token}`);
+  return expiresAt !== undefined && expiresAt > nowMs;
+}
+
+// Test-only: clear the consumed set between tests.
+function _resetConsumedActionTokens() { _consumedActionTokens.clear(); }
+
 // Verify the operator-supplied token against current + previous window.
-// Returns true iff token matches either.
+// Returns true iff token matches either AND has not been consumed before.
+//
+// Sprint 2.6.1: pass `opts.markConsumed: true` (default) to atomically
+// mark the token as used. Set to `false` for read-only verification (e.g.
+// dry-run preview).
 function verifyActionToken(actionId, suppliedToken, opts = {}) {
   if (!actionId || !suppliedToken || typeof suppliedToken !== 'string') return false;
   const supplied = suppliedToken.trim().toLowerCase();
@@ -86,6 +128,11 @@ function verifyActionToken(actionId, suppliedToken, opts = {}) {
   catch { return false; }
   const now = (opts.now instanceof Date && !isNaN(opts.now.getTime())) ? opts.now.getTime() : Date.now();
   const windowIndex = Math.floor(now / HMAC_WINDOW_MS);
+
+  // Sprint 2.6.1 (R2 BLOCKER B1): one-time-use guard — reject if this
+  // (actionId, token) pair was already consumed in a previous verify.
+  if (_isActionTokenConsumed(actionId, supplied, now)) return false;
+
   // Constant-time compare against current + previous (90s replay window).
   const candidates = [
     _windowToken(actionId, secret, windowIndex),
@@ -95,7 +142,11 @@ function verifyActionToken(actionId, suppliedToken, opts = {}) {
     // Both same length; safe to use timingSafeEqual.
     try {
       const ok = crypto.timingSafeEqual(Buffer.from(c, 'utf8'), Buffer.from(supplied, 'utf8'));
-      if (ok) return true;
+      if (ok) {
+        // Mark consumed unless caller opted into read-only check.
+        if (opts.markConsumed !== false) _markActionTokenConsumed(actionId, supplied, now);
+        return true;
+      }
     } catch { /* length mismatch — should be impossible */ }
   }
   return false;
@@ -113,6 +164,8 @@ module.exports = {
   generateActionToken,
   verifyActionToken,
   isMutationCommand,
+  _resetConsumedActionTokens,
   HMAC_WINDOW_MS,
   HMAC_DISPLAY_LENGTH,
+  HMAC_MIN_SECRET_LENGTH,
 };
