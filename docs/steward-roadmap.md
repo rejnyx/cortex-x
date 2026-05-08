@@ -298,7 +298,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
   - Duplication % trend (qlty CPD)
   - Test:source ratio drop
   - Dead-code count (`ts-prune` / `knip` for TS, language-specific equivalents)
-- Snapshot stored at `.cortex/debt-snapshot.json`, diffed against prior week.
+- Snapshot stored at `cortex/debt-snapshot.json`, diffed against prior week.
 - Drift threshold (default: 10% degradation in any single metric) → opens advisory PR with the diff. Below threshold → silent journal entry only.
 - Halt criterion: never. This kind is read + report; no edits. PR is review-only for operator.
 
@@ -308,7 +308,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 - `TECH_DEBT_THRESHOLD_EXCEEDED` (advisory, not blocking)
 
 **Acceptance criteria**:
-- [ ] First nightly run produces `.cortex/debt-snapshot.json` baseline.
+- [ ] First nightly run produces `cortex/debt-snapshot.json` baseline.
 - [ ] Second run produces a diff. If above threshold → draft advisory PR opened.
 - [ ] Zero LLM cost recorded in journal (no engine call).
 - [ ] ≥ 10 new tests + 1 fixture-based integration test (synthetic snapshot pair).

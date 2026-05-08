@@ -1759,6 +1759,36 @@ async function _runExecuteInner(opts, ctx) {
         dryRunGh: opts.dryRunGh,
         maxCandidates: opts.maxCandidates,
       });
+    } else if (plan.action_kind === 'tech_debt_audit') {
+      // Sprint 2.5 — deterministic tech debt snapshot. No LLM call.
+      const techDebtAudit = require('./_lib/tech-debt-audit.cjs');
+      applyResult = await techDebtAudit.runTechDebtAudit({ repoRoot });
+      // Sprint 2.5 R2 fix: surface roadmap-documented signals via journal
+      // so operator visibility matches the docs/steward-roadmap.md contract.
+      if (applyResult.priorCorrupt) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T2',
+          event: 'tech_debt_snapshot_corrupt',
+          actor: 'steward',
+          action_kind: 'tech_debt_audit',
+          outcome: 'recovered',
+          code: 'TECH_DEBT_SNAPSHOT_CORRUPT',
+          detail: 'Prior cortex/debt-snapshot.json was malformed; treated as fresh baseline.',
+        });
+      }
+      if (applyResult.thresholdExceeded) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T2',
+          event: 'tech_debt_threshold_exceeded',
+          actor: 'steward',
+          action_kind: 'tech_debt_audit',
+          outcome: 'advisory',
+          code: 'TECH_DEBT_THRESHOLD_EXCEEDED',
+          triggered_count: (applyResult.drift && applyResult.drift.triggered) ? applyResult.drift.triggered.length : 0,
+        });
+      }
     } else {
       // Sprint 2.0b — resolve LLM model via routing-table. Profile precedence:
       // CLI --routing-profile > STEWARD_ROUTING_PROFILE env > 'balanced'.
