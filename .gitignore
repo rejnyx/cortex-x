@@ -19,6 +19,13 @@ coverage/
 .tap/
 tmp/
 .test-tmp/
+
+# Hermes runtime data when CORTEX_DATA_HOME points inside the workspace.
+# GitHub Actions workflows set CORTEX_DATA_HOME=$GITHUB_WORKSPACE/.cortex-data
+# so the journal artifact upload step can reach it. Without this rule the
+# dry-run step writes .cortex-data/journal/<slug>/<date>.jsonl which then
+# trips the execute step's halt-check (DIRTY_TREE).
+.cortex-data/
 # Per-fixture transient git state — fixtures themselves are git-tracked,
 # but synthetic git histories (created by stage fixture builders) get a
 # .git/ inside them at test time and should never be committed.

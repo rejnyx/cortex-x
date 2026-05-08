@@ -945,8 +945,18 @@ async function runTodoTriageAction(plan, opts = {}) {
 function isHermesArtifact(p) {
   if (!p) return false;
   // Normalize Windows backslashes to forward slashes for matching
-  const norm = String(p).replace(/\\/g, '/');
-  return norm.startsWith('cortex/journal/') || norm === 'cortex/journal' || norm === 'cortex/';
+  const norm = String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+  // Legacy local-dogfood path (CORTEX_DATA_HOME defaults to repo cortex/).
+  if (norm === 'cortex' || norm === 'cortex/journal' || norm.startsWith('cortex/journal/')) {
+    return true;
+  }
+  // GitHub Actions path: workflows set CORTEX_DATA_HOME=$GITHUB_WORKSPACE/.cortex-data
+  // so the upload-artifact step can reach the journal. Without ignoring it,
+  // the dry-run step's journal write trips DIRTY_TREE on the next execute step.
+  if (norm === '.cortex-data' || norm.startsWith('.cortex-data/')) {
+    return true;
+  }
+  return false;
 }
 
 function getCleanTreeIgnoringHermes(repoRoot) {
@@ -1452,6 +1462,8 @@ module.exports = {
   runCoverageGapAction,
   // Sprint 1.8.11 — pr_review_responder helper exported for unit testing
   runPRResponderAction,
+  // Sprint 1.8.12 — halt-check artifact filter exported for unit testing
+  isHermesArtifact,
   EX_USAGE,
 };
 
