@@ -23,6 +23,10 @@ const haltCheck = require('./_lib/halt-check.cjs');
 const lock = require('./_lib/lock.cjs');
 const journal = require('./_lib/journal.cjs');
 const recommendations = require('./_lib/recommendations.cjs');
+// Sprint 1.9.1 — surface multi-window cost forecast in status output so the
+// operator can see "we're at 60% of monthly cap by day 12, projected $96 by
+// month-end" without grepping the journal.
+const costSafety = require('./_lib/cost-safety.cjs');
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
@@ -137,8 +141,9 @@ function getStatus(opts = {}) {
   }
   const repoRoot = opts.repoRoot || process.cwd();
   const daysBack = opts.daysBack || 14;
+  const includeForecast = opts.forecast === true;
 
-  return {
+  const status = {
     ok: true,
     slug,
     repo_root: repoRoot,
@@ -148,6 +153,12 @@ function getStatus(opts = {}) {
     recommendations: recommendationsStatus(repoRoot),
     journal: summarizeJournal(slug, daysBack),
   };
+  // Sprint 1.9.1 — cost forecast. Opt-in via --forecast flag (or
+  // opts.forecast=true) so default `cortex-hermes status` stays terse.
+  if (includeForecast) {
+    status.cost_forecast = costSafety.spendForecast(slug);
+  }
+  return status;
 }
 
 function formatHumanReadable(status) {
@@ -198,6 +209,20 @@ function formatHumanReadable(status) {
       lines.push(`      ${tsShort} ${e.tier} ${e.event}${e.outcome ? ` → ${e.outcome}` : ''}`);
     }
   }
+  // Sprint 1.9.1 — cost forecast block (only when --forecast was passed).
+  if (status.cost_forecast) {
+    const f = status.cost_forecast;
+    lines.push('  cost_forecast (--forecast):');
+    for (const window of ['daily', 'weekly', 'monthly']) {
+      const w = f[window];
+      if (!w) continue;
+      const capStr = w.cap > 0 ? `$${w.cap.toFixed(2)}` : 'disabled';
+      const pctStr = w.percent !== undefined ? ` (${(w.percent * 100).toFixed(0)}%)` : '';
+      const projStr = w.projected !== undefined ? ` projected $${w.projected.toFixed(2)} end-of-window` : '';
+      lines.push(`    ${window}: spent $${w.spent.toFixed(4)} / cap ${capStr}${pctStr}${projStr}`);
+    }
+  }
+
   // Sprint 1.9.0 — render spec-violation rollup. AC line 204: "spec_failures: [...]
   // block in JSON + human modes." JSON mode passes through `j.spec_violations`
   // unchanged (it's already in the `journal` substruct).
@@ -256,6 +281,7 @@ if (require.main === module) {
     slug,
     repoRoot: flagValue('repo-root'),
     daysBack,
+    forecast: args.includes('--forecast'),
   });
 
   if (!status.ok) {

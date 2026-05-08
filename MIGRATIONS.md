@@ -20,6 +20,65 @@
 
 ## Current
 
+### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector (2026-05-09)
+
+⭐ PRE-2.x POJISTKA. Operator-suggested during 2026-05-09 audit. Today's `HERMES_DAILY_USD_CAP` ($5/day) + `HERMES_FAILURE_BREAKER` (3 fails/1h per-action_key) miss mid-week burst patterns and month-long slow drift. Real-incident anchor: April 2026 dev's $437 retry-loop bill ([Medium post-mortem](https://medium.com/@mohamedmsatfi1/i-spent-0-20-reproducing-the-multi-agent-loop-that-cost-someone-47k-7f57c51f3c06)). Daily cap $5 × 30 = $150/month would have passed without alarm.
+
+#### Non-breaking (env-additive, safe defaults)
+
+**New module — `bin/hermes/_lib/cost-safety.cjs`** (~280 LoC)
+
+Five new pre-flight gates layered above existing daily cap + per-action_key failure breaker. All gates honor `0` as explicit opt-out:
+
+- **`HERMES_WEEKLY_USD_CAP`** (default $25) — sliding 7-day window sum across journal `cost_usd` entries.
+- **`HERMES_MONTHLY_USD_CAP`** (default $80) — calendar-month window (UTC first-of-month boundary).
+- **`HERMES_TOKEN_VELOCITY_CAP`** (default 50,000 tokens / 5min sliding) — sub-daily burst protection (RouteLLM ensemble, Sprint 2.1 autoresearch).
+- **`HERMES_LOOP_THRESHOLD`** (default 5) + **`HERMES_LOOP_WINDOW_DAYS`** (default 7) — cross-session loop detector counts `spec_failures[].id` × `action_key` occurrences; on threshold trip, writes `.cortex/HERMES_HALT` with `LOOP_DETECTED:<criterion_id>:<action_key>`. Operator-cleared (manual `rm` per existing kill-switch UX).
+
+Pipeline order in `bin/hermes/execute.cjs`: daily → failure-breaker → weekly → monthly → velocity → loop-detector. All gates run BEFORE lock acquisition (same posture as existing daily cap).
+
+**Forecast** — `cortex-hermes status --forecast` opt-in flag adds a `cost_forecast` block:
+- Daily: spent / cap / percent / projected (rate × 24h scaled by hours-elapsed-today).
+- Weekly: spent / cap / percent (sliding window, no projected).
+- Monthly: spent / cap / percent / projected (rate × days-in-month / day-of-month).
+
+JSON mode passes through unchanged; human-readable mode renders one line per window.
+
+#### New error codes
+
+- `BUDGET_WEEKLY_CAP_REACHED` — 7-day spend ≥ weekly cap.
+- `BUDGET_MONTHLY_CAP_REACHED` — calendar-month spend ≥ monthly cap.
+- `TOKEN_VELOCITY_CAP_REACHED` — tokens in last 5min ≥ velocity cap.
+- `LOOP_DETECTED` — same criterion id × action_key fired ≥ threshold times in window. Halt is written; operator must manually clear.
+
+#### Tests (+23 across 6 suites; 901 → 924)
+
+- **Unit** [`tests/unit/hermes/cost-safety.test.cjs`](tests/unit/hermes/cost-safety.test.cjs) — 18 tests across env readers (defaults / opt-out / clamp negative+NaN), spend window readers (daily / weekly / monthly), token velocity (sums / window-cutoff), loop detector (below threshold / at threshold / cross-action_key isolation / threshold=0 disabled / outside window), gate evaluators (ok / cap-reached / 0=disabled), spendForecast shape.
+- **Integration** [`tests/integration/hermes-cost-safety-pipeline.test.cjs`](tests/integration/hermes-cost-safety-pipeline.test.cjs) — 5 end-to-end through `execute.cjs`: weekly cap trips with daily fine + 7-day accumulation, monthly cap trips, token velocity trips on 60K/min, loop detector writes `HERMES_HALT` on 5×SPEC_VIOLATION, daily cap regression preserved.
+- One existing test (`HERMES_DAILY_USD_CAP=0 disables cap`) updated to also disable new gates so its "$1000 spend allowed" premise stays valid.
+
+#### Migration impact for downstream consumers
+
+Non-breaking by default. The new caps are conservative ($25/week, $80/month) and any project that runs more than that will trip the cap on first sprint and need to either raise or disable the cap. To preserve pre-1.9.1 semantics exactly:
+
+```bash
+# Disable all new gates — pre-1.9.1 behaviour
+export HERMES_WEEKLY_USD_CAP=0
+export HERMES_MONTHLY_USD_CAP=0
+export HERMES_TOKEN_VELOCITY_CAP=0
+export HERMES_LOOP_THRESHOLD=0
+```
+
+`.github/workflows/hermes.yml` does NOT set the new env vars yet — production cron uses the defaults, so any month exceeding $80 will hard-halt and require operator review. This is the intentional safety posture; raise the caps explicitly if/when the project legitimately spends more.
+
+#### Follow-ups
+
+- **Sprint 2.0 (Langfuse)** — Langfuse alerts at 80% cap (replacing the journal-only warning today).
+- **Sprint 2.1 (autoresearch)** — autoresearch overnight burst respects velocity cap; tune `--max-budget-usd` per run vs persistent monthly budget.
+- **Sprint 5.0 (Steward on home server)** — replace HERMES_HALT file sentinel with systemd unit pause-resume.
+
+---
+
 ### Sprint 1.9.0 — Spec-driven verification: per-kind acceptance criteria gate (2026-05-09)
 
 The verification gap that produced PR #3 (−347 / +32 on `docs/hermes-usage.md`) and PR #4 (−609 / +28 on `MIGRATIONS.md` with fabricated history) generalizes from "one hardcoded shrink-rule in `applyEditsToFilesystem`" to "per-kind declarative `acceptance_criteria[]` enforced by a new `bin/hermes/_lib/spec-verifier.cjs` module." See [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) for the R1 decision memo (Option D, sub-rec A — operator approved 2026-05-09 with all 5 default answers).
