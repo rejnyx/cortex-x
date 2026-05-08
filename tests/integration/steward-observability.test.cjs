@@ -99,11 +99,17 @@ async function withEnv(env, fn) {
 // captured payloads + a restore function. The mock fetch shadows globalThis.fetch
 // only inside the test-block scope.
 function captureOtlp() {
+  // Sprint 2.0.1: payload is now protobuf-encoded on the wire. Tests read
+  // the structured payload via emitter._lastFlushedPayloadForTests after
+  // each fetch (the emitter exposes the pre-encoded object for test
+  // introspection, sidestepping a protobuf decoder dependency).
+  const otelEmitter = require('../../bin/steward/_lib/otel-emitter.cjs');
   const captured = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, opts) => {
     if (typeof url === 'string' && url.endsWith('/v1/traces')) {
-      try { captured.push({ url, body: JSON.parse(opts.body) }); } catch { /* ignore */ }
+      const payload = otelEmitter._lastFlushedPayloadForTests || null;
+      captured.push({ url, body: payload, opts: { method: opts && opts.method, headers: opts && opts.headers } });
       return { ok: true, status: 200, text: async () => '' };
     }
     if (typeof original === 'function') return original(url, opts);

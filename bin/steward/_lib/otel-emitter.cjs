@@ -371,6 +371,79 @@ function resolveServiceVersion() {
   return _resolvedServiceVersion;
 }
 
+// Sprint 2.0.1 — translate the OTLP-JSON payload shape produced by the
+// emitter (used to be sent over the wire as JSON) into the simpler
+// JS-object shape that otel-protobuf.cjs expects:
+//
+//   - attributes are plain `{ key: value }` objects (not the OTLP attr-array)
+//   - kind / status.code / events / startTimeUnixNano stay as-is
+//
+// We invert attrsToOtlp here so the protobuf encoder's encodeAnyValue can
+// type-dispatch on JS primitives directly. The JSON-shape attribute array
+// (`[{key:'x', value:{stringValue:'y'}}]`) was a JSON-wire artifact; the
+// protobuf wire format encodes the same thing more compactly via repeated
+// KeyValue messages, but we generate it from a plain object for clarity.
+function attrsFromOtlpArray(attrArray) {
+  if (!Array.isArray(attrArray)) return {};
+  const out = {};
+  for (const kv of attrArray) {
+    if (!kv || typeof kv.key !== 'string') continue;
+    const v = kv.value || {};
+    if ('stringValue' in v) out[kv.key] = v.stringValue;
+    else if ('boolValue' in v) out[kv.key] = v.boolValue;
+    else if ('intValue' in v) {
+      // intValue may come as string for >2^53; preserve when needed
+      const raw = v.intValue;
+      if (typeof raw === 'string' && /^-?\d+$/.test(raw)) {
+        const n = Number(raw);
+        out[kv.key] = Number.isSafeInteger(n) ? n : BigInt(raw);
+      } else if (typeof raw === 'number') out[kv.key] = raw;
+      else out[kv.key] = raw;
+    }
+    else if ('doubleValue' in v) out[kv.key] = v.doubleValue;
+    else if ('arrayValue' in v) {
+      out[kv.key] = (v.arrayValue && v.arrayValue.values) || [];
+    }
+    else if ('kvlistValue' in v) {
+      out[kv.key] = attrsFromOtlpArray((v.kvlistValue && v.kvlistValue.values) || []);
+    }
+    else if ('bytesValue' in v) out[kv.key] = v.bytesValue;
+    // else: empty AnyValue → null
+  }
+  return out;
+}
+
+function otlpJsonShapeToProtobufShape(payload) {
+  if (!payload || !Array.isArray(payload.resourceSpans)) {
+    return { resourceSpans: [] };
+  }
+  return {
+    resourceSpans: payload.resourceSpans.map((rs) => ({
+      resource: rs.resource ? {
+        attributes: attrsFromOtlpArray(rs.resource.attributes),
+      } : undefined,
+      scopeSpans: (rs.scopeSpans || []).map((ss) => ({
+        scope: ss.scope ? {
+          name: ss.scope.name,
+          version: ss.scope.version,
+          attributes: attrsFromOtlpArray(ss.scope.attributes),
+        } : undefined,
+        spans: (ss.spans || []).map((s) => ({
+          traceId: s.traceId,
+          spanId: s.spanId,
+          parentSpanId: s.parentSpanId,
+          name: s.name,
+          kind: s.kind,
+          startTimeUnixNano: s.startTimeUnixNano,
+          endTimeUnixNano: s.endTimeUnixNano,
+          attributes: attrsFromOtlpArray(s.attributes),
+          status: s.status,
+        })),
+      })),
+    })),
+  };
+}
+
 // Public tracer. One per Steward run.
 class Tracer {
   constructor({ endpoint, traceId, runId, agentName, serviceVersion, fetchImpl }) {
@@ -468,11 +541,26 @@ class Tracer {
       }],
     };
 
-    // Serialize first; serialization can fail on circular refs / Symbol /
-    // unencodable values that slipped past toAnyValue (defense in depth).
+    // Sprint 2.0.1 — encode to OTLP/protobuf wire format. Sprint 2.0 v1
+    // shipped OTLP/JSON; manual dogfood 2026-05-08 against live Phoenix
+    // 15.5.1 surfaced 415 Unsupported Media Type — Phoenix only accepts
+    // protobuf despite the OTLP HTTP spec permitting both encodings.
+    // We translate the same payload object (same shape used by JSON) into
+    // protobuf-binary via the zero-deps encoder in otel-protobuf.cjs.
+    //
+    // Tests that previously JSON.parsed the body now read tracer._lastPayload
+    // (the payload object before encoding) — same data, accessible without
+    // a protobuf decoder dependency.
+    const otelProtobuf = require('./otel-protobuf.cjs');
+    this._lastPayload = payload;
+    // Test hook: also expose globally so integration tests that don't have
+    // direct access to the tracer (because it's created inside execute.cjs)
+    // can read the last flushed payload.
+    module.exports._lastFlushedPayloadForTests = payload;
     let body;
     try {
-      body = JSON.stringify(payload);
+      const protobufPayload = otlpJsonShapeToProtobufShape(payload);
+      body = otelProtobuf.encodeExportTraceServiceRequest(protobufPayload);
     } catch (err) {
       return { ok: false, reason: 'serialize-failed', spans: snapshot.length, error: err && err.message };
     }
@@ -490,7 +578,7 @@ class Tracer {
       const resp = await this._fetch(this._endpoint, {
         method: 'POST',
         signal: ctrl.signal,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/x-protobuf' },
         body,
       });
       clearTimeout(timer);
