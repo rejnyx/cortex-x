@@ -2268,7 +2268,11 @@ if (require.main === module) {
     console.log('Usage: steward execute --plan-file=<path-to-dry-run-json> [options]');
     console.log('  --plan-file <path>     path to a JSON file from `steward dry-run --json`');
     console.log('  --repo-root <path>     project root (default: cwd)');
-    console.log('  --engine <name>        action engine: mock | openrouter | claude-sdk (default: openrouter)');
+    // Sprint 2.4 R2 fix (SSOT MAJOR-1): derive engine list from the registry
+    // exported by action-engine.cjs to prevent help-text drift.
+    const { ENGINES } = require('./_lib/action-engine.cjs');
+    const engineList = Object.keys(ENGINES).join(' | ');
+    console.log(`  --engine <name>        action engine: ${engineList} (default: openrouter)`);
     console.log('  --routing-profile <p>  cheap | balanced | premium | ensemble (default: balanced)');
     console.log('  --model <slug>         one-shot model override (wins over profile table + envs)');
     console.log('  --mode <name>          execution mode: single (default) | autoresearch (Sprint 2.1)');
@@ -2285,6 +2289,9 @@ if (require.main === module) {
     console.log('');
     console.log('openrouter engine: real LLM via fetch (zero-deps). Requires OPENROUTER_API_KEY.');
     console.log('  See docs/steward-routing.md for the per-action_kind × profile model table.');
+    console.log('claude-cli engine (Sprint 2.4): spawns local `claude -p` under Max sub OAuth.');
+    console.log('  Requires CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`). Marginal cost = $0.');
+    console.log('  Three-layer billing-leak defense: env scrub + total_cost_usd===0 assert + STEWARD_HALT.');
     console.log('claude-sdk engine: stub returning CLAUDE_SDK_NOT_IMPLEMENTED + exit 64 (opt-in).');
     console.log('mock engine reads STEWARD_MOCK_PLAN env var as the edit script.');
     process.exit(0);

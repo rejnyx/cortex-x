@@ -751,12 +751,638 @@ function claudeSdkEngine(_plan, _opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Claude CLI engine (Sprint 2.4 — Anthropic Max sub via `claude -p`)
+// ---------------------------------------------------------------------------
+//
+// Drives marginal LLM cost to $0 by spawning the local `claude` binary in
+// non-interactive mode under the operator's Max subscription OAuth token.
+//
+// THREE-LAYER BILLING-LEAK DEFENSE:
+//   1. Env scrub before spawn: delete ANTHROPIC_API_KEY/AUTH_TOKEN/BASE_URL/
+//      MODEL from the spawned env so `claude -p` cannot silently fall back
+//      to API billing (issue anthropics/claude-code#43333 caused $1,800
+//      incident in 2 days for an unrelated user).
+//   2. Assert total_cost_usd === 0 after JSON parse. Subscription path
+//      consistently returns 0; nonzero means OAuth degraded to API mode.
+//   3. On assertion failure: write STEWARD_HALT with CLAUDE_CLI_BILLING_LEAK
+//      reason. Refuse subsequent runs until operator acks.
+//
+// AUTH:
+//   Long-lived token from `claude setup-token` exported as
+//   CLAUDE_CODE_OAUTH_TOKEN. Short-lived OAuth refresh is fragile in
+//   headless contexts (issues #22602 #12447 #33811 #47092 #19078 #19456);
+//   we don't try to refresh — halt with CLAUDE_CLI_AUTH_REJECTED and
+//   surface the recovery command.
+//
+// PATH RESOLUTION (Windows-aware):
+//   1. STEWARD_CLAUDE_CLI_PATH env override (verbatim).
+//   2. PATH walk (claude.cmd → claude.exe → claude on win32; reversed POSIX).
+//   Use absolute path + shell:false where possible; shell:true only for
+//   .cmd/.bat to handle PATHEXT resolution semantics.
+//
+// CONCURRENCY: in-process semaphore = 1. Sprint 2.2 worktree supervisor
+// re-evaluates global vs per-worktree cap.
+//
+// `--bare` IS PROHIBITED — that flag skips OAuth and forces API-key billing.
+// Lint-style assertion in tests ensures the literal '--bare' never appears
+// in built argv.
+
+const CLAUDE_CLI_DEFAULT_TIMEOUT_MS = 120_000;
+const CLAUDE_CLI_DEFAULT_MAX_CONCURRENCY = 1;
+const CLAUDE_CLI_OUTPUT_BUFFER_CAP = 8 * 1024 * 1024; // 8 MB (byte length, not char length)
+const CLAUDE_CLI_LEAK_KEYS = Object.freeze([
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_MODEL',
+]);
+
+// Sprint 2.4 R2 fix (SSOT MAJOR-2): freeze-list of CLI flags that MUST NEVER
+// reach the spawned `claude` invocation. Single source of truth — adding a
+// flag means touching this constant, period. Tested against; future hardening
+// (--api-key, --no-oauth, etc.) extends here.
+//
+// Match semantics: regex prefix-match on each forbidden flag, after trim,
+// case-insensitively. Catches: `--bare`, `--bare=value`, ` --bare`, `--BARE`,
+// `--bare ` (Windows shell tokenization defense).
+const CLAUDE_CLI_FORBIDDEN_FLAGS = Object.freeze(['--bare']);
+
+// Match a forbidden flag with permissive boundary semantics: trim whitespace,
+// case-insensitive prefix match against the freeze-list. Returns the matched
+// flag for error messages, or null if safe.
+function matchForbiddenFlag(arg) {
+  if (typeof arg !== 'string') return null;
+  const trimmed = arg.trim().toLowerCase();
+  for (const flag of CLAUDE_CLI_FORBIDDEN_FLAGS) {
+    const f = flag.toLowerCase();
+    if (trimmed === f) return flag;
+    if (trimmed.startsWith(f + '=')) return flag;
+    if (trimmed.startsWith(f + ' ')) return flag;
+  }
+  return null;
+}
+
+// Sprint 2.4 R2 fix (security HIGH-3, edge-case): shell metacharacters in
+// args are dangerous when spawn runs under `shell: true` (Windows .cmd/.bat).
+// Reject any arg containing &|;<>"`$() control bytes, or non-printable chars.
+const _SHELL_METACHAR_REGEX = /[&|;<>"`$()^\n\r\0]/;
+function containsShellMetacharacters(s) {
+  if (typeof s !== 'string') return false;
+  return _SHELL_METACHAR_REGEX.test(s);
+}
+
+// Scrub env for spawned child: strip ANTHROPIC_* keys that would silently
+// route claude -p through API billing. Defense layer 1 of 3.
+//
+// Sprint 2.4 R2 fix (edge-case Win): on Windows, env var lookup is
+// case-insensitive at the OS level but Node preserves the case captured at
+// process start. If a user dotfile exported `anthropic_api_key=...` (lower-
+// case), `delete env['ANTHROPIC_API_KEY']` would NOT remove it → child sees
+// `anthropic_api_key` → API billing leak. Scrub case-insensitively on win32.
+function scrubClaudeCliEnv(baseEnv) {
+  const env = { ...(baseEnv || process.env) };
+  if (process.platform === 'win32') {
+    const leakSet = new Set(CLAUDE_CLI_LEAK_KEYS.map((k) => k.toLowerCase()));
+    for (const k of Object.keys(env)) {
+      if (leakSet.has(k.toLowerCase())) delete env[k];
+    }
+  } else {
+    for (const k of CLAUDE_CLI_LEAK_KEYS) delete env[k];
+  }
+  return env;
+}
+
+// Resolve the `claude` binary. Cache per-process (resolved once, used many).
+// Returns { path, useShell } or throws with a CLAUDE_CLI_NOT_FOUND-shaped
+// error object the caller turns into an engine result.
+let _cachedClaudeCliPath = null;
+function resolveClaudeCliPath(opts = {}) {
+  if (_cachedClaudeCliPath && !opts.skipCache) return _cachedClaudeCliPath;
+
+  const override = (process.env.STEWARD_CLAUDE_CLI_PATH || '').trim();
+  if (override) {
+    // Sprint 2.4 R2 fix (edge-case): existsSync returns true for directories.
+    // Reject non-files explicitly with clear error.
+    let stat;
+    try {
+      stat = fs.statSync(override);
+    } catch {
+      const err = new Error(`STEWARD_CLAUDE_CLI_PATH=${override} does not exist or is unreadable`);
+      err.code = 'CLAUDE_CLI_NOT_FOUND';
+      throw err;
+    }
+    if (!stat.isFile()) {
+      const err = new Error(`STEWARD_CLAUDE_CLI_PATH=${override} is not a regular file (got ${stat.isDirectory() ? 'directory' : 'special file'})`);
+      err.code = 'CLAUDE_CLI_NOT_FOUND';
+      throw err;
+    }
+    const useShell = /\.(cmd|bat)$/i.test(override);
+    // Sprint 2.4 R2 fix (security HIGH-3): when useShell:true, reject paths
+    // containing shell metacharacters that would inject commands via cmd.exe.
+    // Spaces are allowed in paths (Windows install dir is "Program Files"),
+    // but they require quoting under shell:true — handled at spawn time.
+    if (useShell && /[&|;<>"`$()]/.test(override)) {
+      const err = new Error(`STEWARD_CLAUDE_CLI_PATH=${override} contains shell metacharacters and would invoke under shell:true; refusing to spawn`);
+      err.code = 'CLAUDE_CLI_NOT_FOUND';
+      throw err;
+    }
+    const resolved = { path: override, useShell };
+    if (!opts.skipCache) _cachedClaudeCliPath = resolved;
+    return resolved;
+  }
+
+  const isWin = process.platform === 'win32';
+  // On win32 prefer .cmd (the npm/installer wrapper) then .exe then bare.
+  // On POSIX prefer bare (no extension) then fall through.
+  const candidates = isWin ? ['claude.cmd', 'claude.exe', 'claude'] : ['claude', 'claude.cmd', 'claude.exe'];
+  const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+
+  for (const dir of pathDirs) {
+    for (const name of candidates) {
+      const candidate = path.join(dir, name);
+      try {
+        if (fs.existsSync(candidate)) {
+          const useShell = /\.(cmd|bat)$/i.test(candidate);
+          const resolved = { path: candidate, useShell };
+          if (!opts.skipCache) _cachedClaudeCliPath = resolved;
+          return resolved;
+        }
+      } catch { /* probe-only; ignore */ }
+    }
+  }
+
+  const err = new Error('`claude` binary not found on PATH; install Claude Code or set STEWARD_CLAUDE_CLI_PATH');
+  err.code = 'CLAUDE_CLI_NOT_FOUND';
+  throw err;
+}
+
+// Reset the cache. Test-only — production code never invalidates.
+function _resetClaudeCliPathCache() { _cachedClaudeCliPath = null; }
+
+// Sprint 2.4 R2 fix (security HIGH-1, CWE-532): redact OAuth-shaped tokens
+// from any stderr/stdout text that flows back into error / raw_preview /
+// halt-file content. Defense-in-depth — env scrub already prevents the
+// token from reaching the child env, but the child could theoretically
+// echo it back via debug output. This regex masks anything matching
+// Anthropic OAuth token shape OR generic Bearer header values.
+const _OAUTH_TOKEN_REGEX = /sk-ant-oat\d{2}-[A-Za-z0-9_-]+/g;
+const _BEARER_HEADER_REGEX = /Bearer\s+[A-Za-z0-9._\-+/=]+/gi;
+function redactSecrets(s) {
+  if (typeof s !== 'string') return s;
+  return s
+    .replace(_OAUTH_TOKEN_REGEX, '[REDACTED-OAUTH-TOKEN]')
+    .replace(_BEARER_HEADER_REGEX, 'Bearer [REDACTED]');
+}
+
+// Parse the `claude -p --output-format json` envelope. Returns either
+// { ok: true, parsed } or { ok: false, code, error }. Strict on shape;
+// missing total_cost_usd is treated as protocol drift (we depend on it
+// for the billing-leak assertion).
+//
+// Sprint 2.4 R2 fix (correctness MAJOR-2): use Number.isFinite to reject
+// NaN and Infinity at the parser, not via downstream `!== 0` coincidence.
+function parseClaudeCliResponse(stdout) {
+  const trimmed = (stdout || '').toString().trim();
+  if (!trimmed) {
+    return { ok: false, code: 'CLAUDE_CLI_PROTOCOL_DRIFT', error: 'claude -p produced empty stdout' };
+  }
+  let env;
+  try {
+    env = JSON.parse(trimmed);
+  } catch (err) {
+    return {
+      ok: false,
+      code: 'CLAUDE_CLI_PROTOCOL_DRIFT',
+      error: `claude -p stdout is not JSON: ${err.message}`,
+      raw_preview: redactSecrets(trimmed.slice(0, 200)),
+    };
+  }
+  if (!env || typeof env !== 'object' || Array.isArray(env)) {
+    return { ok: false, code: 'CLAUDE_CLI_PROTOCOL_DRIFT', error: 'claude -p envelope is not an object' };
+  }
+  // Number.isFinite rejects NaN, Infinity, -Infinity, AND non-numbers.
+  // Strict integer/float numeric guard — defense layer for billing leak.
+  if (!Number.isFinite(env.total_cost_usd)) {
+    return {
+      ok: false,
+      code: 'CLAUDE_CLI_PROTOCOL_DRIFT',
+      error: 'claude -p envelope missing or non-finite total_cost_usd field',
+    };
+  }
+  if (typeof env.result !== 'string' && (!env.structured_output || typeof env.structured_output !== 'object')) {
+    return {
+      ok: false,
+      code: 'CLAUDE_CLI_PROTOCOL_DRIFT',
+      error: 'claude -p envelope missing both result text and structured_output',
+    };
+  }
+  return { ok: true, parsed: env };
+}
+
+// Categorize stderr text into a Steward error code. Sprint 2.4 R1 §2.8.
+function categorizeClaudeCliStderr(stderr, exitCode) {
+  const s = String(stderr || '');
+  if (/Not logged in|OAuth token (has expired|expired)|authentication_failed|oauth_org_not_allowed/i.test(s)) {
+    return { code: 'CLAUDE_CLI_AUTH_REJECTED', recoverable: false };
+  }
+  if (/Server is temporarily limiting requests|rate.?limit/i.test(s)) {
+    return { code: 'CLAUDE_CLI_RATE_LIMITED', recoverable: true };
+  }
+  if (/You'?ve hit your (session|weekly|monthly|daily) limit|usage limit/i.test(s)) {
+    return { code: 'CLAUDE_CLI_QUOTA_EXHAUSTED', recoverable: false };
+  }
+  if (/API Error: 5\d\d|server error|internal error/i.test(s)) {
+    return { code: 'CLAUDE_CLI_SERVER_ERROR', recoverable: true };
+  }
+  if (/Invalid API key|Credit balance is too low/i.test(s)) {
+    return { code: 'CLAUDE_CLI_AUTH_REJECTED', recoverable: false };
+  }
+  return {
+    code: 'CLAUDE_CLI_SPAWN_FAILED',
+    recoverable: false,
+    error: s.slice(0, 500) || `claude -p exited ${exitCode} with no stderr`,
+  };
+}
+
+// In-process concurrency semaphore. Sprint 2.4: cap=1 by default. Worktree
+// supervisor (Sprint 2.2) revisits global vs per-worktree.
+let _claudeCliInflight = 0;
+const _claudeCliWaiters = [];
+function _acquireClaudeCliSlot(maxConcurrency) {
+  return new Promise((resolve) => {
+    if (_claudeCliInflight < maxConcurrency) {
+      _claudeCliInflight += 1;
+      resolve();
+    } else {
+      _claudeCliWaiters.push(() => {
+        _claudeCliInflight += 1;
+        resolve();
+      });
+    }
+  });
+}
+function _releaseClaudeCliSlot() {
+  _claudeCliInflight = Math.max(0, _claudeCliInflight - 1);
+  const next = _claudeCliWaiters.shift();
+  if (next) next();
+}
+
+// Span-wrapping shell mirrors openrouterEngine. tracer + parentSpan optional.
+async function claudeCliEngine(plan, opts = {}) {
+  const tracer = opts.tracer;
+  const parentSpan = opts.parentSpan;
+  const llmSpan = tracer && typeof tracer.startSpan === 'function'
+    ? tracer.startSpan({
+      name: 'llm.claude_cli',
+      kind: 'LLM',
+      parent: parentSpan,
+      attributes: {
+        'gen_ai.system': 'anthropic',
+        'gen_ai.operation.name': 'chat',
+        'llm.provider': 'claude-cli',
+      },
+    })
+    : null;
+
+  let result;
+  try {
+    result = await _claudeCliEngineInner(plan, opts);
+    return result;
+  } catch (err) {
+    if (llmSpan) {
+      try {
+        llmSpan.setAttribute('llm.error_code', 'INNER_THREW');
+        llmSpan.setStatus(2, err && err.message);
+      } catch { /* best-effort */ }
+    }
+    throw err;
+  } finally {
+    if (llmSpan) {
+      try {
+        const tIn = result && typeof result.tokens_in === 'number' ? result.tokens_in : 0;
+        const tOut = result && typeof result.tokens_out === 'number' ? result.tokens_out : 0;
+        const cost = result && typeof result.cost_usd === 'number' ? result.cost_usd : 0;
+        llmSpan.setAttribute('gen_ai.usage.input_tokens', tIn);
+        llmSpan.setAttribute('gen_ai.usage.output_tokens', tOut);
+        llmSpan.setAttribute('llm.token_count.prompt', tIn);
+        llmSpan.setAttribute('llm.token_count.completion', tOut);
+        llmSpan.setAttribute('llm.token_count.total', tIn + tOut);
+        llmSpan.setAttribute('llm.cost_usd', cost);
+        if (result && result.model) llmSpan.setAttribute('llm.model_name', result.model);
+        if (result && result.code) llmSpan.setAttribute('llm.error_code', result.code);
+        if (llmSpan._status && llmSpan._status.code === 0) {
+          llmSpan.setStatus(result && result.ok ? 1 : 2, result && result.error);
+        }
+      } catch { /* best-effort */ }
+      try { llmSpan.end(); } catch { /* idempotent */ }
+    }
+  }
+}
+
+async function _claudeCliEngineInner(plan, opts = {}) {
+  // Auth pre-flight: explicit short-circuit before spawn.
+  const oauthToken = (process.env.CLAUDE_CODE_OAUTH_TOKEN || '').trim();
+  if (!oauthToken) {
+    return {
+      ok: false,
+      code: 'CLAUDE_CLI_AUTH_NOT_CONFIGURED',
+      error: 'CLAUDE_CODE_OAUTH_TOKEN env var is required for the claude-cli engine. Run `claude setup-token` (interactive once) and export the value.',
+    };
+  }
+
+  // Resolve binary path (cached per-process).
+  let resolvedCli;
+  try {
+    resolvedCli = opts.claudeCliPath
+      ? { path: opts.claudeCliPath, useShell: /\.(cmd|bat)$/i.test(opts.claudeCliPath) }
+      : resolveClaudeCliPath();
+  } catch (err) {
+    return {
+      ok: false,
+      code: err.code || 'CLAUDE_CLI_NOT_FOUND',
+      error: err.message || 'claude binary not resolvable',
+    };
+  }
+
+  const rawTimeout = opts.timeoutMs || parseInt(readEnv('CLAUDE_CLI_TIMEOUT_MS'), 10) || CLAUDE_CLI_DEFAULT_TIMEOUT_MS;
+  const timeoutMs = Math.max(1_000, Math.min(rawTimeout, 10 * 60 * 1000));
+  const maxConcurrency = Math.max(1, parseInt(readEnv('CLAUDE_CLI_MAX_CONCURRENCY'), 10) || CLAUDE_CLI_DEFAULT_MAX_CONCURRENCY);
+
+  // Compose combined prompt. Pipe via stdin to avoid Windows quoting hell.
+  // Steward's STEWARD_SYSTEM_PROMPT is appended via --append-system-prompt-file
+  // when feasible; otherwise fall back to inlining at the top of the user
+  // prompt. For v0 we inline (avoids tempfile lifecycle); the model respects
+  // the JSON edit-plan format because of `response_format`-equivalent
+  // signaling via the prompt itself.
+  const userPrompt = buildUserPrompt(plan, opts);
+  const combinedPrompt = `${STEWARD_SYSTEM_PROMPT}\n\n---\n\n${userPrompt}\n\nRespond with ONLY the JSON edit-plan object. No markdown fences.`;
+
+  // CLI args. NEVER include --bare (that flag forces API-key billing).
+  const argv = [
+    '-p',
+    '--output-format', 'json',
+    '--permission-mode', 'dontAsk',
+  ];
+  if (opts.extraArgs && Array.isArray(opts.extraArgs)) {
+    for (const a of opts.extraArgs) {
+      // Sprint 2.4 R2 fix (security HIGH-3 + edge-case): match forbidden flags
+      // with permissive boundaries (case-insensitive, trim, prefix=/space).
+      // Catches `--bare`, `--BARE`, ` --bare`, `--bare=value`, `--bare arg`.
+      const matched = matchForbiddenFlag(a);
+      if (matched) {
+        return {
+          ok: false,
+          code: 'CLAUDE_CLI_FORBIDDEN_FLAG',
+          error: `${matched} is forbidden — that flag skips OAuth and forces API-key billing (Sprint 2.4 R1 §2.1, GH #43333).`,
+        };
+      }
+      // Sprint 2.4 R2 fix (security HIGH-3, CWE-77): reject shell
+      // metacharacters in extraArgs when useShell:true would invoke via
+      // cmd.exe. Defense-in-depth even on POSIX (shell:false there but cheap
+      // to reject; if a future caller flips shell:true, we're protected).
+      if (containsShellMetacharacters(a)) {
+        return {
+          ok: false,
+          code: 'CLAUDE_CLI_FORBIDDEN_FLAG',
+          error: `extraArg ${JSON.stringify(a)} contains shell metacharacters (&|;<>"\`$()); refusing to forward to claude under shell:true (CWE-77 defense).`,
+        };
+      }
+      argv.push(a);
+    }
+  }
+
+  // Acquire concurrency slot (semaphore).
+  await _acquireClaudeCliSlot(maxConcurrency);
+
+  const spawnImpl = opts.spawnImpl || require('node:child_process').spawn;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  let stdoutBuf = '';
+  let stderrBuf = '';
+  let stdoutOver = false;
+  let stderrOver = false;
+  let child;
+  let spawnErr = null;
+
+  try {
+    try {
+      child = spawnImpl(resolvedCli.path, argv, {
+        env: scrubClaudeCliEnv(),
+        signal: ctrl.signal,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+        shell: resolvedCli.useShell,
+      });
+    } catch (err) {
+      spawnErr = err;
+    }
+
+    if (spawnErr) {
+      return {
+        ok: false,
+        code: spawnErr.code === 'ENOENT' ? 'CLAUDE_CLI_NOT_FOUND' : 'CLAUDE_CLI_SPAWN_FAILED',
+        error: spawnErr.message,
+      };
+    }
+
+    // Stdout / stderr buffer with BYTE-LENGTH caps (UTF-8) to refuse runaway
+    // outputs. Sprint 2.4 R2 fix (blind MAJOR-9): String .length counts
+    // UTF-16 code units, not bytes — multibyte text could be 4× larger than
+    // the cap intent. Use Buffer.byteLength for correct bound.
+    child.stdout.on('data', (chunk) => {
+      if (stdoutOver) return;
+      stdoutBuf += chunk.toString('utf8');
+      if (Buffer.byteLength(stdoutBuf, 'utf8') > CLAUDE_CLI_OUTPUT_BUFFER_CAP) {
+        stdoutOver = true;
+        // Truncate by character iteration until under byte cap (ensures we
+        // don't split mid-codepoint).
+        while (stdoutBuf.length > 0 && Buffer.byteLength(stdoutBuf, 'utf8') > CLAUDE_CLI_OUTPUT_BUFFER_CAP) {
+          stdoutBuf = stdoutBuf.slice(0, Math.floor(stdoutBuf.length * 0.9));
+        }
+        try { child.kill('SIGTERM'); } catch { /* race-tolerant */ }
+      }
+    });
+    child.stderr.on('data', (chunk) => {
+      if (stderrOver) return;
+      stderrBuf += chunk.toString('utf8');
+      if (Buffer.byteLength(stderrBuf, 'utf8') > CLAUDE_CLI_OUTPUT_BUFFER_CAP) {
+        stderrOver = true;
+        while (stderrBuf.length > 0 && Buffer.byteLength(stderrBuf, 'utf8') > CLAUDE_CLI_OUTPUT_BUFFER_CAP) {
+          stderrBuf = stderrBuf.slice(0, Math.floor(stderrBuf.length * 0.9));
+        }
+      }
+    });
+
+    // Pipe combined prompt via stdin (avoids Windows arg-quoting issues).
+    try {
+      child.stdin.write(combinedPrompt);
+      child.stdin.end();
+    } catch (err) {
+      try { child.kill('SIGTERM'); } catch { /* tolerant */ }
+      return { ok: false, code: 'CLAUDE_CLI_SPAWN_FAILED', error: `stdin write failed: ${err.message}` };
+    }
+
+    // Wait for close — also resolve on AbortController abort so the timeout
+    // path doesn't hang when a non-cooperative spawn ignores SIGTERM (or when
+    // a fake spawn in tests deliberately never emits 'close').
+    //
+    // Sprint 2.4 R2 fix (blind BLOCKER-1): after Promise resolution, install
+    // a no-op 'error' listener on the child so any post-resolve error event
+    // (e.g., spawned process emits 'error' after we already returned via
+    // abort) does not crash the Node parent with "Unhandled error".
+    const closeResult = await new Promise((resolve) => {
+      let resolved = false;
+      const finish = (payload) => { if (!resolved) { resolved = true; resolve(payload); } };
+      child.on('close', (code, signal) => finish({ code, signal }));
+      child.on('error', (err) => finish({ err }));
+      ctrl.signal.addEventListener('abort', () => {
+        try { child.kill('SIGTERM'); } catch { /* race-tolerant */ }
+        finish({ aborted: true });
+      }, { once: true });
+    });
+    // Defensive no-op handler against post-resolve 'error' emissions that
+    // would otherwise propagate as Unhandled (Node default behavior on
+    // EventEmitter without an error listener is process crash).
+    try { child.on('error', () => { /* swallowed: we've already resolved */ }); } catch { /* idempotent */ }
+
+    clearTimeout(timer);
+
+    if (ctrl.signal.aborted) {
+      return {
+        ok: false,
+        code: 'CLAUDE_CLI_TIMEOUT',
+        error: `claude -p timed out after ${timeoutMs}ms`,
+      };
+    }
+    if (stdoutOver || stderrOver) {
+      return {
+        ok: false,
+        code: 'CLAUDE_CLI_OUTPUT_TOO_LARGE',
+        error: `output buffer cap (${CLAUDE_CLI_OUTPUT_BUFFER_CAP} bytes) exceeded`,
+      };
+    }
+    if (closeResult.err) {
+      return {
+        ok: false,
+        code: closeResult.err.code === 'ENOENT' ? 'CLAUDE_CLI_NOT_FOUND' : 'CLAUDE_CLI_SPAWN_FAILED',
+        error: closeResult.err.message,
+      };
+    }
+    if (typeof closeResult.code === 'number' && closeResult.code !== 0) {
+      const cat = categorizeClaudeCliStderr(stderrBuf, closeResult.code);
+      // Sprint 2.4 R2 fix (security HIGH-1, CWE-532): redact OAuth tokens
+      // before surfacing stderr into journal/PR/log fields.
+      const redactedStderrPreview = redactSecrets((stderrBuf || '').slice(0, 500));
+      return {
+        ok: false,
+        code: cat.code,
+        error: cat.error ? redactSecrets(cat.error) : `claude -p exited ${closeResult.code}: ${redactedStderrPreview}`,
+        exitCode: closeResult.code,
+      };
+    }
+
+    // Parse envelope.
+    const parseResult = parseClaudeCliResponse(stdoutBuf);
+    if (!parseResult.ok) return parseResult;
+    const env = parseResult.parsed;
+
+    // BILLING-LEAK ASSERTION (defense layer 2 of 3).
+    if (env.total_cost_usd !== 0) {
+      // Defense layer 3: write STEWARD_HALT (fleet-wide) to refuse all
+      // subsequent runs across every cortex-x project until operator acks.
+      let haltPath = '<unwritten>';
+      try {
+        const haltCheck = require('./halt-check.cjs');
+        haltPath = haltCheck.fleetSentinelPath();
+        fs.mkdirSync(path.dirname(haltPath), { recursive: true });
+        const reason = `CLAUDE_CLI_BILLING_LEAK: total_cost_usd=${env.total_cost_usd} (expected 0). Anthropic API billing detected — env scrub failed. Investigate ANTHROPIC_API_KEY in shell/CI env. Clear ${haltPath} after fix.\n`;
+        fs.writeFileSync(haltPath, reason);
+      } catch { /* halt-check missing or fs error — best-effort */ }
+      return {
+        ok: false,
+        code: 'CLAUDE_CLI_BILLING_LEAK',
+        error: `total_cost_usd=${env.total_cost_usd}, expected 0. Anthropic API billing detected — STEWARD_HALT written at ${haltPath}. Run \`env | grep ANTHROPIC_API_KEY\` to find leak source; clear the halt file after fix.`,
+        cost_usd: env.total_cost_usd,
+        model: env.model,
+      };
+    }
+
+    // Map envelope → engine result. Mirrors openrouterEngine return shape.
+    const usage = env.usage || {};
+    const tokensIn = typeof usage.input_tokens === 'number' ? usage.input_tokens : undefined;
+    const tokensOut = typeof usage.output_tokens === 'number' ? usage.output_tokens : undefined;
+
+    // Extract edit-plan from result text. Same parser as openrouter for shape
+    // consistency (LLM may still wrap in fences despite system instruction).
+    const content = (env.structured_output && typeof env.structured_output === 'object')
+      ? env.structured_output
+      : null;
+    let editPlan;
+    if (content) {
+      editPlan = content;
+    } else {
+      const text = env.result || '';
+      try {
+        editPlan = JSON.parse(stripJsonFences(text));
+      } catch (err) {
+        return {
+          ok: false,
+          code: 'CLAUDE_CLI_PLAN_NOT_JSON',
+          error: `claude -p result text is not valid JSON: ${err.message}`,
+          raw_preview: text.slice(0, 200),
+          model: env.model,
+          cost_usd: 0,
+          ...(tokensIn !== undefined && { tokens_in: tokensIn }),
+          ...(tokensOut !== undefined && { tokens_out: tokensOut }),
+        };
+      }
+    }
+
+    if (!editPlan || typeof editPlan !== 'object' || Array.isArray(editPlan) || !Array.isArray(editPlan.edits)) {
+      return {
+        ok: false,
+        code: 'CLAUDE_CLI_PLAN_SHAPE_INVALID',
+        error: 'edit-plan missing edits[] array or wrong root type',
+        model: env.model,
+        cost_usd: 0,
+        ...(tokensIn !== undefined && { tokens_in: tokensIn }),
+        ...(tokensOut !== undefined && { tokens_out: tokensOut }),
+      };
+    }
+
+    const applyResult = applyEditsToFilesystem(editPlan.edits, {
+      repoRoot: opts.repoRoot,
+      emptyCode: 'CLAUDE_CLI_NO_EDITS',
+      invalidCode: 'CLAUDE_CLI_EDIT_INVALID',
+      unsafeCode: 'CLAUDE_CLI_EDIT_UNSAFE',
+      deniedCode: 'CLAUDE_CLI_EDIT_DENYLISTED',
+      summary: `claude-cli (${env.model || 'unknown'}) applied ${editPlan.edits.length} edit(s)`,
+    });
+
+    const usageFields = {
+      cost_usd: 0,
+      ...(tokensIn !== undefined && { tokens_in: tokensIn }),
+      ...(tokensOut !== undefined && { tokens_out: tokensOut }),
+    };
+
+    if (!applyResult.ok) return { ...applyResult, model: env.model, ...usageFields };
+
+    return { ...applyResult, model: env.model, ...usageFields };
+  } finally {
+    clearTimeout(timer);
+    _releaseClaudeCliSlot();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Engine selection + applyAction (async)
 // ---------------------------------------------------------------------------
 
 const ENGINES = {
   mock: mockEngine,
   openrouter: openrouterEngine,
+  'claude-cli': claudeCliEngine,
   'claude-sdk': claudeSdkEngine,
 };
 
@@ -788,6 +1414,7 @@ module.exports = {
   applyEditsToFilesystem,
   mockEngine,
   openrouterEngine,
+  claudeCliEngine,
   claudeSdkEngine,
   buildUserPrompt,
   // Sprint 2.1 — autoresearch composes the request body for per-candidate
@@ -797,6 +1424,18 @@ module.exports = {
   stripJsonFences,
   extractUsage,
   isDenylistedPath,
+  // Sprint 2.4: claude-cli engine helpers exported for tests
+  scrubClaudeCliEnv,
+  resolveClaudeCliPath,
+  parseClaudeCliResponse,
+  categorizeClaudeCliStderr,
+  redactSecrets,
+  matchForbiddenFlag,
+  containsShellMetacharacters,
+  _resetClaudeCliPathCache,
+  CLAUDE_CLI_LEAK_KEYS,
+  CLAUDE_CLI_FORBIDDEN_FLAGS,
+  CLAUDE_CLI_DEFAULT_TIMEOUT_MS,
   STEWARD_SYSTEM_PROMPT,
   OPENROUTER_ENDPOINT,
   DEFAULT_MODEL,
