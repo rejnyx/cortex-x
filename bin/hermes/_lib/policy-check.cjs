@@ -76,6 +76,30 @@ const HERMES_DENY = [
     p: /\bgit\s+reset\s+--hard\b/,
     reason: 'Hermes cannot hard-reset (use git revert)',
   },
+
+  // Sprint pre-2.0 housekeeping: secrets + key-material exfiltration via
+  // subprocess. The engine's HARD_DENYLIST blocks file-WRITES to these paths;
+  // policy-check (Ring 1, this layer) must also block subprocess READS so a
+  // future LLM-authored gh-issue body or shell command can't `cat ~/.ssh/id_rsa`
+  // and round-trip the secret out via the issue body. Defense-in-depth over
+  // block-destructive (Ring 2). Cross-checked against engine HARD_DENYLIST in
+  // tests/contract/denylist-ssot.test.cjs.
+  //
+  // The patterns deliberately match "any token containing the secret marker"
+  // (e.g. `.ssh/`) without anchoring to path-start. Slightly broader than
+  // strictly necessary, but security posture: prefer false-positives that an
+  // operator can opt out of via the kill switch over false-negatives that
+  // exfiltrate live keys.
+  {
+    code: 'NO_SECRET_READ',
+    p: /\b(cat|less|more|tail|head|type|Get-Content|gc)\b\s+\S*?(?:\.env(?:\.|\b)|\.pem\b|\.key\b|secrets?\/|\.ssh\/|\.gnupg\/)/i,
+    reason: 'Hermes cannot read secret material (.env*, *.pem, *.key, secrets/, .ssh/, .gnupg/)',
+  },
+  {
+    code: 'NO_SECRET_PIPE',
+    p: /\S*?(?:\.env(?:\.|\b)|\.pem\b|\.key\b|secrets?\/|\.ssh\/|\.gnupg\/)\S*\s*\|/i,
+    reason: 'Hermes cannot pipe secret material to other commands',
+  },
 ];
 
 // Concatenate all string-valued args into one string for pattern matching.
