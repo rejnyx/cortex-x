@@ -4,6 +4,44 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-08 — Sprint 2.1: autoresearch / overnight burst, ⭐ TRANSFORMATIVE) — commit `b3e6656`
+- **N-strategy serial autoresearch loop** as opt-in mode (`--mode=autoresearch` CLI flag, `STEWARD_MODE=autoresearch` env). Single-process serial; Sprint 2.2 will fan out to worktrees.
+- **Default N=3 candidates** (clamped [1, 10]): minimize_edits (T=0.2) / balanced (interpolated) / exploratory (T=1.0). Each candidate applied + spec-verified + npm-tested + rolled back via `git checkout -- . && git clean -fd`. Judge picks among passing candidates with both-orderings (consensus or spec-margin fallback).
+- **Cross-family judge** by default: DeepSeek V4 Flash candidates judged by `anthropic/claude-sonnet-4.6` (configurable via `STEWARD_AUTORESEARCH_JUDGE_MODEL`, validated against routing-table allowlist).
+- **6 new env knobs**: `STEWARD_AUTORESEARCH_N`, `STEWARD_AUTORESEARCH_RUN_USD_CAP` ($1 default), `STEWARD_AUTORESEARCH_MAX_TIME_MIN` (60min default, max 300), `STEWARD_AUTORESEARCH_JUDGE_MODEL`, `STEWARD_AUTORESEARCH_SIMILARITY_THRESHOLD` (0.85), `STEWARD_AUTORESEARCH_DELTA_ANOMALY_MULTIPLIER` (3.0).
+- **6 new error codes**: `STEWARD_AUTORESEARCH_VERIFIER_TAMPERED` / `_STRATEGY_COLLAPSE` (soft) / `_JUDGE_DISAGREEMENT` (soft) / `_RUN_USD_EXCEEDED` / `_TIME_EXCEEDED` / `_ALL_CANDIDATES_FAILED`. Plus `AUTORESEARCH_REPO_ROOT_MISSING` / `AUTORESEARCH_NO_WINNER` / `AUTORESEARCH_WINNER_REAPPLY_FAILED` / `AUTORESEARCH_JUDGE_MODEL_REJECTED`.
+- **Validation hacking defense (Tennis-XGBoost class)**: SHA-256 hash check on `action-kinds.cjs` + `spec-verifier.cjs` + `policy-check.cjs` at run start + end. Mismatch halts with `STEWARD_AUTORESEARCH_VERIFIER_TAMPERED`.
+- **Strategy collapse detection**: Jaccard similarity ≥ 0.85 across passing candidate diffs flags `collapse_detected: true`. First passing candidate becomes winner without judge call (no qualitative diversity to judge between).
+- **Delta anomaly detector**: today's spec_margin > rolling 7-day mean × 3.0 flags `delta_anomaly: true` (soft signal, requires bootstrap of ≥ 3 prior winners to avoid noise on first runs).
+- **PR labels** auto-applied based on autoresearch flags: `judge-disagreement` (Q2 operator decision), `autoresearch-delta-anomaly`, `autoresearch-collapse`. Operator-visible signal without blocking.
+- **All-N lessons.jsonl writes** (Q1 operator decision): both winners + rejected candidates write to lessons.jsonl with distinct codes (`AUTORESEARCH_WINNER_CANDIDATE:<label>` vs `AUTORESEARCH_REJECTED:<reason_id>`). Seed corpus for Sprint 3.0 AlphaEvolve prompt evolution.
+- **Per-candidate journal entries** (`event: 'autoresearch_candidate'`) with cost + tokens + spec_pass + npm_pass. Winner entry written AFTER re-apply confirms ok.
+- **Cross-session loop detector** (Sprint 1.9.1) ticks at run-level via journal events. Honors action_kind + criterion_id to surface "5× same criterion in 7 days" → STEWARD_HALT.
+- New module **`bin/steward/_lib/autoresearch.cjs`** (~570 LoC): pure primitives (jaccard, diversity prompts, hash check, judge prompt builder, run budget, reconcile) + orchestrator (`runAutoresearch`).
+- New helper **`bin/steward/_lib/action-engine.cjs buildOpenRouterRequestBody`**: composes request body with optional `temperature` + `personaOverlay` (capped 2 KB, second system message). Powers per-candidate fan-out.
+- New helpers in **`bin/steward/_lib/routing-table.cjs`**: `isAutoresearchEligible(actionKind)` + `isAllowedJudgeModel(slug)` SSOT. `AUTORESEARCH_ELIGIBLE_KINDS` set + `ALLOWED_JUDGE_VENDOR_PREFIXES` array exported.
+- New helper in **`bin/steward/_lib/gh-ops.cjs createDraftPR`**: `opts.labels[]` filtered by safe-label regex.
+- **`spec-verifier.cjs runChecks`** now always emits `criteria_passed` + `criteria_total` on success path (pre-fix: success returned `{ok:true, spec_failures:[]}` only — autoresearch's spec_margin was always 0, delta-anomaly was dead-on-arrival).
+- **`.github/workflows/steward-autoresearch.example.yml`** — Sunday 02:00 UTC weekly cron (lowest-traffic GHA window). Coexists with nightly `steward.yml`.
+- **`docs/steward-autoresearch.md`** — operator guide.
+- R2 review pipeline (6 agents) surfaced 2 BLOCKER + 17 MAJOR findings, all fixed before commit.
+- **Tests: 1041 → 1095** (+54 autoresearch tests covering primitives + orchestrator + R2 review fixes).
+
+### Added (2026-05-08 — Sprint 2.0b: action-kind based model routing) — commit `79c101a`
+- **4-profile routing knob**: `cheap` / `balanced` (default) / `premium` / `ensemble` via `STEWARD_ROUTING_PROFILE` env or `--routing-profile` CLI flag.
+- **Per-action_kind override**: `STEWARD_ROUTING_<KIND>=<slug>` (e.g. `STEWARD_ROUTING_RECOMMENDATION=anthropic/claude-sonnet-4.6`).
+- **CLI `--model <slug>`** flag for one-shot model override (highest precedence; bypasses profile-allowlist as documented escape hatch).
+- **Override hierarchy**: CLI `--model` > `STEWARD_ROUTING_<KIND>` env > legacy `STEWARD_MODEL` env (backward compat) > profile-table[kind][profile] > balanced default.
+- **Premium tier avoids Opus 4.7** per R1 memo §1.3 caveat (tokenizer overhead). Uses Opus 4.6 instead. Enforced by contract test.
+- **Ensemble cross-family**: DeepSeek V4 Flash + Qwen3 Coder Flash + Mistral Small 4 → Claude Haiku 4.5 judge.
+- **Profile-allowlist gate**: `release_notes_drafter` blocked from ensemble (commodity kind).
+- **Per-action USD cap** layered above 1.9.1 daily/weekly/monthly: `STEWARD_PER_ACTION_USD_CAP` ($1 default), per-kind `STEWARD_PER_ACTION_USD_CAP_<KIND>` override. 24-h sliding window across UTC midnight (reads today + yesterday journal files). Future-timestamp clock-skew defense.
+- **Trace tags** on AGENT span: `steward.routing.profile`, `steward.routing.source`, `steward.routing.model`. Enables Phoenix filtering by profile.
+- New modules: `bin/steward/_lib/routing-table.cjs` (~340 LoC) + `bin/steward/_lib/routing-policy.cjs` (~135 LoC).
+- New docs: `docs/steward-routing.md` + `standards/steward-policy.md` § 6.5 Routing profile policy with 3 MUST patterns.
+- R2 review pipeline (6 agents) surfaced 10 MAJOR findings, all fixed: 24-h window read today only, hardcoded `llmKinds` Set duplicated SSOT, future-ts clock skew, CLI flag-eats-flag, whitespace env values, prototype pollution, legacy STEWARD_MODEL applies to deterministic kinds, fallback shape inconsistency, lenient parseFloat, stringly-typed routing.source enum.
+- Tests: 972 → 1041 (+69 routing-table + routing-policy + SSOT contract tests).
+
 ### Removed (2026-05-08 — v0.2.0 platform hardening: drop Sprint 4.7 backward-compat shims)
 - **Deleted 10 hermes-prefixed shim files** (1-line redirect stubs from Sprint 4.7 rename):
   - `bin/cortex-hermes`, `bin/cortex-hermes.cjs`, `bin/cortex-hermes.ps1`

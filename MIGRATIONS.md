@@ -20,6 +20,79 @@
 
 ## Current
 
+### Sprint 2.1 — Steward autoresearch / overnight burst (2026-05-08, commit `b3e6656`)
+
+⭐ TRANSFORMATIVE — non-breaking. Autoresearch is opt-in; default flow stays single-shot. Existing nightly cron (`steward.yml`) runs unchanged. Operators opt in by:
+
+#### Engage autoresearch — 4 paths
+
+```bash
+# 1. Ad-hoc CLI (one-off)
+node bin/steward/execute.cjs --plan-file=plan.json --mode=autoresearch
+
+# 2. Ad-hoc env (env-driven driver)
+STEWARD_MODE=autoresearch node bin/steward/execute.cjs --plan-file=plan.json
+
+# 3. Weekly Sunday cron (recommended)
+cp .github/workflows/steward-autoresearch.example.yml .github/workflows/steward-autoresearch.yml
+# Cron will run automatically next Sunday 02:00 UTC; first run is informational.
+
+# 4. Premium judge override
+STEWARD_AUTORESEARCH_JUDGE_MODEL=anthropic/claude-opus-4.6 \
+  node bin/steward/execute.cjs --plan-file=plan.json --mode=autoresearch
+```
+
+#### Tunable knobs (all optional, defaults mark the production setting)
+
+| Env | Default | Purpose |
+|-----|---------|---------|
+| `STEWARD_AUTORESEARCH_N` | `3` | Number of candidate strategies (clamped [1, 10]) |
+| `STEWARD_AUTORESEARCH_RUN_USD_CAP` | `1.00` | Per-run hard cap (0 = opt-out) |
+| `STEWARD_AUTORESEARCH_MAX_TIME_MIN` | `60` | Wall-clock cap (max 300, GHA 6 h fits) |
+| `STEWARD_AUTORESEARCH_JUDGE_MODEL` | `anthropic/claude-sonnet-4.6` | Cross-family judge (must match vendor allowlist) |
+| `STEWARD_AUTORESEARCH_SIMILARITY_THRESHOLD` | `0.85` | Jaccard collapse threshold |
+| `STEWARD_AUTORESEARCH_DELTA_ANOMALY_MULTIPLIER` | `3.0` | Soft-flag threshold |
+
+#### Rollback
+
+Drop `--mode=autoresearch` flag / `STEWARD_MODE` env / `steward-autoresearch.yml` workflow. Single-shot path is unchanged.
+
+See `docs/steward-autoresearch.md` for the full operator guide.
+
+---
+
+### Sprint 2.0b — Action-kind based model routing (2026-05-08, commit `79c101a`)
+
+Non-breaking. Existing `STEWARD_MODEL=...` pins keep working as the legacy global override (3rd precedence, between per-kind env and profile table).
+
+#### Engage routing
+
+```bash
+# Profile (env or CLI)
+STEWARD_ROUTING_PROFILE=premium node bin/steward/execute.cjs --plan-file=plan.json
+node bin/steward/execute.cjs --plan-file=plan.json --routing-profile=ensemble
+
+# Per-kind override
+STEWARD_ROUTING_RECOMMENDATION=anthropic/claude-sonnet-4.6 \
+  node bin/steward/execute.cjs --plan-file=plan.json
+
+# One-shot CLI override (bypasses profile allowlist — audited via trace tag)
+node bin/steward/execute.cjs --plan-file=plan.json --model=anthropic/claude-opus-4.6
+
+# Per-action USD cap (defense above 1.9.1 daily/weekly/monthly)
+STEWARD_PER_ACTION_USD_CAP=1.00 \
+STEWARD_PER_ACTION_USD_CAP_RECOMMENDATION=0.05 \
+  node bin/steward/execute.cjs --plan-file=plan.json
+```
+
+#### Disengage routing (drop back to pre-2.0b behaviour)
+
+Set `STEWARD_MODEL=deepseek/deepseek-v4-flash` (or whatever your pin was). Legacy global wins over the routing table.
+
+See `docs/steward-routing.md` for the full operator guide.
+
+---
+
 ### v0.2.0 platform hardening — drop Sprint 4.7 backward-compat shims (2026-05-08)
 
 ⭐ BREAKING for operators still using `HERMES_*` names. Sprint 4.7 (2026-05-08 morning) shipped the Hermes → Steward rebrand with a full backward-compat layer scheduled for v0.2.0 removal. v0.2.0 ships now (afternoon), removing those shims atomically.

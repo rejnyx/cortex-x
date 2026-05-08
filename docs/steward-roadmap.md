@@ -145,7 +145,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.0b — Action-kind-based model routing (S effort, PIVOT 2026-05-09)
+### Sprint 2.0b — Action-kind-based model routing ✅ SHIPPED 2026-05-08 (commit `79c101a`)
 
 **PIVOT rationale (2026-05-09 web research)**: original scope was RouteLLM-style query-difficulty classification. 2026 SOTA literature converges on **role/task-type routing**: Augment Code (Opus coordinate / Sonnet implement / Haiku navigate / GPT-5.2 review), Anthropic multi-agent research (role-routed +90.2% over single-Opus on retrieval), Karpathy compound-systems framing. NousResearch hermes-agent's 4-mode pattern (`cheap` / `fix` / `code` / `plan`) is the same idea.
 
@@ -170,7 +170,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.1 — Steward autoresearch / overnight burst mode (M effort, ⭐ TRANSFORMATIVE)
+### Sprint 2.1 — Steward autoresearch / overnight burst mode ✅ SHIPPED 2026-05-08 (commit `b3e6656`, ⭐ TRANSFORMATIVE)
 
 **Why third (after 1.9 + 2.0)**: Karpathy autoresearch has 8.6M views in 2 days. The pattern is mainstream as of 2026-03. We are running 1 experiment per night while frontier runs 100+. Order-of-magnitude throughput delta.
 
