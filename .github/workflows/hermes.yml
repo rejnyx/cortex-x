@@ -101,6 +101,8 @@ jobs:
             --plan-file=/tmp/hermes-plan.json
         env:
           OPENROUTER_API_KEY:      ${{ secrets.OPENROUTER_API_KEY }}
+          # MUST match DEFAULT_MODEL in bin/hermes/_lib/action-engine.cjs.
+          # Regression test: tests/contract/default-model-ssot.test.cjs
           HERMES_MODEL:            deepseek/deepseek-v4-flash
           HERMES_MAX_TOKENS:       '16384'
           HERMES_DAILY_USD_CAP:    '5'

@@ -43,7 +43,7 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
   - `shared/hooks/session-start.cjs` — surfaces last 3 session budgets at session start
   - `standards/auto-orchestration.md` — 3-fronta rule (research parallel / implementation serial / review parallel), 2-minute rule, task-type taxonomy, anti-patterns, evidence trail with citations
   - `prompts/auto-review.md` — scope-classified parallel review pipeline (trivial/small/medium/large → 1–5 agents), anti-slop merge
-  - `docs/auto-orchestration-rfc.md` — full design rationale + research transcript
+  - `docs/archive/auto-orchestration-rfc.md` — full design rationale + research transcript (archived 2026-05-09 during pre-Sprint-2.0 audit; the MVP shipped 2026-04-19 and the file is now historical-only)
 - `CORTEX_SESSION_BUDGET_USD` env var (default `$5.00`)
 - `standards/ship-ready.md` — governance invariants for beta/stable distribution
 - `research/beta-distribution-2026-04-17.md` — research-grounded staging/prod decision matrix

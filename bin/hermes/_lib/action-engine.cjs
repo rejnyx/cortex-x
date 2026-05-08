@@ -70,7 +70,39 @@ function coerceNonNegFiniteNumber(v) {
   return undefined;
 }
 
+// Sprint pre-2.0 housekeeping: extractUsage now accepts both single-response
+// shape (today) AND array-of-responses shape (RouteLLM-style ensemble, Sprint
+// 2.0b). For arrays, per-response usage is summed into a single envelope so
+// the journal entry remains flat (cost_usd / tokens_in / tokens_out are
+// scalars). Each response is independently coerced via the same string→number
+// rules from H4 (some OpenRouter routes return cost as `"0.0042"`).
 function extractUsage(data) {
+  // Array path — Sprint 2.0b ensemble responses (e.g. judge + cheap-model
+  // parallel calls). Sum across responses; ignore null/missing usage.
+  if (Array.isArray(data)) {
+    let costSum = 0;
+    let tokensInSum = 0;
+    let tokensOutSum = 0;
+    let anyCost = false;
+    let anyTokensIn = false;
+    let anyTokensOut = false;
+    for (const item of data) {
+      const u = (item && item.usage) || {};
+      const cost = coerceNonNegFiniteNumber(u.cost);
+      if (cost !== undefined) { costSum += cost; anyCost = true; }
+      const tIn = coerceNonNegFiniteNumber(u.prompt_tokens);
+      if (tIn !== undefined) { tokensInSum += Math.trunc(tIn); anyTokensIn = true; }
+      const tOut = coerceNonNegFiniteNumber(u.completion_tokens);
+      if (tOut !== undefined) { tokensOutSum += Math.trunc(tOut); anyTokensOut = true; }
+    }
+    const out = {};
+    if (anyCost) out.cost_usd = costSum;
+    if (anyTokensIn) out.tokens_in = tokensInSum;
+    if (anyTokensOut) out.tokens_out = tokensOutSum;
+    return out;
+  }
+
+  // Single-response path (current behaviour, preserved for backward compat).
   const u = (data && data.usage) || {};
   const out = {};
   const cost = coerceNonNegFiniteNumber(u.cost);

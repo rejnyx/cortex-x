@@ -114,29 +114,30 @@ When `git pull --rebase` (or equivalent) fails with a merge conflict on Hermes's
 
 v1+ may opt-in to LLM-drafted resolutions on a **side-branch** (`hermes/<...>-conflict-resolution`) that humans review and merge. v0 is halt-only.
 
-## 3. Denylist — extending block-destructive.cjs
+## 3. Denylist — three-layer defense
 
-The existing global hook ([`shared/hooks/block-destructive.cjs`](../shared/hooks/block-destructive.cjs)) blocks the human + any subagent. Hermes runtime adds these patterns to its **own** policy check (so the same patterns are blocked by two layers):
+Hermes layers three independent denylists. They cover different attack surfaces and are intentionally NOT consolidated into one source — defense-in-depth requires that any one layer breaking does not collapse the others.
 
-```javascript
-// Hermes-policy denylist (additions over block-destructive.cjs)
-const HERMES_DENY = [
-  // Sentinel preservation
-  { p: /(rm|unlink|Remove-Item)\s+.*\.cortex[/\\]HERMES_HALT/, r: 'Hermes cannot remove its own kill switch' },
-  // Source-of-truth protection (config/evolve.yaml human_only)
-  { p: /\b(write|edit)\b.*\b(standards|prompts|profiles|agents)\/.*\.(md|ya?ml)\b/, r: 'human_only path — see config/evolve.yaml' },
-  { p: /\b(write|edit)\b.*\b(CLAUDE|README|module)\.(md|yaml)\b/, r: 'human_only path — top-level SoT' },
-  // Auto-merge prevention (Hermes opens PRs, humans merge)
-  { p: /\bgh\s+pr\s+merge\b/, r: 'Hermes cannot merge PRs — humans merge' },
-  { p: /\bgit\s+merge\s+(main|master)\b/, r: 'Hermes cannot merge to integration branch' },
-  // Production-mutation prevention
-  { p: /\bvercel\s+deploy\s+--prod\b/, r: 'No prod deploy from Hermes' },
-  { p: /\bsupabase\s+db\s+push\b.*--linked/, r: 'No prod migration push from Hermes' },
-  { p: /\bkubectl\s+(apply|rollout)\b.*\bprod\b/i, r: 'No prod kubectl from Hermes' },
-]
-```
+### Layer 1 — Engine file-write denylist (`bin/hermes/_lib/action-engine.cjs`)
+Enforced inside `applyEditsToFilesystem` over `edit.path`. Blocks **file-WRITE** to: `.env*`, `*.pem`, `*.key`, `secrets/`, `package(-lock).json`, `bin/hermes/**`, `bin/cortex-hermes*`, `.github/workflows/**`, `standards/hermes-*`, `.git/`, `.ssh/`, `.gnupg/`. Source: `HERMES_HARD_DENYLIST` constant.
 
-Existing `block-destructive.cjs` already covers `git push --force`, `git reset --hard`, `git clean -f`, `git branch -D`, `git checkout .`, `git restore .`, `git stash drop|clear`, `rm -rf`, `DROP TABLE`, `DROP DATABASE`, `TRUNCATE`, `supabase db reset`. Hermes inherits all of those.
+### Layer 2 — Policy-check subprocess denylist (`bin/hermes/_lib/policy-check.cjs`)
+Enforced before any tool call. Pattern-matches over flattened args. Blocks **subprocess READ + EXFIL + production mutation**:
+- Sentinel preservation (Hermes cannot delete its own kill switch)
+- Source-of-truth protection (human_only paths in standards/, prompts/, profiles/, agents/, top-level CLAUDE.md / README.md / module.yaml — list comes from `config/evolve.yaml`)
+- Auto-merge prevention (`gh pr merge`, `git merge main`)
+- Production-mutation prevention (`vercel deploy --prod`, `supabase db push --linked`, `kubectl apply ... prod`)
+- Force-push / hard-reset / `rm -rf` (already covered by Ring 2 below; Ring 1 catches first)
+- **Secrets exfiltration** (Sprint pre-2.0 housekeeping): `cat`, `less`, `more`, `tail`, `head`, `Get-Content` against any path containing `.env*`, `*.pem`, `*.key`, `secrets/`, `.ssh/`, `.gnupg/` → `NO_SECRET_READ`. Plus pipe-out variants → `NO_SECRET_PIPE`. The intent is "Hermes can never round-trip a key through a subprocess body" (defense against future LLM-authored gh-issue body that quotes a secret).
+
+Source: `HERMES_DENY` array. Cross-layer invariant tested in [`tests/contract/denylist-ssot.test.cjs`](../tests/contract/denylist-ssot.test.cjs).
+
+### Layer 3 — Global block-destructive hook (`shared/hooks/block-destructive.cjs`)
+Pre-existing project-wide hook. Blocks for **the human + any subagent + Hermes**: `git push --force`, `git reset --hard`, `git clean -f`, `git branch -D`, `git checkout .`, `git restore .`, `git stash drop|clear`, `rm -rf`, `DROP TABLE`, `DROP DATABASE`, `TRUNCATE`, `supabase db reset`. Hermes inherits all of those.
+
+### Why three layers, not one consolidated source
+
+Engine denylist is path-shaped (`/^\.env(\.|$)/i.test(rel)`), policy-check is command-shaped (`/\bcat\b.*\.ssh\//`), and block-destructive is a Bash-tool hook. Trying to express all three as one regex array would either: (a) match too broadly and break legitimate operations, or (b) need a context-aware matcher that re-parses every shell call. The current split lets each layer use the matching style appropriate to its scope. The cross-layer invariant (no secret category covered by only one layer) is enforced by [`tests/contract/denylist-ssot.test.cjs`](../tests/contract/denylist-ssot.test.cjs) — when a new secret category is added, the test fails until both engine + policy-check are updated.
 
 ## 4. Cost ceilings — loop guards (not bankruptcy protection)
 

@@ -1,8 +1,8 @@
 # Sprint 1.5 — Onboarding upgrade + retrofit audit + auto-bootstrap + auto-research
 
-> **Status:** Design draft v1, 2026-05-06
+> **Status:** ✅ Implemented (commit `c66b1ec`, 2026-05-06). Stamped 2026-05-09 during pre-Sprint-2.0 audit cleanup.
 > **Owner:** David Rajnoha (Rejnyx)
-> **Decision needed:** Dave reviews + approves architecture before any code lands.
+> **Note:** This document is preserved as historical design context referenced from `shared/skills/*/SKILL.md`, `shared/hooks/session-start.cjs`, `prompts/cortex-doctor.md`, and `agents/synthesizer.md`. Current runtime behaviour is the source of truth; treat the sections below as "what we planned" — differences from the shipped code are intentional refinements made during implementation.
 > **Branch this lives on:** `main`
 > **Source-of-truth for blockers:** [`MIGRATIONS.md`](../MIGRATIONS.md) + [`docs/public-launch-plan.md`](./public-launch-plan.md) §4 Sprint 1
 
