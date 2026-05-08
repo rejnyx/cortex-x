@@ -446,7 +446,59 @@ For every sprint above, the path from "planned" → "shipped on main" follows th
 
 This ritual is the **single most important rule of this roadmap**. Skipping any step turns the roadmap from "trustworthy plan" into "wish-list."
 
-## 8. Mile-marker checks (every 4 weeks)
+## 7b. 90-day implementation plan — hardware-independent first, then awaken
+
+**Constraint check (2026-05-09):** operator is saving toward $500-1500 home server hardware (UGREEN NAS / Beelink SER9 / Mac Mini M4). Hardware likely arrives ~week 8-12. Until then, all software work happens on existing GHA cron infrastructure + operator's current dev machine.
+
+**Fortunate reality**: of the 21 sprints in this roadmap, **17 are hardware-independent** and ship fine on GHA + local dev machine. Only Sprint 5.0 (self-hosted always-on Hermes) and Sprint 5.4 (live-entity voice UX) genuinely need the home box. Everything else can be developed and validated in current infra.
+
+This means: **no waiting period**. Velocity continues 6-12 weeks before "awakening" the entity on home hardware.
+
+### Week-by-week sequencing (recommended)
+
+| Week | Sprint | Hardware needed? | Why this order |
+|---|---|---|---|
+| **1** | **1.9 — Spec-driven verification** ⭐ | No (GHA) | Fixes Sprint 1.8.13 incident class. Unblocks 2.1 + 2.2 + 3.0 (richer fitness signal). |
+| **2** | 2.0 + 2.0b — Langfuse self-hosted + RouteLLM | No (Langfuse on dev machine, migrate to NAS later) | Both small (S). Observability + cost-routing both feed downstream sprints. Parallelizable. |
+| **3-4** | **2.1 — Hermes autoresearch overnight burst** | No (GHA, longer cron window) | Karpathy pattern. 1× → N× experiments per night. Order-of-magnitude throughput. Needs spec-criteria from 1.9. |
+| **5-6** | 2.2 — Worktree supervisor + judge ensemble | No (GHA worktrees natively) | Multi-agent. Each worker verifies against same spec from 1.9. |
+| **7** | 2.3 — Mutation testing as fitness signal | No (Stryker on GHA) | Closes verification gap further. After 2.2 because workers benefit too. |
+| **8** | **5.1 — "Soul" abstraction** (early Tier 4 prep) | No (just markdown + code) | Deliberately moved up. Multi-agent Hermes (Sprint 2.2 already shipped) needs distinct identities for supervisor / worker / judge / harvester. Souls.md cheap + impactful + ready for hardware moment. |
+| **9-10** | 3.0 — AlphaEvolve prompt evolution | No (GHA + held-out fixtures) | The compound moonshot. Needs spec-criteria (1.9) + autoresearch budget (2.1) + souls (5.1). |
+| **11** | 3.1 — Self-extending capabilities (`skill-experiments/`) | No (sandbox in GHA) | Browser-harness pattern. Hermes writes own micro-helpers. |
+| **12** | **HARDWARE LIKELY ARRIVES + retro week** | — | Decompress. Order Beelink/NAS. Retro on weeks 1-11. |
+| **13-14** | **5.0 — Awaken the entity** | YES (NAS / Beelink) | Migrate cortex-x from GHA-only to home-server always-on. Hermes daemon, not cron. |
+
+### Logical sequencing rationale
+
+- **1.9 first because** it produces the richer fitness signal that 2.1, 2.2, 3.0 all depend on. Without spec criteria, "did this run improve anything?" is just `npm test boolean`.
+- **2.0 + 2.0b parallel because** they're both small (S), independent, and feed observability into every later sprint.
+- **2.1 before 2.2 because** Karpathy autoresearch (multi-strategy serial within one run) is the conceptual prerequisite for worktree parallel — supervisor needs to know how multi-strategy works in single context first.
+- **5.1 (souls.md) deliberately moved up to week 8** because by then Hermes has ≥4 distinct agents (supervisor, worker, judge, harvester), each needs identity. Cheap to implement (markdown + a load step in action-engine) and lets us "have it ready" for hardware activation.
+- **3.0 (prompt evolution) before 3.1 (self-extending capabilities)** because evolution refines what we have; self-extension creates new things — refining first makes generation more reliable.
+- **3.2 (FTS5 + federated lessons) and 3.3 (GraphRAG) deferred to weeks 13-16** because they're high-effort and only become critical when (a) cross-project deployments happen and (b) codebase context is the bottleneck. Today neither is true.
+
+### What awakening looks like (week 13+)
+
+Once home hardware arrives, Sprint 5.0 is a **migration sprint**, not a build sprint:
+1. Install Beelink/NAS, set up Linux environment.
+2. Install Ollama + pick local model (Qwen 3 32B as default starting point).
+3. Package cortex-x as `systemd` service (Linux) or `launchd` agent (Mac).
+4. Migrate `~/.cortex/` data dir to NAS, sync from operator's dev machines.
+5. Switch one project (cortex-x dogfood first, then RELO) from GHA-cron to home-daemon.
+6. **Hybrid routing**: sensitive paths → local Ollama. Premium paths → OpenRouter. Configured per action_kind in `cortex/souls/<agent>.md`.
+7. Verify: 1 week of home-daemon Hermes runs, no regressions vs GHA-cron equivalent week.
+
+After that single sprint, the entity is "alive" — and every Tier 2/3 sprint already shipped becomes immediately more powerful because it now lives on always-on infra.
+
+### What NOT to do during weeks 1-12
+
+- **Don't** start Sprint 5.0+ before hardware. Pre-staging Linux config in a VM works for dry-runs but isn't real validation.
+- **Don't** skip the R1 research dispatch on each sprint just because the roadmap "already covers it." The 2026-05 cached research expires; SOTA shifts in weeks.
+- **Don't** ship more than 1-2 sprints in parallel. Each sprint has its own review pipeline (R2). Concurrent review pipelines = cognitive overload + missed findings.
+- **Don't** add new sprints to the roadmap mid-tier without operator explicit approval. The roadmap is SSOT; conversations propose, roadmap commits.
+
+
 
 - **Week 4** (after Sprint 1.9 + 2.0 + 2.0b): observability dashboards live, spec-driven verification operational. Question: is the verification gap measurably closed?
 - **Week 8** (after Sprint 2.1 + 2.2 + 2.3): multi-agent overnight burst running. Question: are we shipping ≥3 PRs/night reliably?

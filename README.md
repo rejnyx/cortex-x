@@ -1,6 +1,18 @@
 # cortex-x
 
-> **AI-agentic-first** personal Claude Code framework by **Rejnyx**. Bootstrap new projects with agentic-ready architecture, senior-level orchestration, safety, and standards in under 3 minutes.
+> **A persistent agent, not just a tool.** AI-agentic-first personal Claude Code framework by **Rejnyx**. Bootstrap new projects with agentic-ready architecture, senior-level orchestration, safety, and standards in under 3 minutes — then let Hermes maintain them autonomously, every night, forever.
+
+## 🧠 Mission
+
+cortex-x is on a trajectory from "framework that scaffolds projects" to **persistent autonomous entity that lives alongside its operator** — curating knowledge, maintaining code, learning from every iteration, and improving itself while the operator sleeps. The endgame is not "an excellent dev tool" — it's **the operator's second brain in markdown form, running 24/7 on home infrastructure, with the engineering rigor of a senior team.**
+
+Every sprint moves us toward one of three north-star metrics:
+
+1. **Verification fidelity** — % of agent edits that don't introduce regressions undetected by `npm test`.
+2. **Throughput per operator-hour** — net useful PRs Hermes opens per hour of operator review time.
+3. **Self-evolution rate** — # of new capabilities/skills/strategies the agent itself contributes per week.
+
+Roadmap: [`docs/hermes-roadmap.md`](./docs/hermes-roadmap.md) (Tier 1 Foundation → Tier 2 Compound learners → Tier 3 Productization → Tier 4 Personal AI entity).
 
 ## 🧠 Positioning (2026)
 
