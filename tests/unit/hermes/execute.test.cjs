@@ -1307,3 +1307,41 @@ describe('execute: Sprint 1.8.9 — lint_fix_shipper', () => {
     assert.ok(result.opened_issues[0].dry_run);
   });
 });
+
+// Sprint 1.8.12 — halt-check artifact filter (regression for nightly cron failure
+// 2026-05-08 run 25537776797: workflow CORTEX_DATA_HOME=$WORKSPACE/.cortex-data
+// caused dry-run to write journal under .cortex-data/journal/, which the
+// execute step then saw as untracked → DIRTY_TREE. Filter must ignore both
+// the legacy `cortex/` path and the `.cortex-data/` workflow path.)
+describe('isHermesArtifact — halt-check working-tree filter', () => {
+  test('legacy cortex/journal/ paths are recognized as artifacts', () => {
+    assert.equal(execute.isHermesArtifact('cortex/journal/cortex-x/2026-05-08.jsonl'), true);
+    assert.equal(execute.isHermesArtifact('cortex/journal/some-slug/.lock'), true);
+    assert.equal(execute.isHermesArtifact('cortex/journal'), true);
+    assert.equal(execute.isHermesArtifact('cortex/'), true);
+    assert.equal(execute.isHermesArtifact('cortex'), true);
+  });
+
+  test('.cortex-data/ workflow paths are recognized as artifacts', () => {
+    assert.equal(execute.isHermesArtifact('.cortex-data/journal/cortex-x/2026-05-08.jsonl'), true);
+    assert.equal(execute.isHermesArtifact('.cortex-data/journal/cortex-x/.lock'), true);
+    assert.equal(execute.isHermesArtifact('.cortex-data/'), true);
+    assert.equal(execute.isHermesArtifact('.cortex-data'), true);
+  });
+
+  test('Windows backslash paths are normalized before matching', () => {
+    assert.equal(execute.isHermesArtifact('.cortex-data\\journal\\cortex-x\\2026-05-08.jsonl'), true);
+    assert.equal(execute.isHermesArtifact('cortex\\journal\\cortex-x\\.lock'), true);
+  });
+
+  test('non-artifact paths are not falsely matched', () => {
+    assert.equal(execute.isHermesArtifact('src/index.js'), false);
+    assert.equal(execute.isHermesArtifact('package.json'), false);
+    assert.equal(execute.isHermesArtifact('cortex-x.md'), false); // similar prefix, different file
+    assert.equal(execute.isHermesArtifact('docs/cortex-data.md'), false); // word boundary
+    assert.equal(execute.isHermesArtifact('.cortex-data-old/file.txt'), false); // different dir
+    assert.equal(execute.isHermesArtifact(''), false);
+    assert.equal(execute.isHermesArtifact(null), false);
+    assert.equal(execute.isHermesArtifact(undefined), false);
+  });
+});
