@@ -116,7 +116,8 @@ describe('otel-emitter: span tree + parent-child propagation', () => {
   test('child spans inherit parent traceId; parentSpanId points at parent', async () => {
     const captured = [];
     const fakeFetch = async (url, opts) => {
-      captured.push(JSON.parse(opts.body));
+      // Sprint 2.0.1: body is now protobuf binary; tests read tracer._lastPayload
+      // for shape assertions (the structured payload object before encoding).
       return { ok: true, status: 200, text: async () => '' };
     };
     const tracer = emitter.createTracer({ fetchImpl: fakeFetch });
@@ -128,6 +129,7 @@ describe('otel-emitter: span tree + parent-child propagation', () => {
     root.end();
 
     await tracer.flush();
+    captured.push(tracer._lastPayload);
     const spans = captured[0].resourceSpans[0].scopeSpans[0].spans;
     assert.equal(spans.length, 3);
     assert.equal(root.traceId, child1.traceId);
@@ -163,7 +165,7 @@ describe('otel-emitter: OTLP wire format', () => {
   test('payload has resourceSpans → scopeSpans → spans envelope', async () => {
     let captured;
     const fakeFetch = async (url, opts) => {
-      captured = { url, opts, body: JSON.parse(opts.body) };
+      captured = { url, opts };
       return { ok: true, status: 200, text: async () => '' };
     };
     const tracer = emitter.createTracer({ fetchImpl: fakeFetch, runId: '01HXTEST', agentName: 'steward' });
@@ -174,9 +176,11 @@ describe('otel-emitter: OTLP wire format', () => {
 
     assert.equal(captured.url, 'http://localhost:6006/v1/traces');
     assert.equal(captured.opts.method, 'POST');
-    assert.equal(captured.opts.headers['Content-Type'], 'application/json');
+    // Sprint 2.0.1: protobuf wire format (Phoenix 15.5.1 rejected JSON with 415).
+    assert.equal(captured.opts.headers['Content-Type'], 'application/x-protobuf');
+    assert.ok(Buffer.isBuffer(captured.opts.body), 'body is binary protobuf');
 
-    const root = captured.body.resourceSpans[0];
+    const root = tracer._lastPayload.resourceSpans[0];
     assert.ok(root, 'has resourceSpans');
     assert.ok(Array.isArray(root.resource.attributes), 'resource.attributes is an array of {key,value}');
 
@@ -232,10 +236,7 @@ describe('otel-emitter: OTLP wire format', () => {
 describe('otel-emitter: OpenInference + gen_ai dual-attribute set', () => {
   test('LLM span carries both openinference.span.kind and gen_ai.* on the same span', async () => {
     let captured;
-    const fakeFetch = async (url, opts) => {
-      captured = JSON.parse(opts.body);
-      return { ok: true, status: 200, text: async () => '' };
-    };
+    const fakeFetch = async () => ({ ok: true, status: 200, text: async () => '' });
     const tracer = emitter.createTracer({ endpoint: 'http://localhost:6006/v1/traces', fetchImpl: fakeFetch });
     const span = tracer.startSpan({
       name: 'llm.openrouter',
@@ -256,6 +257,7 @@ describe('otel-emitter: OpenInference + gen_ai dual-attribute set', () => {
     });
     span.end();
     await tracer.flush();
+    captured = tracer._lastPayload;
 
     const span0 = captured.resourceSpans[0].scopeSpans[0].spans[0];
     const get = (k) => (span0.attributes.find((a) => a.key === k) || {}).value;
@@ -306,8 +308,7 @@ describe('otel-emitter: lifecycle invariants', () => {
   });
 
   test('withSpan() auto-ends + sets OK status on resolve', async () => {
-    let captured;
-    const fakeFetch = async (url, opts) => { captured = JSON.parse(opts.body); return { ok: true, status: 200 }; };
+    const fakeFetch = async () => ({ ok: true, status: 200 });
     const tracer = emitter.createTracer({ endpoint: 'http://localhost:6006/v1/traces', fetchImpl: fakeFetch });
     const result = await tracer.withSpan({ name: 'work', kind: emitter.KINDS.TOOL }, async (span) => {
       span.setAttribute('inner', 'value');
@@ -315,15 +316,14 @@ describe('otel-emitter: lifecycle invariants', () => {
     });
     assert.equal(result, 'done');
     await tracer.flush();
-    const span0 = captured.resourceSpans[0].scopeSpans[0].spans[0];
+    const span0 = tracer._lastPayload.resourceSpans[0].scopeSpans[0].spans[0];
     assert.equal(span0.status.code, emitter.OTEL_STATUS.OK);
     const inner = span0.attributes.find((a) => a.key === 'inner');
     assert.equal(inner.value.stringValue, 'value');
   });
 
   test('withSpan() auto-ends + sets ERROR status on reject; rethrows', async () => {
-    let captured;
-    const fakeFetch = async (url, opts) => { captured = JSON.parse(opts.body); return { ok: true, status: 200 }; };
+    const fakeFetch = async () => ({ ok: true, status: 200 });
     const tracer = emitter.createTracer({ endpoint: 'http://localhost:6006/v1/traces', fetchImpl: fakeFetch });
     await assert.rejects(
       tracer.withSpan({ name: 'fails', kind: emitter.KINDS.TOOL }, async () => {
@@ -332,7 +332,7 @@ describe('otel-emitter: lifecycle invariants', () => {
       /boom/,
     );
     await tracer.flush();
-    const span0 = captured.resourceSpans[0].scopeSpans[0].spans[0];
+    const span0 = tracer._lastPayload.resourceSpans[0].scopeSpans[0].spans[0];
     assert.equal(span0.status.code, emitter.OTEL_STATUS.ERROR);
     assert.match(span0.status.message, /boom/);
   });
@@ -534,7 +534,7 @@ describe('otel-emitter: Sprint 2.0 review hardening — setStatus path redaction
 describe('otel-emitter: Sprint 2.0 review hardening — NoopSpan as parent', () => {
   test('NoopSpan parent (all-zero spanId) is treated as no parent', async () => {
     const captured = [];
-    const fakeFetch = async (url, opts) => { captured.push(JSON.parse(opts.body)); return { ok: true, status: 200 }; };
+    const fakeFetch = async (url, opts) => { /* protobuf body unparsed */; return { ok: true, status: 200 }; };
 
     const noopTracer = emitter.createTracer({ endpoint: null });
     const noopSpan = noopTracer.startSpan({ name: 'fake-parent', kind: emitter.KINDS.AGENT });
@@ -544,6 +544,7 @@ describe('otel-emitter: Sprint 2.0 review hardening — NoopSpan as parent', () 
     const child = realTracer.startSpan({ name: 'child', kind: emitter.KINDS.TOOL, parent: noopSpan });
     child.end();
     await realTracer.flush();
+    captured.push(realTracer._lastPayload);
 
     const span0 = captured[0].resourceSpans[0].scopeSpans[0].spans[0];
     // parentSpanId must be undefined / absent — NOT the all-zero string
@@ -576,27 +577,25 @@ describe('otel-emitter: Sprint 2.0 review hardening — flush serialize-failed +
 
 describe('otel-emitter: Sprint 2.0 review hardening — withSpan does not overwrite caller status', () => {
   test('withSpan: if inner sets ERROR, wrapper does NOT auto-set OK on resolve', async () => {
-    let captured;
-    const fakeFetch = async (url, opts) => { captured = JSON.parse(opts.body); return { ok: true, status: 200 }; };
+    const fakeFetch = async () => ({ ok: true, status: 200 });
     const tracer = emitter.createTracer({ endpoint: 'http://localhost:6006/v1/traces', fetchImpl: fakeFetch });
     await tracer.withSpan({ name: 'soft-fail', kind: emitter.KINDS.TOOL }, async (span) => {
       span.setStatus(emitter.OTEL_STATUS.ERROR, 'soft failure as return value');
       return { ok: false };
     });
     await tracer.flush();
-    const span0 = captured.resourceSpans[0].scopeSpans[0].spans[0];
+    const span0 = tracer._lastPayload.resourceSpans[0].scopeSpans[0].spans[0];
     assert.equal(span0.status.code, emitter.OTEL_STATUS.ERROR);
   });
 });
 
 describe('otel-emitter: Sprint 2.0 review hardening — service.version semconv', () => {
   test('resource attributes include service.namespace=cortex-x and a non-empty service.version', async () => {
-    let captured;
-    const fakeFetch = async (url, opts) => { captured = JSON.parse(opts.body); return { ok: true, status: 200 }; };
+    const fakeFetch = async () => ({ ok: true, status: 200 });
     const tracer = emitter.createTracer({ endpoint: 'http://localhost:6006/v1/traces', fetchImpl: fakeFetch });
     tracer.startSpan({ name: 's', kind: emitter.KINDS.AGENT }).end();
     await tracer.flush();
-    const attrs = captured.resourceSpans[0].resource.attributes;
+    const attrs = tracer._lastPayload.resourceSpans[0].resource.attributes;
     const ns = attrs.find((a) => a.key === 'service.namespace');
     const ver = attrs.find((a) => a.key === 'service.version');
     assert.equal(ns.value.stringValue, 'cortex-x');
