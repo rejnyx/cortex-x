@@ -64,6 +64,10 @@ const costSafety = require('./_lib/cost-safety.cjs');
 // daily/weekly/monthly caps from 1.9.1).
 const routingTable = require('./_lib/routing-table.cjs');
 const routingPolicy = require('./_lib/routing-policy.cjs');
+// Sprint 2.1 — autoresearch orchestrator. Used when --mode=autoresearch (or
+// STEWARD_MODE=autoresearch) on a recommendation kind. Single-process serial
+// N-strategy loop; worktree fan-out is Sprint 2.2.
+const autoresearch = require('./_lib/autoresearch.cjs');
 // Sprint 1.8.2c — recommendation_harvest is the first non-recommendation kind.
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
@@ -218,7 +222,7 @@ function rollbackToOriginal(repoRoot, originalBranch, deadBranch) {
 //   gh CLI absent                      → status='no_gh_cli'       (cron will have it; local may not)
 //   gh pr create fails                 → status='pr_failed'       (no GH_TOKEN, repo permission, etc.)
 //   all OK                             → status='created', url=<PR url>
-async function maybePushAndOpenPR({ repoRoot, plan, slug, skipPush }) {
+async function maybePushAndOpenPR({ repoRoot, plan, slug, skipPush, prLabels }) {
   if (skipPush) return { status: 'skipped', reason: 'opt-out via --no-push or STEWARD_NO_PUSH' };
 
   if (!gitOps.hasRemote(repoRoot)) {
@@ -255,6 +259,7 @@ async function maybePushAndOpenPR({ repoRoot, plan, slug, skipPush }) {
     base: plan.base_branch || 'main',
     head: plan.branch,
     repoRoot,
+    labels: Array.isArray(prLabels) ? prLabels : undefined,
   });
 
   if (!prResult.ok) {
@@ -992,6 +997,334 @@ function getCleanTreeIgnoringSteward(repoRoot) {
   };
 }
 
+// Sprint 2.1 — autoresearch executor branch.
+//
+// Wires autoresearch.runAutoresearch with deps for action-engine, spec-
+// verifier, npm-test, and a journal-aware judge call. Returns the same
+// applyAction-shape (ok, touchedFiles, edits, cost_usd, etc.) so the rest
+// of the execute pipeline (stage → commit → push → PR) is unchanged.
+//
+// The candidate loop runs SERIAL within one process. Each candidate:
+//   1. applyAction with strategy persona + temperature
+//   2. spec-verifier as deterministic gate
+//   3. npm test as integration gate
+//   4. rollback (git checkout -- . && git clean -fd)
+// Then judge picks among passing candidates. Winner is re-applied to the
+// working tree before this function returns; downstream pipeline commits.
+async function runAutoresearchAction(plan, ctx) {
+  const { repoRoot, engine, tracer, parentSpan, model, slug, opts } = ctx;
+  const arSpan = tracer && typeof tracer.startSpan === 'function'
+    ? tracer.startSpan({
+      name: 'autoresearch.run',
+      kind: otelEmitter.KINDS.AGENT,
+      parent: parentSpan,
+      attributes: {
+        'gen_ai.operation.name': 'autoresearch',
+        'steward.action_kind': plan.action_kind,
+      },
+    })
+    : null;
+
+  // Build deps for autoresearch.runAutoresearch.
+  const deps = {
+    applyAction: async (planArg, applyOpts) => actionEngine.applyAction(planArg, {
+      repoRoot, engine, tracer, parentSpan: arSpan || parentSpan,
+      model,
+      personaOverlay: applyOpts && applyOpts.personaOverlay,
+      temperature: applyOpts && applyOpts.temperature,
+    }),
+    runSpec: async (planArg, applyResult) => {
+      try {
+        return specVerifier.runChecks(planArg, applyResult, { repoRoot });
+      } catch (err) {
+        return { ok: false, code: 'SPEC_MALFORMED', error: err && err.message };
+      }
+    },
+    runNpmTest: async () => verifier.runNpmTest({ repoRoot, timeoutMs: opts.verifyTimeoutMs }),
+    rollback: async () => {
+      // Discard candidate edits cleanly so the next candidate starts from
+      // pre-action working tree state. checkout -- . reverts modified
+      // tracked files; clean -fd removes untracked files + dirs.
+      try { gitOps.git(repoRoot, ['checkout', '--', '.']); } catch { /* best-effort */ }
+      try { gitOps.git(repoRoot, ['clean', '-fd']); } catch { /* best-effort */ }
+    },
+    judge: async ({ plan: judgePlan, candidates, judgeModel }) => {
+      // Build judge prompt + call OpenRouter via fetch.
+      //
+      // Sprint 2.1 R2 security BLOCKER #1 fix: validate judge model against
+      // the routing-table allowlist (vendor-prefix + slug regex) before any
+      // egress. Compromised env or operator typo can no longer pivot judge
+      // calls to arbitrary frontier models.
+      if (!routingTable.isAllowedJudgeModel(judgeModel)) {
+        return {
+          ok: false,
+          error: `judge model '${String(judgeModel).slice(0, 80)}' not in routing-table allowlist (must match vendor prefix + slug regex)`,
+          code: 'AUTORESEARCH_JUDGE_MODEL_REJECTED',
+          winnerIndex: null,
+        };
+      }
+      // Sprint 2.1 R2 security BLOCKER #2 fix: re-introduce Sprint 1.6.20 H1
+      // apiKey whitespace gate. Pre-fix: judge fetch path silently let
+      // undici strip the Authorization header on whitespace-poisoned keys,
+      // producing ambiguous 401s. Now: distinct OPENROUTER_KEY_MALFORMED.
+      const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+      if (!apiKey) {
+        return { ok: false, error: 'OPENROUTER_API_KEY missing for judge call', winnerIndex: null };
+      }
+      if (/[\s\x00-\x1f\x7f]/.test(apiKey)) {
+        return {
+          ok: false,
+          error: 'OPENROUTER_API_KEY contains whitespace or control characters (judge call); re-set via printf %s "$KEY" | gh secret set ...',
+          code: 'OPENROUTER_KEY_MALFORMED',
+          winnerIndex: null,
+        };
+      }
+      const fetchImpl = globalThis.fetch;
+      if (typeof fetchImpl !== 'function') {
+        return { ok: false, error: 'global fetch unavailable for judge call', winnerIndex: null };
+      }
+      const { systemPrompt, userPrompt } = autoresearch.buildJudgePrompt(judgePlan, candidates);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 60_000);
+      try {
+        // Use the SSOT endpoint constant from action-engine instead of the
+        // duplicated literal that ssot-enforcer flagged.
+        const resp = await fetchImpl(actionEngine.OPENROUTER_ENDPOINT, {
+          method: 'POST',
+          signal: ctrl.signal,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://github.com/Rejnyx/cortex-x',
+            'X-Title': 'cortex-x Steward (autoresearch judge)',
+          },
+          body: JSON.stringify({
+            model: judgeModel,
+            response_format: { type: 'json_object' },
+            max_tokens: 512,
+            temperature: 0.0, // judge is deterministic
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+        });
+        clearTimeout(timer);
+        if (!resp.ok) {
+          // Distinguish auth (401/403) from generic transport errors so
+          // operator gets the same diagnostic guidance as the openrouter engine.
+          if (resp.status === 401 || resp.status === 403) {
+            return { ok: false, error: `judge auth rejected HTTP ${resp.status}`, code: 'OPENROUTER_AUTH_REJECTED', winnerIndex: null };
+          }
+          return { ok: false, error: `judge HTTP ${resp.status}`, winnerIndex: null };
+        }
+        const data = await resp.json();
+        const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        let parsed = {};
+        let parseFailed = false;
+        try { parsed = JSON.parse(actionEngine.stripJsonFences(content || '{}')); }
+        catch { parseFailed = true; }
+        if (parseFailed || !Number.isInteger(parsed.winner_index)) {
+          return {
+            ok: false,
+            error: parseFailed ? 'judge returned malformed JSON' : 'judge response missing winner_index integer',
+            winnerIndex: null,
+          };
+        }
+        const cost = data && data.usage && Number(data.usage.cost);
+        return {
+          ok: true,
+          winnerIndex: Math.max(0, Math.min(parsed.winner_index, candidates.length - 1)),
+          rationale: typeof parsed.rationale === 'string' ? parsed.rationale.slice(0, 1000) : undefined,
+          cost_usd: Number.isFinite(cost) ? cost : 0,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        return { ok: false, error: err && err.message, winnerIndex: null };
+      }
+    },
+  };
+
+  const N = autoresearch.readN();
+  const arResult = await autoresearch.runAutoresearch(plan, deps, {
+    repoRoot,
+    N,
+    runUsdCap: autoresearch.readRunUsdCap(),
+    maxTimeMin: autoresearch.readMaxTimeMin(),
+    similarityThreshold: autoresearch.readSimilarityThreshold(),
+  });
+
+  if (arSpan) {
+    try {
+      arSpan.setAttribute('autoresearch.N', N);
+      arSpan.setAttribute('autoresearch.candidates_total', (arResult.candidates || []).length);
+      const passing = (arResult.candidates || []).filter((c) => c.ok).length;
+      arSpan.setAttribute('autoresearch.candidates_passing', passing);
+      if (arResult.collapse) arSpan.setAttribute('autoresearch.collapse_detected', !!arResult.collapse.collapsed);
+      if (arResult.judgeUsed !== undefined) arSpan.setAttribute('autoresearch.judge_used', !!arResult.judgeUsed);
+      if (arResult.delta && arResult.delta.anomaly) arSpan.setAttribute('autoresearch.delta_anomaly', true);
+      if (arResult.budget && typeof arResult.budget.spent_usd === 'number') {
+        arSpan.setAttribute('autoresearch.spent_usd', arResult.budget.spent_usd);
+      }
+      arSpan.setStatus(arResult.ok ? otelEmitter.OTEL_STATUS.OK : otelEmitter.OTEL_STATUS.ERROR, arResult.error);
+    } catch { /* best-effort */ }
+    try { arSpan.end(); } catch { /* idempotent */ }
+  }
+
+  // Per-candidate journal entries (R1 memo §5.2 + Q6 operator decision).
+  // Each candidate gets its own journal line so cortex-steward status can
+  // surface candidate-level cost + spec-pass breakdown when --detailed is set.
+  for (const cand of (arResult.candidates || [])) {
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T0',
+      event: 'autoresearch_candidate',
+      outcome: cand.ok ? 'success' : 'failure',
+      actor: 'steward',
+      action_kind: plan.action_kind,
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+      candidate_index: cand.index,
+      strategy_label: cand.strategy_label,
+      cost_usd: cand.cost_usd || 0,
+      tokens_in: cand.tokens_in || 0,
+      tokens_out: cand.tokens_out || 0,
+      spec_pass: !!cand.spec_pass,
+      npm_pass: !!cand.npm_pass,
+    });
+    // R2 acceptance MAJOR fix: lessons ALL-N (winners + rejected) per Q1.
+    // Pre-fix: only rejected candidates with spec_failures got a lesson —
+    // winners were dropped + rejected applyAction-failures (no spec_failures)
+    // also dropped. Sprint 3.0 AlphaEvolve corpus needs both classes.
+    if (cand.ok) {
+      // Winner lessons let AlphaEvolve learn what works.
+      safeRecordLesson(slug, {
+        ok: true,
+        code: `AUTORESEARCH_WINNER_CANDIDATE:${cand.strategy_label}`,
+        info: `strategy '${cand.strategy_label}' passed spec+npm with criteria_passed=${cand.spec_criteria_passed}/${cand.spec_criteria_total}`,
+      }, plan);
+    } else {
+      const reasonId = (cand.spec_failures && cand.spec_failures[0] && cand.spec_failures[0].id)
+        || cand.code
+        || (cand.spec_pass ? 'NPM_FAILED' : 'SPEC_FAILED');
+      safeRecordLesson(slug, {
+        ok: false,
+        code: `AUTORESEARCH_REJECTED:${reasonId}`,
+        error: `strategy '${cand.strategy_label}' rejected by ${reasonId}`,
+      }, plan);
+    }
+  }
+
+  if (!arResult.ok) {
+    return {
+      ok: false,
+      code: arResult.code || 'AUTORESEARCH_FAILED',
+      error: arResult.error,
+      autoresearch: {
+        candidates: (arResult.candidates || []).length,
+        passing: ((arResult.candidates || []).filter((c) => c.ok)).length,
+        collapse: !!(arResult.collapse && arResult.collapse.collapsed),
+        spent_usd: arResult.budget && arResult.budget.spent_usd,
+      },
+    };
+  }
+
+  // Re-apply winner edits so the working tree has them for the downstream
+  // commit pipeline. Reuse applyEditsToFilesystem directly (winner.edits
+  // already passed every gate; no need to re-call the LLM).
+  //
+  // R2 edge MAJOR fix: filter out edits with non-string path so a malformed
+  // winner.edits array (mock-engine quirk, partial response upstream) can't
+  // crash applyEditsToFilesystem with a confusing error. Skip + log count.
+  const winner = arResult.winner;
+  const sanitizedEdits = (winner.edits || [])
+    .filter((e) => e && typeof e.path === 'string' && e.path.length > 0)
+    .map((e) => ({
+      path: e.path,
+      content: typeof e.content === 'string' ? e.content : '',
+      replace_all: !!e.replace_all,
+    }));
+  const reapplyResult = sanitizedEdits.length > 0
+    ? actionEngine.applyEditsToFilesystem(sanitizedEdits, {
+      repoRoot,
+      summary: `autoresearch winner (${winner.strategy_label}) re-applied`,
+    })
+    : { ok: false, code: 'AUTORESEARCH_WINNER_NO_VALID_EDITS', error: 'winner has no edits with non-empty path after sanitization' };
+
+  // R2 edge MAJOR fix: write autoresearch_winner journal entry AFTER re-apply
+  // confirms ok. Pre-fix: journal claimed `outcome: success` even when re-apply
+  // failed. Now: outcome reflects actual ship state.
+  safeJournal(slug, {
+    ts: new Date().toISOString(),
+    trigger: plan.trigger || 'manual',
+    tier: reapplyResult.ok ? 'T0' : 'T2',
+    event: 'autoresearch_winner',
+    outcome: reapplyResult.ok ? 'success' : 'failure',
+    actor: 'steward',
+    action_kind: plan.action_kind,
+    action_key: plan.action.action_key,
+    action_id: plan.action_id,
+    strategy_label: winner.strategy_label,
+    // spec_margin = absolute criteria-passed count. Operator-approved
+    // approximation per R1 memo (true baseline=0 for narrow per-recommendation
+    // criteria); revisit when criteria become cross-action.
+    spec_margin: winner.spec_criteria_passed || 0,
+    winner_method: arResult.winner_method,
+    judge_used: !!arResult.judgeUsed,
+    delta_anomaly: !!(arResult.delta && arResult.delta.anomaly),
+    cost_usd: arResult.budget && arResult.budget.spent_usd,
+  });
+
+  // R2 acceptance MAJOR fix: tick the Sprint 1.9.1 cross-session loop detector
+  // at run-level (not candidate-level). R1 §6.5: 5× same criterion id in 7
+  // days for the same action_key → STEWARD_HALT. Without this, autoresearch
+  // runs that all fail on the same criterion never trip the safeguard.
+  // The loop detector runs read-only inside cost-safety.cjs; here we just
+  // ensure failures are journaled with action_key + spec_failures[0].id so
+  // the next pre-flight gate detects the pattern.
+  if (!reapplyResult.ok) {
+    // Failure shape — return to caller so downstream rolls back.
+    return {
+      ok: false,
+      code: reapplyResult.code || 'AUTORESEARCH_WINNER_REAPPLY_FAILED',
+      error: reapplyResult.error || 'failed to re-apply autoresearch winner edits',
+      autoresearch: {
+        N: (arResult.candidates || []).length,
+        passing: ((arResult.candidates || []).filter((c) => c.ok)).length,
+        winner_method: arResult.winner_method,
+        judge_used: !!arResult.judgeUsed,
+        spent_usd: arResult.budget && arResult.budget.spent_usd,
+      },
+    };
+  }
+
+  // Match the applyAction return shape so downstream is happy.
+  return {
+    ok: true,
+    touchedFiles: reapplyResult.touchedFiles || winner.touchedFiles,
+    edits: reapplyResult.edits || sanitizedEdits,
+    previousSizes: reapplyResult.previousSizes,
+    summary: reapplyResult.summary,
+    cost_usd: arResult.budget && arResult.budget.spent_usd,
+    tokens_in: winner.tokens_in,
+    tokens_out: winner.tokens_out,
+    engine: 'autoresearch',
+    autoresearch: {
+      N: (arResult.candidates || []).length,
+      passing: ((arResult.candidates || []).filter((c) => c.ok)).length,
+      winner_method: arResult.winner_method,
+      judge_used: !!arResult.judgeUsed,
+      judge_disagreement: arResult.judgeDisagreement || null,
+      judge_error: arResult.judgeError || null,
+      collapse_detected: !!(arResult.collapse && arResult.collapse.collapsed),
+      delta_anomaly: !!(arResult.delta && arResult.delta.anomaly),
+      delta: arResult.delta,
+      spent_usd: arResult.budget && arResult.budget.spent_usd,
+    },
+  };
+}
+
 // Sprint 2.0 — wraps the existing runExecute body so EVERY exit path
 // (including pre-flight rejections that return early) gets an AGENT span
 // in the trace. The inner function still does the actual work; this
@@ -1462,13 +1795,32 @@ async function _runExecuteInner(opts, ctx) {
       agentSpan.setAttribute('steward.routing.profile', routingResult.profile);
       agentSpan.setAttribute('steward.routing.source', routingResult.source);
       if (routingResult.model) agentSpan.setAttribute('steward.routing.model', routingResult.model);
-      applyResult = await actionEngine.applyAction(plan, {
-        repoRoot,
-        engine,
-        tracer,
-        parentSpan: agentSpan,
-        model: routingResult.model || undefined,
-      });
+
+      // Sprint 2.1 — autoresearch dispatch. When mode=autoresearch is active
+      // (CLI --mode flag or STEWARD_MODE env), run the N-strategy serial loop
+      // instead of single-shot. Eligibility comes from routingTable SSOT
+      // (R2 ssot-enforcer fix — pre-fix the equality `=== 'recommendation'`
+      // duplicated the kind set, same pattern flagged in Sprint 2.0b).
+      const mode = opts.mode || readEnv('MODE');
+      if (mode === 'autoresearch' && routingTable.isAutoresearchEligible(plan.action_kind)) {
+        applyResult = await runAutoresearchAction(plan, {
+          repoRoot,
+          engine,
+          tracer,
+          parentSpan: agentSpan,
+          model: routingResult.model || undefined,
+          slug,
+          opts,
+        });
+      } else {
+        applyResult = await actionEngine.applyAction(plan, {
+          repoRoot,
+          engine,
+          tracer,
+          parentSpan: agentSpan,
+          model: routingResult.model || undefined,
+        });
+      }
     }
 
     if (!applyResult.ok) {
@@ -1792,10 +2144,20 @@ async function _runExecuteInner(opts, ctx) {
         'steward.skip_push': !!skipPush,
       },
     });
+    // Sprint 2.1 R2 acceptance MAJOR fix: when autoresearch's both-orderings
+    // judge disagreed and we fell back to spec-margin, label the PR
+    // `judge-disagreement` so the operator can review with extra scrutiny
+    // (Q2 operator decision: don't block, but surface).
+    const prLabels = [];
+    if (applyResult && applyResult.autoresearch) {
+      if (applyResult.autoresearch.judge_disagreement) prLabels.push('judge-disagreement');
+      if (applyResult.autoresearch.delta_anomaly) prLabels.push('autoresearch-delta-anomaly');
+      if (applyResult.autoresearch.collapse_detected) prLabels.push('autoresearch-collapse');
+    }
     let prResult;
     try {
       prResult = await maybePushAndOpenPR({
-        repoRoot, plan, slug, skipPush,
+        repoRoot, plan, slug, skipPush, prLabels,
       });
       prSpan.setAttribute('pr.status', prResult.status || 'unknown');
       if (prResult.url) prSpan.setAttribute('pr.url', prResult.url);
@@ -1857,6 +2219,8 @@ module.exports = {
   runExecute,
   loadPlan,
   addCostFields,
+  // Sprint 2.1 — autoresearch dispatch helper exported for unit testing.
+  runAutoresearchAction,
   // Sprint 1.8.2c — harvester helpers exported for unit testing
   appendCandidatesToRecsBody,
   runHarvestAction,
@@ -1907,6 +2271,7 @@ if (require.main === module) {
     console.log('  --engine <name>        action engine: mock | openrouter | claude-sdk (default: openrouter)');
     console.log('  --routing-profile <p>  cheap | balanced | premium | ensemble (default: balanced)');
     console.log('  --model <slug>         one-shot model override (wins over profile table + envs)');
+    console.log('  --mode <name>          execution mode: single (default) | autoresearch (Sprint 2.1)');
     console.log('  --skip-verify          skip the npm test gate (DANGEROUS; tests only)');
     console.log('  --no-push              commit locally only — skip git push + draft PR (default: push if remote exists)');
     console.log('  --json                 machine-readable output');
@@ -1934,6 +2299,8 @@ if (require.main === module) {
   // Sprint 2.0b — routing flags.
   const routingProfile = flagValue('routing-profile');
   const modelOverride = flagValue('model');
+  // Sprint 2.1 — autoresearch mode flag.
+  const mode = flagValue('mode');
 
   // CLI is async because runExecute now awaits the action engine
   (async () => {
@@ -1945,6 +2312,7 @@ if (require.main === module) {
       skipVerify,
       routingProfile,
       model: modelOverride,
+      mode,
     });
     return result;
   })().then(handleResult).catch((err) => {

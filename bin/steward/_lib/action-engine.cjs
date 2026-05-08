@@ -526,6 +526,51 @@ async function openrouterEngine(plan, opts = {}) {
   }
 }
 
+// Sprint 2.1 — extracted into helper so autoresearch can reuse the same
+// envelope shape per candidate (different temperature + personaOverlay each
+// time). Keeps the JSON.stringify call concise + makes the message array
+// composable (system + persona overlay + user) without nesting ternaries.
+//
+// opts.temperature — optional float [0,2]. Clamped on the way through.
+// opts.personaOverlay — optional string appended as a second system message
+//   so the candidate's strategy persona ("minimize_edits", "exploratory",
+//   etc.) layers on top of STEWARD_SYSTEM_PROMPT without rewriting it.
+function buildOpenRouterRequestBody(plan, model, opts = {}) {
+  const messages = [{ role: 'system', content: STEWARD_SYSTEM_PROMPT }];
+  if (typeof opts.personaOverlay === 'string' && opts.personaOverlay.trim().length > 0) {
+    // Cap overlay at 2 KB — defense against operator-only persona injection
+    // ballooning into the system slot at autoresearch fan-out time.
+    const overlay = opts.personaOverlay.slice(0, 2048);
+    messages.push({ role: 'system', content: overlay });
+  }
+  messages.push({ role: 'user', content: buildUserPrompt(plan, opts) });
+
+  const body = {
+    model,
+    response_format: { type: 'json_object' },
+    // Sprint 1.6.20 (H10): clamp max_tokens to [1, 32768]. Default 4096.
+    // Compromised env that sets STEWARD_MAX_TOKENS=999999999 would otherwise
+    // generate megabytes-worth of LLM output (cost runaway + parse blowup).
+    max_tokens: Math.max(1, Math.min(
+      opts.maxTokens || parseInt(readEnv('MAX_TOKENS'), 10) || 4096,
+      32_768,
+    )),
+    messages,
+  };
+
+  // Sprint 2.1 — temperature override for autoresearch diversity. Clamped to
+  // [0, 2] (OpenAI / OpenRouter typical range); silently dropped when the
+  // operator's value is malformed (defaults to provider default ~0.7).
+  if (opts.temperature !== undefined) {
+    const t = Number(opts.temperature);
+    if (Number.isFinite(t) && t >= 0 && t <= 2) {
+      body.temperature = t;
+    }
+  }
+
+  return body;
+}
+
 async function _openrouterEngineInner(plan, opts = {}) {
   // Sprint 1.8.12 (b): trim trailing whitespace/newlines from secret. GitHub
   // Actions secrets set via `echo "key" | gh secret set` retain a trailing
@@ -587,21 +632,7 @@ async function _openrouterEngineInner(plan, opts = {}) {
         'HTTP-Referer': 'https://github.com/Rejnyx/cortex-x',
         'X-Title': 'cortex-x Steward',
       },
-      body: JSON.stringify({
-        model,
-        response_format: { type: 'json_object' },
-        // Sprint 1.6.20 (H10): clamp max_tokens to [1, 32768]. Default 4096.
-        // Compromised env that sets STEWARD_MAX_TOKENS=999999999 would otherwise
-        // generate megabytes-worth of LLM output (cost runaway + parse blowup).
-        max_tokens: Math.max(1, Math.min(
-          opts.maxTokens || parseInt(readEnv('MAX_TOKENS'), 10) || 4096,
-          32_768,
-        )),
-        messages: [
-          { role: 'system', content: STEWARD_SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(plan, opts) },
-        ],
-      }),
+      body: JSON.stringify(buildOpenRouterRequestBody(plan, model, opts)),
     });
   } catch (err) {
     clearTimeout(timer);
@@ -759,6 +790,9 @@ module.exports = {
   openrouterEngine,
   claudeSdkEngine,
   buildUserPrompt,
+  // Sprint 2.1 — autoresearch composes the request body for per-candidate
+  // temperature + personaOverlay. Exported for tests + reuse.
+  buildOpenRouterRequestBody,
   // Sprint 1.6.21 (T2): expose helpers for property tests
   stripJsonFences,
   extractUsage,

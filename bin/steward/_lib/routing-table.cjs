@@ -194,6 +194,31 @@ function isLLMKind(actionKind) {
   return Object.prototype.hasOwnProperty.call(ROUTING_TABLE, actionKind);
 }
 
+// Sprint 2.1 R2 ssot-enforcer MAJOR: the autoresearch dispatch in execute.cjs
+// previously hardcoded `plan.action_kind === 'recommendation'` — same SSOT
+// pattern flagged in Sprint 2.0b. The set of autoresearch-eligible kinds lives
+// here so adding (e.g.) `architecture_review` to autoresearch in 2.1.x is a
+// single-file change.
+const AUTORESEARCH_ELIGIBLE_KINDS = new Set(['recommendation']);
+
+function isAutoresearchEligible(actionKind) {
+  return AUTORESEARCH_ELIGIBLE_KINDS.has(actionKind);
+}
+
+// Sprint 2.1 R2 security BLOCKER: judge model (STEWARD_AUTORESEARCH_JUDGE_MODEL)
+// previously bypassed Sprint 2.0b routing-policy allowlist — operator-controllable
+// env could pin judge to any frontier model and burn through caps. Validator below
+// matches the same regex used elsewhere (clampSlug) AND requires a known vendor
+// prefix to defend against operator typos pivoting egress.
+const ALLOWED_JUDGE_VENDOR_PREFIXES = ['anthropic/', 'openai/', 'deepseek/', 'google/', 'qwen/', 'mistralai/', 'meta-llama/', 'x-ai/', 'zai/', 'moonshotai/'];
+const JUDGE_SLUG_REGEX = /^[a-zA-Z0-9._:/-]{1,128}$/;
+
+function isAllowedJudgeModel(slug) {
+  if (typeof slug !== 'string') return false;
+  if (!JUDGE_SLUG_REGEX.test(slug)) return false;
+  return ALLOWED_JUDGE_VENDOR_PREFIXES.some((p) => slug.startsWith(p));
+}
+
 // Pure-function model lookup.
 //
 // Inputs:
@@ -380,12 +405,16 @@ module.exports = {
   ROUTING_SOURCES,
   ROUTING_TABLE,
   PROFILE_ALLOWLIST,
+  AUTORESEARCH_ELIGIBLE_KINDS,
+  ALLOWED_JUDGE_VENDOR_PREFIXES,
   listProfiles,
   isValidProfile,
   getDefaultProfile,
   isProfileAllowed,
   readKindOverride,
   isLLMKind,
+  isAutoresearchEligible,
+  isAllowedJudgeModel,
   selectModel,
   snapshotTable,
 };

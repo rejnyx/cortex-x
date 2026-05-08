@@ -1,0 +1,117 @@
+# steward-autoresearch.example.yml — Sprint 2.1 weekly autoresearch overnight
+# burst (example/opt-in workflow).
+#
+# Renames to steward-autoresearch.yml when operator opts in. Coexists with the
+# nightly steward.yml cron (which stays single-shot). The Sunday 02:00 UTC slot
+# is the lowest-traffic GHA window per cost research; autoresearch typically
+# completes in ~5 minutes for 3 candidates × 1 LLM call + spec-verifier + npm
+# test + judge call (~$0.022/run, headroom 80× under the $1/run cap).
+#
+# Per Sprint 2.1 R1 memo § 6.2 cron schedule decision: weekly Sunday 02:00 UTC,
+# nightly cron continues independently. The dedup mechanism (journal skip
+# already-processed action_key) handles the rare collision where Sunday's
+# autoresearch run picks the same recommendation that nightly already shipped.
+#
+# Required secrets (same as steward.yml):
+#   OPENROUTER_API_KEY — INFERENCE key
+#
+# New env knobs (Sprint 2.1):
+#   STEWARD_AUTORESEARCH_N=3                        — number of candidate strategies
+#   STEWARD_AUTORESEARCH_RUN_USD_CAP=1.00           — per-run cost cap
+#   STEWARD_AUTORESEARCH_MAX_TIME_MIN=60            — per-run wall-clock cap (max 300)
+#   STEWARD_AUTORESEARCH_JUDGE_MODEL=anthropic/claude-sonnet-4.6  — cross-family judge
+#   STEWARD_AUTORESEARCH_SIMILARITY_THRESHOLD=0.85  — Jaccard collapse threshold
+#   STEWARD_AUTORESEARCH_DELTA_ANOMALY_MULTIPLIER=3.0  — soft-flag threshold
+#
+# See docs/research/sprint-2.1-autoresearch-overnight-burst-2026-05-08.md
+# for the design memo + risk analysis.
+
+name: steward autoresearch (weekly Sunday)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'     # Sunday 02:00 UTC. R1 memo §6.2 — lowest-traffic window.
+
+concurrency:
+  group: steward-autoresearch-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-autoresearch:
+    name: steward autoresearch (Sunday)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90        # 60min cap per run + buffer for setup/upload
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Verify pre-Steward gates (npm test green)
+        run: npm test
+
+      - name: Configure git identity (Steward commits)
+        run: |
+          git config user.name  "Steward (cortex-x autoresearch)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --json > /tmp/steward-plan.json
+          cat /tmp/steward-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+
+      - name: Steward execute --mode=autoresearch (N=3 candidates, judge selects)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-plan.json \
+            --mode=autoresearch
+        env:
+          OPENROUTER_API_KEY:                            ${{ secrets.OPENROUTER_API_KEY }}
+          STEWARD_MODEL:                                 deepseek/deepseek-v4-flash
+          STEWARD_MAX_TOKENS:                            '16384'
+          STEWARD_DAILY_USD_CAP:                         '5'
+          STEWARD_FAILURE_BREAKER:                       '3'
+          # Sprint 2.1 autoresearch knobs.
+          STEWARD_AUTORESEARCH_N:                        '3'
+          STEWARD_AUTORESEARCH_RUN_USD_CAP:              '1.00'
+          STEWARD_AUTORESEARCH_MAX_TIME_MIN:             '60'
+          STEWARD_AUTORESEARCH_JUDGE_MODEL:              anthropic/claude-sonnet-4.6
+          STEWARD_AUTORESEARCH_SIMILARITY_THRESHOLD:     '0.85'
+          STEWARD_AUTORESEARCH_DELTA_ANOMALY_MULTIPLIER: '3.0'
+          CORTEX_DATA_HOME:                              ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                                      ${{ github.token }}
+
+      - name: Upload journal artifact (with autoresearch_candidate + autoresearch_winner entries)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-autoresearch-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
