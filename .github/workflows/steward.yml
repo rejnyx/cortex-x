@@ -107,10 +107,13 @@ jobs:
           # Regression test: tests/contract/default-model-ssot.test.cjs
           STEWARD_MODEL:           deepseek/deepseek-v4-flash
           STEWARD_MAX_TOKENS:      '16384'
-          STEWARD_DAILY_USD_CAP:   '5'
-          STEWARD_FAILURE_BREAKER: '3'
-          CORTEX_DATA_HOME:        ${{ github.workspace }}/.cortex-data
-          GH_TOKEN:                ${{ github.token }}   # for `gh pr create --draft` inside execute
+          STEWARD_DAILY_USD_CAP:      '5'
+          STEWARD_WEEKLY_USD_CAP:     '25'    # Sprint 1.9.1 multi-window cost safety
+          STEWARD_MONTHLY_USD_CAP:    '80'    # Sprint 1.9.1
+          STEWARD_TOKEN_VELOCITY_CAP: '50000' # Sprint 1.9.1: 50K tokens / 5min spike detector
+          STEWARD_FAILURE_BREAKER:    '3'
+          CORTEX_DATA_HOME:           ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                   ${{ github.token }}   # for `gh pr create --draft` inside execute
 
       - name: Upload journal artifact
         if: always()
