@@ -2,7 +2,7 @@
 title: Steward / cortex-x roadmap — v0.8 → v1.0 → enterprise-adjacent
 status: living document — updated as sprints land
 created: 2026-05-09
-last_review: 2026-05-09
+last_review: 2026-05-08 (5-agent research dispatch + Tier 1 expansion: 2.0.1 + 2.4-2.8)
 scope: Single source of truth for the post-Sprint-1.8.13 trajectory. Captures all directions surfaced in the 2026-05-08 SOTA brainstorm + the 4-repo inspection (NousResearch hermes-agent, agent0ai/agent-zero, browser-use/browser-harness) + Karpathy autoresearch. Every sprint here is a hypothesis to refine, not a commitment to ship as-written.
 based_on:
   - Brainstorm research dispatch 2026-05-08 (SOTA autonomous agent techniques)
@@ -78,7 +78,9 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector (S effort, ⭐ PRE-2.x POJISTKA)
+### Sprint 1.9.1 — Multi-window cost safety + cross-session loop detector ✅ SHIPPED 2026-05-09
+
+**Status**: ✅ Shipped 2026-05-09. `bin/steward/_lib/cost-safety.cjs` adds `STEWARD_WEEKLY_USD_CAP` ($25 default), `STEWARD_MONTHLY_USD_CAP` ($80), `STEWARD_TOKEN_VELOCITY_CAP` (50K/5min), cross-session loop detector (5x same criterion id in 7 days → write `STEWARD_HALT`), `cortex-steward status --forecast` flag. 4 new error codes. Operator-suggested gap analysis after 2026-05-09 audit ("daily $5 × 30 = $150/month would have passed without alarm").
 
 **Why before Sprint 2.x**: today we have `STEWARD_DAILY_USD_CAP` $5/day + `STEWARD_FAILURE_BREAKER` 3 fails/1h per-action_key. Mid-week burst (Sprint 2.1 autoresearch overnight) or month-long slow drift (Sprint 2.0 Langfuse instrumentation that hits provider's hot path every action) can quietly accumulate $150/month before any single day trips the daily cap. Real-incident anchor: April 2026 dev's $437 retry-loop bill. Lower-effort sprint with high blast-radius reduction; ship before unleashing autoresearch.
 
@@ -116,7 +118,9 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.0 — Observability-as-a-service (S effort, easy win)
+### Sprint 2.0 — Observability-as-a-service ✅ SHIPPED 2026-05-08 (commit `aadeef4`)
+
+**Status**: ✅ Shipped 2026-05-08. Phoenix self-hosted single-container observability + zero-deps OTLP/JSON emitter (~530 LoC). 12 must-fix items from 6-agent R2 review applied pre-commit. **Followup Sprint 2.0.1 below addresses Phoenix protobuf-only constraint discovered in manual dogfood.**
 
 **REFINED 2026-05-08 (Sprint 2.0 R1 memo)** — see [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./research/sprint-2.0-langfuse-observability-2026-05-08.md). Original plan was Langfuse self-hosted; **research flipped this to Phoenix (Arize)** as the default, Langfuse parked as a documented opt-in upgrade for Tier 3. Five findings drove the flip:
 
@@ -142,6 +146,16 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 - Journal still writes (SSOT preserved).
 
 **Stolen from**: Phoenix (Arize) self-hosted reference deployment + OpenInference semantic-conventions spec + OTel `gen_ai.*` semconv. Langfuse path documented as Tier 3 upgrade for prompt-evolution sprints.
+
+---
+
+### Sprint 2.0.1 — OTLP protobuf encoder for Phoenix compatibility ✅ SHIPPED 2026-05-08 (commit `2981ea7`)
+
+**Status**: ✅ Shipped 2026-05-08. Manual end-to-end dogfood revealed Phoenix 15.5.1 returns HTTP 415 on `Content-Type: application/json` even though OTLP HTTP spec permits both encodings. Zero-deps OTLP protobuf encoder (~370 LoC, `bin/steward/_lib/otel-protobuf.cjs`) replaces Sprint 2.0's JSON path. R2 review pipeline (2 focused agents) found 2 BLOCKER (negative BigInt zero-coerce, hex traceId/spanId truncation) + 8 MAJOR (type-tag corruption on negative Number, Number-above-2^53 precision loss, etc.) — all fixed pre-commit. Trace `aa105a439194024f65a0531befd82c53` validated end-to-end in live Phoenix UI with full AGENT→TOOL hierarchy + Sprint 2.0b routing tags. Tests 1095 → 1134.
+
+**Lesson for future cortex-x sprints (added to ritual §7 as 13th step)**: **Spec-permissive ≠ receiver-permissive.** When a spec allows N encodings and we ship 1, manual integration smoke is the only thing that catches "real receiver only accepts the OTHER N-1." Unit tests with mocked transport will always pass. Every cortex-x sprint with new transport/wire format must include a manual end-to-end smoke gate against the real production receiver before declaring done.
+
+**Out of scope (deferred to Sprint 2.0.2)**: protobufjs round-trip property test for mutation-survival on `encodeVarint` loop. Would add devDependency. Current hand-computed byte vectors + real-Phoenix integration smoke provide floor coverage.
 
 ---
 
@@ -231,6 +245,201 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 - "Stryker for JS in 2026 + Property-Generated Solver (arXiv 2506.18315) + Meta FSE 2026 mutation-guided LLM test gen. Performance budget for incremental mutation testing."
 
 **Stolen from**: Stryker Mutator + Meta FSE 2026 paper.
+
+---
+
+### Sprint 2.4 — Anthropic `claude-cli` engine via Max subscription (S effort, ⭐ COST PIVOT)
+
+**Why**: research dispatch 2026-05-08 (R3 — see [`docs/research/sprint-2.4-anthropic-max-routing-2026-05-08.md`](./research/sprint-2.4-anthropic-max-routing-2026-05-08.md) when written) confirmed that Anthropic Max x20 subscription is **programmatically reachable via `claude -p` non-interactive CLI** with `CLAUDE_CODE_OAUTH_TOKEN` set + `ANTHROPIC_API_KEY` unset. ToS explicitly permits this for personal autonomous agents on operator's own repos (Green Tier per claudefa.st safe-use guide). Anthropic April 2026 OpenClaw crackdown was specifically token-extraction in third-party harnesses — not legitimate `claude` subprocess invocation.
+
+**Strategic impact**: this is the **cost-economy pivot** of Tier 1. Today Steward calls OpenRouter at ~$0.0008/run avg ($0.024/month full cadence). After 2.4, the LLM-driven action_kinds (`recommendation` + autoresearch judge + future `pattern_transfer`) become **zero marginal cost** under the operator's existing Max sub. OpenRouter stays as overflow only (when Max weekly cap exhausted or `claude -p` returns auth error). Hardware decision (lokální 30k CZK box) deferred until this is validated and remaining spend is measured.
+
+**Scope**:
+- New engine file `bin/steward/_lib/engine-claude-cli.cjs` (~80 LoC, zero new deps) — spawns `claude -p "<prompt>" --output-format json`, parses stdout JSON, returns same shape as `engine-openrouter.cjs`.
+- **Cost guard (critical)**: assert `result.total_cost_usd === 0` after each invocation. Nonzero means OAuth degraded silently to API mode (issue #43333, #37686 — $1,800 incident); halt with new error code `CLAUDE_CLI_BILLING_LEAK` + write `STEWARD_HALT`.
+- Engine seam wiring in `bin/steward/_lib/action-engine.cjs` — `STEWARD_ENGINE=claude-cli` env or `--engine claude-cli` CLI flag selects this path; existing `mock`/`openrouter` paths unchanged (R6 backward-compat).
+- Routing-table integration: `cheap`/`balanced`/`premium`/`ensemble` profiles get a parallel `_via_max` variant that prefers `claude-cli` when `CLAUDE_CODE_OAUTH_TOKEN` is set, falls back to `openrouter` engine on auth/cap-reached errors.
+- `STEWARD_CLAUDE_CLI_PATH` env (default: resolve `claude` from PATH) for portable testing.
+- Subprocess hardening: `child_process.spawn` (not `exec`), 120s timeout (configurable via `STEWARD_CLAUDE_CLI_TIMEOUT_MS`), explicit env scrubbing (delete `ANTHROPIC_API_KEY` from spawned env to prevent the leak class), kill on parent process exit.
+
+**New error codes**:
+- `CLAUDE_CLI_NOT_FOUND` (PATH lookup or env var path miss)
+- `CLAUDE_CLI_AUTH_REJECTED` (401/403 from Anthropic — Max cap exhausted or OAuth expired)
+- `CLAUDE_CLI_BILLING_LEAK` (`total_cost_usd > 0` post-invocation; halts via STEWARD_HALT)
+- `CLAUDE_CLI_OUTPUT_MALFORMED` (JSON parse fail)
+- `CLAUDE_CLI_TIMEOUT`
+
+**Acceptance criteria**:
+- [ ] `STEWARD_ENGINE=claude-cli node bin/cortex-steward.cjs execute` completes a `recommendation` action end-to-end with `total_cost_usd: 0` recorded in journal.
+- [ ] When `CLAUDE_CODE_OAUTH_TOKEN` unset → engine returns `CLAUDE_CLI_AUTH_REJECTED` cleanly without crash.
+- [ ] When subprocess returns nonzero `total_cost_usd` → halt with `CLAUDE_CLI_BILLING_LEAK` + `STEWARD_HALT` written.
+- [ ] OpenRouter engine path unchanged (regression test).
+- [ ] ≥ 12 new tests; full suite stays green.
+
+**Pre-implementation research dispatch (R1)**:
+- "Anthropic Claude Code CLI `-p` non-interactive headless mode 2026-Q3 status. Max subscription billing-tier behaviors confirmed via official docs + operator dogfood. Concurrent `claude -p` invocations from same OAuth token — rate limit + concurrency expectations. Validate `total_cost_usd === 0` reliability across recent versions."
+
+**Out of scope**: Claude Agent SDK migration (still API-key only per GH issue #559), Claude Code Routines cloud cron (Sprint 5.0 evaluates), browser-based Anthropic SDK (premature). Telegram/Discord forwarding moved to Sprint 2.6.
+
+**Stolen from**: claudefa.st safe-use guide + claude-ollama-dual repo (smart-orchestrator pattern) + Anthropic headless docs + cortex-x's existing engine seam (Sprint 1.6.13).
+
+---
+
+### Sprint 2.5 — `tech_debt_audit` action_kind (M effort, deterministic)
+
+**Why**: research dispatch 2026-05-08 (R5) flagged "nightly janitor" as high-payoff deterministic kind. Compounds with autoresearch (Sprint 2.1) — every overnight run optionally surfaces tech-debt drift before agent productivity work begins. Zero LLM cost (pure heuristics + qlty CLI), so it can run on every cron tick.
+
+**Scope**:
+- New action_kind `tech_debt_audit` in `bin/steward/_lib/action-kinds.cjs` (10th kind, deterministic). Acceptance criteria: snapshot file produced, no false halt, drift below threshold = no PR opened.
+- Tool: **qlty** (Rust CLI, Apache + BSL/DOSP, free for commercial) installed once via `qlty init` → `.qlty/qlty.toml`. Polyglot, 70+ analyzers, `qlty metrics` subcommand for code-health rollup.
+- Heuristics aggregated nightly:
+  - File LoC growth rate (>20% w/w on a single file = flag)
+  - Cyclomatic complexity drift (qlty metrics, threshold 10)
+  - Duplication % trend (qlty CPD)
+  - Test:source ratio drop
+  - Dead-code count (`ts-prune` / `knip` for TS, language-specific equivalents)
+- Snapshot stored at `.cortex/debt-snapshot.json`, diffed against prior week.
+- Drift threshold (default: 10% degradation in any single metric) → opens advisory PR with the diff. Below threshold → silent journal entry only.
+- Halt criterion: never. This kind is read + report; no edits. PR is review-only for operator.
+
+**New error codes**:
+- `TECH_DEBT_QLTY_MISSING` (qlty not installed)
+- `TECH_DEBT_SNAPSHOT_CORRUPT` (prior snapshot unreadable; silently regenerates baseline)
+- `TECH_DEBT_THRESHOLD_EXCEEDED` (advisory, not blocking)
+
+**Acceptance criteria**:
+- [ ] First nightly run produces `.cortex/debt-snapshot.json` baseline.
+- [ ] Second run produces a diff. If above threshold → draft advisory PR opened.
+- [ ] Zero LLM cost recorded in journal (no engine call).
+- [ ] ≥ 10 new tests + 1 fixture-based integration test (synthetic snapshot pair).
+- [ ] Fail-open: missing qlty installer → kind skipped with single warn line, doesn't halt cron.
+
+**Pre-implementation research dispatch (R1)**:
+- "qlty vs CodeScene CLI vs SonarQube CLI 2026-Q3 maturity. Heuristic vs ML tech-debt detection state-of-art. Best practices for snapshot drift detection (sliding window vs week-over-week vs since-last-release)."
+
+**Out of scope**: AI-generated remediation suggestions (Sprint 3.0 prompt evolution can build on the snapshot data later), per-file ownership routing (no team in single-operator scope), license-compliance audits (`qlty` doesn't cover; separate kind if needed).
+
+**Stolen from**: qlty CLI + ksimback `tech-debt-skill` for Claude Code + general "tech debt as deterministic linter" pattern.
+
+---
+
+### Sprint 2.6 — Discord remote control (S/M effort, mobile UX)
+
+**Why**: research dispatch 2026-05-08 (R5) compared Telegram vs Discord vs Slack vs email for single-operator mobile control. **Discord wins on channel organization** (`#alerts` / `#research` / `#failures` / `#cost`) which is the right shape as cortex-x adds more capabilities. Telegram has higher 4K char limit but no native channel structure for one operator — turns into a single chat scroll fast. Email is YAGNI (Mailgun free 1-route only solves async batch ingest, not interactive control). Slack is B2B-shaped — wrong tool. **Operator confirmed Discord 2026-05-08 conversation.**
+
+**Scope**:
+- New module `bin/steward/_lib/remote-discord.cjs` (~150 LoC) using **discord.js** (most mature 2026 library, used by majority of agent integrations).
+- 4-channel default layout: `#steward-alerts` (cron failures, halt events), `#steward-research` (autoresearch winner summaries), `#steward-failures` (spec_failures rollup), `#steward-cost` (daily/weekly/monthly cap status).
+- Long-polling (no webhook) — operator runs from home network, no inbound TLS surface.
+- 4-layer security per R5:
+  1. Whitelist `from.id` middleware via env `STEWARD_DISCORD_ALLOWED_USER_IDS=<comma-list>`.
+  2. HMAC-signed action confirmations for destructive ops (push, deploy) — operator replies with token derived from `action_id + STEWARD_DISCORD_SECRET`.
+  3. Bot token rotation reminder (calendar entry, 90-day cadence).
+  4. Read-only commands by default; mutating commands explicit `/!` prefix.
+- Slash commands (mobile-friendly):
+  - `/status` — `cortex-steward status --json` summary
+  - `/forecast` — Sprint 1.9.1 cap forecast block
+  - `/halt <reason>` — write `STEWARD_HALT` (HMAC-confirmed)
+  - `/resume` — clear halt (HMAC-confirmed)
+  - `/recommend <text>` — append voice/text recommendation to `recommendations.md` via authorized commit (Sprint 4.3 unblock)
+  - `/why <commit-sha>` — Steward's commit trailer + journal entry rendered to Discord embed
+
+**Acceptance criteria**:
+- [ ] Bot connects to single Discord guild, registers 6 slash commands.
+- [ ] Whitelist rejects non-allowed user_id silently (logs + drops; no acknowledgment to attacker).
+- [ ] HMAC token mechanism prevents replay across 90s window.
+- [ ] All 6 commands work from Discord mobile app.
+- [ ] Bot crash-recovery: `systemd` (Linux dev box) / launchd (macOS) keeps it running; long-polling reconnects on network blip.
+- [ ] ≥ 15 new tests + 1 e2e fixture-bot test.
+
+**Pre-implementation research dispatch (R1)**:
+- "discord.js v14 + slash command + HMAC pattern 2026-Q3. Discord rate limits for personal-bot use. Long-polling vs gateway intent caveats. Persistent process supervision options (systemd vs pm2 vs launchd) for single-operator use."
+
+**Out of scope (Tier 2/3 follow-ups)**: voice-message → Whisper → recommendation pipeline (Sprint 4.3 dedicated), Telegram parallel surface (deferred unless Discord painful), web-based dashboard (Sprint 4.8 covers).
+
+**Stolen from**: discord.js docs + grammy-guard whitelist pattern (adapted) + Telegram bot 4-layer security best-practices (carried over from 2026 ZeroClaw guide).
+
+---
+
+### Sprint 2.7 — Cross-project `pattern_transfer` action_kind (M effort, ⭐ FEDERATION SEED)
+
+**Why**: research dispatch 2026-05-08 (R5) confirmed cross-project pattern transfer is a **known 2026 pattern** (repowise, meta-repo pattern, Karpathy LLM-wiki). Operator-pitched: cortex-x reads from `c:\Users\david\Desktop\APPs\amd-hackathon-2026`, `back-office-bot`, `kiosek-main`, `portfolio` for pattern inspiration without write access. **R5 strong recommendation: don't build full repowise; build narrow allowlist + read-only + new LLM action_kind.**
+
+**Scope**:
+- New config `cortex/sibling-projects.yaml` — explicit allowlist with per-repo `read_only: true`, `purpose: pattern-transfer`, `paths_allowed: [src/, docs/]`, `paths_denied: [.env*, secrets/, node_modules/]`.
+- New helper `bin/steward/_lib/sibling-read.cjs` — wraps existing `clampPath` + `realpath` containment, refuses writes, refuses symlink-following outside allowlist. Defense in depth: invokes `node --permission --allow-fs-read=<each allowed root>` for the LLM call (built-in stable since Node v22.13.0 / v24.0.0).
+- New action_kind `pattern_transfer` (LLM, premium tier — needs deep code understanding): reads sibling project, writes recommendation into *current* project's `lessons-learned.jsonl`. **Never edits sibling.**
+- Acceptance criteria for the kind: output entry has `source_repo` field with absolute path; no `applyEdits` call paths to non-current-repo locations; spec-verifier rejects if any edit would land outside `process.cwd()`.
+- Hardening per CVE-2025-55130 (Node.js fs permission symlink bypass): every read goes through `realpath`-then-validate, never raw path.
+- Initial allowlist seed (operator-confirmed 2026-05-08): `amd-hackathon-2026`, `back-office-bot`, `kiosek-main`, `portfolio`.
+
+**New error codes**:
+- `SIBLING_NOT_ALLOWLISTED` (path outside `sibling-projects.yaml` roots)
+- `SIBLING_REALPATH_OUTSIDE_ROOT` (symlink escape attempt)
+- `SIBLING_WRITE_ATTEMPTED` (LLM tried to edit sibling — halt + STEWARD_HALT)
+- `SIBLING_DENIED_PATH` (matched `paths_denied` pattern)
+
+**Acceptance criteria**:
+- [ ] `cortex/sibling-projects.yaml` validates against contract test schema.
+- [ ] Read-helper refuses writes (test: open `O_RDWR` to sibling file → throws `SIBLING_WRITE_ATTEMPTED`).
+- [ ] Realpath escape test: symlink in sibling pointing to operator home → blocked by `SIBLING_REALPATH_OUTSIDE_ROOT`.
+- [ ] First `pattern_transfer` run produces a recommendation in current project's `lessons-learned.jsonl` with `source_repo: "<sibling-path>"`.
+- [ ] When `--engine claude-cli` (Sprint 2.4) selected, this kind runs zero-cost under Max sub.
+- [ ] ≥ 18 new tests including fixture-based sibling-tree integration.
+
+**Pre-implementation research dispatch (R1)**:
+- "Node.js fs permission model `--allow-fs-read` 2026-Q3 stability + CVE remediation status. repowise / meta-repo patterns 2026-Q3 evolution. Cross-repo agent context safety patterns from Anthropic + Cursor + Cline ecosystems."
+
+**Out of scope (Tier 2/3 follow-ups)**: full federated lesson sync (Sprint 4.5), GraphRAG over allowlist roots (Sprint 3.3), cross-repo refactoring with edits (deliberately forever-out — defeats SSOT containment).
+
+**Stolen from**: repowise multi-repo MCP pattern + meta-repo pattern (seylox blog) + Karpathy LLM-wiki + cortex-x's existing `clampPath` (Sprint 1.6.18).
+
+---
+
+### Sprint 2.8 — Memory Foundation: Anthropic Memory Tool + ReasoningBank failures + decay (M effort, ⭐ MEMORY GATE)
+
+**Why before Tier 2**: Tier 2's Sprint 3.0 (AlphaEvolve prompt evolution) needs a *reliable* memory + lessons substrate to evolve against. Research dispatch 2026-05-08 (R1 + R4 converged independently): three changes give **+39% (Anthropic memory tool) + +34% (ReasoningBank failures) + +10% (importance-weighted decay)** with **zero new runtime deps**. Doing AlphaEvolve before this = evolving against rotting markdown.
+
+**Scope** (3 stacked upgrades):
+
+1. **Migrate to Anthropic native `memory_20250818` tool**:
+   - Map existing `~/.claude/projects/.../memory/` directory to memory tool's filesystem API (file-based, client-side, fully cortex-x-controlled).
+   - Steward's existing markdown layout becomes the memory tool's working dir — no new schema, no migration.
+   - `bin/steward/_lib/memory-tool.cjs` (~120 LoC) — thin wrapper exposing `read/write/delete/list` to action-engine, hooked into Claude API requests via `tools: [{ type: "memory_20250818" }]`.
+   - Free +29-39% per Anthropic internal evals when combined with context-editing tool (`tool_clear_at_least` 1024 tokens default).
+   - Backward-compat: works with or without memory tool; `STEWARD_MEMORY_TOOL=off` disables and falls back to current "stuff lessons into system prompt" path.
+
+2. **Extend ReasoningBank-lite (Sprint 1.8.3) → ingest failures**:
+   - Currently captures successful trajectories only. Paper (arXiv 2509.25140) shows **+34% effectiveness, –16% steps** when failures are distilled with same fidelity as successes.
+   - New journal-side hook in `bin/steward/_lib/lessons.cjs`: on `spec_failures.length > 0` OR `execute.cjs` error code → distill into title + one-line description + actionable principle (LLM call, ~$0.0002/op, batched at end of nightly run).
+   - Preserve provenance: `failure_origin: "spec_failures[N].id" | "error_code:<code>"` field for future analysis.
+   - Retrieval-at-decision-time (paper's MaTTS pattern): action-engine queries lessons WHERE `applies_to.includes(actionKind)` BEFORE generating prompt, not just at boot.
+
+3. **Importance-weighted memory decay** (replaces 2026-07-17 audit's "3 months unused → delete" rule):
+   - Score: `U(item, t) = (w_freq × frequency + w_impact × impact) × e^(−λ × age)`. Frequency = retrieval count; impact = `0.0` for advisory, `0.5` for warning, `1.0` for blocker; λ tuned for ~30-day half-life on advisory entries, ~120-day on blockers.
+   - Nightly cron tick: scores all entries, archives bottom 5% to `cortex/memory-archive/<year>-<week>/` (recoverable), deletes only after 12 weeks in archive.
+   - Per Mem0's State-of-AI-Agent-Memory 2026 warning: append-only memory rots. Decay is non-optional before more tiers.
+
+**New error codes**:
+- `MEMORY_TOOL_INIT_FAILED` (memory dir unwritable)
+- `LESSON_DISTILL_FAILED` (LLM call for failure-distillation timed out — fail-open, store raw failure + retry next run)
+- `MEMORY_DECAY_LOCK_HELD` (concurrent decay run; skip and log)
+
+**Acceptance criteria**:
+- [ ] `STEWARD_MEMORY_TOOL=on` → first action with memory tool produces same outcome as without; journal records `memory_tool_used: true`.
+- [ ] `spec_failures` from a forced action produce a distilled lesson within 60s of journal flush.
+- [ ] Lessons retrieved per `actionKind` in next run's system prompt (test: assert lesson text appears in API request body).
+- [ ] After 30 simulated daily ticks, decay correctly archives lowest-scoring 5% of advisory lessons and zero blocker lessons.
+- [ ] Decay archive is recoverable (fixture-based test: archived file in week N → restored manually → next nightly tick respects restoration).
+- [ ] Tier 1 backward-compat: `STEWARD_MEMORY_TOOL=off` (default) preserves all existing behavior. Zero regressions.
+- [ ] ≥ 25 new tests (10 memory-tool + 8 failure-distill + 7 decay).
+
+**Pre-implementation research dispatch (R1)**:
+- "Anthropic memory_20250818 + context-editing tool API 2026-Q3 production-readiness. ReasoningBank failure-distillation prompt patterns + retrieval-at-decision-time integration 2026-Q3. Importance-weighted memory decay parameters + Mem0/A-MEM/Letta production tradeoffs as of 2026-Q3."
+
+**Out of scope (Sprint 3.x territory)**: vector DB (sqlite-vec triggered at ~100 memory files), knowledge graph (Tier 4), per-agent personal memory (R1 said no at <12 specialists), memory exchange between agents (premature; pull-based shared kb is right primitive).
+
+**Stolen from**: Anthropic Memory Tool docs (Sept 2025 release) + Anthropic context-editing docs + ReasoningBank paper (arXiv 2509.25140) + Google ReasoningBank blog + Mem0 State-of-AI-Agent-Memory 2026 + cortex-x's existing Sprint 1.8.3 lessons machinery.
 
 ---
 
@@ -399,9 +608,11 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 4.7 — Rebrand "Steward" → **Steward** (S-M effort, ⭐ PRE-PUBLIC-TAG MUST)
+### Sprint 4.7 — Rebrand Hermes → **Steward** ✅ SHIPPED 2026-05-08 (commit `8064b34` + v0.2.0 hardening `6477eab`)
 
-**Status**: 🔴 PROMOTED 2026-05-09 from "deferred decision" to **PRE-PUBLIC-TAG MUST**. Web research confirmed NousResearch/hermes-agent: **139k stars, MIT, Feb 2026, active domains `hermes-agent.nousresearch.com/.org/.ai`, $5 VPS deploy, 5 backends, DSPy + GEPA self-evolution loop**. The collision is unrecoverable — top-tier dominant production project + dedicated `.com/.org/.ai` namespace = cortex-x cannot win SEO, community awareness, or any tag-search query for "hermes agent." Operator approved 2026-05-09: rebrand to **Steward**.
+**Status**: ✅ Shipped 2026-05-08. Initial rename in `8064b34` kept 1-week backward-compat shims; same-day operator-pivot to clean break shipped in `6477eab` (v0.2.0 platform hardening — deleted 10 hermes-prefix shim files + stripped runtime backward-compat). 953→973 tests after migration. All 3 CI lanes green.
+
+**(Original sprint memo retained below for historical context — promotion rationale.)** 🔴 PROMOTED 2026-05-09 from "deferred decision" to **PRE-PUBLIC-TAG MUST**. Web research confirmed NousResearch/hermes-agent: **139k stars, MIT, Feb 2026, active domains `hermes-agent.nousresearch.com/.org/.ai`, $5 VPS deploy, 5 backends, DSPy + GEPA self-evolution loop**. The collision is unrecoverable — top-tier dominant production project + dedicated `.com/.org/.ai` namespace = cortex-x cannot win SEO, community awareness, or any tag-search query for "hermes agent." Operator approved 2026-05-09: rebrand to **Steward**.
 
 **Why "Steward"**: matches "senior engineer compressed" + "persistent agent that curates the operator's code/knowledge/life" framing. Translates cleanly to Czech as "správce." Passes the "could you say it on a podcast without explanation" test. Available as GitHub org/repo handle, npm package name, domain TLDs.
 
@@ -561,12 +772,23 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 | Direction | Why not |
 |---|---|
-| Multi-platform messaging gateway (NousResearch pattern) | cortex-x surface is GHA cron + CLI. Telegram/Discord = scope creep beyond agent — dev tool boundary. |
+| Multi-platform messaging gateway (NousResearch pattern) | Sprint 2.6 narrows to **Discord-only**. No SMS/Slack/Email/Telegram parallel surface unless Discord proves painful in 90+ days of use. |
 | Real-time visual workspace (agent-zero Universal Canvas) | Steward is headless cron, no human in the loop during execution. Demo value, zero operational value for our usecase. |
 | Full Linux container in Docker (agent-zero) | GitHub Actions ephemeral runners are already our Linux. Adding Docker = ops complexity for no capability gain. |
 | Browser-specific abstractions (browser-harness CDP) | cortex-x is code-first, not UI-first. Tier 3 Sprint 4.6 covers UI verification narrowly via Playwright-MCP — that's enough. |
 | Auto-merge Steward PRs | MUST-H6 hardcoded forever. Humans always merge. |
 | Self-modification of `bin/steward/` core | EDIT_DENYLISTED catches this. Self-extending capabilities (Sprint 3.1) live in `cortex/agent-workspace/skill-experiments/`, not in `bin/steward/_lib/`. Brain ≠ scratch pad. |
+| **"City of agents" metaphor** | Considered 2026-05-08; **rejected**. Empirical evidence (25k-task experiment, [Multi-Agent Trap](https://towardsdatascience.com/the-multi-agent-trap/)) shows hierarchical society metaphors *amplify errors up to 17.2×* once the underlying model is strong enough to use freedom. Supervisor / review-pipeline framing is tighter for cortex-x's shape. |
+| **Per-agent personal memory + cross-agent random exchange** | R1+R4 research dispatch 2026-05-08 converged: at ≤6 specialist agents the fragmentation tax > benefit. Agents overlap heavily in reasoning; shared `lessons.jsonl` with `agent_id` tag wins. Re-evaluate at ≥12 specialist agents (post-Sprint 3.1 self-extension territory). |
+| **Random / async memory broadcast between agents** | [GitHub multi-agent-failures blog](https://github.blog/ai-and-ml/generative-ai/multi-agent-workflows-often-fail-heres-how-to-engineer-ones-that-dont/): async broadcast is *the* failure mode. Use typed schemas at handoff boundaries (cortex-x review pipeline already does this), not pubsub. |
+| **OpenSwarm by VRSEN as inspiration** | Inspected 2026-05-08: hub-and-spoke around Agency Swarm, no inter-agent peer messaging or shared memory. cortex-x's review pipeline is architecturally tighter. Borrowing would be a downgrade. |
+| **NAS / VPS / "AI second brain" rebrand of cortex-x** | The metaphor lands for Tier 4 vision, but premature for Tier 0–2 surface positioning. Keep "developer OS for the AI era" framing until Sprint 5.0 self-hosted entity actually ships. |
+| **Letta / Mem0 / MemGPT runtime adoption** | All require Docker + Postgres + (often) Neo4j + (often) Qdrant. Violates cortex-x's zero-runtime-dep CJS posture. Architectural inspiration only — concrete primitives via Anthropic Memory Tool (Sprint 2.8). |
+| **Vector DB / pgvector / Weaviate at current scale** | <100 memory files; BM25 / grep + tag filter is sufficient. Trigger for `sqlite-vec` adoption: MEMORY.md index reaches ~100 files OR grep returns >10 candidates for typical queries. Until then = premature optimization. |
+| **Knowledge graph DB (kuzu / neo4j-embedded)** | Kuzu archived 2025-10-10. Embedded KG ecosystem isn't mature. Tier 4 (Sprint 5.x Obsidian SSOT + life ingest) re-evaluates. |
+| **Second Anthropic Max subscription "for cortex"** | Single Max x20 (~900 messages / 5h) has trivial headroom for current Steward cadence (~1 LLM call/night). Buying second sub is premature spend; April 2026 OpenClaw crackdown puts "agent-as-second-beneficiary" in grey zone. Re-evaluate only if Sprint 2.1 autoresearch fan-out × multiple worktrees genuinely starves the cap. |
+| **Local LLM hardware purchase before Sprint 2.4 + 2.7 ship** | Sprint 2.4 (`claude-cli` engine via Max sub) reduces marginal Anthropic spend to $0 for most action_kinds. Hardware decision waits until 60-day data shows residual OpenRouter spend > 800 CZK/month. Otherwise the 30k CZK box solves a non-problem. |
+| **Random / "weekly meeting" agent reflection cron** | "Sleep-time compute" / agent dreaming is currently hype-leaning per R4 research. Validated wins (5x compute reduction, Letta paper) only on pre-computing predictable queries. Steward's existing nightly cron + Sprint 2.8 ReasoningBank distillation already does the pragmatic version. |
 
 ## 7. Per-sprint workflow (the ritual)
 
@@ -594,22 +816,32 @@ This ritual is the **single most important rule of this roadmap**. Skipping any 
 
 **Constraint check (2026-05-09):** operator is saving toward $500-1500 home server hardware (UGREEN NAS / Beelink SER9 / Mac Mini M4). Hardware likely arrives ~week 8-12. Until then, all software work happens on existing GHA cron infrastructure + operator's current dev machine.
 
-**Fortunate reality**: of the 21 sprints in this roadmap, **17 are hardware-independent** and ship fine on GHA + local dev machine. Only Sprint 5.0 (self-hosted always-on Steward) and Sprint 5.4 (live-entity voice UX) genuinely need the home box. Everything else can be developed and validated in current infra.
+**Fortunate reality**: of the 26 sprints in this roadmap (after 2026-05-08 expansion: 2.0.1 + 2.4-2.8), **22 are hardware-independent** and ship fine on GHA + local dev machine. Only Sprint 5.0 (self-hosted always-on Steward) and Sprint 5.4 (live-entity voice UX) genuinely need the home box. Everything else can be developed and validated in current infra.
 
-This means: **no waiting period**. Velocity continues 6-12 weeks before "awakening" the entity on home hardware.
+This means: **no waiting period**. Velocity continues 6-12 weeks before "awakening" the entity on home hardware. Hardware purchase decision deferred to **post-Sprint 2.7** — by then we'll have 60+ days of `claude-cli`-via-Max-sub data to know whether residual OpenRouter spend justifies the 30k CZK box.
 
-### Week-by-week sequencing (recommended)
+### Week-by-week sequencing (recommended, post-2026-05-08 update)
 
 | Week | Sprint | Hardware needed? | Why this order |
 |---|---|---|---|
-| **1** | **1.9 — Spec-driven verification** ⭐ | No (GHA) | Fixes Sprint 1.8.13 incident class. Unblocks 2.1 + 2.2 + 3.0 (richer fitness signal). |
-| **2** | 2.0 + 2.0b — Langfuse self-hosted + RouteLLM | No (Langfuse on dev machine, migrate to NAS later) | Both small (S). Observability + cost-routing both feed downstream sprints. Parallelizable. |
-| **3-4** | **2.1 — Steward autoresearch overnight burst** | No (GHA, longer cron window) | Karpathy pattern. 1× → N× experiments per night. Order-of-magnitude throughput. Needs spec-criteria from 1.9. |
-| **5-6** | 2.2 — Worktree supervisor + judge ensemble | No (GHA worktrees natively) | Multi-agent. Each worker verifies against same spec from 1.9. |
-| **7** | 2.3 — Mutation testing as fitness signal | No (Stryker on GHA) | Closes verification gap further. After 2.2 because workers benefit too. |
-| **8** | **5.1 — "Soul" abstraction** (early Tier 4 prep) | No (just markdown + code) | Deliberately moved up. Multi-agent Steward (Sprint 2.2 already shipped) needs distinct identities for supervisor / worker / judge / harvester. Souls.md cheap + impactful + ready for hardware moment. |
-| **9-10** | 3.0 — AlphaEvolve prompt evolution | No (GHA + held-out fixtures) | The compound moonshot. Needs spec-criteria (1.9) + autoresearch budget (2.1) + souls (5.1). |
-| **11** | 3.1 — Self-extending capabilities (`skill-experiments/`) | No (sandbox in GHA) | Browser-harness pattern. Steward writes own micro-helpers. |
+| 1 | **1.9 — Spec-driven verification** ⭐ ✅ | No | Shipped 2026-05-09. Unblocked 2.1 + 2.2 + 3.0 (richer fitness signal). |
+| 1 | 1.9.1 — Multi-window cost safety + loop detector ✅ | No | Shipped 2026-05-09. Pre-2.x pojistka. |
+| 1 | 2.0 — Phoenix observability ✅ | No | Shipped 2026-05-08. |
+| 1 | 2.0.1 — OTLP protobuf encoder ✅ | No | Shipped 2026-05-08. Manual-dogfood-driven fix. |
+| 1 | 2.0b — Action-kind model routing ✅ | No | Shipped 2026-05-08. |
+| 1 | 2.1 — Autoresearch overnight burst ✅ | No | Shipped 2026-05-08. |
+| 1 | 4.7 — Steward rebrand ✅ | No | Shipped 2026-05-08. NousResearch hermes-agent collision. |
+| **2-3** | 2.2 — Worktree supervisor + judge ensemble | No (GHA worktrees natively) | Multi-agent MVP. Each worker verifies against spec from 1.9. |
+| **3** | 2.3 — Mutation testing as fitness signal | No (Stryker on GHA) | Closes verification gap further. After 2.2 because workers benefit too. |
+| **4** | **2.4 — `claude-cli` engine via Max sub** ⭐ COST PIVOT | No | Shifts most LLM cost to $0. Decisive input for hardware decision. Should land *before* 2.7 so pattern_transfer is free. |
+| **4-5** | 2.5 — `tech_debt_audit` action_kind | No | Pure deterministic, low risk, compounds with autoresearch. |
+| **5** | 2.6 — Discord remote control | No | Mobile UX for halt/status/recommendations. Operator confirmed Discord 2026-05-08. |
+| **6** | 2.7 — Cross-project `pattern_transfer` | No | Allowlisted sibling-project read access. Free under 2.4 Max sub. |
+| **6-7** | 2.8 — Memory Foundation (Memory Tool + ReasoningBank failures + decay) | No | **Memory gate before Tier 2.** +29-39% Anthropic native + +34% failure-distillation + +10% decay. |
+| **7** | **HARDWARE DECISION POINT** (60-day data on residual OpenRouter spend) | — | If spend > 800 CZK/mo → buy 3090 box; else defer to GLM-4.7-Air-class fitting 24GB (Q3-Q4 2026). |
+| **8** | **5.1 — "Soul" abstraction** (early Tier 4 prep) | No | Multi-agent Steward (post-2.2) needs distinct identities. Souls.md cheap + impactful + ready for hardware moment. |
+| **9-10** | 3.0 — AlphaEvolve prompt evolution | No | The compound moonshot. Needs 1.9 spec criteria + 2.1 autoresearch budget + 2.8 memory + 5.1 souls. |
+| **11** | 3.1 — Self-extending capabilities (`skill-experiments/`) | No | Browser-harness pattern. Steward writes own micro-helpers. |
 | **12** | **HARDWARE LIKELY ARRIVES + retro week** | — | Decompress. Order Beelink/NAS. Retro on weeks 1-11. |
 | **13-14** | **5.0 — Awaken the entity** | YES (NAS / Beelink) | Migrate cortex-x from GHA-only to home-server always-on. Steward daemon, not cron. |
 
@@ -619,6 +851,8 @@ This means: **no waiting period**. Velocity continues 6-12 weeks before "awakeni
 - **2.0 + 2.0b parallel because** they're both small (S), independent, and feed observability into every later sprint.
 - **2.1 before 2.2 because** Karpathy autoresearch (multi-strategy serial within one run) is the conceptual prerequisite for worktree parallel — supervisor needs to know how multi-strategy works in single context first.
 - **5.1 (souls.md) deliberately moved up to week 8** because by then Steward has ≥4 distinct agents (supervisor, worker, judge, harvester), each needs identity. Cheap to implement (markdown + a load step in action-engine) and lets us "have it ready" for hardware activation.
+- **2.4 (claude-cli engine) intentionally before 2.5/2.6/2.7** because it's the cost-economy pivot. Once `claude -p` Max-sub billing is validated with $0 marginal cost guard, all subsequent LLM-touching sprints (2.7 pattern_transfer, 3.0 AlphaEvolve) ride free. Anything before 2.4 keeps paying OpenRouter; anything after rides Max sub.
+- **2.8 (memory foundation) before 3.0 (AlphaEvolve)** because evolving prompts against rotting memory = noise. Decay + failure-distillation + native memory-tool make the substrate stable enough for evolutionary signal to be meaningful.
 - **3.0 (prompt evolution) before 3.1 (self-extending capabilities)** because evolution refines what we have; self-extension creates new things — refining first makes generation more reliable.
 - **3.2 (FTS5 + federated lessons) and 3.3 (GraphRAG) deferred to weeks 13-16** because they're high-effort and only become critical when (a) cross-project deployments happen and (b) codebase context is the bottleneck. Today neither is true.
 
@@ -655,6 +889,7 @@ Miss a milestone? **Pause new sprints, do a retro, fix the ritual** before conti
 
 - 2026-05-08 SOTA brainstorm research dispatch (in conversation context, archive recommended)
 - 2026-05-08 4-source inspection research dispatch (in conversation context)
+- **2026-05-08 5-agent research dispatch** (Tier 1 expansion driver, in conversation context — should land in docs/research/ as a synthesis memo when Sprint 2.4 R1 work begins). Five parallel topics: (a) multi-agent memory + city metaphor + OpenSwarm, (b) local LLM hardware + Qwen3-Coder for 24GB VRAM, (c) Anthropic Max sub via `claude -p`, (d) infinite memory + compact windows, (e) Discord/email + tech-debt + cross-project + multi-session.
 - VentureBeat Karpathy autoresearch (March 9, 2026): https://venturebeat.com/programming-development/andrej-karpathys-new-open-source-autoresearch
 - GitHub Spec Kit: https://github.com/github/spec-kit
 - AWS Kiro: https://kiro.dev/docs/specs/
@@ -662,7 +897,32 @@ Miss a milestone? **Pause new sprints, do a retro, fix the ritual** before conti
 - Composio Agent Orchestrator: https://github.com/ComposioHQ/agent-orchestrator
 - AlphaEvolve paper: https://arxiv.org/abs/2506.13131
 - OpenEvolve: https://github.com/algorithmicsuperintelligence/openevolve
-- ReasoningBank: https://research.google/blog/reasoningbank-enabling-agents-to-learn-from-experience/
+- ReasoningBank: https://research.google/blog/reasoningbank-enabling-agents-to-learn-from-experience/ + paper https://arxiv.org/abs/2509.25140
+- A-MEM (NeurIPS 2025): https://arxiv.org/abs/2502.12110
+- Anthropic Memory Tool docs (Sept 2025): https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool
+- Anthropic context engineering: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+- Anthropic harnesses for long-running agents: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+- Anthropic context-editing tool docs: https://platform.claude.com/docs/en/build-with-claude/context-editing
+- Claude Code headless docs: https://code.claude.com/docs/en/headless
+- Claude Code routines docs: https://code.claude.com/docs/en/routines
+- Claude Agent SDK ≠ Max billing (issue #559): https://github.com/anthropics/claude-agent-sdk-python/issues/559
+- claudefa.st safe-use guide: https://claudefa.st/blog/guide/development/claude-code-subscription
+- claude-ollama-dual smart-orchestrator: https://github.com/krishnenduk95/claude-ollama-dual
+- OpenClaw ban (VentureBeat April 2026): https://venturebeat.com/technology/anthropic-cuts-off-the-ability-to-use-claude-subscriptions-with-openclaw-and
+- Multi-Agent Trap (Towards Data Science): https://towardsdatascience.com/the-multi-agent-trap/
+- GitHub blog: multi-agent workflows often fail: https://github.blog/ai-and-ml/generative-ai/multi-agent-workflows-often-fail-heres-how-to-engineer-ones-that-dont/
+- HF Qwen3-Coder-30B-A3B model card: https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct
+- Red Hat: vLLM vs llama.cpp: https://developers.redhat.com/articles/2025/09/30/vllm-or-llamacpp-choosing-right-llm-inference-engine-your-use-case
+- LocalAIMaster SWE-bench leaderboard: https://localaimaster.com/models/swe-bench-explained-ai-benchmarks
+- qlty CLI: https://github.com/qltysh/qlty
+- discord.js v14 docs: https://discord.js.org/
+- repowise multi-repo MCP: https://github.com/repowise-dev/repowise
+- Node.js permission model: https://nodejs.org/api/permissions.html
+- CVE-2025-55130 Node fs symlink bypass: https://research.jfrog.com/vulnerabilities/nodejs-fs-permissions-bypass-cve-2025-55130/
+- Claude Code worktrees v2.1.50: https://code.claude.com/docs/en/worktrees
+- Mem0 State of AI Agent Memory 2026: https://mem0.ai/blog/state-of-ai-agent-memory-2026
+- sqlite-vec: https://github.com/asg017/sqlite-vec
+- Kuzu archived (cautionary tale): https://ai.plainenglish.io/the-disappearance-of-kuzu-a-cautionary-tale-for-ai-and-knowledge-graph-development-5daffcaebcd8
 - NousResearch/hermes-agent: https://github.com/nousresearch/hermes-agent
 - agent0ai/agent-zero: https://github.com/agent0ai/agent-zero
 - browser-use/browser-harness: https://github.com/browser-use/browser-harness
