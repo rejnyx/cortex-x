@@ -473,6 +473,56 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
+### Sprint 2.9 — Tools Foundation v0 (M effort, ⭐ STRATEGIC)
+
+**Status**: 📋 PLANNED 2026-05-09 (R1 memo committed). Awaiting operator approval before implementation.
+
+**Why now**: operator-instinct dispatch 2026-05-09 confirmed that Claude Code's curated tool palette (Read / Write / Edit / Glob / Grep / Bash + ~18 others) is the right set of names to borrow, BUT the right *spec format* is **MCP** (Model Context Protocol — donated to Linux Foundation Dec 2025, governed by Anthropic + OpenAI + Google + MSFT + AWS, embedded in Claude Agent SDK as the lingua franca). Sprint 2.9 ships a neutral tool-descriptor spec (MCP-shaped JSON Schema + annotation taxonomy) + 6 reference tools + 4 runtime adapters. **Strategic moat**: tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) integrate **for free** with Steward's existing safety mechanics — Sprint 1.9.0 spec-verifier, halt-check, journal write-trailers, cost-windows. No other framework's tool catalog wires into a verifier-driven autonomous runtime.
+
+**Strategic impact**: this is the **interoperability pivot** of Tier 1 → Tier 2. After 2.9, every cortex-x skill ships with a portable tool descriptor that runs unchanged in Steward (CJS), Claude Agent SDK, Vercel AI SDK projects, OpenAI Agents SDK, and any MCP client (Cursor, Codex, Aider, Windsurf). Combined with SKILL.md (already supported by 12 runtimes), cortex-x becomes the only framework where the *same tool* can power both a Claude Code session and an autonomous Steward run with **zero code changes** — and the same descriptor automatically gates destructive ops through the spec-verifier.
+
+**Scope**:
+- New module tree `bin/cortex/tools/` — descriptor spec + 6 reference tools + validator + 4 adapters.
+- `bin/cortex/tools/_spec.md` — human-readable descriptor spec (JSON Schema + annotation taxonomy + naming regex `^[a-z0-9_-]{1,32}$`).
+- `bin/cortex/tools/_lib/validate-descriptor.cjs` — runtime validator with cross-checks (e.g. `readOnlyHint=true` rejected if handler invokes `assertEditWithinCwd`).
+- 6 reference tools as CJS: `read`, `write`, `edit`, `glob`, `grep`, `bash` — borrowed taxonomy from Claude Code, expressed in MCP-shaped descriptors.
+- `_adapters/toMcpServer.cjs` (primary, stdio JSON-RPC) + `toClaudeAgentSdk.cjs` + `toVercelAiSdk.cjs` (TS) + `toOpenAiAgents.cjs`.
+- Steward `action-engine.cjs` consumes descriptors and routes through annotations:
+  - `destructiveHint=true` → mandatory `acceptance_criteria[]` (Sprint 1.9.0).
+  - `readOnlyHint=true` → skip halt-check pre-condition + skip journal write-trailer.
+  - `idempotentHint=true` → safe-to-retry hint for cost-safety.
+  - `openWorldHint=true` (network) → daily/weekly/monthly windows from Sprint 1.9.1 apply.
+- Sample SKILL.md in `templates/skills/example.md` references the new palette.
+- Tier 4 contract test — descriptor roundtrips losslessly through all 4 adapters.
+- Tier 5 prompt-regression test — stable hash of tool catalog detects drift.
+- Defense-in-depth: `bash.cjs` reuses Sprint 2.7 path-traversal hardening + Sprint 2.4 `containsShellMetacharacters` + `_FORBIDDEN_FLAGS`; `read`/`write` reuse `assertEditWithinCwd`.
+
+**Out of scope (Sprint 2.9.5 / 3.x)**:
+- `webfetch` / `websearch` tools — need `openWorldHint` cost wiring + `STEWARD_DAILY_USD_CAP` integration (Sprint 2.9.5).
+- Tool marketplace / registry (Sprint 4.0).
+- `NotebookEdit` / `Task` / `TodoWrite` / `Plan` tools — don't fit autonomous Steward runtime.
+- Standalone MCP server binary (Sprint 4.0 marketplace concern).
+
+**New error codes**:
+- `TOOL_DESCRIPTOR_MALFORMED` — validator rejected at load time.
+- `TOOL_ANNOTATION_INCONSISTENT` — `readOnlyHint=true` declared but handler signature implies destructive op.
+- `TOOL_HANDLER_MISSING` — descriptor without `handler` export.
+- `TOOL_ADAPTER_ROUNDTRIP_DIVERGENCE` — descriptor lost data through adapter (contract-test only).
+
+**Acceptance criteria (10)** — see [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md) §4.
+
+**Pre-implementation research dispatch (R1)** — ✅ DONE 2026-05-09. Memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md). 14 sources cited; recommendation = Option (b) neutral spec + adapters with MCP as the spec format.
+
+**Open questions for operator** (R1 §8):
+1. Tool naming: lowercase per MCP regex (`read` / `write` / `edit`) or capitalized like Claude Code (`Read` / `Write` / `Edit`)? Memo recommends lowercase + document the mapping.
+2. Ship `bash` from day 1 or punt to 2.9.5? Memo recommends ship with hardened policy-check.
+3. CJS + TS adapters together or CJS-first? Memo recommends CJS-first.
+4. MCP transport: stdio only or stdio + SSE? Memo recommends stdio-only for v0.
+
+**Stolen from**: Claude Code tool catalog (taxonomy) + MCP spec (descriptor format + annotations) + Claude Agent SDK `createSdkMcpServer` (proof MCP is lingua franca at Anthropic) + Vercel AI SDK v6 `tool()` (TS surface) + OpenAI Agents SDK `FunctionTool` (strict_json_schema discipline) + agentskills.io / SKILL.md (distribution format) + cortex-x Sprint 1.9.0 spec-verifier (integration anchor).
+
+---
+
 ## 4. Tier 2 — Compound learners (weeks 7-12, Sprint 3.0 → 3.3)
 
 **Goal**: turn cortex-x into a self-evolving system. After Tier 2, prompts/strategies/skills get measurably better every week without operator intervention.
