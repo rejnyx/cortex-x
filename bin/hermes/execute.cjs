@@ -48,6 +48,9 @@ const actionKinds = require('./_lib/action-kinds.cjs');
 // into per-kind acceptance criteria. See docs/research/sprint-1.9-spec-driven-
 // verification-2026-05-09.md for the design memo.
 const specVerifier = require('./_lib/spec-verifier.cjs');
+// Sprint 1.9.1 — multi-window cost safety + loop detector. Pre-flight gates
+// layer above existing daily cap + per-action_key failure breaker.
+const costSafety = require('./_lib/cost-safety.cjs');
 // Sprint 1.8.2c — recommendation_harvest is the first non-recommendation kind.
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
@@ -1049,6 +1052,111 @@ async function runExecute(opts = {}) {
       error: `${breaker.recentFailures} consecutive failures for action_key=${plan.action.action_key} in last hour >= breaker ${breaker.breaker} (HERMES_FAILURE_BREAKER)`,
       breaker: breaker.breaker,
       recentFailures: breaker.recentFailures,
+    };
+  }
+
+  // Sprint 1.9.1 — multi-window cost safety + loop detection. Layered gates
+  // run BEFORE lock acquisition (same posture as daily cap above). Order:
+  // weekly → monthly → token velocity → loop detector. Each gate honors `0`
+  // as explicit opt-out via env. Real-incident anchor: April 2026 dev's $437
+  // retry-loop bill — daily cap $5 alone would have allowed 30 days × $5 = $150
+  // before any single day tripped. Weekly + monthly close that hole; token
+  // velocity catches sub-daily bursts (RouteLLM ensemble, Sprint 2.1 autoresearch).
+  const weekly = costSafety.checkWeeklyBudget(slug);
+  if (!weekly.ok) {
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T2',
+      event: 'execute_budget_weekly_capped',
+      outcome: 'skipped',
+      actor: 'hermes',
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+    });
+    return {
+      ok: false,
+      code: 'BUDGET_WEEKLY_CAP_REACHED',
+      error: `7-day spend $${weekly.spent.toFixed(4)} >= cap $${weekly.cap.toFixed(2)} (HERMES_WEEKLY_USD_CAP)`,
+      cap: weekly.cap,
+      spent: weekly.spent,
+    };
+  }
+
+  const monthly = costSafety.checkMonthlyBudget(slug);
+  if (!monthly.ok) {
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T2',
+      event: 'execute_budget_monthly_capped',
+      outcome: 'skipped',
+      actor: 'hermes',
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+    });
+    return {
+      ok: false,
+      code: 'BUDGET_MONTHLY_CAP_REACHED',
+      error: `calendar-month spend $${monthly.spent.toFixed(4)} >= cap $${monthly.cap.toFixed(2)} (HERMES_MONTHLY_USD_CAP)`,
+      cap: monthly.cap,
+      spent: monthly.spent,
+    };
+  }
+
+  const velocity = costSafety.checkTokenVelocity(slug);
+  if (!velocity.ok) {
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T2',
+      event: 'execute_velocity_capped',
+      outcome: 'skipped',
+      actor: 'hermes',
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+    });
+    return {
+      ok: false,
+      code: 'TOKEN_VELOCITY_CAP_REACHED',
+      error: `${velocity.total} tokens in last ${Math.round(velocity.windowMs / 1000)}s >= cap ${velocity.cap} (HERMES_TOKEN_VELOCITY_CAP)`,
+      cap: velocity.cap,
+      total: velocity.total,
+      windowMs: velocity.windowMs,
+    };
+  }
+
+  // Cross-session loop detector — same SPEC_VIOLATION criterion id firing
+  // ≥ HERMES_LOOP_THRESHOLD times in the last HERMES_LOOP_WINDOW_DAYS days
+  // for the same action_key indicates the model cannot satisfy this
+  // criterion. Halt is operator-cleared (write HERMES_HALT, return).
+  const loop = costSafety.detectCriterionLoop(slug);
+  if (loop.tripped) {
+    const reason = `LOOP_DETECTED:${loop.criterionId}:${loop.actionKey} count=${loop.count} threshold=${loop.threshold} window=${loop.windowDays}d`;
+    try {
+      const haltDir = path.join(repoRoot, '.cortex');
+      fs.mkdirSync(haltDir, { recursive: true });
+      fs.writeFileSync(path.join(haltDir, 'HERMES_HALT'), `${reason}\n${new Date().toISOString()}\n`, 'utf8');
+    } catch { /* halt-write best-effort; journal still records the event */ }
+    safeJournal(slug, {
+      ts: new Date().toISOString(),
+      trigger: plan.trigger || 'manual',
+      tier: 'T2',
+      event: 'execute_loop_detected',
+      outcome: 'halted',
+      actor: 'hermes',
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+    });
+    return {
+      ok: false,
+      code: 'LOOP_DETECTED',
+      error: reason,
+      criterionId: loop.criterionId,
+      actionKey: loop.actionKey,
+      count: loop.count,
+      threshold: loop.threshold,
+      windowDays: loop.windowDays,
     };
   }
 

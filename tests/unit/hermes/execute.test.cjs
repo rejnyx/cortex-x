@@ -340,6 +340,14 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
       HERMES_ENGINE: 'mock',
       HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'x.js', content: 'x' }] }),
       HERMES_DAILY_USD_CAP: '0',
+      // Sprint 1.9.1: also disable weekly/monthly/velocity caps (their defaults
+      // would otherwise trip on the seeded $1000 entry). This regression test
+      // is specifically about the daily cap=0 opt-out semantics; the new
+      // multi-window gates have their own dedicated tests.
+      HERMES_WEEKLY_USD_CAP: '0',
+      HERMES_MONTHLY_USD_CAP: '0',
+      HERMES_TOKEN_VELOCITY_CAP: '0',
+      HERMES_LOOP_THRESHOLD: '0',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true, 'cap=0 must allow any spend');
