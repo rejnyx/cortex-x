@@ -297,6 +297,51 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.5: 10th capability — tech debt audit (deterministic) ─────
+  tech_debt_audit: {
+    description:
+      'Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call.',
+    requires_llm: false,
+    source: 'qlty metrics --all --json + qlty smells --all --sarif + knip --reporter json',
+    detector: 'detectors/tech-debt-audit.cjs', // Sprint 2.5
+    cost_envelope: 'free', // no LLM call
+    blast_radius: 'minimal', // only writes cortex/debt-snapshot.json (no source edits, no PR in v1)
+    shipped_in: '0.3.0', // Sprint 2.5
+    acceptance_criteria: [
+      // Sprint 2.5 R1 §2.8: action MUST produce a fresh snapshot file.
+      // Sprint 2.5 v1 is snapshot-only; PR opening is deferred to v2 once
+      // operator-action-rate on advisory PRs is measured (≥30% threshold).
+      {
+        id: 'snapshot_file_written',
+        kind: 'file_predicate',
+        description: 'Action MUST produce cortex/debt-snapshot.json non-empty.',
+        predicate: 'touchedFiles.includes("cortex/debt-snapshot.json") && fileSize("cortex/debt-snapshot.json") > 50',
+        severity: 'block',
+      },
+      {
+        id: 'snapshot_schema_valid',
+        kind: 'regex',
+        description: 'Snapshot MUST contain canonical top-level keys.',
+        file: 'cortex/debt-snapshot.json',
+        pattern: '"snapshot_version"\\s*:\\s*1.*"captured_at".*"metrics"',
+        severity: 'block',
+      },
+      {
+        id: 'audit_only_writes_snapshot',
+        kind: 'file_predicate',
+        description: 'Audit kind is read-only against source — only cortex/debt-snapshot.json may change.',
+        predicate: 'touchedFiles.every((p) => p === "cortex/debt-snapshot.json")',
+        severity: 'block',
+      },
+      {
+        id: 'audit_readonly_ears',
+        kind: 'ears_text',
+        ears: 'WHEN tech_debt_audit runs THE SYSTEM SHALL only modify cortex/debt-snapshot.json',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:

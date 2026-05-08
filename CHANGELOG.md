@@ -4,6 +4,32 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.5: tech_debt_audit action_kind, deterministic 10th capability)
+- **New action_kind `tech_debt_audit`** registered in `bin/steward/_lib/action-kinds.cjs` — deterministic, requires_llm=false, cost_envelope=free, blast_radius=minimal, shipped_in='0.3.0'. Runs nightly, snapshots code-health metrics to `cortex/debt-snapshot.json` (committed audit trail), computes drift triggers vs prior snapshot. v1 = snapshot-only (no PR opening); R1 §9 explicitly defers PR generation to v2 once operator action-rate is measured.
+- **3-stage pipeline**: detector probe (`detectors/tech-debt-audit.cjs`) → snapshot capture (`bin/steward/_lib/tech-debt-audit.cjs`) → drift comparison (`bin/steward/_lib/snapshot-diff.cjs`).
+- **Toolchain**: qlty (cognitive complexity, duplication, smells) + knip (unused exports/files/deps). Both shell-out via spawn; both fail-open on missing binary.
+- **Fail-open semantics**: missing qlty → `{ ok: true, skipped: true, skipReason: 'QLTY_NOT_INSTALLED', code: 'TECH_DEBT_QLTY_MISSING' }`. Skipped runs do NOT count toward `STEWARD_FAILURE_BREAKER` consecutive-failure circuit or any cost cap.
+- **Drift triggers (DEFAULT_TRIGGERS)**: `duplication_pct +2pp w/w`, `max_function_complexity > 15 absolute`, `knip_unused_exports +3 w/w`, `test_source_ratio -20% w/w`. Custom triggers supported via `computeSnapshotDrift(prev, curr, triggers)`.
+- **Snapshot schema** (`snapshot_version: 1`): captured_at + qlty_path/version + knip_path/version + flat metrics object + top-10 offenders. Aggregate-only (not per-file) to keep git diffs readable. Per Sprint 3.0 forward-compat: schema versioned for AlphaEvolve fitness signal consumption.
+- **`thresholdExceeded` advisory event**: when drift triggers fire, execute.cjs emits `tech_debt_threshold_exceeded` journal event with `code: TECH_DEBT_THRESHOLD_EXCEEDED` (advisory, never failure). Snapshot also surfaces `priorCorrupt: true` flag → `tech_debt_snapshot_corrupt` journal event when prior snapshot is malformed JSON or wrong version.
+- **R2 hardening** (6-agent review pipeline → 2 BLOCKER + 3 HIGH + 11 MAJOR + many MINOR; 14 must-fix items applied):
+  - **Acceptance BLOCKER**: dispatcher wire in `execute.cjs` (kind was registered but not callable).
+  - **Acceptance BLOCKER + SSOT BLOCKER**: error codes reconciled per roadmap (`TECH_DEBT_QLTY_MISSING`, `TECH_DEBT_SNAPSHOT_CORRUPT`, `TECH_DEBT_THRESHOLD_EXCEEDED`).
+  - **SSOT BLOCKER**: snapshot path drift in roadmap fixed (`.cortex/` → `cortex/` per R1 §2.4 commit-it decision).
+  - **Security HIGH (CWE-200/526)**: `runCommand` now uses scrubbed env (`PATH`, `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `TEMP`, `TMP`, `SystemRoot`, `LANG`, `LC_*`, `NODE_PATH/OPTIONS`) — prevents `OPENROUTER_API_KEY`, `ANTHROPIC_*`, `GITHUB_TOKEN` from leaking to qlty/knip subprocesses (knip in particular runs `knip.config.ts` with full `process.env` access).
+  - **Security HIGH (CWE-770)**: 16 MB UTF-8 byte-length cap on subprocess stdout/stderr (mirror Sprint 2.4 pattern; multibyte-safe via `Buffer.byteLength`).
+  - **Security HIGH (CWE-1325/674)**: `fallbackTestSourceRatio` hardened — `realpathSync`-tracked visited inodes break symlink loops; `isSymbolicLink()` skip; depth cap 20; file-count cap 20K; per-file 2 MB size cap; extended skip-list (`dist`, `build`, `coverage`, `out`, `.next`, `.cache`, `.turbo`, `target`).
+  - **Correctness MAJOR**: `parseQltyMetrics` / `parseQltySmells` / `parseKnipReport` null-guard parsed root + `safeNonNegFinite` clamp (rejects NaN, Infinity, negative, non-number). Skips non-object rows in array.
+  - **Correctness MINOR**: `runTechDebtAudit` validates `opts.now instanceof Date` before `.toISOString()`; prior-snapshot version check; `priorCorrupt` flag exposed to caller.
+  - **Edge fix**: `probeBinary` rejects empty/non-string name; uses `statSync().isFile()` to prevent dir-as-binary match; on POSIX skips `.cmd`/`.exe` candidates.
+  - **Edge fix**: `runCommand` clamps `timeoutMs` to `[1s, 10min]`, guards empty/NUL-byte cmd.
+  - **Edge fix**: `isOptedOut` requires regular file (not directory or dangling symlink).
+  - **Acceptance MAJOR**: 3 fixture-based integration tests added (drift end-to-end, priorCorrupt malformed, priorCorrupt wrong version).
+  - **Edge fix**: `fallbackTestSourceRatio` regex broadened to `__tests__`, `spec`, `*.test.<ext>`, `*.spec.<ext>`.
+- **Defer to Sprint 2.5.1 backlog**: PATH-hijack hardening (`STEWARD_QLTY_PATH` override), sentinel HMAC, `max_function_complexity` vs `max_file_complexity` decoupling (when qlty exposes per-function rows), `file_loc > 500` advisory trigger, knip CJS pre-flight scan, `repoRoot` path-traversal containment, journal `audit_opt_out_detected` event, semantic for negative `pct_drop` prev.
+- **Tests**: 1187 → ~1199 (+12 R2 hardening + integration tests on top of original 23 = 35 total Sprint 2.5 tests). All 3 CI lanes pending push.
+- **Manual verification**: `detectors/tech-debt-audit.cjs detect()` returns `qlty-missing` on operator's machine (qlty not installed) → executor's fail-open path triggers correctly with `code: TECH_DEBT_QLTY_MISSING`. `computeSnapshotDrift` exercised with prior+current pair: triggers fire as expected for duplication +2.2pp and max_function_complexity 18 vs threshold 15.
+
 ### Added (2026-05-09 — Sprint 2.4: Anthropic claude-cli engine via Max subscription, ⭐ COST PIVOT)
 - **`claudeCliEngine` in `bin/steward/_lib/action-engine.cjs`** (~470 LoC including helpers + comments) — 4th LLM engine that spawns the local `claude -p` binary under the operator's Anthropic Max subscription OAuth token, driving marginal LLM cost to **$0** for all `recommendation`-class actions.
 - **Three-layer billing-leak defense** to mitigate the GH `anthropics/claude-code#43333` / `#37686` ($1,800 incident) class:
