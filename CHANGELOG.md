@@ -4,6 +4,23 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Fixed (2026-05-08 — Sprint 2.0.1: OTLP protobuf encoder for Phoenix compatibility) — commit `2981ea7`
+- **Zero-deps OTLP protobuf encoder** (`bin/steward/_lib/otel-protobuf.cjs`, ~370 LoC) — replaces Sprint 2.0's OTLP/JSON encoding that Phoenix 15.5.1 rejected with HTTP 415 Unsupported Media Type.
+- Switched emitter `Content-Type: application/json` → `application/x-protobuf`. Wire format now spec-compliant binary OTLP per [`opentelemetry-proto`](https://github.com/open-telemetry/opentelemetry-proto).
+- Encoder primitives: varint (BigInt-safe up to 2^64), tag, length-delimited, fixed64, double + AnyValue type dispatch (string/bool/int/double/array/kvlist/bytes/Uint8Array) + Span/ScopeSpans/Resource/ResourceSpans/ExportTraceServiceRequest.
+- **Manual verification**: trace `aa105a439194024f65a0531befd82c53` lands in live Phoenix container with complete AGENT→TOOL span tree (`steward.run` + `spec_verifier.runChecks` + `verifier.npm_test` + `gh.push_and_pr`) and Sprint 2.0b routing tags (`steward.routing.{profile,source,model}`).
+- R2 review pipeline (2 agents) surfaced 2 BLOCKER + 8 MAJOR findings, all fixed before commit:
+  - Negative BigInt silently zero-coerced → `encodeSignedVarintInt64` does proto3 two's-complement
+  - Hex traceId/spanId/parentSpanId unvalidated → regex gate before `Buffer.from`
+  - Negative Number routed to doubleValue (type-tag corruption) → routes to int_value via BigInt promotion
+  - Unused `encodeBoolField` (semantic conflict with AnyValue bool emission) → removed
+  - `encodeString` silent "[object Object]" on objects → throws TypeError
+  - `encodeFixed64Field` Number precision loss above 2^53 → throws TypeError; BigInt/digit-string only
+  - `parent_span_id` absence not byte-level asserted → added `Buffer.indexOf` check
+  - `Uint8Array` fell through to kvlist → routes to bytes_value
+- 39 new unit tests on protobuf primitives + 7 R2 review-fix tests; integration tests migrated to `tracer._lastPayload` reads.
+- **Tests: 1095 → 1134 / 0 fail / 1 skipped**.
+
 ### Added (2026-05-08 — Sprint 2.1: autoresearch / overnight burst, ⭐ TRANSFORMATIVE) — commit `b3e6656`
 - **N-strategy serial autoresearch loop** as opt-in mode (`--mode=autoresearch` CLI flag, `STEWARD_MODE=autoresearch` env). Single-process serial; Sprint 2.2 will fan out to worktrees.
 - **Default N=3 candidates** (clamped [1, 10]): minimize_edits (T=0.2) / balanced (interpolated) / exploratory (T=1.0). Each candidate applied + spec-verified + npm-tested + rolled back via `git checkout -- . && git clean -fd`. Judge picks among passing candidates with both-orderings (consensus or spec-margin fallback).
