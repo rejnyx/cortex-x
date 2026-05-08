@@ -26,10 +26,10 @@ This document is an operator-facing diagnostic guide for errors raised by the He
 
 **Remediation** — Generate a new Inference Key in the OpenRouter dashboard. Provisioning keys cannot make `/chat/completions` calls and will always raise this error. After generating the new key, set it with `gh secret set OPENROUTER_API_KEY --body "$KEY"` or `printf '%s' "$KEY" | gh secret set OPENROUTER_API_KEY` to avoid whitespace injection.
 
-## EDIT_DESTRUCTIVE_REWRITE
+## SPEC_VIOLATION (criterion: `no_destructive_rewrite`)
 
-**Symptom** — The error message includes a phrase like "would shrink existing file" along with byte counts, raised from the content-integrity check in Sprint 1.8.13.
+**Symptom** — Pipeline returns `code: SPEC_VIOLATION` with `spec_failures[0].id === 'no_destructive_rewrite'`. (Sprint 1.9.0 generalized the prior `EDIT_DESTRUCTIVE_REWRITE` engine-level rule into a per-kind acceptance criterion enforced by `bin/hermes/_lib/spec-verifier.cjs`.)
 
-**Diagnostic** — The existing file is ≥ 200 bytes, and the LLM returned replacement content that is less than 50% of the existing file size. The runtime interprets this as a destructive rewrite and rejects the edit.
+**Diagnostic** — The existing file was ≥ 200 bytes, and the post-edit content is less than 50% of the original size. The `recommendation` kind's `acceptance_criteria` array (in `bin/hermes/_lib/action-kinds.cjs`) declares `no_destructive_rewrite` as a `block`-severity `file_predicate`. spec-verifier evaluates it after `applyEditsToFilesystem` succeeds and before `npm test` runs. A failure rolls the working tree back, deletes the dead branch, journals `event: execute_spec_failed` with the `spec_failures` payload, and records a lesson.
 
-**Remediation** — Reword the recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If a full rewrite is intentional, set `"replace_all": true` on the edit in the plan. Watch for fabricated content — the LLM may invent prior history when rewriting, leading to loss of real work.
+**Remediation** — Reword the recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If a full rewrite is intentional, set `"replace_all": true` on the edit in the plan. Watch for fabricated content — the LLM may invent prior history when rewriting, leading to loss of real work. To inspect the criterion definition, see `NO_DESTRUCTIVE_REWRITE_CRITERION` in `bin/hermes/_lib/action-kinds.cjs`. Other Sprint 1.9.0 codes (`SPEC_MALFORMED`, `SPEC_PREDICATE_THREW`, `SPEC_SHELL_TIMEOUT`, `SPEC_REGEX_NO_MATCH`, `SPEC_OVERRIDE_REJECTED`, `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`) indicate registry typos or unimplemented criterion kinds — see `bin/hermes/_lib/spec-verifier.cjs` for the full failure-mode taxonomy.

@@ -43,6 +43,11 @@ const gitOps = require('./_lib/git-ops.cjs');
 const ghOps = require('./_lib/gh-ops.cjs');
 const actionEngine = require('./_lib/action-engine.cjs');
 const actionKinds = require('./_lib/action-kinds.cjs');
+// Sprint 1.9.0 — spec-driven verification gate. Runs BETWEEN applyAction and
+// runNpmTest. Generalizes Sprint 1.8.13 hardcoded EDIT_DESTRUCTIVE_REWRITE
+// into per-kind acceptance criteria. See docs/research/sprint-1.9-spec-driven-
+// verification-2026-05-09.md for the design memo.
+const specVerifier = require('./_lib/spec-verifier.cjs');
 // Sprint 1.8.2c — recommendation_harvest is the first non-recommendation kind.
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
@@ -1218,11 +1223,13 @@ async function runExecute(opts = {}) {
     }
 
     if (!applyResult.ok) {
-      // Rollback to original branch + delete the dead branch
-      if (originalBranch) {
-        gitOps.git(repoRoot, ['checkout', originalBranch]);
-        gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
-      }
+      // Sprint 1.9.0 review (correctness/HIGH): when applyEditsToFilesystem
+      // rejects mid-loop (denylist / unsafe path on edit N of M), files
+      // 0..N-1 are already on disk. Pre-1.9 only checked out the original
+      // branch + deleted the dead branch, leaving the partial writes on
+      // the working tree. Use rollbackToOriginal() — same SSOT helper as
+      // STAGE_FAILED / COMMIT_FAILED.
+      rollbackToOriginal(repoRoot, originalBranch, plan.branch);
       safeJournal(slug, addCostFields({
         ts: new Date().toISOString(),
         trigger: plan.trigger || 'manual',
@@ -1278,11 +1285,90 @@ async function runExecute(opts = {}) {
 
     const touchedFiles = applyResult.touchedFiles || [];
     if (touchedFiles.length === 0) {
+      // Sprint 1.9.0: deterministic kinds whose acceptance_criteria explicitly
+      // declares `touchedFiles.length === 0` (doc_drift, todo_triage, etc.)
+      // should not reach this branch — they set skip_commit=true above. If we
+      // get here with no edits, it's a contract violation by the kind handler.
       if (originalBranch) {
         gitOps.git(repoRoot, ['checkout', originalBranch]);
         gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
       }
       return { ok: false, code: 'NO_FILES_TOUCHED', error: 'action engine reported success but produced no edits' };
+    }
+
+    // Sprint 1.9.0 — spec-driven verification gate. Runs BEFORE npm test (Q5
+    // default: cheap deterministic checks fail-fast, expensive npm test runs
+    // only if spec passes). The gate enforces per-kind acceptance_criteria
+    // declared in action-kinds.cjs. Generalizes the Sprint 1.8.13 hardcoded
+    // EDIT_DESTRUCTIVE_REWRITE check.
+    //
+    // Failure model:
+    //   - SPEC_VIOLATION → block-severity criterion failed → rollback
+    //   - SPEC_WARNING   → only warn-severity → continue, log warnings
+    //   - SPEC_MALFORMED, SPEC_PREDICATE_THREW, SPEC_SHELL_TIMEOUT,
+    //     SPEC_LLM_JUDGE_NOT_IMPLEMENTED, SPEC_REGEX_NO_MATCH, SPEC_OVERRIDE_REJECTED
+    //                    → fail-closed (rollback)
+    let specResult = null;
+    if (!opts.skipSpecVerifier) {
+      // Sprint 1.9.0 review (edge HIGH-E): wrap runChecks in try/catch so a
+      // bug in any runner (path.resolve(undefined), regex throw at runtime,
+      // etc.) cannot leave the working tree dirty + dead branch checked out.
+      // Treat uncaught throws as SPEC_MALFORMED — fail-closed.
+      try {
+        specResult = specVerifier.runChecks(plan, applyResult, { repoRoot });
+      } catch (err) {
+        specResult = {
+          ok: false,
+          code: 'SPEC_MALFORMED',
+          error: `spec-verifier threw uncaught: ${err && err.message ? err.message : String(err)}`,
+          spec_failures: [{
+            id: '<runner-throw>',
+            kind: 'unknown',
+            severity: 'block',
+            code: 'SPEC_MALFORMED',
+            error: err && err.message ? err.message : String(err),
+          }],
+        };
+      }
+      if (!specResult.ok) {
+        // Discard working-tree edits, return to original branch, drop dead branch.
+        gitOps.git(repoRoot, ['checkout', '--', '.']);
+        gitOps.git(repoRoot, ['clean', '-fd']);
+        if (originalBranch) {
+          gitOps.git(repoRoot, ['checkout', originalBranch]);
+          gitOps.git(repoRoot, ['branch', '-D', plan.branch]);
+        }
+        safeJournal(slug, addCostFields({
+          ts: new Date().toISOString(),
+          trigger: plan.trigger || 'manual',
+          tier: 'T2',
+          event: 'execute_spec_failed',
+          outcome: 'failure',
+          actor: 'hermes',
+          action_kind: plan.action_kind,
+          action_key: plan.action.action_key,
+          action_id: plan.action_id,
+          spec_failures: specResult.spec_failures || [],
+        }, applyResult));
+        // Sprint 1.8.3 — record lesson so next run avoids the same root cause.
+        // Sprint 1.9.0 review (acceptance/MED): root_cause encodes the failing
+        // criterion id as `<CODE>:<criterion_id>` per the R1 memo's AC. This
+        // lets recallLessons surface "no_destructive_rewrite keeps firing on
+        // recommendation kind" without parsing free-text lesson_text.
+        const failureId = (specResult.spec_failures && specResult.spec_failures[0] && specResult.spec_failures[0].id) || 'unknown';
+        safeRecordLesson(slug, {
+          ok: false,
+          code: `${specResult.code}:${failureId}`,
+          error: specResult.error || `criterion '${failureId}' rejected the action`,
+        }, plan);
+        return {
+          ok: false,
+          code: specResult.code,
+          error: specResult.error || `spec-verifier rejected at criterion ${failureId}`,
+          spec_failures: specResult.spec_failures || [],
+          touchedFiles,
+        };
+      }
     }
 
     // Phase 7 — Verifier

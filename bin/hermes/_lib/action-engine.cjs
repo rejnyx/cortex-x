@@ -144,6 +144,18 @@ function applyEditsToFilesystem(edits, opts = {}) {
   }
 
   const touched = [];
+  // Sprint 1.9.0: capture pre-edit sizes so spec-verifier's file_predicate
+  // criteria can compare prevSize(p) vs fileSize(p) post-edit. The hardcoded
+  // EDIT_DESTRUCTIVE_REWRITE check from 1.8.13 has been REMOVED from this
+  // function — its replacement is the per-kind `no_destructive_rewrite`
+  // criterion in action-kinds.cjs, evaluated by spec-verifier.cjs after
+  // edits are applied. Single source of truth, per kind.
+  const previousSizes = {};
+  // Sprint 1.9.0: also forward edits[] so spec-verifier predicates can read
+  // edit.replace_all flag. Kept on the result so all engines (mock, openrouter)
+  // surface the same shape.
+  const appliedEdits = [];
+
   for (const edit of edits) {
     if (!edit || !edit.path || typeof edit.content !== 'string') {
       return {
@@ -151,6 +163,8 @@ function applyEditsToFilesystem(edits, opts = {}) {
         code: opts.invalidCode || 'EDIT_INVALID',
         error: `edit missing required fields: ${JSON.stringify(edit)}`,
         touchedFiles: touched,
+        previousSizes,
+        edits: appliedEdits,
       };
     }
     // Sprint 1.6.18: tightened path-traversal check.
@@ -164,6 +178,8 @@ function applyEditsToFilesystem(edits, opts = {}) {
         code: opts.unsafeCode || 'EDIT_UNSAFE',
         error: `edit path contains NUL byte: ${JSON.stringify(edit.path)}`,
         touchedFiles: touched,
+        previousSizes,
+        edits: appliedEdits,
       };
     }
     if (path.isAbsolute(edit.path) || edit.path.startsWith('-')) {
@@ -172,6 +188,8 @@ function applyEditsToFilesystem(edits, opts = {}) {
         code: opts.unsafeCode || 'EDIT_UNSAFE',
         error: `edit path must be relative + non-flag: ${edit.path}`,
         touchedFiles: touched,
+        previousSizes,
+        edits: appliedEdits,
       };
     }
     const fullPath = path.resolve(repoRoot, edit.path);
@@ -182,6 +200,8 @@ function applyEditsToFilesystem(edits, opts = {}) {
         code: opts.unsafeCode || 'EDIT_UNSAFE',
         error: `edit path escapes repoRoot via traversal: ${edit.path}`,
         touchedFiles: touched,
+        previousSizes,
+        edits: appliedEdits,
       };
     }
     // Sprint 1.6.20 (T8): hard denylist — secrets, package.json, Hermes self,
@@ -192,52 +212,32 @@ function applyEditsToFilesystem(edits, opts = {}) {
         code: opts.deniedCode || 'EDIT_DENYLISTED',
         error: `edit path is on Hermes hard denylist (secrets/package/self/CI/keys): ${edit.path}`,
         touchedFiles: touched,
+        previousSizes,
+        edits: appliedEdits,
       };
     }
-    // Sprint 1.8.13 (T9): content-preservation guardrail.
-    // Real incidents 2026-05-08:
-    //   PR #3 docs/hermes-usage.md:  -347 / +32  ("Add a Troubleshooting section" → full rewrite)
-    //   PR #4 MIGRATIONS.md:         -609 / +28  + fabricated Sprint 1.8.0-3 history
-    // The LLM treats "add X to Y" as "rewrite Y with X added," producing
-    // syntactically valid output that strips existing content. npm test
-    // doesn't catch this because tests don't validate doc completeness.
-    // This is the textbook "tests pass, feature breaks" verification gap.
-    //
-    // Defense: when edit.path targets an EXISTING file > MIN_GUARDED_BYTES,
-    // refuse if new content is < SHRINK_THRESHOLD of existing size.
-    // Skipped via opts.allowShrink=true (caller explicitly authorized) or
-    // edit.replace_all=true (LLM declared intent to rewrite). Deletions
-    // (op:'delete') and creates (file doesn't exist) are unaffected.
-    const MIN_GUARDED_BYTES = 200;
-    const SHRINK_THRESHOLD = 0.5;
-    if (!opts.allowShrink && edit.replace_all !== true && fs.existsSync(fullPath)) {
-      let existingSize = 0;
+    // Sprint 1.9.0: capture pre-edit size BEFORE writing. spec-verifier reads
+    // this via prevSize(p) inside file_predicate criteria.
+    if (fs.existsSync(fullPath)) {
       try {
         const stat = fs.statSync(fullPath);
-        if (stat.isFile()) existingSize = stat.size;
-      } catch { /* ignore — race condition, fall through to write */ }
-      if (existingSize >= MIN_GUARDED_BYTES) {
-        const newSize = Buffer.byteLength(String(edit.content || ''), 'utf8');
-        if (newSize < existingSize * SHRINK_THRESHOLD) {
-          return {
-            ok: false,
-            code: opts.shrinkCode || 'EDIT_DESTRUCTIVE_REWRITE',
-            error: `edit would shrink existing file ${edit.path} from ${existingSize} to ${newSize} bytes (< ${Math.round(SHRINK_THRESHOLD * 100)}% threshold). Likely LLM destructive-rewrite (PR #3 / #4 pattern 2026-05-08): asked to ADD content, returned full file with most existing content stripped. If this shrink is intentional, set edit.replace_all=true in the plan or pass opts.allowShrink=true.`,
-            touchedFiles: touched,
-            existingSize,
-            newSize,
-          };
-        }
-      }
+        if (stat.isFile()) previousSizes[edit.path] = stat.size;
+      } catch { /* race / perm; treat as 0 (= no previous file) */ }
     }
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, edit.content, 'utf8');
     touched.push(edit.path);
+    appliedEdits.push({
+      path: edit.path,
+      replace_all: edit.replace_all === true,
+    });
   }
 
   return {
     ok: true,
     touchedFiles: touched,
+    previousSizes,
+    edits: appliedEdits,
     summary: opts.summary || `applied ${touched.length} edit(s) to ${touched.join(', ')}`,
   };
 }
@@ -273,7 +273,8 @@ function mockEngine(_plan, opts = {}) {
     invalidCode: 'MOCK_EDIT_INVALID',
     unsafeCode: 'MOCK_EDIT_UNSAFE',
     deniedCode: 'MOCK_EDIT_DENYLISTED',
-    shrinkCode: 'MOCK_EDIT_DESTRUCTIVE_REWRITE', // Sprint 1.8.13
+    // Sprint 1.9.0 — destructive-rewrite gate moved to spec-verifier.cjs
+    // (per-kind no_destructive_rewrite criterion). Engine no longer rejects.
     summary: mock.edits && Array.isArray(mock.edits)
       ? `mock applied ${mock.edits.length} edit(s) to ${(mock.edits || []).map((e) => e.path).join(', ')}`
       : undefined,
@@ -313,20 +314,25 @@ const HERMES_SYSTEM_PROMPT = [
   '- Make the smallest change that satisfies the action. If unsure, prefer fewer edits.',
   '- The action body is your primary spec. Read it carefully.',
   '',
-  // Sprint 1.8.13: content-preservation rules. Real incidents 2026-05-08:
+  // Sprint 1.9.0: content-preservation rules. Real incidents 2026-05-08 motivated
+  // the original Sprint 1.8.13 hardcoded rule:
   //   PR #3 docs/hermes-usage.md  -347 / +32  (Add a Troubleshooting section → full rewrite)
   //   PR #4 MIGRATIONS.md         -609 / +28  + fabricated Sprint 1.8.0-3 history
-  // The LLM treated "add X to Y" as "rewrite Y." Engine-level guardrail catches
-  // this with EDIT_DESTRUCTIVE_REWRITE; the prompt below tells the LLM what
-  // the engine expects so a rewrite is opt-in via "replace_all": true.
+  // The hardcoded rule is now the per-kind `no_destructive_rewrite` criterion in
+  // bin/hermes/_lib/action-kinds.cjs (recommendation kind), evaluated by spec-verifier.cjs.
+  // SSOT: the threshold lives ONLY in NO_DESTRUCTIVE_REWRITE_CRITERION.predicate.
+  // This prompt paraphrases the contract; the runtime is authoritative.
   'CRITICAL — content preservation:',
   '- When asked to ADD, APPEND, INSERT, or DOCUMENT something in an EXISTING file,',
   '  your edit.content MUST contain the ORIGINAL file content PLUS your additions.',
   '  Do NOT return only your additions. Do NOT rewrite the file with a new structure.',
   '  Do NOT invent or fabricate prior content (no fake history entries, no fictional',
   '  sections, no plausible-sounding placeholders).',
-  '- The runtime enforces this: if your edit.content for an existing file is < 50%',
-  '  of the existing file size, the edit is REJECTED with EDIT_DESTRUCTIVE_REWRITE.',
+  '- The runtime enforces this via the `no_destructive_rewrite` acceptance criterion',
+  '  (per-kind, declared in action-kinds.cjs). For the recommendation kind, edits that',
+  '  shrink an existing file below the registered threshold are REJECTED with SPEC_VIOLATION',
+  '  and the action is rolled back. Read the predicate in action-kinds.cjs for the',
+  '  exact rule (today: prevSize >= 200 bytes AND newSize < 50% of prevSize).',
   '- Only include "replace_all": true on an edit when the action body EXPLICITLY says',
   '  to replace, regenerate, or rewrite the entire file. The default is preserve+add.',
   '- When in doubt, preserve more existing content. Redundant preservation is harmless;',
@@ -565,7 +571,8 @@ async function openrouterEngine(plan, opts = {}) {
     invalidCode: 'OPENROUTER_EDIT_INVALID',
     unsafeCode: 'OPENROUTER_EDIT_UNSAFE',
     deniedCode: 'OPENROUTER_EDIT_DENYLISTED',
-    shrinkCode: 'OPENROUTER_EDIT_DESTRUCTIVE_REWRITE', // Sprint 1.8.13
+    // Sprint 1.9.0 — destructive-rewrite gate moved to spec-verifier.cjs
+    // (per-kind no_destructive_rewrite criterion). Engine no longer rejects.
     summary: `openrouter (${model}) applied ${(editPlan.edits || []).length} edit(s)`,
   });
 

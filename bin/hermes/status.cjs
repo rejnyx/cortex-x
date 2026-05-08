@@ -41,6 +41,15 @@ function summarizeJournal(slug, daysBack) {
     cost_usd_total: 0,
     tokens_in_total: 0,
     tokens_out_total: 0,
+    // Sprint 1.9.0 — surface spec-driven verification health alongside cost/outcomes.
+    // spec_violations groups failed criterion ids across the lookback window so
+    // an operator can see "no_destructive_rewrite is firing on 3 of last 5 runs"
+    // without grepping the journal manually.
+    spec_violations: {
+      total: 0,
+      by_criterion_id: {},
+      recent: [], // last 5 spec-failed entries (most recent first)
+    },
     last_entries: [],
   };
 
@@ -62,6 +71,22 @@ function summarizeJournal(slug, daysBack) {
       if (typeof e.cost_usd === 'number') summary.cost_usd_total += e.cost_usd;
       if (typeof e.tokens_in === 'number') summary.tokens_in_total += e.tokens_in;
       if (typeof e.tokens_out === 'number') summary.tokens_out_total += e.tokens_out;
+      if (Array.isArray(e.spec_failures) && e.spec_failures.length > 0) {
+        summary.spec_violations.total += 1;
+        for (const f of e.spec_failures) {
+          const id = (f && f.id) || '<no-id>';
+          summary.spec_violations.by_criterion_id[id] = (summary.spec_violations.by_criterion_id[id] || 0) + 1;
+        }
+        if (summary.spec_violations.recent.length < 5) {
+          summary.spec_violations.recent.push({
+            ts: e.ts,
+            event: e.event,
+            action_kind: e.action_kind,
+            action_key: e.action_key,
+            spec_failures: e.spec_failures,
+          });
+        }
+      }
     }
   }
 
@@ -171,6 +196,26 @@ function formatHumanReadable(status) {
     for (const e of j.last_entries) {
       const tsShort = e.ts.slice(11, 19);
       lines.push(`      ${tsShort} ${e.tier} ${e.event}${e.outcome ? ` → ${e.outcome}` : ''}`);
+    }
+  }
+  // Sprint 1.9.0 — render spec-violation rollup. AC line 204: "spec_failures: [...]
+  // block in JSON + human modes." JSON mode passes through `j.spec_violations`
+  // unchanged (it's already in the `journal` substruct).
+  if (j.spec_violations && j.spec_violations.total > 0) {
+    lines.push(`    spec_violations: ${j.spec_violations.total} entries with failed criteria`);
+    const byCrit = j.spec_violations.by_criterion_id || {};
+    const ids = Object.entries(byCrit).sort((a, b) => b[1] - a[1]); // most-frequent first
+    if (ids.length > 0) {
+      const parts = ids.map(([id, n]) => `${id}=${n}`).join(', ');
+      lines.push(`      by_criterion_id: ${parts}`);
+    }
+    if (Array.isArray(j.spec_violations.recent) && j.spec_violations.recent.length > 0) {
+      lines.push('      recent spec_failures:');
+      for (const r of j.spec_violations.recent) {
+        const tsShort = (r.ts || '').slice(11, 19);
+        const ids = (r.spec_failures || []).map((f) => f.id || '<no-id>').join(',');
+        lines.push(`        ${tsShort} ${r.event} kind=${r.action_kind || '?'} ids=[${ids}]`);
+      }
     }
   }
 
