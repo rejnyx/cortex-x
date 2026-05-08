@@ -57,6 +57,13 @@ const otelEmitter = require('./_lib/otel-emitter.cjs');
 // Sprint 1.9.1 — multi-window cost safety + loop detector. Pre-flight gates
 // layer above existing daily cap + per-action_key failure breaker.
 const costSafety = require('./_lib/cost-safety.cjs');
+// Sprint 2.0b — action-kind-based model routing. selectModel() resolves the
+// model slug for an LLM action_kind under the active profile + per-kind +
+// CLI overrides. routingPolicy.checkPerActionBudget gates each LLM action
+// against a $1 default per-action_kind cap (defense in depth above the
+// daily/weekly/monthly caps from 1.9.1).
+const routingTable = require('./_lib/routing-table.cjs');
+const routingPolicy = require('./_lib/routing-policy.cjs');
 // Sprint 1.8.2c — recommendation_harvest is the first non-recommendation kind.
 // Detector lives in detectors/ (read-only signal source); the executor
 // runHarvestAction helper below handles the deterministic append-to-recs path.
@@ -1209,6 +1216,41 @@ async function _runExecuteInner(opts, ctx) {
     };
   }
 
+  // Sprint 2.0b — per-action_kind USD cap. Layered above daily/weekly/monthly
+  // caps from 1.9.1. Skipped for deterministic kinds (no LLM call, cap is
+  // moot — recommendation_harvest, dep_update_patch, etc. all stay free).
+  // Honors STEWARD_PER_ACTION_USD_CAP global default ($1) and
+  // STEWARD_PER_ACTION_USD_CAP_<KIND> per-kind overrides. Set to 0 = opt-out.
+  //
+  // 2.0b R2 ssot-enforcer + edge-hunter MAJOR: derive LLM-kind set from
+  // routing-table SSOT instead of hardcoded duplicate. New LLM kinds added
+  // in Sprint 2.1+ (e.g. recommendation_autoresearch) automatically inherit
+  // the cap without editing this file.
+  if (routingTable.isLLMKind(plan.action_kind)) {
+    const perAction = routingPolicy.checkPerActionBudget(slug, plan.action_kind);
+    if (!perAction.ok) {
+      safeJournal(slug, {
+        ts: new Date().toISOString(),
+        trigger: plan.trigger || 'manual',
+        tier: 'T2',
+        event: 'execute_per_action_budget_capped',
+        outcome: 'skipped',
+        actor: 'steward',
+        action_kind: plan.action_kind,
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+      });
+      return {
+        ok: false,
+        code: 'PER_ACTION_BUDGET_CAP_REACHED',
+        error: `24-h spend on action_kind '${plan.action_kind}' reached $${perAction.spent.toFixed(4)} >= cap $${perAction.cap.toFixed(2)} (STEWARD_PER_ACTION_USD_CAP[_<KIND>])`,
+        action_kind: plan.action_kind,
+        cap: perAction.cap,
+        spent: perAction.spent,
+      };
+    }
+  }
+
   // Phase 3 — Pre-flight repo checks
   if (!gitOps.isInGitRepo(repoRoot)) {
     safeJournal(slug, {
@@ -1385,7 +1427,48 @@ async function _runExecuteInner(opts, ctx) {
         maxCandidates: opts.maxCandidates,
       });
     } else {
-      applyResult = await actionEngine.applyAction(plan, { repoRoot, engine, tracer, parentSpan: agentSpan });
+      // Sprint 2.0b — resolve LLM model via routing-table. Profile precedence:
+      // CLI --routing-profile > STEWARD_ROUTING_PROFILE env > 'balanced'.
+      // Model precedence (in selectModel): CLI --model > STEWARD_ROUTING_<KIND>
+      // > legacy STEWARD_MODEL > profile-table[kind][profile].
+      const routingProfile = opts.routingProfile || routingTable.getDefaultProfile();
+      const routingResult = routingTable.selectModel({
+        actionKind: plan.action_kind,
+        profile: routingProfile,
+        override: opts.model,
+      });
+      if (!routingResult.ok) {
+        rollbackToOriginal(repoRoot, originalBranch, plan.branch);
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          trigger: plan.trigger || 'manual',
+          tier: 'T2',
+          event: 'execute_routing_failed',
+          outcome: 'failure',
+          actor: 'steward',
+          action_kind: plan.action_kind,
+          action_key: plan.action.action_key,
+          action_id: plan.action_id,
+        });
+        return {
+          ok: false,
+          code: routingResult.code,
+          error: routingResult.error,
+          action_kind: plan.action_kind,
+          profile: routingProfile,
+        };
+      }
+      // Tag AGENT span with routing metadata so the trace UI can group by profile.
+      agentSpan.setAttribute('steward.routing.profile', routingResult.profile);
+      agentSpan.setAttribute('steward.routing.source', routingResult.source);
+      if (routingResult.model) agentSpan.setAttribute('steward.routing.model', routingResult.model);
+      applyResult = await actionEngine.applyAction(plan, {
+        repoRoot,
+        engine,
+        tracer,
+        parentSpan: agentSpan,
+        model: routingResult.model || undefined,
+      });
     }
 
     if (!applyResult.ok) {
@@ -1799,31 +1882,44 @@ module.exports = {
 // CLI entry
 if (require.main === module) {
   const args = process.argv.slice(2);
+  // Sprint 2.0b R2 edge-hunter MAJOR fix: when `--name` is followed by another
+  // flag (e.g. `--model --skip-verify`), `args[idx+1]` was previously
+  // returned as the value, silently shipping `--skip-verify` to OpenRouter
+  // as a model slug. Reject values that start with `--` so the next flag is
+  // treated as missing-value (returns undefined, falls through to env/default).
   const flagValue = (name) => {
     const idx = args.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
     if (idx === -1) return undefined;
     const eq = args[idx].indexOf('=');
     if (eq >= 0) return args[idx].slice(eq + 1);
-    return args[idx + 1];
+    const next = args[idx + 1];
+    if (typeof next !== 'string') return undefined;
+    if (next.startsWith('--')) return undefined;
+    return next;
   };
 
   if (args.includes('--help') || args.includes('-h')) {
     console.log('steward execute — run a dry-run plan against the working tree');
     console.log('');
     console.log('Usage: steward execute --plan-file=<path-to-dry-run-json> [options]');
-    console.log('  --plan-file <path>   path to a JSON file from `steward dry-run --json`');
-    console.log('  --repo-root <path>   project root (default: cwd)');
-    console.log('  --engine <name>      action engine: mock | openrouter | claude-sdk (default: openrouter)');
-    console.log('  --skip-verify        skip the npm test gate (DANGEROUS; tests only)');
-    console.log('  --no-push            commit locally only — skip git push + draft PR (default: push if remote exists)');
-    console.log('  --json               machine-readable output');
-    console.log('  --quiet              silent on success');
-    console.log('  --help               this help');
+    console.log('  --plan-file <path>     path to a JSON file from `steward dry-run --json`');
+    console.log('  --repo-root <path>     project root (default: cwd)');
+    console.log('  --engine <name>        action engine: mock | openrouter | claude-sdk (default: openrouter)');
+    console.log('  --routing-profile <p>  cheap | balanced | premium | ensemble (default: balanced)');
+    console.log('  --model <slug>         one-shot model override (wins over profile table + envs)');
+    console.log('  --skip-verify          skip the npm test gate (DANGEROUS; tests only)');
+    console.log('  --no-push              commit locally only — skip git push + draft PR (default: push if remote exists)');
+    console.log('  --json                 machine-readable output');
+    console.log('  --quiet                silent on success');
+    console.log('  --help                 this help');
     console.log('');
     console.log('Engine selection (precedence): --engine flag > STEWARD_ENGINE env > openrouter');
+    console.log('Model selection (precedence): --model flag > STEWARD_ROUTING_<KIND> env >');
+    console.log('  STEWARD_MODEL legacy env > profile-table[kind][profile] > balanced default');
+    console.log('Profile selection (precedence): --routing-profile flag > STEWARD_ROUTING_PROFILE env > balanced');
     console.log('');
     console.log('openrouter engine: real LLM via fetch (zero-deps). Requires OPENROUTER_API_KEY.');
-    console.log('  See docs/steward-usage.md § Model selection for STEWARD_MODEL recommendations.');
+    console.log('  See docs/steward-routing.md for the per-action_kind × profile model table.');
     console.log('claude-sdk engine: stub returning CLAUDE_SDK_NOT_IMPLEMENTED + exit 64 (opt-in).');
     console.log('mock engine reads STEWARD_MOCK_PLAN env var as the edit script.');
     process.exit(0);
@@ -1835,6 +1931,9 @@ if (require.main === module) {
   const skipPush = args.includes('--no-push');
   const planFile = flagValue('plan-file');
   const engine = flagValue('engine');
+  // Sprint 2.0b — routing flags.
+  const routingProfile = flagValue('routing-profile');
+  const modelOverride = flagValue('model');
 
   // CLI is async because runExecute now awaits the action engine
   (async () => {
@@ -1844,6 +1943,8 @@ if (require.main === module) {
       engine,
       skipPush,
       skipVerify,
+      routingProfile,
+      model: modelOverride,
     });
     return result;
   })().then(handleResult).catch((err) => {

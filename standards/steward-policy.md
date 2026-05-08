@@ -177,6 +177,59 @@ Defaults override-able in `~/.cortex/hermes.yaml`. Soft-cap = T1 journal flag. H
 - [ ] Cost meter under hard-cap; tool-call retry under budget
 - [ ] On exit, lock file released; journal `outcome` recorded
 
+## 6.5. Routing profile policy (Sprint 2.0b)
+
+Steward picks an LLM model per action_kind via [`bin/steward/_lib/routing-table.cjs`](../bin/steward/_lib/routing-table.cjs). Operator-facing guide: [`docs/steward-routing.md`](../docs/steward-routing.md). R1 memo: [`docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md`](../docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md).
+
+### Override hierarchy (high → low precedence)
+
+1. CLI `--model <slug>` (one-shot; bypasses profile-allowlist).
+2. `STEWARD_ROUTING_<ACTION_KIND>` env (per-kind override).
+3. `STEWARD_MODEL` env (legacy global pin; pre-2.0b backward compat).
+4. `STEWARD_ROUTING_PROFILE` env (selects profile; default `balanced`).
+5. Routing-table default per `(action_kind, profile)`.
+
+### Profile-allowlist gate
+
+Some kinds restrict allowed profiles to defend against config errors that
+escalate a low-stakes action to an expensive model. Currently:
+
+- `release_notes_drafter` allowed: `cheap`, `balanced`, `premium` (no `ensemble`).
+- All other kinds: all 4 profiles allowed.
+
+Denials surface as `ROUTING_PROFILE_NOT_ALLOWED`. CLI `--model` is the
+explicit operator escape hatch (logged via `steward.routing.source = "cli"`).
+
+### Per-action USD cap (defense layered above 1.9.1's daily/weekly/monthly)
+
+- `STEWARD_PER_ACTION_USD_CAP=1.00` global default.
+- `STEWARD_PER_ACTION_USD_CAP_<KIND>=N` per-kind override.
+- `0` = explicit opt-out.
+- 24-hour rolling window per action_kind.
+- Tripped cap returns `PER_ACTION_BUDGET_CAP_REACHED`, journals
+  `execute_per_action_budget_capped`, exits cleanly without acquiring lock.
+
+### MUST patterns added by 2.0b
+
+- **MUST-R1.** Premium tier MUST NOT pin Opus 4.7 until Anthropic ships
+  tokenizer-overhead billing parity (R1 memo §1.3 caveat — 4.7 generates
+  ~35% more input tokens for the same prompt). Use Opus 4.6 instead.
+  Enforced by `tests/unit/steward/routing-table.test.cjs`.
+- **MUST-R2.** Routing decisions MUST emit trace tags (`steward.routing.profile`,
+  `steward.routing.source`, `steward.routing.model`) on the AGENT span so
+  Phoenix can group by profile. Enforced by `tests/integration/steward-observability.test.cjs`.
+- **MUST-R3.** Profile-allowlist denials MUST NOT silently demote to a
+  permitted profile — they MUST return a clean `ROUTING_PROFILE_NOT_ALLOWED`
+  code so the operator sees what they hit.
+
+### Red flags — block on review
+
+- ❌ Premium-tier slot pinned to `anthropic/claude-opus-4.7` (use 4.6).
+- ❌ Routing-table entry without all 4 profile slots (cheap/balanced/premium/ensemble).
+- ❌ `selectModel()` callsite that bypasses the profile validation.
+- ❌ Per-action USD cap turned off via `STEWARD_PER_ACTION_USD_CAP=0` in
+  workflow files (operator override on dev machines OK).
+
 ## 7. Red flags — block on review
 
 - ❌ Steward commits without `Steward-Action-Id` trailer
