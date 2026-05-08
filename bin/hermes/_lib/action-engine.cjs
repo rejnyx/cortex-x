@@ -347,12 +347,27 @@ function buildUserPrompt(plan, opts = {}) {
 }
 
 async function openrouterEngine(plan, opts = {}) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // Sprint 1.8.12 (b): trim trailing whitespace/newlines from secret. GitHub
+  // Actions secrets set via `echo "key" | gh secret set` retain a trailing
+  // newline; Node's undici fetch silently strips the Authorization header
+  // when its value contains \n, producing OpenRouter "Missing Authentication
+  // header" 401 — a confusing error for what is fundamentally just whitespace.
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
   if (!apiKey) {
     return {
       ok: false,
       code: 'OPENROUTER_KEY_MISSING',
       error: 'OPENROUTER_API_KEY env var is required for the openrouter engine',
+    };
+  }
+  // Header values must not contain whitespace inside (RFC 7230 §3.2.4 token).
+  // If a key has spaces/tabs/control chars after trim, fail fast with a clear
+  // error rather than letting undici strip the header silently.
+  if (/[\s\x00-\x1f\x7f]/.test(apiKey)) {
+    return {
+      ok: false,
+      code: 'OPENROUTER_KEY_MALFORMED',
+      error: 'OPENROUTER_API_KEY contains whitespace or control characters; re-set the secret via `printf %s "<key>" | gh secret set OPENROUTER_API_KEY` (no trailing newline)',
     };
   }
 
