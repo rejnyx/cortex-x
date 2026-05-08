@@ -198,9 +198,9 @@ describe('formatIssueTitle / formatIssueBody', () => {
     assert.doesNotMatch(body, /## git blame/);
   });
 
-  test('formatIssueBody includes Hermes attribution footer', () => {
+  test('formatIssueBody includes Steward attribution footer', () => {
     const body = detector.formatIssueBody({ file: 'a.js', lineNumber: 1, marker: 'TODO', text: 'x' });
-    assert.match(body, /Filed by Hermes/);
+    assert.match(body, /Filed by Steward/);
   });
 });
 

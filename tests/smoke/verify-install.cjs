@@ -250,10 +250,10 @@ function runChecks() {
   checkFileExists('shared.bin.cortex-gap-report', path.join(SHARED, 'bin', 'cortex-gap-report.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-bootstrap', path.join(SHARED, 'bin', 'cortex-bootstrap.cjs'), 'warning');
   checkFileExists('shared.bin.cortex-migrate-data.sh', path.join(SHARED, 'bin', 'cortex-migrate-data.sh'), 'warning');
-  // Sprint 1.7.3 — cortex-hermes shim on PATH (delegates to $CORTEX_ROOT/bin/cortex-hermes.cjs).
-  // Both shims must exist so cortex-hermes works from bash + pwsh after install.
-  checkFileExists('shared.bin.cortex-hermes', path.join(SHARED, 'bin', 'cortex-hermes'), 'warning');
-  checkFileExists('shared.bin.cortex-hermes.ps1', path.join(SHARED, 'bin', 'cortex-hermes.ps1'), 'warning');
+  // Sprint 1.7.3 — cortex-steward shim on PATH (delegates to $CORTEX_ROOT/bin/cortex-steward.cjs).
+  // Both shims must exist so cortex-steward works from bash + pwsh after install.
+  checkFileExists('shared.bin.cortex-hermes', path.join(SHARED, 'bin', 'cortex-steward'), 'warning');
+  checkFileExists('shared.bin.cortex-steward.ps1', path.join(SHARED, 'bin', 'cortex-steward.ps1'), 'warning');
   // Sprint 1.7.4 — user identity captured at install (~/.claude/cortex/user.yaml).
   // Templates + session-start hook read this to personalize output. Always
   // written by install (even with empty fields), so missing file = install bug.

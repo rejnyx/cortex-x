@@ -20,13 +20,13 @@
     "test:integration": "node --test --test-reporter=spec tests/integration/install-roundtrip.test.cjs",
     "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html --include=shared --include=detectors --include=bin --include=tools npm test",
     "test:update-snapshots": "CORTEX_TEST_UPDATE_SNAPSHOTS=1 node --test --test-reporter=spec --test-skip-pattern=\"install\\.sh roundtrip\"",
-    "test:hermes": "node --test --test-reporter=spec tests/unit/hermes/halt-check.test.cjs tests/unit/hermes/lock.test.cjs tests/unit/hermes/journal.test.cjs tests/unit/hermes/recommendations.test.cjs tests/unit/hermes/git-trailers.test.cjs tests/unit/hermes/policy-check.test.cjs tests/unit/hermes/status.test.cjs tests/unit/hermes/cli-dispatch.test.cjs tests/unit/hermes/execute.test.cjs tests/unit/hermes/verifier.test.cjs tests/unit/hermes/git-ops.test.cjs tests/unit/hermes/action-engine.test.cjs tests/integration/hermes-dryrun.test.cjs",
+    "test:hermes": "node --test --test-reporter=spec tests/unit/steward/halt-check.test.cjs tests/unit/steward/lock.test.cjs tests/unit/steward/journal.test.cjs tests/unit/steward/recommendations.test.cjs tests/unit/steward/git-trailers.test.cjs tests/unit/steward/policy-check.test.cjs tests/unit/steward/status.test.cjs tests/unit/steward/cli-dispatch.test.cjs tests/unit/steward/execute.test.cjs tests/unit/steward/verifier.test.cjs tests/unit/steward/git-ops.test.cjs tests/unit/steward/action-engine.test.cjs tests/integration/steward-dryrun.test.cjs",
     "test:standards": "node --test --test-reporter=spec tests/contract/standards-shape.test.cjs",
     "test:bin": "node --test --test-reporter=spec tests/contract/bin-tools-shape.test.cjs",
-    "hermes": "node bin/cortex-hermes.cjs",
-    "hermes:dry-run": "node bin/hermes/dry-run.cjs",
-    "hermes:status": "node bin/hermes/status.cjs",
-    "eval:hermes": "node tools/run-hermes-evals.cjs",
+    "hermes": "node bin/cortex-steward.cjs",
+    "hermes:dry-run": "node bin/steward/dry-run.cjs",
+    "hermes:status": "node bin/steward/status.cjs",
+    "eval:hermes": "node tools/run-steward-evals.cjs",
     "verify:standards": "node tools/verify-standards.cjs"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 # cortex-x test suite
 
-> Eight tiers, organized by what they protect. Tier 0-3 land in the initial QA push; Tier 4-5 gate Hermes; Tier 6-8 gate public launch. See `CLAUDE.md` § Roadmap and `CONTRIBUTING.md` for the gate matrix.
+> Eight tiers, organized by what they protect. Tier 0-3 land in the initial QA push; Tier 4-5 gate Steward; Tier 6-8 gate public launch. See `CLAUDE.md` § Roadmap and `CONTRIBUTING.md` for the gate matrix.
 
 ## Why `node --test` and not vitest
 

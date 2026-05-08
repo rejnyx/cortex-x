@@ -1,0 +1,96 @@
+# hermes-harvest.yml — autonomous Hermes recommendation harvester workflow.
+#
+# Sprint 1.8.2c shipped recommendation_harvest action_kind. This workflow runs
+# the harvester daily at 03:00 UTC (1h before the main recommendation cron),
+# so cortex/recommendations.md is always fresh substrate for the LLM run.
+#
+# Pipeline: dry-run --kind=recommendation_harvest → execute → append candidates
+# to recommendations.md → atomic commit → push → gh pr create --draft.
+#
+# No LLM call — deterministic harvester reads gh PR/CI/issue signals only.
+# Cost: $0/run. Spend cap not relevant (free path).
+#
+# See detectors/recommendation-harvest.cjs for signal sources.
+
+name: hermes harvest
+
+on:
+  workflow_dispatch:        # manual run via GH UI / `gh workflow run hermes-harvest.yml`
+  schedule:
+    - cron: '0 3 * * *'     # Daily 03:00 UTC — 1h before main hermes.yml recommendation cron.
+                            # Refills recommendations.md with fresh candidates from CI/PR/issue
+                            # signals so the 04:00 LLM run always has substrate.
+
+# Mutex-by-repo: at most one harvester per repo. Different concurrency group from
+# hermes.yml — they can race-free in parallel (harvest writes recs.md only,
+# recommendation reads recs.md so timing is harmless).
+concurrency:
+  group: hermes-harvest-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  hermes-harvest:
+    name: hermes harvest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write           # commit on hermes/<date>-recommendation-harvest-<id>
+      pull-requests: write      # gh pr create --draft
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity (Hermes commits)
+        run: |
+          git config user.name  "Hermes (cortex-x)"
+          git config user.email "hermes@cortex-x.local"
+
+      - name: Hermes harvest dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=recommendation_harvest \
+            --json > /tmp/steward-harvest-plan.json
+          cat /tmp/steward-harvest-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-harvest-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "Harvester found no fresh candidates — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Hermes harvest execute (append to recs.md, commit, draft PR)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-harvest-plan.json
+        env:
+          # No OPENROUTER_API_KEY — harvest is deterministic, no LLM call
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-harvest-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

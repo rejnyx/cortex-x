@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // pr-review-responder.cjs — Sprint 1.8.11 PR review comment monitor.
 //
-// Capability #9 from the Hermes evolution roadmap. Polls open PRs authored
-// by Hermes ("Hermes (cortex-x)") that have unresolved reviewer comments.
+// Capability #9 from the Steward evolution roadmap. Polls open PRs authored
+// by Steward ("Steward (cortex-x)" or legacy "Hermes (cortex-x)" pre-Sprint-4.7
+// rebrand) that have unresolved reviewer comments.
 // Pragmatic v1: file an aggregation issue summarizing the comments per PR.
-// Maintainer addresses on the PR or in code; Hermes does NOT auto-patch.
+// Maintainer addresses on the PR or in code; Steward does NOT auto-patch.
 //
 // v2 (parked v0.9+): LLM-driven targeted patch on the same hermes/<branch>.
 // That requires careful design — comment thread parsing, patch shape, scope
@@ -29,7 +30,11 @@ const { execSync } = require('child_process');
 
 const SIGNAL_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_CANDIDATES = 5;
-const HERMES_AUTHOR = 'Hermes (cortex-x)';
+// Sprint 4.7 rebrand: PRs authored under either name need to be recognized.
+// Steward is the canonical going forward; Hermes-authored PRs from before
+// the rename remain in flight until merged or closed.
+const STEWARD_AUTHOR = 'Steward (cortex-x)';
+const LEGACY_HERMES_AUTHOR = 'Hermes (cortex-x)';
 
 function safeExec(cmd, opts = {}) {
   try {
@@ -53,13 +58,21 @@ function ghAuthed() {
   return !!safeExec('gh auth status', { timeout: 2000 });
 }
 
-// Fetch open PRs authored by Hermes. Returns array of { number, title, author }.
-function isHermesAuthor(pr) {
+// Fetch open PRs authored by Steward (or by legacy Hermes name).
+// Returns array of { number, title, author }.
+function isStewardAuthor(pr) {
   const name = pr.author && (pr.author.name || pr.author.login || '');
-  return name.includes('Hermes') || name === HERMES_AUTHOR || name === 'hermes-cortex-x';
+  return name.includes('Steward')
+      || name.includes('Hermes')
+      || name === STEWARD_AUTHOR
+      || name === LEGACY_HERMES_AUTHOR
+      || name === 'steward-cortex-x'
+      || name === 'hermes-cortex-x';
 }
+// Backward-compat alias for callers that imported the pre-rebrand name.
+const isHermesAuthor = isStewardAuthor;
 
-function getHermesOpenPRs({ cwd, mockOpenPRs }) {
+function getStewardOpenPRs({ cwd, mockOpenPRs }) {
   let parsed;
   if (mockOpenPRs != null) {
     parsed = mockOpenPRs;
@@ -72,8 +85,10 @@ function getHermesOpenPRs({ cwd, mockOpenPRs }) {
     if (!out) return [];
     try { parsed = JSON.parse(out); } catch { return []; }
   }
-  return parsed.filter(isHermesAuthor);
+  return parsed.filter(isStewardAuthor);
 }
+// Backward-compat alias for callers that imported the pre-rebrand name.
+const getHermesOpenPRs = getStewardOpenPRs;
 
 // Fetch review comments for a single PR. Returns array of { author, body, file, line }.
 function getPRComments({ cwd, prNumber, mockComments }) {
@@ -97,7 +112,7 @@ function getPRComments({ cwd, prNumber, mockComments }) {
 }
 
 // Top-level: detect PRs with unresolved reviewer comments worth aggregating.
-// "Unresolved" v1 = there exist any comments at all from a non-Hermes author.
+// "Unresolved" v1 = there exist any comments at all from a non-Steward author.
 // v2 could check resolution state via gh api thread endpoints.
 function detectReviewComments({
   cwd, maxCandidates, mockOpenPRs, mockCommentsByPR,
@@ -105,7 +120,7 @@ function detectReviewComments({
   const repoRoot = cwd || process.cwd();
   const max = maxCandidates || DEFAULT_MAX_CANDIDATES;
 
-  const prs = getHermesOpenPRs({ cwd: repoRoot, mockOpenPRs });
+  const prs = getStewardOpenPRs({ cwd: repoRoot, mockOpenPRs });
   const candidates = [];
 
   for (const pr of prs) {
@@ -164,17 +179,17 @@ function formatIssueBody(candidate) {
   }
   lines.push('## Why this is filed');
   lines.push('');
-  lines.push('Hermes\'s `pr_review_responder` capability monitors open PRs it authored');
+  lines.push('Steward\'s `pr_review_responder` capability monitors open PRs it authored');
   lines.push('and surfaces reviewer feedback as a single aggregated issue. v1 does NOT');
   lines.push('auto-patch the PR — maintainer addresses on the PR thread or in code.');
   lines.push('');
   lines.push('Suggested next steps:');
   lines.push('1. Review the comments above');
-  lines.push('2. Either patch the Hermes PR branch directly, or close the PR if rejected');
+  lines.push('2. Either patch the Steward PR branch directly, or close the PR if rejected');
   lines.push('3. Close this aggregation issue when comments are resolved');
   lines.push('');
   lines.push('---');
-  lines.push('Filed by Hermes (cortex-x) pr-review-responder. Deterministic — no LLM.');
+  lines.push('Filed by Steward (cortex-x) pr-review-responder. Deterministic — no LLM.');
   return lines.join('\n');
 }
 
@@ -205,9 +220,12 @@ if (require.main === module) {
 
 module.exports = {
   detectReviewComments,
+  getStewardOpenPRs,
+  isStewardAuthor,
+  // Sprint 4.7 backward-compat aliases — removed in v0.2.0.
   getHermesOpenPRs,
-  getPRComments,
   isHermesAuthor,
+  getPRComments,
   formatIssueTitle,
   formatIssueBody,
 };

@@ -1,10 +1,10 @@
-# Hermes Runtime Troubleshooting
+# Steward Runtime Troubleshooting
 
-This document is an operator-facing diagnostic guide for errors raised by the Hermes runtime during cortex-x project evolution. Each section covers a specific error code with symptom, diagnostic, and remediation steps.
+This document is an operator-facing diagnostic guide for errors raised by the Steward runtime during cortex-x project evolution. Each section covers a specific error code with symptom, diagnostic, and remediation steps.
 
 ## DIRTY_TREE
 
-**Symptom** — The literal error string `working tree has uncommitted changes; commit or stash before running Hermes` fires from the dirty-tree halt check in `config/evolve.yaml` at the start of an evolve run.
+**Symptom** — The literal error string `working tree has uncommitted changes; commit or stash before running Steward` fires from the dirty-tree halt check in `config/evolve.yaml` at the start of an evolve run.
 
 **Diagnostic** — Run `git status --porcelain` to list all unstaged/untracked files. Check whether `.cortex-data/` or workflow-generated artifacts are present. Correlate these results with the `CORTEX_DATA_HOME` environment variable in the workflow configuration.
 
@@ -28,8 +28,8 @@ This document is an operator-facing diagnostic guide for errors raised by the He
 
 ## SPEC_VIOLATION (criterion: `no_destructive_rewrite`)
 
-**Symptom** — Pipeline returns `code: SPEC_VIOLATION` with `spec_failures[0].id === 'no_destructive_rewrite'`. (Sprint 1.9.0 generalized the prior `EDIT_DESTRUCTIVE_REWRITE` engine-level rule into a per-kind acceptance criterion enforced by `bin/hermes/_lib/spec-verifier.cjs`.)
+**Symptom** — Pipeline returns `code: SPEC_VIOLATION` with `spec_failures[0].id === 'no_destructive_rewrite'`. (Sprint 1.9.0 generalized the prior `EDIT_DESTRUCTIVE_REWRITE` engine-level rule into a per-kind acceptance criterion enforced by `bin/steward/_lib/spec-verifier.cjs`.)
 
-**Diagnostic** — The existing file was ≥ 200 bytes, and the post-edit content is less than 50% of the original size. The `recommendation` kind's `acceptance_criteria` array (in `bin/hermes/_lib/action-kinds.cjs`) declares `no_destructive_rewrite` as a `block`-severity `file_predicate`. spec-verifier evaluates it after `applyEditsToFilesystem` succeeds and before `npm test` runs. A failure rolls the working tree back, deletes the dead branch, journals `event: execute_spec_failed` with the `spec_failures` payload, and records a lesson.
+**Diagnostic** — The existing file was ≥ 200 bytes, and the post-edit content is less than 50% of the original size. The `recommendation` kind's `acceptance_criteria` array (in `bin/steward/_lib/action-kinds.cjs`) declares `no_destructive_rewrite` as a `block`-severity `file_predicate`. spec-verifier evaluates it after `applyEditsToFilesystem` succeeds and before `npm test` runs. A failure rolls the working tree back, deletes the dead branch, journals `event: execute_spec_failed` with the `spec_failures` payload, and records a lesson.
 
-**Remediation** — Reword the recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If a full rewrite is intentional, set `"replace_all": true` on the edit in the plan. Watch for fabricated content — the LLM may invent prior history when rewriting, leading to loss of real work. To inspect the criterion definition, see `NO_DESTRUCTIVE_REWRITE_CRITERION` in `bin/hermes/_lib/action-kinds.cjs`. Other Sprint 1.9.0 codes (`SPEC_MALFORMED`, `SPEC_PREDICATE_THREW`, `SPEC_SHELL_TIMEOUT`, `SPEC_REGEX_NO_MATCH`, `SPEC_OVERRIDE_REJECTED`, `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`) indicate registry typos or unimplemented criterion kinds — see `bin/hermes/_lib/spec-verifier.cjs` for the full failure-mode taxonomy.
+**Remediation** — Reword the recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If a full rewrite is intentional, set `"replace_all": true` on the edit in the plan. Watch for fabricated content — the LLM may invent prior history when rewriting, leading to loss of real work. To inspect the criterion definition, see `NO_DESTRUCTIVE_REWRITE_CRITERION` in `bin/steward/_lib/action-kinds.cjs`. Other Sprint 1.9.0 codes (`SPEC_MALFORMED`, `SPEC_PREDICATE_THREW`, `SPEC_SHELL_TIMEOUT`, `SPEC_REGEX_NO_MATCH`, `SPEC_OVERRIDE_REJECTED`, `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`) indicate registry typos or unimplemented criterion kinds — see `bin/steward/_lib/spec-verifier.cjs` for the full failure-mode taxonomy.

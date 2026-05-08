@@ -3,7 +3,7 @@
 //
 // Pragmatic v1: scan source for `// HERMES-FLAKY: <reason>` markers above
 // test/it/describe declarations. Each match is a "user said this is flaky,
-// please quarantine it" signal. Hermes:
+// please quarantine it" signal. Steward:
 //   1. Replaces test(...) → test.skip(...)  (or it/describe variants)
 //   2. Removes the HERMES-FLAKY marker (action consumed)
 //   3. Files a gh issue with the test name + reason + git blame
@@ -188,7 +188,7 @@ function formatIssueBody(candidate) {
   lines.push('');
   lines.push(`**Reason given:** ${candidate.reason || '(no reason supplied)'}`);
   lines.push('');
-  lines.push('## What Hermes did');
+  lines.push('## What Steward did');
   lines.push('');
   lines.push(`- Replaced \`${candidate.testKind}(...)\` with \`${candidate.testKind}.skip(...)\``);
   lines.push('- Removed the `HERMES-FLAKY:` marker comment (action consumed)');
@@ -201,7 +201,7 @@ function formatIssueBody(candidate) {
   lines.push('4. Close this issue');
   lines.push('');
   lines.push('---');
-  lines.push('Filed by Hermes (cortex-x) flaky-test-repair. Marker pattern: `// HERMES-FLAKY: reason`.');
+  lines.push('Filed by Steward (cortex-x) flaky-test-repair. Marker pattern: `// HERMES-FLAKY: reason`.');
   return lines.join('\n');
 }
 

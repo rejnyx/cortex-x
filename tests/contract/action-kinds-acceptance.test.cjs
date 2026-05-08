@@ -3,7 +3,7 @@
 /**
  * Contract test — Sprint 1.9.0 acceptance_criteria invariants.
  *
- * Every shipped action_kind in `bin/hermes/_lib/action-kinds.cjs` MUST declare
+ * Every shipped action_kind in `bin/steward/_lib/action-kinds.cjs` MUST declare
  * a non-empty `acceptance_criteria` array. Each criterion MUST validate
  * against the spec-verifier rules (id, kind, kind-specific fields). This is
  * the registry-side gate: if a kind ships without spec criteria, spec-verifier
@@ -18,8 +18,8 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 
-const kinds = require('../../bin/hermes/_lib/action-kinds.cjs');
-const sv = require('../../bin/hermes/_lib/spec-verifier.cjs');
+const kinds = require('../../bin/steward/_lib/action-kinds.cjs');
+const sv = require('../../bin/steward/_lib/spec-verifier.cjs');
 
 describe('action-kinds × acceptance_criteria contract (Sprint 1.9.0)', () => {
   test('every shipped kind declares a non-empty acceptance_criteria array', () => {

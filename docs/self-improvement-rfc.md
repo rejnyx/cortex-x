@@ -1,8 +1,8 @@
 # Self-Improvement Loop — RFC
 
-> Status: **Superseded by `docs/hermes-roadmap.md` Tier 1+2** (stamped 2026-05-09 during pre-Sprint-2.0 audit cleanup) · Original draft: 2026-04-17 · Author: cortex-x + the user
+> Status: **Superseded by `docs/steward-roadmap.md` Tier 1+2** (stamped 2026-05-09 during pre-Sprint-2.0 audit cleanup) · Original draft: 2026-04-17 · Author: cortex-x + the user
 >
-> **Why preserved:** still referenced by [`prompts/cortex-evolve.md`](../prompts/cortex-evolve.md) and [`README.md`](../README.md) as the historical 4-cadence (daily/weekly/monthly/quarterly) self-improvement design. The Phase 7 Hermes runtime + Tier 1+2 spec-driven verification (Sprint 1.9.0) + autoresearch (Sprint 2.1) supersede the manual cadence model with continuous autonomous evaluation. Read this for context; live behaviour lives in `bin/hermes/` + roadmap.
+> **Why preserved:** still referenced by [`prompts/cortex-evolve.md`](../prompts/cortex-evolve.md) and [`README.md`](../README.md) as the historical 4-cadence (daily/weekly/monthly/quarterly) self-improvement design. The Phase 7 Hermes runtime + Tier 1+2 spec-driven verification (Sprint 1.9.0) + autoresearch (Sprint 2.1) supersede the manual cadence model with continuous autonomous evaluation. Read this for context; live behaviour lives in `bin/steward/` + roadmap.
 
 ---
 

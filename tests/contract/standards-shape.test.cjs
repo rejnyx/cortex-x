@@ -78,7 +78,7 @@ describe('verify-standards: critical-standards inventory', () => {
       'RULE-1.md', 'ssot.md', 'modular.md', 'scalable.md',
       'security.md', 'testing.md', 'observability.md', 'correctness.md',
       'ship-ready.md', 'coding-behavior.md',
-      'hermes-policy.md', // Phase 7 policy
+      'steward-policy.md', // Phase 7 policy (Sprint 4.7 rebrand from hermes-policy.md)
     ];
     for (const f of required) {
       const p = path.join(STANDARDS_DIR, f);

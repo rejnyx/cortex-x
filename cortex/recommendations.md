@@ -13,7 +13,7 @@ This is cortex-x's own `recommendations.md`. Hermes runtime dogfood target.
 Action items below derived from (a) the 2026-05-08 Sprint 1.8.12 incident
 series (3 cron failures → 3 hardening commits → end-to-end auth path
 verified + Hermes' first autonomous PR #5 merged 2026-05-09),
-(b) the 2026-05-09 v1+ roadmap landing (`docs/hermes-roadmap.md`),
+(b) the 2026-05-09 v1+ roadmap landing (`docs/steward-roadmap.md`),
 (c) the 2026-05-07 external review's still-open ship-blockers.
 
 ## DO this week (cited)
@@ -23,7 +23,7 @@ This task requires preserving the entire existing `MIGRATIONS.md` (66+ KB, 600+ 
 [audit: git log 0deb71c..182c310] [src: today's incident loop end-to-end verified]
 
 ### 2. (DONE 2026-05-09) Sprint 1.9.0 — Spec-driven verification
-~~Generalize Sprint 1.8.13's hardcoded content-preservation guardrail into per-kind acceptance criteria.~~ Shipped end-to-end: `bin/hermes/_lib/spec-verifier.cjs` (430 LoC, 5 criterion kinds), 9 shipped action_kinds migrated to `acceptance_criteria[]`, `applyEditsToFilesystem` captures `previousSizes` + `edits[]`, `execute.cjs` wires spec-verifier between `applyAction` and `runNpmTest` (Q5=BEFORE — fail-fast on cheap deterministic checks), 8 new error codes (`SPEC_VIOLATION` … `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`), inline `EDIT_DESTRUCTIVE_REWRITE` removed from action-engine.cjs (single source of truth = recommendation kind's `no_destructive_rewrite` criterion). Tests: 790 → 859 (+69 across unit/contract/integration). R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` (Option D, all 5 operator defaults accepted). Unblocks Sprint 2.0 Langfuse + 2.1 autoresearch fitness signal + 2.2 worktree judge + 2.3 mutation testing.
+~~Generalize Sprint 1.8.13's hardcoded content-preservation guardrail into per-kind acceptance criteria.~~ Shipped end-to-end: `bin/steward/_lib/spec-verifier.cjs` (430 LoC, 5 criterion kinds), 9 shipped action_kinds migrated to `acceptance_criteria[]`, `applyEditsToFilesystem` captures `previousSizes` + `edits[]`, `execute.cjs` wires spec-verifier between `applyAction` and `runNpmTest` (Q5=BEFORE — fail-fast on cheap deterministic checks), 8 new error codes (`SPEC_VIOLATION` … `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`), inline `EDIT_DESTRUCTIVE_REWRITE` removed from action-engine.cjs (single source of truth = recommendation kind's `no_destructive_rewrite` criterion). Tests: 790 → 859 (+69 across unit/contract/integration). R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` (Option D, all 5 operator defaults accepted). Unblocks Sprint 2.0 Langfuse + 2.1 autoresearch fitness signal + 2.2 worktree judge + 2.3 mutation testing.
 
 ## DO this sprint (cited)
 
@@ -32,14 +32,14 @@ This task requires preserving the entire existing `MIGRATIONS.md` (66+ KB, 600+ 
 [audit: external review 2026-05-07] [src: MIGRATIONS.md D-1 entry]
 
 ### 4. First production Hermes target — pick one of RELO / Kiosek / Chatbot Platform
-After cortex-x dogfood proves stable for 3 weeks (per `docs/hermes-research-synthesis.md` v0 assumption #4), expand Hermes to one production project. RELO is the highest-value (most active, most tests, most patterns), Kiosek is the lowest-risk (smaller codebase, less customer impact). 2026-05-08 update: dogfood now has end-to-end auth path verified (run 25555718573 LLM call succeeded after Sprint 1.8.12 hardening). 2026-05-09 update: Hermes' first autonomous PR #5 (docs/troubleshooting.md) merged successfully — first end-to-end self-evolving cycle complete. Decision deferred until cortex-x dogfood produces ≥3 successful weekly runs with draft PRs merged.
+After cortex-x dogfood proves stable for 3 weeks (per `docs/steward-research-synthesis.md` v0 assumption #4), expand Hermes to one production project. RELO is the highest-value (most active, most tests, most patterns), Kiosek is the lowest-risk (smaller codebase, less customer impact). 2026-05-08 update: dogfood now has end-to-end auth path verified (run 25555718573 LLM call succeeded after Sprint 1.8.12 hardening). 2026-05-09 update: Hermes' first autonomous PR #5 (docs/troubleshooting.md) merged successfully — first end-to-end self-evolving cycle complete. Decision deferred until cortex-x dogfood produces ≥3 successful weekly runs with draft PRs merged.
 [audit: hermes-research-synthesis.md § v0 assumption #4 + Sprint 1.8.12 dogfood verification + 2026-05-09 PR #5 merge] [src: 3-week-dogfood-window]
 
 ## DONE — moved out of "DO this week" 2026-05-08+09
 
 The following items were on the original 2026-05-07 list but are now shipped or moot. Kept here for traceability:
 
-- **~~Pivot v1 trigger model from crontab to GitHub Actions~~** — DONE. `.github/workflows/hermes.yml` + `hermes-harvest.yml` + `hermes-dep-patch.yml` + `hermes-todo-triage.yml` all live as of Sprint 1.8.8.
+- **~~Pivot v1 trigger model from crontab to GitHub Actions~~** — DONE. `.github/workflows/steward.yml` + `hermes-harvest.yml` + `hermes-dep-patch.yml` + `hermes-todo-triage.yml` all live as of Sprint 1.8.8.
 - **~~Self-referential PII helper for verify-* validators~~** — MOOT. The three flagged validators stabilized in Sprint 1.6.18; pattern not recurring.
 - **~~Tier 8 agentskills.io v1 spec extensions~~** — DONE. `tools/verify-skills.cjs` validates Tier 8 extensions (allowed-tools, disable-model-invocation, model, metadata, license) per Sprint 1.6.10. Tests in 776/776 grid.
 - **~~v0.5 milestone Claude Agent SDK integration~~** — SUPERSEDED. Sprint 1.6.13 pivoted to OpenRouter via built-in `fetch()` (zero-deps preserved). Claude SDK seam still reachable via explicit `--engine=claude-sdk` flag but parked indefinitely.

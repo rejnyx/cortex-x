@@ -4,9 +4,9 @@
  * Contract test — denylist defense-in-depth (Sprint pre-2.0 housekeeping).
  *
  * Project audit (2026-05-09) found three denylist sources:
- *   - bin/hermes/_lib/action-engine.cjs HERMES_HARD_DENYLIST  → file-WRITE layer
- *   - bin/hermes/_lib/policy-check.cjs  HERMES_DENY           → subprocess layer
- *   - standards/hermes-policy.md                              → narrative doc
+ *   - bin/steward/_lib/action-engine.cjs HERMES_HARD_DENYLIST  → file-WRITE layer
+ *   - bin/steward/_lib/policy-check.cjs  HERMES_DENY           → subprocess layer
+ *   - standards/steward-policy.md                              → narrative doc
  *
  * They are NOT duplicates — they are different defense layers, BUT they must
  * agree on which categories of secret material they cover. Pre-fix, the engine
@@ -21,8 +21,8 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 
-const engine = require('../../bin/hermes/_lib/action-engine.cjs');
-const policy = require('../../bin/hermes/_lib/policy-check.cjs');
+const engine = require('../../bin/steward/_lib/action-engine.cjs');
+const policy = require('../../bin/steward/_lib/policy-check.cjs');
 
 const SECRET_CATEGORIES = [
   { label: '.env', writeProbe: '.env.production', readProbe: 'cat .env.production' },
@@ -69,7 +69,7 @@ describe('denylist defense-in-depth contract', () => {
   test('policy-check does NOT block legitimate non-secret paths', () => {
     const legitProbes = [
       'cat README.md',
-      'cat docs/hermes-runtime.md | head -20',
+      'cat docs/steward-runtime.md | head -20',
       'tail -f cortex/journal/cortex-x/2026-05-09.jsonl',
     ];
     for (const cmd of legitProbes) {

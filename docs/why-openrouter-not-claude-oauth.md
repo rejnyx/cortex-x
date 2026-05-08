@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-cortex-x's autonomous runtime ("Hermes" today; **Steward** post-Sprint 4.7) calls `https://openrouter.ai/api/v1/chat/completions` with an `OPENROUTER_API_KEY` set as a GitHub Actions secret. We do **not** use Claude Code OAuth tokens, Claude Pro/Max session credentials, or any subscription-tied authentication.
+cortex-x's autonomous runtime (codenamed "Hermes" through Sprint 1.9.1; renamed to **Steward** in Sprint 4.7) calls `https://openrouter.ai/api/v1/chat/completions` with an `OPENROUTER_API_KEY` set as a GitHub Actions secret. We do **not** use Claude Code OAuth tokens, Claude Pro/Max session credentials, or any subscription-tied authentication.
 
 This is a deliberate architectural choice that became load-bearing in **April 2026** when Anthropic enforced a usage-policy change.
 
@@ -53,13 +53,13 @@ The operator's Claude Pro/Max subscription remains useful for **interactive Clau
 
 ## Future-proofing
 
-When Anthropic eventually relaxes the OAuth policy (or introduces a sanctioned agent OAuth scope), cortex-x can add a `claude-sdk` engine alongside `openrouter` (the seam already exists at `bin/hermes/_lib/action-engine.cjs ENGINES`). Until then, single-engine simplicity wins.
+When Anthropic eventually relaxes the OAuth policy (or introduces a sanctioned agent OAuth scope), cortex-x can add a `claude-sdk` engine alongside `openrouter` (the seam already exists at `bin/steward/_lib/action-engine.cjs ENGINES`). Until then, single-engine simplicity wins.
 
 When OpenRouter is the source of an outage (rare but possible), cortex-x's circuit breakers (`HERMES_FAILURE_BREAKER` consecutive-fail counter, `HERMES_DAILY_USD_CAP`) prevent cost runaway and Sprint 1.9.1's planned monthly cap + token velocity gate add another layer.
 
 ## References
 
-- [`bin/hermes/_lib/action-engine.cjs`](../bin/hermes/_lib/action-engine.cjs) — `OPENROUTER_ENDPOINT` + `DEFAULT_MODEL` + engine selection.
-- [`docs/hermes-runtime.md`](./hermes-runtime.md) — runtime architecture.
+- [`bin/steward/_lib/action-engine.cjs`](../bin/steward/_lib/action-engine.cjs) — `OPENROUTER_ENDPOINT` + `DEFAULT_MODEL` + engine selection.
+- [`docs/steward-runtime.md`](./hermes-runtime.md) — runtime architecture.
 - [`MIGRATIONS.md`](../MIGRATIONS.md) Sprint 1.6.13 entry — original OpenRouter pivot.
-- [`standards/hermes-policy.md`](../standards/hermes-policy.md) § 4 — cost ceilings.
+- [`standards/steward-policy.md`](../standards/steward-policy.md) § 4 — cost ceilings.

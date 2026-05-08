@@ -1,0 +1,31 @@
+{
+  "name": "apply-success-multi-file",
+  "description": "Action edits 3 files (typical small refactor). LLM emits valid JSON. All paths within repo. Pipeline produces atomic commit covering all 3 in single operation.",
+  "plan_overrides": {
+    "action": {
+      "num": 2,
+      "title": "Refactor utility module",
+      "action_key": "steward-dryrun#week-2"
+    }
+  },
+  "mock_plan": {
+    "edits": [
+      { "path": "src/util.js", "content": "exports.add = (a, b) => a + b;" },
+      { "path": "src/util.test.js", "content": "// test stub" },
+      { "path": "docs/util.md", "content": "# Util\n\nAdd two numbers." }
+    ],
+    "usage": {
+      "cost_usd": 0.0024,
+      "tokens_in": 1800,
+      "tokens_out": 250
+    }
+  },
+  "assertions": {
+    "result_ok": true,
+    "result_code": null,
+    "touched_files": ["src/util.js", "src/util.test.js", "docs/util.md"],
+    "journal_event": "action_completed",
+    "journal_outcome": "success",
+    "cost_captured": true
+  }
+}

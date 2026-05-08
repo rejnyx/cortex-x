@@ -207,7 +207,7 @@ function formatIssueBody(candidate) {
   lines.push('');
   lines.push(`## Why this is filed`);
   lines.push('');
-  lines.push('Hermes\'s `doc_drift` capability scans top-level exported symbols');
+  lines.push('Steward\'s `doc_drift` capability scans top-level exported symbols');
   lines.push('and checks whether they are mentioned (case-sensitive word match) in');
   lines.push('any of: `README.md`, `CLAUDE.md`, or `docs/*.md`.');
   lines.push('');
@@ -219,7 +219,7 @@ function formatIssueBody(candidate) {
   lines.push('3. **Close as not-applicable** — the symbol is internal but happens to be exported for testing');
   lines.push('');
   lines.push('---');
-  lines.push('Filed by Hermes (cortex-x) doc-drift triage. Deterministic scan — no LLM analysis.');
+  lines.push('Filed by Steward (cortex-x) doc-drift triage. Deterministic scan — no LLM analysis.');
   return lines.join('\n');
 }
 
