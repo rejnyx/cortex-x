@@ -148,22 +148,31 @@ function lessonFromExecuteResult(result, ctx = {}) {
     root_cause: result.code || 'UNKNOWN',
     lesson_text: result.error || 'no error message provided',
   };
-  // Heuristic hints for known root causes
-  switch (result.code) {
-    case 'OPENROUTER_KEY_MISSING':
+  // Heuristic hints for known root causes.
+  // Sprint 1.8.13: normalize engine namespace (OPENROUTER_/MOCK_) so a single
+  // case clause covers both runtime + test paths. e.g. OPENROUTER_EDIT_DENYLISTED
+  // and EDIT_DENYLISTED hit the same hint.
+  const normalizedCode = String(result.code || '')
+    .replace(/^OPENROUTER_/, '')
+    .replace(/^MOCK_/, '');
+  switch (normalizedCode) {
+    case 'KEY_MISSING':
       lesson.hint = 'Set OPENROUTER_API_KEY env var or gh secret before next run. For gh: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY (avoid echo — trailing newline silently strips Authorization header).';
       break;
-    case 'OPENROUTER_KEY_MALFORMED':
+    case 'KEY_MALFORMED':
       lesson.hint = 'Key contains whitespace/control chars after trim. Re-set: printf %s "$KEY" | gh secret set OPENROUTER_API_KEY.';
       break;
-    case 'OPENROUTER_AUTH_REJECTED':
+    case 'AUTH_REJECTED':
       lesson.hint = 'OpenRouter returned 401/403 with valid-format key. Most likely: provisioning key (cannot make /chat/completions calls) instead of inference key, OR key revoked, OR account zero credit. Verify: curl -s -H "Authorization: Bearer $KEY" https://openrouter.ai/api/v1/auth/key | jq .data — should return is_provisioning_key:false.';
       break;
-    case 'OPENROUTER_PLAN_SHAPE_INVALID':
+    case 'PLAN_SHAPE_INVALID':
       lesson.hint = 'LLM returned invalid edits[] shape; check max_tokens (default 4096 may truncate)';
       break;
     case 'EDIT_DENYLISTED':
       lesson.hint = 'LLM tried to edit a hardcoded-denylist path; reword recommendation to target auto_improves area';
+      break;
+    case 'EDIT_DESTRUCTIVE_REWRITE':
+      lesson.hint = 'LLM returned <50% of existing file content (PR #3/#4 pattern 2026-05-08). Reword recommendation with explicit "APPEND/INSERT only, preserve existing content" language. If the rewrite is intentional, set "replace_all": true on the edit in the plan. Watch for fabricated content (LLM may hallucinate prior history when rewriting).';
       break;
     case 'NPM_TEST_FAILED':
       lesson.hint = 'Verifier rejected; LLM produced syntactically valid but semantically broken code';

@@ -259,6 +259,7 @@ describe('lessons: lessonFromExecuteResult', () => {
       'OPENROUTER_AUTH_REJECTED',  // Sprint 1.8.12c
       'OPENROUTER_PLAN_SHAPE_INVALID',
       'EDIT_DENYLISTED',
+      'EDIT_DESTRUCTIVE_REWRITE',  // Sprint 1.8.13
       'NPM_TEST_FAILED',
       'BUDGET_CAP_REACHED',
       'FAILURE_BREAKER_TRIPPED',
@@ -288,6 +289,17 @@ describe('lessons: lessonFromExecuteResult', () => {
     });
     assert.match(lesson.hint, /printf/);
     assert.match(lesson.hint, /echo/);
+  });
+
+  test('Sprint 1.8.13: DESTRUCTIVE_REWRITE hint mentions APPEND/INSERT + replace_all opt-out', () => {
+    const lesson = lessons.lessonFromExecuteResult({
+      ok: false,
+      code: 'EDIT_DESTRUCTIVE_REWRITE',
+      error: 'edit would shrink existing file',
+    });
+    assert.match(lesson.hint, /APPEND|INSERT|preserve/);
+    assert.match(lesson.hint, /replace_all/);
+    assert.match(lesson.hint, /fabricated|hallucinate/);
   });
 
   test('hint is null for unknown codes', () => {
