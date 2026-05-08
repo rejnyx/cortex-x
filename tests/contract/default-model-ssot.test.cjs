@@ -6,9 +6,8 @@
  * Project audit (2026-05-09) found `deepseek/deepseek-v4-flash` hardcoded in
  * 9 sites. The runtime SSOT is `bin/steward/_lib/action-engine.cjs DEFAULT_MODEL`.
  * The workflow file `.github/workflows/steward.yml` carries an explicit
- * `STEWARD_MODEL:` env override (with legacy `HERMES_MODEL:` alias honored
- * through v0.2.0) that MUST stay in sync with the code SSOT — otherwise the
- * GHA cron silently uses a different model than dev/local runs.
+ * `STEWARD_MODEL:` env override that MUST stay in sync with the code SSOT —
+ * otherwise the GHA cron silently uses a different model than dev/local runs.
  *
  * This test fails loudly when the two diverge. Doc-narrative references in
  * MIGRATIONS.md / CLAUDE.md / README.md / steward-runtime.md / steward-usage.md
@@ -37,8 +36,6 @@ describe('DEFAULT_MODEL SSOT (action-engine.cjs ↔ workflow)', () => {
       'utf8',
     );
     // Match `STEWARD_MODEL: <value>` (YAML scalar; allow optional surrounding whitespace).
-    // Sprint 4.7: legacy HERMES_MODEL key remains honored at runtime via env.cjs
-    // backward-compat layer, but the workflow file SoT uses the canonical name.
     const match = workflow.match(/^\s*STEWARD_MODEL:\s*['"]?([^'"\n]+?)['"]?\s*$/m);
     assert.ok(match, 'workflow must declare STEWARD_MODEL on its own line');
     const workflowModel = match[1].trim();

@@ -5,8 +5,8 @@
 > **Date:** 2026-05-07 · **Author:** Dave Rajnoha (with Claude assistance) · **Reviewers:** TBD before first Steward code merge.
 >
 > **Companions:**
-> - [`docs/steward-rfc.md`](./hermes-rfc.md) — motivation + open questions
-> - [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md) — research decisions
+> - [`docs/steward-rfc.md`](./steward-rfc.md) — motivation + open questions
+> - [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md) — research decisions
 > - [`standards/steward-policy.md`](../standards/steward-policy.md) — refusals + denylist + 7 MUST patterns
 
 ## 0. v0 scope (hardcoded)
@@ -22,7 +22,7 @@ Single-project, single-trigger, single-action-per-run. Everything beyond is **v1
 | `auto_improves:` PR pipeline (full self-improvement loop) | partial — runs `cortex-evolve` mining + drafts proposal PR | full multi-cadence pipeline |
 | Conflict-on-pull resolution | halt + ping | opt-in side-branch LLM-drafted resolution |
 
-**v0 success criteria** ([cited from synthesis](./hermes-research-synthesis.md#v0-success-criteria)):
+**v0 success criteria** ([cited from synthesis](./steward-research-synthesis.md#v0-success-criteria)):
 1. Single weekly cron run on cortex-x produces a draft PR with ≤3 mining proposals
 2. PR commits carry valid Git trailers
 3. Journal is replayable
@@ -41,7 +41,7 @@ Single-agent Claude Agent SDK session per Steward run. Reads `cortex/recommendat
 ```typescript
 async function runStewardIteration(opts: StewardRunOpts): Promise<StewardRunResult> {
   // Phase 0 — Pre-flight gates
-  await ensureNotHalted()              // check ~/.cortex/HERMES_HALT + <repo>/.cortex/HERMES_HALT
+  await ensureNotHalted()              // check ~/.cortex/STEWARD_HALT + <repo>/.cortex/STEWARD_HALT
   const lock = await acquireProjectLock(opts.slug)  // cortex/journal/<slug>/.lock
   await ensureCleanWorkingTree()       // git status --porcelain → empty (or stash)
 
@@ -129,8 +129,8 @@ jobs:
       - run: node bin/cortex-steward.cjs dry-run --slug=${{ github.event.repository.name }} --trigger=cron --json
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}  # v0.5b default engine
-          HERMES_MODEL: deepseek/deepseek-v4-flash               # see hermes-usage.md § Model selection
-          HERMES_MAX_TOKENS: '16384'                              # default 4096 truncates multi-file edits
+          STEWARD_MODEL: deepseek/deepseek-v4-flash               # see steward-usage.md § Model selection
+          STEWARD_MAX_TOKENS: '16384'                              # default 4096 truncates multi-file edits
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
       # v0.5b shipped Sprint 1.6.13: dry-run produced plan → cortex-steward execute
       # → real OpenRouter call (zero-deps via fetch) → file edits → npm test gate
@@ -253,7 +253,7 @@ If Ring 1 has a bug, Ring 2 catches it. If Ring 2 has a bug (or is bypassed via 
 Step-by-step:
 
 1. **04:00 UTC Sunday** — cron fires `~/.cortex/bin/hermes run --slug=cortex-x --trigger=cron`
-2. **HALT check** — if `~/.cortex/HERMES_HALT` or `<repo>/.cortex/HERMES_HALT` present → exit 75 with journal entry
+2. **HALT check** — if `~/.cortex/STEWARD_HALT` or `<repo>/.cortex/STEWARD_HALT` present → exit 75 with journal entry
 3. **Lock acquire** — `cortex/journal/cortex-x/.lock` written with `{pid, start_ts, action_id}`
 4. **Clean tree gate** — `git status --porcelain` empty (or stash + restore)
 5. **Read recommendations** — parse `cortex/recommendations.md` "DO this week" section
@@ -280,7 +280,7 @@ Step-by-step:
        │
        ▼
 ┌──────────────────┐    no    ┌──────────────────┐
-│ HERMES_HALT      ├────────> │ continue         │
+│ STEWARD_HALT      ├────────> │ continue         │
 │ exists?          │          └──────────────────┘
 └──────┬───────────┘
        │ yes
@@ -355,7 +355,7 @@ on next iteration:
 - Project's own `package.json` / `tests/` / `evals/` — for verification commands
 
 ### Outputs
-- One Git branch `hermes/<YYYY-MM-DD>-<slug>-<id>`
+- One Git branch `steward/<YYYY-MM-DD>-<slug>-<id>`
 - One commit on that branch with Git trailers
 - One draft PR against `main`
 - One or more journal entries appended to `~/.cortex/journal/<slug>/<date>.jsonl`
@@ -387,7 +387,7 @@ that **preserves zero-deps**:
 chat-completions endpoint with `response_format: { type: "json_object" }`.**
 
 The model returns a structured edit-plan in the same shape as the mock
-engine's `HERMES_MOCK_PLAN`:
+engine's `STEWARD_MOCK_PLAN`:
 
 ```json
 {
@@ -417,9 +417,9 @@ bin/steward/_lib/action-engine.cjs
 | Var | Purpose |
 |---|---|
 | `OPENROUTER_API_KEY` | Required. Bearer token for `https://openrouter.ai/api/v1/chat/completions`. **Inference key**, not provisioning/management. |
-| `HERMES_MODEL` | Optional. Model slug (e.g. `deepseek/deepseek-v4-flash`, `anthropic/claude-haiku-4.5`, `anthropic/claude-sonnet-4.5`). Default: `deepseek/deepseek-v4-flash` (post-Sprint-1.6.13 — see hermes-usage.md § Model selection). |
-| `HERMES_MAX_TOKENS` | Optional. Output cap for the LLM call. Default `4096` truncates multi-file edit plans mid-string — bump to `16384` for production (Sprint 1.6.14). |
-| `HERMES_ENGINE` | Optional. Set to `openrouter` to force this engine; `openrouter` is the default post-Sprint-1.6.13. Use `--engine=claude-sdk` to fall back to the stub. |
+| `STEWARD_MODEL` | Optional. Model slug (e.g. `deepseek/deepseek-v4-flash`, `anthropic/claude-haiku-4.5`, `anthropic/claude-sonnet-4.5`). Default: `deepseek/deepseek-v4-flash` (post-Sprint-1.6.13 — see steward-usage.md § Model selection). |
+| `STEWARD_MAX_TOKENS` | Optional. Output cap for the LLM call. Default `4096` truncates multi-file edit plans mid-string — bump to `16384` for production (Sprint 1.6.14). |
+| `STEWARD_ENGINE` | Optional. Set to `openrouter` to force this engine; `openrouter` is the default post-Sprint-1.6.13. Use `--engine=claude-sdk` to fall back to the stub. |
 
 ### Bonus over a direct Anthropic dep
 
@@ -436,7 +436,7 @@ async function openrouterEngine(plan, opts = {}) {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) return { ok: false, code: 'OPENROUTER_KEY_MISSING' }
 
-  const model = opts.model || process.env.HERMES_MODEL || 'anthropic/claude-sonnet-4.5'
+  const model = opts.model || process.env.STEWARD_MODEL || 'anthropic/claude-sonnet-4.5'
 
   const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -495,8 +495,8 @@ The mock engine is sync today. OpenRouter requires `await fetch(...)`. So
 
 ## 6. Cross-references
 
-- [`docs/steward-rfc.md`](./hermes-rfc.md) — motivation + open questions (most now answered in synthesis)
-- [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md) — research-grounded design decisions
+- [`docs/steward-rfc.md`](./steward-rfc.md) — motivation + open questions (most now answered in synthesis)
+- [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md) — research-grounded design decisions
 - [`standards/steward-policy.md`](../standards/steward-policy.md) — refusals + denylist + 7 MUST patterns
 - [`config/evolve.yaml`](../config/evolve.yaml) — auto_improves / human_only SSOT
 - [`shared/hooks/block-destructive.cjs`](../shared/hooks/block-destructive.cjs) — Ring 2 safety
@@ -504,4 +504,4 @@ The mock engine is sync today. OpenRouter requires `await fetch(...)`. So
 
 ---
 
-*Drafted 2026-05-07 alongside [`standards/steward-policy.md`](../standards/steward-policy.md) and [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md). Reviewed by Dave Rajnoha before first Steward runtime PR.*
+*Drafted 2026-05-07 alongside [`standards/steward-policy.md`](../standards/steward-policy.md) and [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md). Reviewed by Dave Rajnoha before first Steward runtime PR.*

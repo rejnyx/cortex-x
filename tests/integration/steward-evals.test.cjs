@@ -2,7 +2,7 @@
 //
 // Discovers JSON eval cases under `evals/steward/cases/` and runs each as a
 // node:test test(). Each case feeds a hand-crafted "model output" via
-// HERMES_MOCK_PLAN and asserts pipeline behavior (result.code, touched files,
+// STEWARD_MOCK_PLAN and asserts pipeline behavior (result.code, touched files,
 // journal entry, cost capture).
 //
 // See evals/steward/README.md for case schema.
@@ -102,9 +102,9 @@ describe(`hermes evals: ${cases.length} cases discovered`, () => {
 
       await withEnv({
         CORTEX_DATA_HOME: dataHome,
-        HERMES_ENGINE: 'mock',
-        HERMES_MOCK_PLAN: JSON.stringify(c.mock_plan),
-        HERMES_NO_PUSH: '1',  // never push during evals
+        STEWARD_ENGINE: 'mock',
+        STEWARD_MOCK_PLAN: JSON.stringify(c.mock_plan),
+        STEWARD_NO_PUSH: '1',  // never push during evals
       }, async () => {
         const result = await execute.runExecute({ planFile, repoRoot });
 

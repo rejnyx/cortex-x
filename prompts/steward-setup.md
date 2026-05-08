@@ -12,7 +12,7 @@ Open with this exact framing (adapt to detected user.yaml.language):
 
 > **Steward is your AI nightly autopilot.** While you sleep, it reads `cortex/recommendations.md`, picks the next action, asks the LLM (~$0.0008 per run via OpenRouter), applies the edits, runs `npm test` as a gate, opens a **draft PR**. You wake up, review the diff, merge or reject.
 >
-> **Safety primitives baked in.** Every run: ① always a draft PR (never auto-merge) · ② halt switch `touch ~/.cortex/HERMES_HALT` ③ $5/day spend cap + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure (test fail = git reset, no commit).
+> **Safety primitives baked in.** Every run: ① always a draft PR (never auto-merge) · ② halt switch `touch ~/.cortex/STEWARD_HALT` ③ $5/day spend cap + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure (test fail = git reset, no commit).
 
 Wait for "OK" / "let's do it" / equivalent before proceeding. If the user has questions, answer from `docs/steward-usage.md` § 4-level autonomy ladder.
 
@@ -27,7 +27,7 @@ Run ALL these checks in parallel (single message, multiple Bash calls). Report r
 □ workflow file present:      test -f .github/workflows/steward.yml && grep -E "^name:" .github/workflows/steward.yml
 □ OPENROUTER_API_KEY in gh:   gh secret list | grep OPENROUTER_API_KEY
 □ cortex-steward on PATH:      command -v cortex-steward
-□ halt switch state:          test -f ~/.cortex/HERMES_HALT && echo "HALTED" || echo "ready"
+□ halt switch state:          test -f ~/.cortex/STEWARD_HALT && echo "HALTED" || echo "ready"
 □ existing journal traffic:   test -d ~/.cortex/journal && ls ~/.cortex/journal/ | wc -l
 ```
 
@@ -93,10 +93,10 @@ Copy from cortex-x repo: `.github/workflows/steward.yml` (in this repo as the ca
 
 Key knobs the user can tune:
 - `cron: '0 4 * * *'` — daily 04:00 UTC. Switch to `'0 4 * * 0'` for weekly Sundays if budget-tight.
-- `HERMES_MODEL: deepseek/deepseek-v4-flash` — default cheapest. Override to `anthropic/claude-haiku-4.5` for higher quality at ~3x cost.
-- `HERMES_MAX_TOKENS: '16384'` — default. Drop to 4096 for simple recommendations, raise to 32768 for multi-file refactors.
-- `HERMES_DAILY_USD_CAP: '5'` — daily ceiling. Override per-team risk tolerance.
-- `HERMES_FAILURE_BREAKER: '3'` — per-action circuit breaker (1-hour window).
+- `STEWARD_MODEL: deepseek/deepseek-v4-flash` — default cheapest. Override to `anthropic/claude-haiku-4.5` for higher quality at ~3x cost.
+- `STEWARD_MAX_TOKENS: '16384'` — default. Drop to 4096 for simple recommendations, raise to 32768 for multi-file refactors.
+- `STEWARD_DAILY_USD_CAP: '5'` — daily ceiling. Override per-team risk tolerance.
+- `STEWARD_FAILURE_BREAKER: '3'` — per-action circuit breaker (1-hour window).
 
 After commit + push the workflow file, the next 04:00 UTC kicks the loop.
 
@@ -148,7 +148,7 @@ Tomorrow morning: `gh pr list --state open` → review draft → merge or reject
 ```
 
 Offer to halt:
-- Full halt: `touch ~/.cortex/HERMES_HALT` (Steward exits clean on next run, no spend)
+- Full halt: `touch ~/.cortex/STEWARD_HALT` (Steward exits clean on next run, no spend)
 - Per-repo halt: comment out the `cron:` line in `.github/workflows/steward.yml`
 - Permanent disable: delete `.github/workflows/steward.yml`
 
@@ -174,7 +174,7 @@ Co se teď bude dít:
 - Každou noc 04:00 UTC (= ~06:00 středoevropská): jedna recommendation → draft PR
 - Ráno: gh pr list, review, merge nebo reject
 - Cost ceiling: $5/den (typický run $0.0008 → 6000+ runs/den před cap)
-- Halt anytime: touch ~/.cortex/HERMES_HALT
+- Halt anytime: touch ~/.cortex/STEWARD_HALT
 
 Pokud něco nejde podle plánu:
 - Rollup: cortex-steward status --slug=<your-repo>

@@ -51,28 +51,28 @@ describe('cost-safety: env readers', () => {
   let prevEnv = {};
   beforeEach(() => {
     prevEnv = {
-      week: process.env.HERMES_WEEKLY_USD_CAP,
-      month: process.env.HERMES_MONTHLY_USD_CAP,
-      vel: process.env.HERMES_TOKEN_VELOCITY_CAP,
-      loop: process.env.HERMES_LOOP_THRESHOLD,
+      week: process.env.STEWARD_WEEKLY_USD_CAP,
+      month: process.env.STEWARD_MONTHLY_USD_CAP,
+      vel: process.env.STEWARD_TOKEN_VELOCITY_CAP,
+      loop: process.env.STEWARD_LOOP_THRESHOLD,
     };
   });
   afterEach(() => {
     for (const [k, v] of Object.entries({
-      HERMES_WEEKLY_USD_CAP: prevEnv.week,
-      HERMES_MONTHLY_USD_CAP: prevEnv.month,
-      HERMES_TOKEN_VELOCITY_CAP: prevEnv.vel,
-      HERMES_LOOP_THRESHOLD: prevEnv.loop,
+      STEWARD_WEEKLY_USD_CAP: prevEnv.week,
+      STEWARD_MONTHLY_USD_CAP: prevEnv.month,
+      STEWARD_TOKEN_VELOCITY_CAP: prevEnv.vel,
+      STEWARD_LOOP_THRESHOLD: prevEnv.loop,
     })) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
   });
 
   test('returns documented defaults when env unset', () => {
-    delete process.env.HERMES_WEEKLY_USD_CAP;
-    delete process.env.HERMES_MONTHLY_USD_CAP;
-    delete process.env.HERMES_TOKEN_VELOCITY_CAP;
-    delete process.env.HERMES_LOOP_THRESHOLD;
+    delete process.env.STEWARD_WEEKLY_USD_CAP;
+    delete process.env.STEWARD_MONTHLY_USD_CAP;
+    delete process.env.STEWARD_TOKEN_VELOCITY_CAP;
+    delete process.env.STEWARD_LOOP_THRESHOLD;
     assert.equal(cs.readWeeklyCap(), 25);
     assert.equal(cs.readMonthlyCap(), 80);
     assert.equal(cs.readTokenVelocityCap(), 50_000);
@@ -80,17 +80,17 @@ describe('cost-safety: env readers', () => {
   });
 
   test('honors `0` as explicit opt-out (NOT reset to default)', () => {
-    process.env.HERMES_WEEKLY_USD_CAP = '0';
-    process.env.HERMES_MONTHLY_USD_CAP = '0';
-    process.env.HERMES_LOOP_THRESHOLD = '0';
+    process.env.STEWARD_WEEKLY_USD_CAP = '0';
+    process.env.STEWARD_MONTHLY_USD_CAP = '0';
+    process.env.STEWARD_LOOP_THRESHOLD = '0';
     assert.equal(cs.readWeeklyCap(), 0);
     assert.equal(cs.readMonthlyCap(), 0);
     assert.equal(cs.readLoopThreshold(), 0);
   });
 
   test('clamps negative + NaN to default', () => {
-    process.env.HERMES_WEEKLY_USD_CAP = '-1';
-    process.env.HERMES_MONTHLY_USD_CAP = 'banana';
+    process.env.STEWARD_WEEKLY_USD_CAP = '-1';
+    process.env.STEWARD_MONTHLY_USD_CAP = 'banana';
     assert.equal(cs.readWeeklyCap(), 25);
     assert.equal(cs.readMonthlyCap(), 80);
   });
@@ -258,17 +258,17 @@ describe('cost-safety: gate evaluators', () => {
   beforeEach(() => {
     prevHome = process.env.CORTEX_DATA_HOME;
     dataHome = setupDataHome();
-    prevEnv = { weekly: process.env.HERMES_WEEKLY_USD_CAP };
+    prevEnv = { weekly: process.env.STEWARD_WEEKLY_USD_CAP };
   });
   afterEach(() => {
     teardownDataHome(prevHome);
-    if (prevEnv.weekly === undefined) delete process.env.HERMES_WEEKLY_USD_CAP;
-    else process.env.HERMES_WEEKLY_USD_CAP = prevEnv.weekly;
+    if (prevEnv.weekly === undefined) delete process.env.STEWARD_WEEKLY_USD_CAP;
+    else process.env.STEWARD_WEEKLY_USD_CAP = prevEnv.weekly;
     fs.rmSync(dataHome, { recursive: true, force: true });
   });
 
   test('checkWeeklyBudget returns ok when below cap', () => {
-    process.env.HERMES_WEEKLY_USD_CAP = '10';
+    process.env.STEWARD_WEEKLY_USD_CAP = '10';
     writeOn(dateMinus(1), {
       ts: isoMinus(1), trigger: 'cron', tier: 'T2',
       event: 'execute_completed', outcome: 'success', cost_usd: 3,
@@ -280,7 +280,7 @@ describe('cost-safety: gate evaluators', () => {
   });
 
   test('checkWeeklyBudget returns BUDGET_WEEKLY_CAP_REACHED at cap', () => {
-    process.env.HERMES_WEEKLY_USD_CAP = '5';
+    process.env.STEWARD_WEEKLY_USD_CAP = '5';
     writeOn(dateMinus(1), {
       ts: isoMinus(1), trigger: 'cron', tier: 'T2',
       event: 'execute_completed', outcome: 'success', cost_usd: 5,
@@ -291,7 +291,7 @@ describe('cost-safety: gate evaluators', () => {
   });
 
   test('cap=0 honored as opt-out (always ok=true)', () => {
-    process.env.HERMES_WEEKLY_USD_CAP = '0';
+    process.env.STEWARD_WEEKLY_USD_CAP = '0';
     writeOn(dateMinus(0), {
       ts: new Date().toISOString(), trigger: 'cron', tier: 'T2',
       event: 'execute_completed', outcome: 'success', cost_usd: 9999,

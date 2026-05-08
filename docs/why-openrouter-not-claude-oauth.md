@@ -55,11 +55,11 @@ The operator's Claude Pro/Max subscription remains useful for **interactive Clau
 
 When Anthropic eventually relaxes the OAuth policy (or introduces a sanctioned agent OAuth scope), cortex-x can add a `claude-sdk` engine alongside `openrouter` (the seam already exists at `bin/steward/_lib/action-engine.cjs ENGINES`). Until then, single-engine simplicity wins.
 
-When OpenRouter is the source of an outage (rare but possible), cortex-x's circuit breakers (`HERMES_FAILURE_BREAKER` consecutive-fail counter, `HERMES_DAILY_USD_CAP`) prevent cost runaway and Sprint 1.9.1's planned monthly cap + token velocity gate add another layer.
+When OpenRouter is the source of an outage (rare but possible), cortex-x's circuit breakers (`STEWARD_FAILURE_BREAKER` consecutive-fail counter, `STEWARD_DAILY_USD_CAP`) prevent cost runaway and Sprint 1.9.1's planned monthly cap + token velocity gate add another layer.
 
 ## References
 
 - [`bin/steward/_lib/action-engine.cjs`](../bin/steward/_lib/action-engine.cjs) — `OPENROUTER_ENDPOINT` + `DEFAULT_MODEL` + engine selection.
-- [`docs/steward-runtime.md`](./hermes-runtime.md) — runtime architecture.
+- [`docs/steward-runtime.md`](./steward-runtime.md) — runtime architecture.
 - [`MIGRATIONS.md`](../MIGRATIONS.md) Sprint 1.6.13 entry — original OpenRouter pivot.
 - [`standards/steward-policy.md`](../standards/steward-policy.md) § 4 — cost ceilings.

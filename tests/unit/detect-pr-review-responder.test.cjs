@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const detector = require('../../detectors/pr-review-responder.cjs');
 
 describe('detectReviewComments (DI)', () => {
-  test('returns empty when no Hermes-authored PRs', () => {
+  test('returns empty when no Steward-authored PRs', () => {
     const r = detector.detectReviewComments({
       mockOpenPRs: [
         { number: 1, title: 'Some PR', author: { login: 'random-user' } },
@@ -17,13 +17,13 @@ describe('detectReviewComments (DI)', () => {
       mockCommentsByPR: { 1: [{ author: 'reviewer', body: 'fix this' }] },
     });
     assert.equal(r.candidates.length, 0);
-    assert.equal(r.total_open_prs, 0); // filtered to Hermes-authored only
+    assert.equal(r.total_open_prs, 0); // filtered to Steward-authored only
   });
 
-  test('detects Hermes-authored PRs with external reviewer comments', () => {
+  test('detects Steward-authored PRs with external reviewer comments', () => {
     const r = detector.detectReviewComments({
       mockOpenPRs: [
-        { number: 42, title: 'feat: x', author: { login: 'hermes-cortex-x', name: 'Hermes (cortex-x)' } },
+        { number: 42, title: 'feat: x', author: { login: 'steward-cortex-x', name: 'Steward (cortex-x)' } },
       ],
       mockCommentsByPR: {
         42: [
@@ -36,11 +36,11 @@ describe('detectReviewComments (DI)', () => {
     assert.equal(r.candidates[0].comment_count, 1);
   });
 
-  test('skips Hermes PRs with no external comments', () => {
+  test('skips Steward PRs with no external comments', () => {
     const r = detector.detectReviewComments({
       mockOpenPRs: [
-        { number: 1, title: 'a', author: { login: 'hermes-cortex-x' } },
-        { number: 2, title: 'b', author: { login: 'hermes-cortex-x' } },
+        { number: 1, title: 'a', author: { login: 'steward-cortex-x' } },
+        { number: 2, title: 'b', author: { login: 'steward-cortex-x' } },
       ],
       mockCommentsByPR: {
         1: [], // no comments
@@ -51,14 +51,14 @@ describe('detectReviewComments (DI)', () => {
     assert.equal(r.candidates[0].pr_number, 2);
   });
 
-  test('filters out Hermes self-comments', () => {
+  test('filters out Steward self-comments', () => {
     const r = detector.detectReviewComments({
       mockOpenPRs: [
-        { number: 1, title: 'a', author: { login: 'hermes-cortex-x' } },
+        { number: 1, title: 'a', author: { login: 'steward-cortex-x' } },
       ],
       mockCommentsByPR: {
         1: [
-          { author: 'hermes-cortex-x', body: 'my own comment' },
+          { author: 'steward-cortex-x', body: 'my own comment' },
           { author: 'real-reviewer', body: 'feedback from human' },
         ],
       },
@@ -72,7 +72,7 @@ describe('detectReviewComments (DI)', () => {
     const prs = [];
     const comments = {};
     for (let i = 0; i < 10; i += 1) {
-      prs.push({ number: i, title: `pr ${i}`, author: { login: 'hermes-cortex-x' } });
+      prs.push({ number: i, title: `pr ${i}`, author: { login: 'steward-cortex-x' } });
       comments[i] = [{ author: 'reviewer', body: 'feedback' }];
     }
     const r = detector.detectReviewComments({
@@ -86,7 +86,7 @@ describe('detectReviewComments (DI)', () => {
   test('handles author.name shape (gh api returns either name or login)', () => {
     const r = detector.detectReviewComments({
       mockOpenPRs: [
-        { number: 1, title: 'a', author: { name: 'Hermes (cortex-x)' } },
+        { number: 1, title: 'a', author: { name: 'Steward (cortex-x)' } },
       ],
       mockCommentsByPR: { 1: [{ author: 'reviewer', body: 'x' }] },
     });

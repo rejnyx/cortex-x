@@ -12,7 +12,7 @@
  *   6. OTLP wire format (resourceSpans → scopeSpans → spans)
  *   7. Numeric vs string attribute coercion (intValue, doubleValue, stringValue)
  *   8. Idempotent flush()
- *   9. STEWARD_OTEL_ENDPOINT vs HERMES_OTEL_ENDPOINT alias
+ *   9. Endpoint allow-list (SSRF guard)
  *  10. withSpan() auto-end + status on resolve/reject
  *  11. SpanKind mapping (AGENT/CHAIN→INTERNAL, LLM/TOOL→CLIENT)
  *  12. Status codes (UNSET/OK/ERROR)
@@ -39,9 +39,9 @@ describe('otel-emitter: createTracer + fail-open', () => {
   let restoreEnv;
 
   beforeEach(() => {
-    restoreEnv = saveEnv(['STEWARD_OTEL_ENDPOINT', 'HERMES_OTEL_ENDPOINT', 'STEWARD_SUPPRESS_DEPRECATION']);
+    restoreEnv = saveEnv(['STEWARD_OTEL_ENDPOINT', 'STEWARD_OTEL_ALLOW_REMOTE', 'STEWARD_SUPPRESS_DEPRECATION']);
     delete process.env.STEWARD_OTEL_ENDPOINT;
-    delete process.env.HERMES_OTEL_ENDPOINT;
+    delete process.env.STEWARD_OTEL_ALLOW_REMOTE;
     process.env.STEWARD_SUPPRESS_DEPRECATION = '1';
   });
   afterEach(() => restoreEnv());
@@ -70,14 +70,10 @@ describe('otel-emitter: createTracer + fail-open', () => {
     assert.equal(tracer.enabled, false);
   });
 
-  test('STEWARD_OTEL_ENDPOINT takes precedence; HERMES_OTEL_ENDPOINT honored as fallback (Sprint 4.7 alias)', () => {
-    process.env.HERMES_OTEL_ENDPOINT = 'http://localhost:4318/v1/traces';
-    const t1 = emitter.createTracer({});
-    assert.equal(t1.enabled, true);
-
-    process.env.STEWARD_OTEL_ENDPOINT = 'http://localhost:4317/v1/traces';
-    const t2 = emitter.createTracer({});
-    assert.equal(t2.enabled, true);
+  test('STEWARD_OTEL_ENDPOINT activates the tracer (canonical env var)', () => {
+    process.env.STEWARD_OTEL_ENDPOINT = 'http://localhost:6006/v1/traces';
+    const t = emitter.createTracer({});
+    assert.equal(t.enabled, true);
   });
 
   test('endpoint set but unreachable → flush returns {ok:false} but does not throw', async () => {

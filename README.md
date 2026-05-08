@@ -42,7 +42,7 @@ cortex-x runs on **two AI surfaces** that share the same project memory.
 
 **Steward (autonomous nightly).** Your AI nightly autopilot. Drop a `cortex/recommendations.md` in your repo. Steward reads it overnight, runs the LLM (~$0.0008/run), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject. (Steward shipped under the codename **Hermes** through Sprint 1.9.1; renamed in Sprint 4.7 to clear the 139k-star NousResearch/hermes-agent collision before public launch.)
 
-> **Safety primitives baked in.** Every Steward run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/STEWARD_HALT` stops it immediately (legacy `HERMES_HALT` honored through v0.2.0) · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
+> **Safety primitives baked in.** Every Steward run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/STEWARD_HALT` stops it immediately · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
 
 See [docs/steward-usage.md](./docs/steward-usage.md) to activate Steward for your repo.
 
@@ -341,9 +341,9 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 - ✅ **`bin/steward/execute.cjs` (v0.5a)** — async runtime: dry-run plan → branch → engine apply → npm test gate → atomic commit → rollback on failure → journal cost
 - ✅ **OpenRouter engine (v0.5b)** — real LLM via `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout, JSON-mode response_format, default `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable seam: mock / openrouter / claude-sdk.
 - ✅ **First real OpenRouter call validated end-to-end** (Sprint 1.6.13 dogfood): LLM → JSON → edits → test gate → atomic rollback proven safe by reality.
-- ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `STEWARD_MAX_TOKENS` (legacy `HERMES_MAX_TOKENS` honored), cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
+- ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `STEWARD_MAX_TOKENS` (legacy `STEWARD_MAX_TOKENS` honored), cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
 - ✅ **489 tests** across `tests/unit/steward/` + `tests/integration/steward-dryrun.test.cjs`. All 3 CI workflows green.
-- ⏳ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`HERMES_DAILY_USD_CAP`) + consecutive-failure circuit breaker.
+- ⏳ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`STEWARD_DAILY_USD_CAP`) + consecutive-failure circuit breaker.
 - ⏳ **v1:** uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
 - ⏳ **v1.5+ hardening:** hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, `<untrusted>` delimiters, denylist expansion, eval suite + property tests + stateful simulation.
 

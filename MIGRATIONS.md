@@ -20,6 +20,48 @@
 
 ## Current
 
+### v0.2.0 platform hardening — drop Sprint 4.7 backward-compat shims (2026-05-08)
+
+⭐ BREAKING for operators still using `HERMES_*` names. Sprint 4.7 (2026-05-08 morning) shipped the Hermes → Steward rebrand with a full backward-compat layer scheduled for v0.2.0 removal. v0.2.0 ships now (afternoon), removing those shims atomically.
+
+#### Removed
+
+- **10 hermes-prefixed file shims** (`git rm`'d): `bin/cortex-hermes`, `bin/cortex-hermes.cjs`, `bin/cortex-hermes.ps1`, `prompts/hermes-setup.md`, `standards/hermes-policy.md`, `docs/hermes-roadmap.md`, `docs/hermes-runtime.md`, `docs/hermes-usage.md`, `docs/hermes-rfc.md`, `docs/hermes-research-synthesis.md`. Each was a 1-line redirect to the canonical `steward-*` equivalent — content lives in the `steward-*` files unchanged.
+- **`HERMES_*` env-var aliases**: `env.cjs readEnv` now reads only `STEWARD_<NAME>`. No fall-through, no deprecation warning.
+- **Legacy `HERMES_HALT` sentinel filename**: halt-check checks only `STEWARD_HALT`. Pre-rebrand halt files in operator state no longer halt the runtime.
+- **`Hermes-*` trailer normalization**: `buildCommitMessage` writes `Steward-*` only. `normalizeTrailerPrefixes()` removed. `parseTrailers` and `getTrailer` stay prefix-agnostic for walking pre-rebrand commit history (read-only path preserved).
+- **`'hermes'` actor in journal `VALID_ACTORS`**: writes must use `'steward'` (or `'investigate-subagent'`). Existing journal entries with `actor: 'hermes'` remain readable.
+- **Engine HARD_DENYLIST legacy patterns**: `bin/hermes/`, `bin/cortex-hermes`, `standards/hermes-` regexes removed.
+- **Module-export aliases**: `HERMES_DENY` (policy-check), `HERMES_SYSTEM_PROMPT` (action-engine), `isHermesArtifact` (execute), `getHermesOpenPRs` + `isHermesAuthor` (pr-review-responder).
+- **`HERMES_HALT_PRESERVE` policy-check rule**: only `STEWARD_HALT_PRESERVE` is enforced now.
+- **Session-start hook legacy probes**: `.github/workflows/hermes.yml` + `~/.cortex/HERMES_HALT` no longer block the activation nudge.
+- **PR-review-responder legacy author detection**: `Hermes (cortex-x)` author + `hermes-cortex-x` login + `name.includes('Hermes')` removed; only `Steward (cortex-x)` / `steward-cortex-x` / `name.includes('Steward')` recognized.
+
+#### Migrate (REQUIRED for operators with HERMES_* in flight)
+
+```bash
+# 1. Rename env vars in .env / cron scripts / CI configs
+sed -i 's/HERMES_/STEWARD_/g' .env.local your-cron-script.sh
+
+# 2. Rename cortex-hermes invocations
+sed -i 's/cortex-hermes/cortex-steward/g' your-cron-script.sh
+
+# 3. Move halt sentinels if you have ones in flight
+[ -f ~/.cortex/HERMES_HALT ] && mv ~/.cortex/HERMES_HALT ~/.cortex/STEWARD_HALT
+[ -f ./.cortex/HERMES_HALT ]  && mv ./.cortex/HERMES_HALT ./.cortex/STEWARD_HALT
+
+# 4. Rename forked workflow files
+[ -f .github/workflows/hermes.yml ] && git mv .github/workflows/hermes.yml .github/workflows/steward.yml
+```
+
+#### Rollback
+
+`git revert <this-commit>` restores all shims + backward-compat. No data is lost — the changes are pure behavior-strip + file deletions. The pre-rebrand commit history is untouched.
+
+#### Test surface
+
+953 → 973 tests (+20). Halt-check test gains a regression assertion that legacy `HERMES_HALT` is **not** honored (locks the new contract). Existing tests migrated to `STEWARD_*` env vars and `'steward'` actor.
+
 ### Sprint 2.0 — Phoenix observability via zero-deps OTLP emitter (2026-05-08)
 
 ⭐ TIER 1 OBSERVABILITY GATE. R1-grounded by [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./docs/research/sprint-2.0-langfuse-observability-2026-05-08.md). Pivots default observability stack from Langfuse (6-container, ClickHouse disk-growth footgun, Tier-2 features paywalled) to Phoenix (1-container, SQLite, native OpenInference + native OpenRouter, Tier-2 features open). Helicone parked as RIP (Mintlify acquisition 2026-03-03).

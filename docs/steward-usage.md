@@ -11,9 +11,9 @@
 > denylist) is testable, deterministic, network-free. The Claude Agent SDK
 > integration becomes one isolated PR instead of a refactor across 6 modules.
 >
-> **Companion docs:** [`docs/steward-rfc.md`](./hermes-rfc.md) (motivation),
-> [`docs/steward-runtime.md`](./hermes-runtime.md) (5-component design),
-> [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md) (research),
+> **Companion docs:** [`docs/steward-rfc.md`](./steward-rfc.md) (motivation),
+> [`docs/steward-runtime.md`](./steward-runtime.md) (5-component design),
+> [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md) (research),
 > [`standards/steward-policy.md`](../standards/steward-policy.md) (refusals + MUST patterns).
 
 ## The 4-level autonomy ladder
@@ -84,17 +84,17 @@ Two paths checked at every tool-call boundary:
 
 ```bash
 # Halt all Steward runs across the fleet:
-touch ~/.cortex/HERMES_HALT
+touch ~/.cortex/STEWARD_HALT
 
 # Halt only this project:
-touch <repo>/.cortex/HERMES_HALT
+touch <repo>/.cortex/STEWARD_HALT
 ```
 
 Steward refuses to remove either file (Ring 1 policy denylist). When you've
 resolved whatever caused the halt, **you** remove the sentinel:
 
 ```bash
-rm ~/.cortex/HERMES_HALT
+rm ~/.cortex/STEWARD_HALT
 ```
 
 ## L2 walkthrough — what v0.5a does TODAY (mock engine)
@@ -107,15 +107,15 @@ You can run it end-to-end RIGHT NOW with the mock engine:
 cortex-steward dry-run --slug=$(basename $PWD) --json > /tmp/plan.json
 
 # Step 2 — execute with mock engine (writes specified files instead of LLM)
-HERMES_ENGINE=mock \
-  HERMES_MOCK_PLAN='{"edits":[{"path":"docs/example.md","content":"hello"}]}' \
+STEWARD_ENGINE=mock \
+  STEWARD_MOCK_PLAN='{"edits":[{"path":"docs/example.md","content":"hello"}]}' \
   cortex-steward execute --plan-file=/tmp/plan.json
 ```
 
 What this does:
 - Halt-check + lock acquire
 - Pre-flight clean-tree check
-- Branch checkout (`hermes/<YYYY-MM-DD>-<slug>-<id>`)
+- Branch checkout (`steward/<YYYY-MM-DD>-<slug>-<id>`)
 - Apply mock edits
 - Run `npm test` (verification gate)
 - Stage explicit paths + commit with full Git trailers
@@ -154,13 +154,13 @@ those return 401 "User not found" on completion calls):
 ```bash
 # Bash / WSL
 export OPENROUTER_API_KEY=sk-or-v1-...
-export HERMES_MODEL=deepseek/deepseek-v4-flash   # see § Model selection
-export HERMES_MAX_TOKENS=16384                   # default 4096 truncates multi-file edits
+export STEWARD_MODEL=deepseek/deepseek-v4-flash   # see § Model selection
+export STEWARD_MAX_TOKENS=16384                   # default 4096 truncates multi-file edits
 ```
 
 ```powershell
 # PowerShell (persistent + current session in one command)
-$env:OPENROUTER_API_KEY="sk-or-v1-..."; $env:HERMES_MODEL="deepseek/deepseek-v4-flash"; $env:HERMES_MAX_TOKENS="16384"; [Environment]::SetEnvironmentVariable("OPENROUTER_API_KEY",$env:OPENROUTER_API_KEY,"User"); [Environment]::SetEnvironmentVariable("HERMES_MODEL",$env:HERMES_MODEL,"User"); [Environment]::SetEnvironmentVariable("HERMES_MAX_TOKENS",$env:HERMES_MAX_TOKENS,"User")
+$env:OPENROUTER_API_KEY="sk-or-v1-..."; $env:STEWARD_MODEL="deepseek/deepseek-v4-flash"; $env:STEWARD_MAX_TOKENS="16384"; [Environment]::SetEnvironmentVariable("OPENROUTER_API_KEY",$env:OPENROUTER_API_KEY,"User"); [Environment]::SetEnvironmentVariable("STEWARD_MODEL",$env:STEWARD_MODEL,"User"); [Environment]::SetEnvironmentVariable("STEWARD_MAX_TOKENS",$env:STEWARD_MAX_TOKENS,"User")
 ```
 
 ### Run
@@ -181,7 +181,7 @@ LLM call returns `{edits: [...]}` → applied via path-safety guards →
 |---|---|---|
 | `deepseek/deepseek-v4-flash` ⭐ | $0.14 / $0.28 | **Default** — cheapest viable, JSON mode reliable |
 | `deepseek/deepseek-v3.2` | $0.28 / $0.42 | Battle-tested fallback if V4 Flash misbehaves |
-| `anthropic/claude-haiku-4.5` | $1.00 / $5.00 | Anthropic-family voice match for `hermes-policy.md` |
+| `anthropic/claude-haiku-4.5` | $1.00 / $5.00 | Anthropic-family voice match for `steward-policy.md` |
 | `anthropic/claude-sonnet-4.5` | $3.00 / $15.00 | Complex multi-file actions; expensive for cron |
 
 Cost per typical Steward call (~3K in / ~1.5K out): **DeepSeek V4 Flash ≈
@@ -263,7 +263,7 @@ env var is the single switch — turn it off and you're back to journal-only.
 ### Troubleshooting
 
 - **`OPENROUTER_PLAN_NOT_JSON`** + truncation around char 14000: bump
-  `HERMES_MAX_TOKENS` to 16384 or higher. Default 4096 truncates
+  `STEWARD_MAX_TOKENS` to 16384 or higher. Default 4096 truncates
   multi-file edit plans mid-string.
 - **`401 User not found`**: inference key has the wrong type. Check
   `is_provisioning_key:false` per setup step 1.
@@ -285,7 +285,7 @@ workflow instead of local crontab:
 ```bash
 # Per-project setup (one-time):
 cp .github/workflows/steward.example.yml .github/workflows/steward.yml
-# Edit hermes.yml: uncomment the schedule: block + set HERMES_MODEL/HERMES_MAX_TOKENS env
+# Edit hermes.yml: uncomment the schedule: block + set STEWARD_MODEL/STEWARD_MAX_TOKENS env
 # Add OPENROUTER_API_KEY secret on GitHub:
 gh secret set OPENROUTER_API_KEY --body=$OPENROUTER_API_KEY
 
@@ -387,8 +387,8 @@ the matching `--slug`.
 
 ### `HALTED` from any subcommand (exit 75)
 
-A `HERMES_HALT` sentinel exists. Check `~/.cortex/HERMES_HALT` (fleet) and
-`<repo>/.cortex/HERMES_HALT` (per-project). Remove the file when you've
+A `STEWARD_HALT` sentinel exists. Check `~/.cortex/STEWARD_HALT` (fleet) and
+`<repo>/.cortex/STEWARD_HALT` (per-project). Remove the file when you've
 resolved whatever caused the halt.
 
 ## File-by-file reference
@@ -398,7 +398,7 @@ resolved whatever caused the halt.
 | `bin/cortex-steward.cjs` | Unified CLI dispatcher (dry-run / status / execute) |
 | `bin/steward/dry-run.cjs` | Plan emitter (no Claude SDK) — L1 today |
 | `bin/steward/status.cjs` | Observability CLI |
-| `bin/steward/execute.cjs` | Full execute pipeline (v0.5a). Pluggable engine via `HERMES_ENGINE` env. |
+| `bin/steward/execute.cjs` | Full execute pipeline (v0.5a). Pluggable engine via `STEWARD_ENGINE` env. |
 | `bin/steward/_lib/verifier.cjs` | `npm test` runner with timeout + Win-shell fix |
 | `bin/steward/_lib/git-ops.cjs` | Atomic git ops (no shell injection) |
 | `bin/steward/_lib/action-engine.cjs` | Pluggable engines: `mock` (env-driven, ships v0.5a) + `openrouter` (v0.5b default — fetch + zero-deps) + `claude-sdk` (stub, opt-in via `--engine=claude-sdk`) |
@@ -416,9 +416,9 @@ resolved whatever caused the halt.
 
 ## Cross-references
 
-- [`docs/steward-rfc.md`](./hermes-rfc.md) — motivation + open questions
-- [`docs/steward-runtime.md`](./hermes-runtime.md) — 5-component implementation design
-- [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md) — research-grounded decisions
+- [`docs/steward-rfc.md`](./steward-rfc.md) — motivation + open questions
+- [`docs/steward-runtime.md`](./steward-runtime.md) — 5-component implementation design
+- [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md) — research-grounded decisions
 - [`standards/steward-policy.md`](../standards/steward-policy.md) — refusals + MUST patterns
 - [`MIGRATIONS.md`](../MIGRATIONS.md) — Sprint 1.6.7 / 1.6.8 / 1.6.9 entries
 

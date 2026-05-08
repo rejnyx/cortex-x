@@ -114,11 +114,11 @@ describe('steward-dryrun integration: deduplication via journal', () => {
 });
 
 describe('steward-dryrun integration: halt + lock semantics', () => {
-  test('HERMES_HALT sentinel halts the run', () => {
+  test('STEWARD_HALT sentinel halts the run', () => {
     const repoRoot = freshFixture('halt');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'killed by test\n');
+    fs.writeFileSync(path.join(repoRoot, '.cortex', 'STEWARD_HALT'), 'killed by test\n');
 
     withDataHome(dataHome, () => {
       const result = dryRun.runDryRun({ slug: SLUG, repoRoot });
@@ -272,11 +272,11 @@ describe('steward-dryrun integration: CLI entry', () => {
     assert.match(result.stderr, /Usage:/);
   });
 
-  test('CLI with HERMES_HALT exits 75', () => {
+  test('CLI with STEWARD_HALT exits 75', () => {
     const repoRoot = freshFixture('cli-halt');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'halt\n');
+    fs.writeFileSync(path.join(repoRoot, '.cortex', 'STEWARD_HALT'), 'halt\n');
 
     const result = spawnSync(process.execPath, [
       path.resolve(__dirname, '..', '..', 'bin', 'steward', 'dry-run.cjs'),

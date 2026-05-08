@@ -53,7 +53,7 @@ Hardcoded Steward refusals — non-negotiable:
    crontab kept as cortex-x dogfood-only path. v1+ adds on-incident
    (`repository_dispatch` from Sentry/PagerDuty webhook), on-PR-merged
    (`pull_request` event), manual (`workflow_dispatch` or local CLI). See
-   [`docs/steward-runtime.md`](./hermes-runtime.md#12-trigger-model) for
+   [`docs/steward-runtime.md`](./steward-runtime.md#12-trigger-model) for
    reference workflow + isolation rationale.
 3. **Memory model** — append-only `~/.cortex/journal/<slug>/<date>.jsonl`
    with replay-friendly structure. Steward reads it before each action
@@ -87,7 +87,7 @@ Both must be green before any Steward runtime code merges:
       [`standards/steward-policy.md`](../standards/steward-policy.md).
 - [x] Steward-runtime.md design doc with cron sequence flow + halt flow +
       verification flow + PR-promotion flow (2026-05-07) — see
-      [`docs/steward-runtime.md`](./hermes-runtime.md). Note: only cron flow
+      [`docs/steward-runtime.md`](./steward-runtime.md). Note: only cron flow
       ships in v0; incident / PR-merged / manual flows are designed-but-deferred.
 - [x] First Steward-driven dry-run against fixture project
       (`tests/fixtures/steward-dryrun/`) — fixture + 18-test contract landed
@@ -98,12 +98,12 @@ Both must be green before any Steward runtime code merges:
 ## Decisions taken from research (2026-05-07)
 
 Three parallel research briefs (topology, triggers/safety, git workflow)
-synthesized into [`docs/steward-research-synthesis.md`](./hermes-research-synthesis.md).
+synthesized into [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md).
 Key decisions:
 
 - **Single-agent core loop** with opt-in read-only `investigate` subagent
   (Cognition "Don't Build Multi-Agents" + Anthropic SDK guidance).
-- **Branch-per-action**, not daily-rolling — `hermes/<YYYY-MM-DD>-<slug>-<id>`
+- **Branch-per-action**, not daily-rolling — `steward/<YYYY-MM-DD>-<slug>-<id>`
   matches Devin / Sweep / Copilot precedent.
 - **Mutex-by-project-slug** with FIFO `max_pending=1` per trigger-type;
   P0 incident may interrupt-at-checkpoint (never mid-tool-call).
@@ -111,8 +111,8 @@ Key decisions:
   $10 / $15 daily fleet — loop-prevention guards under MAX subscription.
 - **4-tier escalation** T0 silent journal → T1 needs_review flag → T2
   Slack/email + pause → T3 halt + sentinel.
-- **File-based kill switch** at `~/.cortex/HERMES_HALT` (fleet) and
-  `<repo>/.cortex/HERMES_HALT` (per-project).
+- **File-based kill switch** at `~/.cortex/STEWARD_HALT` (fleet) and
+  `<repo>/.cortex/STEWARD_HALT` (per-project).
 - **Git trailers** (`Steward-Action-Id`, `Steward-Journal-Entry`,
   `Steward-Trigger`, `Steward-Reverts`) — machine-parseable via
   `git interpret-trailers`.

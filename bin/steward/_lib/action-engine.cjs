@@ -137,10 +137,7 @@ function extractUsage(data) {
 //   - Build / runtime config (package.json, package-lock.json — npm dep
 //     additions are governed by steward-policy.md MUST-H4 zero-deps)
 //   - Steward self-modification (bin/steward/**, _lib/**, standards/steward-*)
-//     — the agent must not rewrite its own brain mid-loop. Legacy
-//     `bin/hermes/` + `bin/cortex-hermes` + `standards/hermes-*` patterns
-//     remain on the list so projects forked from pre-rebrand cortex-x are
-//     still protected through v0.2.0.
+//     — the agent must not rewrite its own brain mid-loop
 //   - CI / workflow (.github/workflows/** — releasing on its own auth is
 //     a privilege-escalation footgun)
 //   - SSH / GPG / git config (.git/**, .ssh/**, .gnupg/**)
@@ -150,11 +147,8 @@ const STEWARD_HARD_DENYLIST = [
   /(^|\/)package(-lock)?\.json$/i,                      // package.json + package-lock.json at any depth
   /^bin\/steward(\/|$)/i,                               // bin/steward/, bin/steward/_lib/
   /^bin\/cortex-steward/i,                              // top-level wrapper(s)
-  /^bin\/hermes(\/|$)/i,                                // legacy pre-rebrand path (defense-in-depth)
-  /^bin\/cortex-hermes/i,                               // legacy pre-rebrand wrapper (defense-in-depth)
   /^\.github\/workflows(\/|$)/i,                        // .github/workflows/* (CI/CD)
-  /^standards\/steward-/i,                              // standards/steward-policy.md drafts
-  /^standards\/hermes-/i,                               // legacy pre-rebrand standards (defense-in-depth)
+  /^standards\/steward-/i,                              // standards/steward-policy.md
   /^\.git(\/|$)/i,                                      // .git/* (git internals)
   /^\.ssh(\/|$)/i,                                      // ssh keys (shouldn't be in repo, but defense in depth)
   /^\.gnupg(\/|$)/i,                                    // gpg keys
@@ -770,9 +764,6 @@ module.exports = {
   extractUsage,
   isDenylistedPath,
   STEWARD_SYSTEM_PROMPT,
-  // Backward-compat alias for callers that imported the pre-Sprint-4.7 name.
-  // Removed in v0.2.0.
-  HERMES_SYSTEM_PROMPT: STEWARD_SYSTEM_PROMPT,
   OPENROUTER_ENDPOINT,
   DEFAULT_MODEL,
   ENGINES,

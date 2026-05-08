@@ -10,11 +10,8 @@ const {
   isHalted,
   fleetSentinelPath,
   projectSentinelPath,
-  fleetLegacySentinelPath,
-  projectLegacySentinelPath,
   EX_TEMPFAIL,
   SENTINEL_FILENAME,
-  LEGACY_SENTINEL_FILENAME,
 } = require('../../../bin/steward/_lib/halt-check.cjs');
 
 function tmpDir(prefix) {
@@ -56,27 +53,23 @@ describe('halt-check: project sentinel', () => {
       assert.equal(result.halted, true);
       assert.equal(result.reason, 'project_sentinel_present');
       assert.match(result.sentinelPath, /STEWARD_HALT$/);
-      assert.notEqual(result.legacy, true);
     } finally {
       if (prevEnv === undefined) delete process.env.CORTEX_DATA_HOME;
       else process.env.CORTEX_DATA_HOME = prevEnv;
     }
   });
 
-  test('Sprint 4.7 backward-compat: per-repo legacy HERMES_HALT still halts', () => {
-    const repoRoot = tmpDir('project-legacy-halt');
-    const dataHome = tmpDataHome('project-legacy-halt-data');
+  test('legacy HERMES_HALT filename is NOT honored (v0.2.0 strip)', () => {
+    const repoRoot = tmpDir('project-legacy-noop');
+    const dataHome = tmpDataHome('project-legacy-data');
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, '.cortex', LEGACY_SENTINEL_FILENAME), 'pre-rebrand halt\n');
+    fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'pre-rebrand halt\n');
 
     const prevEnv = process.env.CORTEX_DATA_HOME;
     process.env.CORTEX_DATA_HOME = dataHome;
     try {
       const result = isHalted({ repoRoot });
-      assert.equal(result.halted, true);
-      assert.equal(result.reason, 'project_sentinel_present');
-      assert.equal(result.legacy, true);
-      assert.match(result.sentinelPath, /HERMES_HALT$/);
+      assert.equal(result.halted, false, 'legacy HERMES_HALT must not trigger halt — operators must rename to STEWARD_HALT');
     } finally {
       if (prevEnv === undefined) delete process.env.CORTEX_DATA_HOME;
       else process.env.CORTEX_DATA_HOME = prevEnv;
@@ -103,25 +96,6 @@ describe('halt-check: fleet sentinel', () => {
     }
   });
 
-  test('Sprint 4.7 backward-compat: fleet legacy HERMES_HALT still halts', () => {
-    const repoRoot = tmpDir('fleet-legacy-halt');
-    const dataHome = tmpDataHome('fleet-legacy-halt-data');
-    fs.writeFileSync(path.join(dataHome, LEGACY_SENTINEL_FILENAME), 'pre-rebrand fleet halt\n');
-
-    const prevEnv = process.env.CORTEX_DATA_HOME;
-    process.env.CORTEX_DATA_HOME = dataHome;
-    try {
-      const result = isHalted({ repoRoot });
-      assert.equal(result.halted, true);
-      assert.equal(result.reason, 'fleet_sentinel_present');
-      assert.equal(result.legacy, true);
-      assert.match(result.sentinelPath, /HERMES_HALT$/);
-    } finally {
-      if (prevEnv === undefined) delete process.env.CORTEX_DATA_HOME;
-      else process.env.CORTEX_DATA_HOME = prevEnv;
-    }
-  });
-
   test('fleet sentinel takes precedence over project sentinel', () => {
     const repoRoot = tmpDir('both-halt');
     const dataHome = tmpDataHome('both-halt-data');
@@ -140,25 +114,6 @@ describe('halt-check: fleet sentinel', () => {
       else process.env.CORTEX_DATA_HOME = prevEnv;
     }
   });
-
-  test('current STEWARD_HALT wins over legacy HERMES_HALT in same scope', () => {
-    const repoRoot = tmpDir('both-prefix');
-    const dataHome = tmpDataHome('both-prefix-data');
-    fs.writeFileSync(path.join(dataHome, SENTINEL_FILENAME), 'fresh\n');
-    fs.writeFileSync(path.join(dataHome, LEGACY_SENTINEL_FILENAME), 'legacy\n');
-
-    const prevEnv = process.env.CORTEX_DATA_HOME;
-    process.env.CORTEX_DATA_HOME = dataHome;
-    try {
-      const result = isHalted({ repoRoot });
-      assert.equal(result.halted, true);
-      assert.match(result.sentinelPath, /STEWARD_HALT$/);
-      assert.notEqual(result.legacy, true);
-    } finally {
-      if (prevEnv === undefined) delete process.env.CORTEX_DATA_HOME;
-      else process.env.CORTEX_DATA_HOME = prevEnv;
-    }
-  });
 });
 
 describe('halt-check: contract', () => {
@@ -166,12 +121,8 @@ describe('halt-check: contract', () => {
     assert.equal(EX_TEMPFAIL, 75);
   });
 
-  test('SENTINEL_FILENAME is STEWARD_HALT (Sprint 4.7 rebrand)', () => {
+  test('SENTINEL_FILENAME is STEWARD_HALT', () => {
     assert.equal(SENTINEL_FILENAME, 'STEWARD_HALT');
-  });
-
-  test('LEGACY_SENTINEL_FILENAME is HERMES_HALT (pre-Sprint-4.7 alias)', () => {
-    assert.equal(LEGACY_SENTINEL_FILENAME, 'HERMES_HALT');
   });
 
   test('paths are absolute', () => {
@@ -181,8 +132,6 @@ describe('halt-check: contract', () => {
     try {
       assert.ok(path.isAbsolute(fleetSentinelPath()));
       assert.ok(path.isAbsolute(projectSentinelPath('/some/repo')));
-      assert.ok(path.isAbsolute(fleetLegacySentinelPath()));
-      assert.ok(path.isAbsolute(projectLegacySentinelPath('/some/repo')));
     } finally {
       if (prevEnv === undefined) delete process.env.CORTEX_DATA_HOME;
       else process.env.CORTEX_DATA_HOME = prevEnv;

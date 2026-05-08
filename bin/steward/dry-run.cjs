@@ -1,6 +1,6 @@
-// dry-run.cjs — Hermes v0 dry-run orchestrator (no Claude SDK).
+// dry-run.cjs — Steward dry-run orchestrator (no LLM call).
 //
-// Implements every step of the Hermes core loop EXCEPT the actual LLM call:
+// Implements every step of the Steward core loop EXCEPT the actual LLM call:
 //   1. Halt check (kill switch)
 //   2. Lock acquire
 //   3. Read journal (skip already-processed actions)
@@ -11,7 +11,7 @@
 //   8. Lock release
 //
 // Output: a structured plan object printed to stdout (or returned from runDryRun
-// when called as a library). The plan describes WHAT Hermes would do; the
+// when called as a library). The plan describes WHAT Steward would do; the
 // actual file edits + git operations require the LLM and are deferred to v0.5.
 //
 // CLI:
@@ -22,7 +22,7 @@
 // Exit codes:
 //   0  — plan produced (or no_actionable_step; both are success states)
 //   1  — error (parse failure, lock collision, schema violation)
-//   75 — halted (HERMES_HALT sentinel present)
+//   75 — halted (STEWARD_HALT sentinel present)
 
 'use strict';
 
@@ -252,11 +252,11 @@ function runDryRun(opts = {}) {
           subject: harvestTitle.slice(0, 72),
           body: harvestBody,
           trailers: {
-            'Hermes-Action-Id': actionId,
-            'Hermes-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
-            'Hermes-Trigger': trigger,
-            'Hermes-Recommendation-Source': `harvester (${harvest.candidates.length} new)`,
-            'Hermes-Action-Kind': 'recommendation_harvest',
+            'Steward-Action-Id': actionId,
+            'Steward-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
+            'Steward-Trigger': trigger,
+            'Steward-Recommendation-Source': `harvester (${harvest.candidates.length} new)`,
+            'Steward-Action-Kind': 'recommendation_harvest',
           },
         },
       };
@@ -330,10 +330,10 @@ function runDryRun(opts = {}) {
         subject: `${action.title}`.slice(0, 72),
         body: action.body,
         trailers: {
-          'Hermes-Action-Id': actionId,
-          'Hermes-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
-          'Hermes-Trigger': trigger,
-          'Hermes-Recommendation-Source': `cortex/recommendations.md#${headingAnchor}`,
+          'Steward-Action-Id': actionId,
+          'Steward-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
+          'Steward-Trigger': trigger,
+          'Steward-Recommendation-Source': `cortex/recommendations.md#${headingAnchor}`,
         },
       },
     };

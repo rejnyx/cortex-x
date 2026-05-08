@@ -115,9 +115,9 @@ describe('stateful-simulation: Phase 6 apply failure', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'apply-fail-data-')),
-      HERMES_ENGINE: 'mock',
+      STEWARD_ENGINE: 'mock',
       // Path traversal triggers MOCK_EDIT_UNSAFE → applyResult.ok=false
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: '../escape.js', content: 'x' }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: '../escape.js', content: 'x' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -139,9 +139,9 @@ describe('stateful-simulation: Phase 6 apply failure', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'denylist-fail-data-')),
-      HERMES_ENGINE: 'mock',
+      STEWARD_ENGINE: 'mock',
       // Sprint 1.6.20 T8: .env is on hard denylist
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: '.env', content: 'STOLEN=secret' }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: '.env', content: 'STOLEN=secret' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -166,8 +166,8 @@ describe('stateful-simulation: Phase 7 verify failure (Sprint 1.6.15 cost captur
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-fail-state-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'a.js', content: 'a' }],
         usage: { cost_usd: 0.0042, tokens_in: 1500, tokens_out: 800 },
       }),
@@ -234,8 +234,8 @@ describe('stateful-simulation: lock invariants', () => {
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: '../escape.js', content: 'x' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: '../escape.js', content: 'x' }] }),
     }, async () => {
       await execute.runExecute({ planFile, repoRoot });
 

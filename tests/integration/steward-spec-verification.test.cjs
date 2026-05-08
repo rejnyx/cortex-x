@@ -113,7 +113,7 @@ describe('spec-verifier integration: PR #3 reproduction (destructive rewrite of 
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'docs/steward-usage.md', content: 'tiny' }],
       }),
     }, async () => {
@@ -149,7 +149,7 @@ describe('spec-verifier integration: PR #4 reproduction (MIGRATIONS shrunk + fab
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'MIGRATIONS.md', content: 'Sprint 1.9.999 fake history\n' }],
       }),
     }, async () => {
@@ -174,7 +174,7 @@ describe('spec-verifier integration: happy path (preserves >=50%)', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/keep.md', content: replacement }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/keep.md', content: replacement }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot, engine: 'mock', skipPush: true });
       assert.equal(result.ok, true, `expected ok: ${JSON.stringify(result)}`);
@@ -192,7 +192,7 @@ describe('spec-verifier integration: replace_all=true escape hatch', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'docs/regen.md', content: 'fresh', replace_all: true }],
       }),
     }, async () => {
@@ -212,7 +212,7 @@ describe('spec-verifier integration: small files (< 200 bytes) bypass shrink rul
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'CHANGELOG.md', content: '#' }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'CHANGELOG.md', content: '#' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot, engine: 'mock', skipPush: true });
       assert.equal(result.ok, true, `small original under threshold should bypass: ${JSON.stringify(result)}`);
@@ -228,7 +228,7 @@ describe('spec-verifier integration: journal entry on SPEC_VIOLATION', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/big.md', content: 'tiny' }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/big.md', content: 'tiny' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot, engine: 'mock', skipPush: true });
       assert.equal(result.ok, false);
@@ -253,7 +253,7 @@ describe('spec-verifier integration: lesson recorded on SPEC_VIOLATION', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/lessoned.md', content: 'tiny' }] }),
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'docs/lessoned.md', content: 'tiny' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot, engine: 'mock', skipPush: true });
       assert.equal(result.ok, false);

@@ -3,9 +3,9 @@
 > Distillation of three parallel research briefs (topology, triggers/safety, git
 > workflow) into the design decisions taken before drafting
 > [`standards/steward-policy.md`](../standards/steward-policy.md) and
-> [`docs/steward-runtime.md`](./hermes-runtime.md).
+> [`docs/steward-runtime.md`](./steward-runtime.md).
 >
-> Companion to [`docs/steward-rfc.md`](./hermes-rfc.md). The RFC stub asked nine
+> Companion to [`docs/steward-rfc.md`](./steward-rfc.md). The RFC stub asked nine
 > open questions; this document answers each with research-grounded direction.
 
 ## Research provenance
@@ -26,18 +26,18 @@ scope. Briefs archived at [`research/hermes-2026-05-07/`](../research/hermes-202
 | **Topology** | TBD | Cognition + Anthropic agree single-agent for sequential code work | Single-agent core loop · opt-in read-only `investigate` subagent |
 | **Trigger collision** | TBD (open question) | Mutex-by-key (Temporal pattern); GitHub Actions concurrency for idempotent triggers | Mutex-by-project-slug, FIFO `max_pending=1` per trigger-type, P0 incident > P1 manual > P2 cron == on-PR-merged |
 | **Cost ceiling** | TBD | OpenAI Agents SDK has no `budget_usd`; meter at gateway | $0.50 soft / $2 hard per session; $3 / $5 daily project; $10 / $15 daily fleet (loop guards under MAX subscription, not bankruptcy protection) |
-| **Branch model** | `hermes/<date>` (daily-rolling) | All production agents (Devin, Sweep, Copilot) use **branch-per-action**; long-lived branches drift from main | **Pivot:** `hermes/<YYYY-MM-DD>-<action-slug>-<short-id>` |
+| **Branch model** | `hermes/<date>` (daily-rolling) | All production agents (Devin, Sweep, Copilot) use **branch-per-action**; long-lived branches drift from main | **Pivot:** `steward/<YYYY-MM-DD>-<action-slug>-<short-id>` |
 | **Commit model** | "Atomic commit per action" (vague) | Aider gold standard: `git status --porcelain` gate + one `git add -- <files>` + post-commit SHA verify | Aider-style discipline + Conventional Commits + Git trailers (`Steward-Action-Id`, `Steward-Journal-Entry`, `Steward-Trigger`, `Steward-Reverts`) |
 | **Conflict on pull** | TBD | All sourced LLM-conflict tools (Sketch merde, LLMinus) propose on side-branch; never auto-merge | Halt + journal + ping. v1+ may opt-in to side-branch conflict-resolution drafts |
 | **Rollback** | `git revert HEAD` | Confirmed safe; matches GitOps + saga compensating-transaction pattern. `git reset --hard` on pushed branches forbidden (already in `block-destructive.cjs`) | `git revert --no-edit <sha>` only; revert commit carries `Steward-Reverts: <sha>` trailer |
 | **PR default** | TBD | Copilot precedent: draft, promote-to-ready only after CI green + self-review checklist | Draft default; promote on CI green + atomic-commit contract verified |
-| **Escalation** | TBD | ESCALATE.md / KILLSWITCH.md emerging open spec; 4-tier ladder | T0 silent journal → T1 `needs_review` flag → T2 ping (Slack DM, email fallback) + pause → T3 halt + `HERMES_HALT` sentinel |
-| **Kill switch** | "block-destructive.cjs is the runtime enforcement layer" | Sakura Sky agent kill-switch primitives: file-based poison pill | `~/.cortex/HERMES_HALT` (fleet) and `<repo>/.cortex/HERMES_HALT` (per-project), checked at every tool-call boundary; Steward cannot remove (extend `block-destructive.cjs` denylist) |
+| **Escalation** | TBD | ESCALATE.md / KILLSWITCH.md emerging open spec; 4-tier ladder | T0 silent journal → T1 `needs_review` flag → T2 ping (Slack DM, email fallback) + pause → T3 halt + `STEWARD_HALT` sentinel |
+| **Kill switch** | "block-destructive.cjs is the runtime enforcement layer" | Sakura Sky agent kill-switch primitives: file-based poison pill | `~/.cortex/STEWARD_HALT` (fleet) and `<repo>/.cortex/STEWARD_HALT` (per-project), checked at every tool-call boundary; Steward cannot remove (extend `block-destructive.cjs` denylist) |
 | **Self-improvement scope** | "Probably no for v0; opt-in flag for v1" | `config/evolve.yaml` already pins `human_only:` paths (standards/, prompts/, profiles/, agents/, module.yaml, CLAUDE.md, README.md) | v0: Steward can edit `auto_improves:` paths only (insights/, journal/, projects/*.md via PR). Source-of-truth files remain human-only |
 
 ## RFC open questions — answered
 
-The nine open questions on [`docs/steward-rfc.md`](./hermes-rfc.md):
+The nine open questions on [`docs/steward-rfc.md`](./steward-rfc.md):
 
 1. **Single-agent vs subagent topology?**
    → **Single-agent** with opt-in read-only `investigate` subagent. Cognition's "writer-uniqueness principle" applies (Steward is the sole writer). Anthropic SDK confirms: subagents valuable for context-isolation, not for decomposition. Anthropic's own multi-agent paper shows orchestrator-worker wins on **research-shaped breadth-first work** (15× tokens, 90% better) — not Steward's sequential-write workload.
@@ -56,7 +56,7 @@ The nine open questions on [`docs/steward-rfc.md`](./hermes-rfc.md):
    - **T0** silent journal (soft warnings, low-stakes ambiguity)
    - **T1** journal with `needs_review: true` (80% budget burn, 3 retries, confidence < 85% on Rule-2 action)
    - **T2** ping (Slack DM → email fallback after 10min) + **pause** (no auto-retry; hard cap reached, forbidden-action blocked, loop tripped)
-   - **T3** halt (T2 unanswered ≥30min, kill-switch present, repeat incident in rolling hour) + `HERMES_HALT` sentinel + `cortex doctor` blocks further runs until human clears
+   - **T3** halt (T2 unanswered ≥30min, kill-switch present, repeat incident in rolling hour) + `STEWARD_HALT` sentinel + `cortex doctor` blocks further runs until human clears
 
 6. **Steward hosting — MAX subscription or own API key?**
    → MAX (default). Override via env var `HERMES_API_KEY` for projects that should meter against a separate budget.
@@ -80,7 +80,7 @@ RFC §54 says "every Steward action = atomic git commit on a `hermes/<date>` bra
 
 **Research finding:** every public production agent uses **branch-per-action** (Devin, Sweep, Copilot, Renovate, Dependabot). Trunk-based-development literature is unanimous: branches live hours, not days. Long-lived branches drift from main; agent assumptions go stale; conflicts compound.
 
-**New:** `hermes/<YYYY-MM-DD>-<action-slug>-<short-id>`. One open Steward PR at a time per project (mutex via journal lock file).
+**New:** `steward/<YYYY-MM-DD>-<action-slug>-<short-id>`. One open Steward PR at a time per project (mutex via journal lock file).
 
 ### Pivot 2 — Commit metadata (precision)
 
@@ -103,7 +103,7 @@ RFC §57 says "Safety layer — calls into block-destructive.cjs + custom Stewar
 
 **Research finding:** Sakura Sky's "agent kill-switch primitives" catalogue identifies **file-based poison pill** as the lowest-friction halt mechanism — survives crashes, no networking required, human-only writable.
 
-**New:** `~/.cortex/HERMES_HALT` (fleet) and `<repo>/.cortex/HERMES_HALT` (per-project). Steward checks both at every tool-call boundary; presence = immediate clean shutdown, journal `kind: "halted_by_sentinel"`, exit 75. `block-destructive.cjs` denylist extended to forbid Steward from removing either file.
+**New:** `~/.cortex/STEWARD_HALT` (fleet) and `<repo>/.cortex/STEWARD_HALT` (per-project). Steward checks both at every tool-call boundary; presence = immediate clean shutdown, journal `kind: "halted_by_sentinel"`, exit 75. `block-destructive.cjs` denylist extended to forbid Steward from removing either file.
 
 ## What v0 explicitly does NOT include
 
@@ -123,7 +123,7 @@ Steward ships when:
 1. ✅ A single weekly cron run on cortex-x repo produces a draft PR with ≤3 mining proposals.
 2. ✅ The PR's commits carry valid Git trailers (`Steward-Action-Id`, `Steward-Journal-Entry`).
 3. ✅ The journal at `~/.cortex/journal/cortex-x/<date>.jsonl` is replayable: re-running Steward with `--replay <date>` reaches the same end state.
-4. ✅ Killing the run mid-flight via `~/.cortex/HERMES_HALT` exits cleanly within 30 sec.
+4. ✅ Killing the run mid-flight via `~/.cortex/STEWARD_HALT` exits cleanly within 30 sec.
 5. ✅ At least one fixture-based dry-run lives at `tests/fixtures/steward-dryrun/` and verifies the above without network access.
 6. ✅ Pre-Steward hard gates Tier 4 + Tier 5 stay green (no regressions introduced).
 
@@ -145,7 +145,7 @@ What is **not** reversible: starting multi-agent first. Multi-writer commits and
 - Authoritative SSOT: [`config/evolve.yaml`](../config/evolve.yaml) (auto_improves vs human_only)
 - Inherited safety: [`shared/hooks/block-destructive.cjs`](../shared/hooks/block-destructive.cjs) (extend denylist)
 - Standards: [`standards/security.md`](../standards/security.md) § Agentic Security 2026 (7 MUST patterns), [`standards/observability.md`](../standards/observability.md) § Runtime SLOs, [`standards/correctness.md`](../standards/correctness.md) § Zod boundaries (apply to journal schema)
-- Companion docs: [`standards/steward-policy.md`](../standards/steward-policy.md) (refusals + denylist), [`docs/steward-runtime.md`](./hermes-runtime.md) (5-component design + sequence flows)
+- Companion docs: [`standards/steward-policy.md`](../standards/steward-policy.md) (refusals + denylist), [`docs/steward-runtime.md`](./steward-runtime.md) (5-component design + sequence flows)
 
 ---
 

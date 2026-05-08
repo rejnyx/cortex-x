@@ -145,10 +145,10 @@ describe('execute: plan validation', () => {
 });
 
 describe('execute: halt detection', () => {
-  test('HERMES_HALT sentinel halts before plan validation', async () => {
+  test('STEWARD_HALT sentinel halts before plan validation', async () => {
     const repoRoot = tmpProjectRepo('halt');
     fs.mkdirSync(path.join(repoRoot, '.cortex'), { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, '.cortex', 'HERMES_HALT'), 'halt\n');
+    fs.writeFileSync(path.join(repoRoot, '.cortex', 'STEWARD_HALT'), 'halt\n');
     const planFile = tmpPlanFile(buildPlan());
 
     await withEnv({ CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'halt-data-')) }, async () => {
@@ -167,7 +167,7 @@ describe('execute: default engine (openrouter, post-Sprint-1.6.13)', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'or-data-')),
-      HERMES_ENGINE: undefined,
+      STEWARD_ENGINE: undefined,
       OPENROUTER_API_KEY: undefined,
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
@@ -198,8 +198,8 @@ describe('execute: mock engine — happy path', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'happy-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'src/added.js', content: 'module.exports = "hermes";' }],
       }),
     }, async () => {
@@ -237,8 +237,8 @@ describe('execute: Sprint 1.6.20 — detached HEAD pre-flight (H5)', () => {
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'detached-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -252,7 +252,7 @@ describe('execute: Sprint 1.6.20 — detached HEAD pre-flight (H5)', () => {
 });
 
 describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', () => {
-  test('HERMES_DAILY_USD_CAP enforced: blocks when today\'s journal cost_usd >= cap', async () => {
+  test('STEWARD_DAILY_USD_CAP enforced: blocks when today\'s journal cost_usd >= cap', async () => {
     const repoRoot = tmpProjectRepo('budget-cap');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-data-'));
     const planFile = tmpPlanFile(buildPlan());
@@ -265,7 +265,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
         tier: 'T0',
         event: 'action_completed',
         outcome: 'success',
-        actor: 'hermes',
+        actor: 'steward',
         cost_usd: 4.0,
         tokens_in: 1000,
       });
@@ -273,9 +273,9 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
-      HERMES_DAILY_USD_CAP: '5',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_DAILY_USD_CAP: '5',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       // 4 + 0 = 4 < 5, so this should pass; let's seed more to actually trip it
@@ -290,7 +290,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
         tier: 'T0',
         event: 'action_completed',
         outcome: 'success',
-        actor: 'hermes',
+        actor: 'steward',
         cost_usd: 1.5,
         tokens_in: 500,
       });
@@ -299,9 +299,9 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
     const planFile2 = tmpPlanFile(buildPlan({ action: { num: 2, title: 'demo 2', action_key: `${SLUG}#week-2` } }));
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
-      HERMES_DAILY_USD_CAP: '5',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
+      STEWARD_DAILY_USD_CAP: '5',
     }, async () => {
       const result = await execute.runExecute({ planFile: planFile2, repoRoot });
       assert.equal(result.ok, false);
@@ -316,7 +316,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
     });
   });
 
-  test('HERMES_DAILY_USD_CAP=0 disables the cap (opt-out)', async () => {
+  test('STEWARD_DAILY_USD_CAP=0 disables the cap (opt-out)', async () => {
     const repoRoot = tmpProjectRepo('budget-disabled');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-off-data-'));
     const planFile = tmpPlanFile(buildPlan());
@@ -329,7 +329,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
         tier: 'T0',
         event: 'action_completed',
         outcome: 'success',
-        actor: 'hermes',
+        actor: 'steward',
         cost_usd: 1000,
         tokens_in: 1,
       });
@@ -337,24 +337,24 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'x.js', content: 'x' }] }),
-      HERMES_DAILY_USD_CAP: '0',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'x.js', content: 'x' }] }),
+      STEWARD_DAILY_USD_CAP: '0',
       // Sprint 1.9.1: also disable weekly/monthly/velocity caps (their defaults
       // would otherwise trip on the seeded $1000 entry). This regression test
       // is specifically about the daily cap=0 opt-out semantics; the new
       // multi-window gates have their own dedicated tests.
-      HERMES_WEEKLY_USD_CAP: '0',
-      HERMES_MONTHLY_USD_CAP: '0',
-      HERMES_TOKEN_VELOCITY_CAP: '0',
-      HERMES_LOOP_THRESHOLD: '0',
+      STEWARD_WEEKLY_USD_CAP: '0',
+      STEWARD_MONTHLY_USD_CAP: '0',
+      STEWARD_TOKEN_VELOCITY_CAP: '0',
+      STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true, 'cap=0 must allow any spend');
     });
   });
 
-  test('HERMES_FAILURE_BREAKER trips after N consecutive execute_*_failed for same action_key', async () => {
+  test('STEWARD_FAILURE_BREAKER trips after N consecutive execute_*_failed for same action_key', async () => {
     const repoRoot = tmpProjectRepo('breaker');
     const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-data-'));
     const planFile = tmpPlanFile(buildPlan({ action: { num: 9, title: 'demo 9', action_key: `${SLUG}#week-9` } }));
@@ -368,7 +368,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
           tier: 'T2',
           event: 'execute_action_failed',
           outcome: 'failure',
-          actor: 'hermes',
+          actor: 'steward',
           action_key: `${SLUG}#week-9`,
         });
       }
@@ -376,9 +376,9 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'y.js', content: 'y' }] }),
-      HERMES_FAILURE_BREAKER: '3',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'y.js', content: 'y' }] }),
+      STEWARD_FAILURE_BREAKER: '3',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -405,7 +405,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
           tier: 'T2',
           event: 'execute_verify_failed',
           outcome: 'failure',
-          actor: 'hermes',
+          actor: 'steward',
           action_key: `${SLUG}#week-99`, // different key
         });
       }
@@ -413,9 +413,9 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'z.js', content: 'z' }] }),
-      HERMES_FAILURE_BREAKER: '3',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'z.js', content: 'z' }] }),
+      STEWARD_FAILURE_BREAKER: '3',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true, 'breaker should not trip on different action_keys');
@@ -436,7 +436,7 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
           tier: 'T2',
           event: 'execute_action_failed',
           outcome: 'failure',
-          actor: 'hermes',
+          actor: 'steward',
           action_key: `${SLUG}#week-5`,
         });
       }
@@ -444,9 +444,9 @@ describe('execute: Sprint 1.6.19 — pre-flight budget cap + circuit breaker', (
 
     await withEnv({
       CORTEX_DATA_HOME: dataHome,
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'w.js', content: 'w' }] }),
-      HERMES_FAILURE_BREAKER: '3',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'w.js', content: 'w' }] }),
+      STEWARD_FAILURE_BREAKER: '3',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true, 'failures outside 1h window must not count');
@@ -460,8 +460,8 @@ describe('execute: Sprint 1.6.19 — push + draft PR (best-effort, degrades grac
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'no-remote-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true);
@@ -481,8 +481,8 @@ describe('execute: Sprint 1.6.19 — push + draft PR (best-effort, degrades grac
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'skip-push-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'b.js', content: 'b' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot, skipPush: true });
       assert.equal(result.ok, true);
@@ -491,14 +491,14 @@ describe('execute: Sprint 1.6.19 — push + draft PR (best-effort, degrades grac
     });
   });
 
-  test('HERMES_NO_PUSH=1 env → result.pr.status === "skipped"', async () => {
+  test('STEWARD_NO_PUSH=1 env → result.pr.status === "skipped"', async () => {
     const repoRoot = tmpProjectRepo('env-no-push');
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'env-no-push-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'c.js', content: 'c' }] }),
-      HERMES_NO_PUSH: '1',
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'c.js', content: 'c' }] }),
+      STEWARD_NO_PUSH: '1',
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.pr.status, 'skipped');
@@ -515,8 +515,8 @@ describe('execute: Sprint 1.6.19 — push + draft PR (best-effort, degrades grac
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'remote-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'd.js', content: 'd' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'd.js', content: 'd' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, true);
@@ -537,8 +537,8 @@ describe('execute: mock engine — error paths', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'dirty-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -559,8 +559,8 @@ describe('execute: mock engine — error paths', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -588,8 +588,8 @@ describe('execute: mock engine — error paths', () => {
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-cost-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: 'a.js', content: 'a' }],
         usage: { cost_usd: 0.0042, tokens_in: 1500, tokens_out: 800 },
       }),
@@ -609,9 +609,9 @@ describe('execute: mock engine — error paths', () => {
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'action-cost-data-')),
-      HERMES_ENGINE: 'mock',
+      STEWARD_ENGINE: 'mock',
       // Edit fails (unsafe path) but engine reports cost — LLM call already happened
-      HERMES_MOCK_PLAN: JSON.stringify({
+      STEWARD_MOCK_PLAN: JSON.stringify({
         edits: [{ path: '../escaped.js', content: 'x' }],
         usage: { cost_usd: 0.0021, tokens_in: 600, tokens_out: 200 },
       }),
@@ -632,14 +632,14 @@ describe('execute: mock engine — error paths', () => {
     // covers the contract regardless of which call site invokes it.
     const apply = { cost_usd: 0.0042, tokens_in: 1500, tokens_out: 800 };
     for (const event of ['action_completed', 'execute_action_failed', 'execute_verify_failed', 'execute_post_verify_failed']) {
-      const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event, outcome: 'success', actor: 'hermes' };
+      const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event, outcome: 'success', actor: 'steward' };
       const decorated = execute.addCostFields(entry, apply);
       assert.equal(decorated.cost_usd, 0.0042, `${event} should capture cost_usd`);
       assert.equal(decorated.tokens_in, 1500, `${event} should capture tokens_in`);
       assert.equal(decorated.tokens_out, 800, `${event} should capture tokens_out`);
     }
     // Null applyResult — entry untouched
-    const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event: 'execute_post_verify_failed', outcome: 'failure', actor: 'hermes' };
+    const entry = { ts: 'x', trigger: 'manual', tier: 'T0', event: 'execute_post_verify_failed', outcome: 'failure', actor: 'steward' };
     const decorated = execute.addCostFields(entry, null);
     assert.equal(decorated.cost_usd, undefined);
     assert.equal(decorated.tokens_in, undefined);
@@ -656,8 +656,8 @@ describe('execute: mock engine — error paths', () => {
     const planFile = tmpPlanFile(buildPlan());
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'verify-nocost-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.code, 'VERIFY_FAILED');
@@ -668,14 +668,14 @@ describe('execute: mock engine — error paths', () => {
     });
   });
 
-  test('mock engine without HERMES_MOCK_PLAN env returns MOCK_NOT_SET + rolls back', async () => {
+  test('mock engine without STEWARD_MOCK_PLAN env returns MOCK_NOT_SET + rolls back', async () => {
     const repoRoot = tmpProjectRepo('mock-not-set');
     const planFile = tmpPlanFile(buildPlan());
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'mns-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: undefined,
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: undefined,
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -717,8 +717,8 @@ describe('execute: lock semantics', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'lock-data-')),
-      HERMES_ENGINE: 'mock',
-      HERMES_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
+      STEWARD_ENGINE: 'mock',
+      STEWARD_MOCK_PLAN: JSON.stringify({ edits: [{ path: 'a.js', content: 'a' }] }),
     }, async () => {
       const result = await execute.runExecute({ planFile, repoRoot });
       assert.equal(result.ok, false);
@@ -760,7 +760,7 @@ describe('execute: CLI', () => {
       env: {
         ...process.env,
         CORTEX_DATA_HOME: dataHome,
-        HERMES_MOCK_PLAN: JSON.stringify({
+        STEWARD_MOCK_PLAN: JSON.stringify({
           edits: [{ path: 'cli-output.js', content: 'module.exports = 1;' }],
         }),
       },
@@ -872,7 +872,7 @@ describe('execute: Sprint 1.8.2c — recommendation_harvest', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'harvest-data-')),
-      HERMES_NO_PUSH: '1', // skip remote ops
+      STEWARD_NO_PUSH: '1', // skip remote ops
     }, async () => {
       const result = await execute.runExecute({
         planFile,
@@ -1025,7 +1025,7 @@ describe('execute: Sprint 1.8.7 — todo_triage', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'todo-data-')),
-      HERMES_NO_PUSH: '1',
+      STEWARD_NO_PUSH: '1',
     }, async () => {
       const result = await execute.runExecute({
         planFile,
@@ -1126,7 +1126,7 @@ describe('execute: Sprint 1.8.5 — flaky_test_repair', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'flaky-data-')),
-      HERMES_NO_PUSH: '1',
+      STEWARD_NO_PUSH: '1',
     }, async () => {
       const result = await execute.runExecute({
         planFile,
@@ -1202,7 +1202,7 @@ describe('execute: Sprint 1.8.6 — doc_drift', () => {
 
     await withEnv({
       CORTEX_DATA_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'docdrift-data-')),
-      HERMES_NO_PUSH: '1',
+      STEWARD_NO_PUSH: '1',
     }, async () => {
       const result = await execute.runExecute({
         planFile,
@@ -1321,35 +1321,35 @@ describe('execute: Sprint 1.8.9 — lint_fix_shipper', () => {
 // caused dry-run to write journal under .cortex-data/journal/, which the
 // execute step then saw as untracked → DIRTY_TREE. Filter must ignore both
 // the legacy `cortex/` path and the `.cortex-data/` workflow path.)
-describe('isHermesArtifact — halt-check working-tree filter', () => {
+describe('isStewardArtifact — halt-check working-tree filter', () => {
   test('legacy cortex/journal/ paths are recognized as artifacts', () => {
-    assert.equal(execute.isHermesArtifact('cortex/journal/cortex-x/2026-05-08.jsonl'), true);
-    assert.equal(execute.isHermesArtifact('cortex/journal/some-slug/.lock'), true);
-    assert.equal(execute.isHermesArtifact('cortex/journal'), true);
-    assert.equal(execute.isHermesArtifact('cortex/'), true);
-    assert.equal(execute.isHermesArtifact('cortex'), true);
+    assert.equal(execute.isStewardArtifact('cortex/journal/cortex-x/2026-05-08.jsonl'), true);
+    assert.equal(execute.isStewardArtifact('cortex/journal/some-slug/.lock'), true);
+    assert.equal(execute.isStewardArtifact('cortex/journal'), true);
+    assert.equal(execute.isStewardArtifact('cortex/'), true);
+    assert.equal(execute.isStewardArtifact('cortex'), true);
   });
 
   test('.cortex-data/ workflow paths are recognized as artifacts', () => {
-    assert.equal(execute.isHermesArtifact('.cortex-data/journal/cortex-x/2026-05-08.jsonl'), true);
-    assert.equal(execute.isHermesArtifact('.cortex-data/journal/cortex-x/.lock'), true);
-    assert.equal(execute.isHermesArtifact('.cortex-data/'), true);
-    assert.equal(execute.isHermesArtifact('.cortex-data'), true);
+    assert.equal(execute.isStewardArtifact('.cortex-data/journal/cortex-x/2026-05-08.jsonl'), true);
+    assert.equal(execute.isStewardArtifact('.cortex-data/journal/cortex-x/.lock'), true);
+    assert.equal(execute.isStewardArtifact('.cortex-data/'), true);
+    assert.equal(execute.isStewardArtifact('.cortex-data'), true);
   });
 
   test('Windows backslash paths are normalized before matching', () => {
-    assert.equal(execute.isHermesArtifact('.cortex-data\\journal\\cortex-x\\2026-05-08.jsonl'), true);
-    assert.equal(execute.isHermesArtifact('cortex\\journal\\cortex-x\\.lock'), true);
+    assert.equal(execute.isStewardArtifact('.cortex-data\\journal\\cortex-x\\2026-05-08.jsonl'), true);
+    assert.equal(execute.isStewardArtifact('cortex\\journal\\cortex-x\\.lock'), true);
   });
 
   test('non-artifact paths are not falsely matched', () => {
-    assert.equal(execute.isHermesArtifact('src/index.js'), false);
-    assert.equal(execute.isHermesArtifact('package.json'), false);
-    assert.equal(execute.isHermesArtifact('cortex-x.md'), false); // similar prefix, different file
-    assert.equal(execute.isHermesArtifact('docs/cortex-data.md'), false); // word boundary
-    assert.equal(execute.isHermesArtifact('.cortex-data-old/file.txt'), false); // different dir
-    assert.equal(execute.isHermesArtifact(''), false);
-    assert.equal(execute.isHermesArtifact(null), false);
-    assert.equal(execute.isHermesArtifact(undefined), false);
+    assert.equal(execute.isStewardArtifact('src/index.js'), false);
+    assert.equal(execute.isStewardArtifact('package.json'), false);
+    assert.equal(execute.isStewardArtifact('cortex-x.md'), false); // similar prefix, different file
+    assert.equal(execute.isStewardArtifact('docs/cortex-data.md'), false); // word boundary
+    assert.equal(execute.isStewardArtifact('.cortex-data-old/file.txt'), false); // different dir
+    assert.equal(execute.isStewardArtifact(''), false);
+    assert.equal(execute.isStewardArtifact(null), false);
+    assert.equal(execute.isStewardArtifact(undefined), false);
   });
 });
