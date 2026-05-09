@@ -354,16 +354,18 @@ describe('bash tool', () => {
     );
   });
 
-  test('Sprint 2.9 R2 fix: rm -rf /tmp is NOT a false positive (legitimate cleanup)', async () => {
-    if (process.platform === 'win32') return; // sh-only
-    const dir = tmpDir('bash-rm-tmp');
-    const allowEnv = { STEWARD_BASH_ALLOWLIST: 'echo,ls,rm', PATH: process.env.PATH };
-    // Should NOT throw FORBIDDEN_COMMAND — /tmp/x is legitimate path.
-    // We only test the validator path, not actually running rm.
-    const r = await bash.handler({ command: 'echo "rm -rf /tmp/x"', timeout_ms: 5000 }, {
-      cwd: dir, env: allowEnv,
-    });
-    assert.equal(r.exit_code, 0);
+  test('Sprint 2.9 R2 fix: rm -rf /tmp is NOT a false positive (cross-platform regex check)', () => {
+    // Test the regex logic directly via _internal.checkForbidden — works on
+    // Windows + POSIX. Avoids the previous spawn-dependency that skipped Windows.
+    assert.equal(bash._internal.checkForbidden('rm -rf /tmp/cleanup'), null);
+    assert.equal(bash._internal.checkForbidden('rm -rf ./node_modules'), null);
+    assert.equal(bash._internal.checkForbidden('rm -rf $tmpdir'), null);
+    // Confirm the dangerous forms ARE caught:
+    assert.notEqual(bash._internal.checkForbidden('rm -rf /'), null);
+    assert.notEqual(bash._internal.checkForbidden('rm -rf /home'), null);
+    assert.notEqual(bash._internal.checkForbidden('rm -rf /etc'), null);
+    assert.notEqual(bash._internal.checkForbidden('rm -rf /*'), null);
+    assert.notEqual(bash._internal.checkForbidden('rm --recursive --force /'), null);
   });
 
   test('Sprint 2.9 R2 fix: > /dev/sdb (disk write) caught by regex', async () => {
