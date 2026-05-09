@@ -117,8 +117,15 @@ function loadPlan(planFile) {
     if (!plan.ok || plan.mode !== 'dry-run') {
       return { ok: false, code: 'PLAN_INVALID', error: 'plan file does not contain a successful dry-run plan' };
     }
-    if (!plan.action || !plan.action.action_key || !plan.branch || !plan.action_id || !plan.commit_message) {
-      return { ok: false, code: 'PLAN_INCOMPLETE', error: 'plan missing required fields (action, branch, action_id, commit_message)' };
+    // Sprint 2.9.6 fix: skip_commit kinds (todo_triage, doc_drift,
+    // test_coverage_gap, pr_review_responder, pattern_transfer no_actionable)
+    // legitimately have branch=null + no commit_message — they don't commit
+    // anything, they only open gh issues or hard-fail. Validate accordingly.
+    if (!plan.action || !plan.action.action_key || !plan.action_id) {
+      return { ok: false, code: 'PLAN_INCOMPLETE', error: 'plan missing required fields (action.action_key, action_id)' };
+    }
+    if (!plan.skip_commit && (!plan.branch || !plan.commit_message)) {
+      return { ok: false, code: 'PLAN_INCOMPLETE', error: 'committing plan missing required fields (branch, commit_message)' };
     }
     // Sprint 1.8.1 — typed action_kind validation. Default to backwards-compat
     // 'recommendation' if missing (pre-1.8.1 plans don't have the field).
