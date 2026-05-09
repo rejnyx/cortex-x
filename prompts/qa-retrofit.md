@@ -733,7 +733,7 @@ Auto-research per gap dispatches up to 15 parallel WebSearch agents ≈ ~50K-80K
 
 ### Privacy note
 
-Research queries are derived from gap titles, NOT from the audit's findings text. So `GAP-002 — Full guest-checkout E2E flow` becomes a generic Playwright e-commerce checkout query, NOT `Research how to test order-mage's checkout that uses ComGate`. Keeps the audit's repo-internal findings off the public web.
+Research queries are derived from gap titles, NOT from the audit's findings text. So `GAP-002 — Full guest-checkout E2E flow` becomes a generic Playwright e-commerce checkout query, NOT `Research how to test <colleague-company>'s checkout that uses ComGate`. Keeps the audit's repo-internal findings off the public web.
 
 ---
 

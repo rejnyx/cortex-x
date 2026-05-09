@@ -122,22 +122,19 @@ Cortex-x je nástroj, ne autorita. Pokud:
 - **Měsíčně:** quick re-look at `testing-strategy.md` 3-month plan; je vše on-track?
 - **Kvartálně:** re-run `/test-audit` — diff s předchozím = signál pokroku.
 
-## Příklad — eshop (predemo z dogfoodu)
+## Příklad — meta-audit cortex-x samotného
 
-cortex-x už má pre-cached audit pro `order-mage/eshop` v `docs/dogfood/order-mage-2026-05-09/eshop/`. Můžeš se podívat:
+Pro představu jak audit reálně vypadá na production-grade frameworku, přečti si self-audit cortex-x:
 
 ```bash
-cat ~/cortex-x/docs/dogfood/order-mage-2026-05-09/eshop/testing-gaps.md
+cat ~/cortex-x/cortex/qa/AUDIT.md          # 12-section self-audit
+cat ~/cortex-x/cortex/qa/testing-gaps.md   # 24 gapů: 4 P0 + 14 P1 + 5 P2
+cat ~/cortex-x/cortex/qa/testing-strategy.md  # 12-month pyramid plan
 ```
 
-5 P0 nálezů:
-- **GAP-001** — Wire Playwright into CI on PR (3-4h, junior)
-- **GAP-002** — Full guest-checkout E2E flow (6-8h, junior)
-- **GAP-003** — StrykerJS at 60% on payment-gateway providers (4-6h, junior)
-- **GAP-004** — axe-core a11y v 5 critical-flow component testech (4h, junior)
-- **GAP-005** — Prompt-injection eval pro AI editor (4-6h, junior + cortex-x ai-patterns reference)
+Klíčový pattern, který audit najde: **"defense-by-design ≠ defense-by-regression-test"** — cortex-x má 4 defense layers (spec-verifier + halt-check + redact + path-safety) všechny unit-tested jako knihovny, ALE žádný end-to-end "adversarial input → defense fires" regression test. Top-line P0 finding ≤ 12h opravit.
 
-Všechno ≤ 8h, všechno junior-skill-floor. Tvoje práce den 1: review tohle, override Phase 3 (Dave to RA-filloval), pick first gap to ship.
+Tvoje práce den 1: spustíš `/test-audit` na svůj duplikát firemního repa, dostaneš obdobný deliverable, override Phase 3 RA fills vlastními odpověďmi, pick first P0 to ship.
 
 ## Filozofie — k čemu se vracet
 

@@ -16,7 +16,7 @@ This validates the Sprint 2.10 prompt on a real (non-tmpdir) repo — non-applic
 
 **Sprint 2.10.5 — colleague-onboarding tutorial:**
 
-`docs/qa-tester-onboarding.md` — day-1 walkthrough for the new junior tester: setup (5 min), first audit (30 min run + 30 min review), Phase 3 question discipline, week-1 cadence, philosophy (audit-then-research-first, mutation > coverage %, determinism is dead, defense-by-design ≠ defense-by-test). References pre-cached order-mage dogfood as worked example.
+`docs/qa-tester-onboarding.md` — day-1 walkthrough for the new junior tester: setup (5 min), first audit (30 min run + 30 min review), Phase 3 question discipline, week-1 cadence, philosophy (audit-then-research-first, mutation > coverage %, determinism is dead, defense-by-design ≠ defense-by-test). References pre-cached <colleague-company> dogfood as worked example.
 
 **Sprint 2.10.5 — README.md profile section** — visible at top install instructions; profile selection table (dev / qa-tester / ai-engineer / minimal); 3 ways to set (interactive / env / CLI flag); link to qa-tester-onboarding.md.
 
@@ -115,7 +115,7 @@ When `profile: qa-tester` AND repo has > 0 existing test files (skip greenfield)
 
 ### Added (2026-05-10 early morning — Sprint 2.10.2 installer profile + 2.10.3 auto-research-per-gap)
 
-**Sprint 2.10.2 (operator request 3):** "když uživatel nainstaluje cortex, ať si může vybrat profil — testerka Verča si vybere QA tester a hned dostane vše potřebné". Installer extended:
+**Sprint 2.10.2 (operator request 3):** "když uživatel nainstaluje cortex, ať si může vybrat profil — testerka the junior tester si vybere QA tester a hned dostane vše potřebné". Installer extended:
 
 - `install.sh` + `install.ps1` accept `--profile=<name>` CLI arg, `$CORTEX_PROFILE` env, OR interactive prompt (TTY-gated). Profiles: `dev` | `qa-tester` | `ai-engineer` | `minimal`.
 - For `qa-tester`: installs `/test-audit` user-skill at `~/.claude/skills/test-audit/SKILL.md` (sibling of `/cortex-init`), writes `profile: qa-tester` to `~/.claude/cortex/user.yaml`, banner shows QA-tailored "Next step" with `/test-audit` first + qa-engineer profile reference + standards-to-read-first list.
@@ -134,9 +134,9 @@ When `profile: qa-tester` AND repo has > 0 existing test files (skip greenfield)
 
 **Tests**: 1737 → **1747** (+10 from 2.10.2 — 8 structure + 2 integration); 1747 → **1751** (+4 from 2.10.3 structure tests covering Phase 5f + auto_research_per_gap profile config). Final: 1349 → **1751** (+402 today).
 
-### Added (2026-05-09 late night — Sprint 2.10.1 DevOps/CI + auto-research-nudge + order-mage dogfood)
+### Added (2026-05-09 late night — Sprint 2.10.1 DevOps/CI + auto-research-nudge + <colleague-company> dogfood)
 
-**Operator-driven same-day extension after Sprint 2.10 + manual dogfood pass on `order-mage/eshop` + `order-mage/admin`** (private repos cloned to `c:/tmp/qa-dogfood/`, deliverables mirrored to `docs/dogfood/order-mage-2026-05-09/`).
+**Operator-driven same-day extension after Sprint 2.10 + manual dogfood pass on `<colleague-storefront-repo>` + `<colleague-admin-repo>`** (private repos cloned to `c:/tmp/qa-dogfood/`, deliverables mirrored to `docs/dogfood/<colleague-company>-2026-05-09/`).
 
 **Sprint 2.10.1 expansion (operator request 1):** "doplň do toho testing profilu i devops a podobné CI věci" — `qa_concerns` taxonomy expanded from **10 → 15** (testing-only + DevOps/CI quality):
 - `ci-pipeline-testing` — `actionlint`, `pinact`, gate consistency (PR runs what main runs?), secret hygiene
@@ -147,7 +147,7 @@ When `profile: qa-tester` AND repo has > 0 existing test files (skip greenfield)
 
 **Auto-research-nudge pattern (operator request 2):** "ať cortex sám doporučuje researche na webu, ať to lidi konečně pochopí jak je OP dělat researche". Every gap in `cortex/qa/testing-gaps.md` ships with inline `**Research nudge:**` line proposing a WebSearch query. Trains junior testers in the audit-then-research-first discipline. New `prompts/qa-retrofit.md` Phase 5e generator behavior + `profiles/qa-engineer.yaml auto_research_nudge: { enabled: true, apply_to: [P0, P1, P2], skip_for_trivial: true }`.
 
-**Dogfood deliverables (`docs/dogfood/order-mage-2026-05-09/`):**
+**Dogfood deliverables (`docs/dogfood/<colleague-company>-2026-05-09/`):**
 - `README.md` — preview-flow brief for the colleague + top-line findings + caveats
 - `eshop/` — AUDIT.md (12-section ISO 25010:2023) + testing-strategy.md + testing-gaps.md (20 gaps: 5 P0 / 10 P1 / 5 P2 / 4 SKIP / 2 OPEN / 1 FYI)
 - `admin/` — same shape; 28 gaps (5 P0 / 11 P1 testing / 7 P1 DevOps/CI / 5 P2 / 4 SKIP / 3 OPEN / 1 FYI)
@@ -162,7 +162,7 @@ When `profile: qa-tester` AND repo has > 0 existing test files (skip greenfield)
 
 ### Added (2026-05-09 late evening — Sprint 2.10 QA Retrofit)
 
-**Sprint 2.10 (QA Retrofit infrastructure)** — depth-first testing-lens audit pipeline. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Field-test target: `order-mage/eshop` + `order-mage/admin`. R1 memo: `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` (web-research-dispatch-backed, 38 cited sources across 4 parallel research agents).
+**Sprint 2.10 (QA Retrofit infrastructure)** — depth-first testing-lens audit pipeline. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Field-test target: `<colleague-storefront-repo>` + `<colleague-admin-repo>`. R1 memo: `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` (web-research-dispatch-backed, 38 cited sources across 4 parallel research agents).
 
 **What shipped**:
 - `prompts/qa-retrofit.md` — 7-phase testing-focused audit (P0 detect → P1 inventory + tsDetect 5-detector smell scan → P2 4-agent ISO 25010:2023 9-char + 3 cortex extras with Bach HTSM SFDPOT depth traversal → P3 5-Q human gate → P4 QA-specific 10-concern research → P5 testing-strategy.md + testing-gaps.md synthesis → P6 sample-test seeding opt-in)

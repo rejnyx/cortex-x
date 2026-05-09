@@ -107,7 +107,7 @@ Final commit count after handover: **6 more commits** = 29 total today. Tests we
 
 ## Sprint 2.10 — QA Retrofit (added late evening, after operator request)
 
-User asked: "udělej cortex master of testing guru pro novou kolegyni testerku, projet jak červ celý projekt, najít všechny slabiny, opravdu hluboké a dávající smysl. Field test na `order-mage/eshop` + `order-mage/admin`. Onborading otázek + research + testing do rozjetého projektu. Ona to zkouší příští týden."
+User asked: "udělej cortex master of testing guru pro novou kolegyni testerku, projet jak červ celý projekt, najít všechny slabiny, opravdu hluboké a dávající smysl. Field test na `<colleague-storefront-repo>` + `<colleague-admin-repo>`. Onborading otázek + research + testing do rozjetého projektu. Ona to zkouší příští týden."
 
 **Shipped**:
 1. **`prompts/qa-retrofit.md`** — 7-phase QA-focused audit (sibling of `existing-project-audit.md` but testing lens). 9 ISO 25010:2023 chars + 3 cortex extras + Bach HTSM SFDPOT depth traversal + tsDetect 5-detector starter smell scan + 5-Q human gate + 10 QA-specific research concerns + testing-strategy/testing-gaps synthesis + opt-in sample-test seeding.
@@ -122,13 +122,13 @@ User asked: "udělej cortex master of testing guru pro novou kolegyni testerku, 
 
 **Field-test playbook for the colleague (next week)**:
 1. `git clone cortex-x && cd cortex-x && ./install.ps1` (Windows) or `./install.sh` (Unix)
-2. In her duplicate of `order-mage/eshop`: `claude` → invoke `/cortex-init` (general retrofit, fills CLAUDE.md)
+2. In her duplicate of `<colleague-storefront-repo>`: `claude` → invoke `/cortex-init` (general retrofit, fills CLAUDE.md)
 3. Then: `/test-audit` (QA lens, 30-min run produces 6 deliverables in `cortex/qa/`)
 4. Optional: paste prompt with `--seed-tests` to materialize top 3 P0 gaps as runnable test files in `tests/qa-retrofit/`
-5. Repeat for `order-mage/admin` — separate audit, separate `cortex/qa/` directory
+5. Repeat for `<colleague-admin-repo>` — separate audit, separate `cortex/qa/` directory
 6. Day 2: she reviews + executes the backlog with the team
 
-**Pre-cached findings for order-mage** (in R1 memo §"Stack-specific research"):
+**Pre-cached findings for <colleague-company>** (in R1 memo §"Stack-specific research"):
 - 12 minimum E2E flows for e-commerce
 - Playwright 1.50+ over Cypress 14 (~23% faster, 2.5x cheaper CI)
 - `stripe-mock` for CI (never real Stripe)
