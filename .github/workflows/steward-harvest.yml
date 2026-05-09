@@ -1,4 +1,4 @@
-# hermes-harvest.yml — autonomous Hermes recommendation harvester workflow.
+# steward-harvest.yml — autonomous Steward recommendation harvester workflow.
 #
 # Sprint 1.8.2c shipped recommendation_harvest action_kind. This workflow runs
 # the harvester daily at 03:00 UTC (1h before the main recommendation cron),
@@ -12,30 +12,30 @@
 #
 # See detectors/recommendation-harvest.cjs for signal sources.
 
-name: hermes harvest
+name: steward harvest
 
 on:
-  workflow_dispatch:        # manual run via GH UI / `gh workflow run hermes-harvest.yml`
+  workflow_dispatch:        # manual run via GH UI / `gh workflow run steward-harvest.yml`
   schedule:
-    - cron: '0 3 * * *'     # Daily 03:00 UTC — 1h before main hermes.yml recommendation cron.
+    - cron: '0 3 * * *'     # Daily 03:00 UTC — 1h before main steward.yml recommendation cron.
                             # Refills recommendations.md with fresh candidates from CI/PR/issue
                             # signals so the 04:00 LLM run always has substrate.
 
 # Mutex-by-repo: at most one harvester per repo. Different concurrency group from
-# hermes.yml — they can race-free in parallel (harvest writes recs.md only,
+# steward.yml — they can race-free in parallel (harvest writes recs.md only,
 # recommendation reads recs.md so timing is harmless).
 concurrency:
-  group: hermes-harvest-${{ github.event.repository.name }}
+  group: steward-harvest-${{ github.event.repository.name }}
   cancel-in-progress: false
 
 jobs:
-  hermes-harvest:
-    name: hermes harvest
+  steward-harvest:
+    name: steward harvest
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     permissions:
-      contents: write           # commit on hermes/<date>-recommendation-harvest-<id>
+      contents: write           # commit on steward/<date>-recommendation-harvest-<id>
       pull-requests: write      # gh pr create --draft
 
     steps:
@@ -52,12 +52,12 @@ jobs:
       - name: Install deps
         run: npm ci || npm install
 
-      - name: Configure git identity (Hermes commits)
+      - name: Configure git identity (Steward commits)
         run: |
-          git config user.name  "Hermes (cortex-x)"
-          git config user.email "hermes@cortex-x.local"
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
 
-      - name: Hermes harvest dry-run (plan only)
+      - name: Steward harvest dry-run (plan only)
         id: plan
         run: |
           mkdir -p $GITHUB_WORKSPACE/.cortex-data
@@ -77,7 +77,7 @@ jobs:
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
           GH_TOKEN:         ${{ github.token }}
 
-      - name: Hermes harvest execute (append to recs.md, commit, draft PR)
+      - name: Steward harvest execute (append to recs.md, commit, draft PR)
         if: steps.plan.outputs.has_action == 'true'
         run: |
           node bin/cortex-steward.cjs execute \
@@ -91,6 +91,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hermes-harvest-journal-${{ github.run_id }}
+          name: steward-harvest-journal-${{ github.run_id }}
           path: .cortex-data/journal/
           retention-days: 30
