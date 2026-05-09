@@ -306,6 +306,120 @@ describe('Sprint 2.10 — planner agent QA concern override', () => {
   });
 });
 
+describe('Sprint 2.10.4 — test-types-catalog SSOT (exhaustive 2026 catalog)', () => {
+  test('standards/test-types-catalog.md exists and is the SSOT', () => {
+    assert.equal(exists('standards/test-types-catalog.md'), true);
+  });
+
+  test('catalog declares 12 categories with all expected names', () => {
+    const cat = read('standards/test-types-catalog.md');
+    const expectedCategories = [
+      'Functional / behavioral testing',
+      'Performance / non-functional testing',
+      'Security testing',
+      'Reliability / robustness',
+      'Correctness invariants',
+      'Contract / interoperability',
+      'Usability / accessibility',
+      'AI-specific',
+      'DevOps / pipeline quality',
+      'Data quality',
+      'Compliance / regulatory',
+      'Documentation / API quality',
+    ];
+    for (const c of expectedCategories) {
+      assert.match(cat, new RegExp(c.replace(/\//g, '/')), `category missing: ${c}`);
+    }
+  });
+
+  test('catalog has selection rules (audit → catalog match logic)', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /## Selection rules \(audit → catalog\)/);
+    assert.match(cat, /Evidence-driven match/);
+    assert.match(cat, /Q5 capacity filter/i);
+    assert.match(cat, /Q3.*compliance/i);
+    assert.match(cat, /risk-tier escalation/i);
+  });
+
+  test('catalog declares ~112 entries total', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /112/);
+    assert.match(cat, /typical_audit_selection|actual selection|typically picks/i);
+  });
+
+  test('every catalog entry has the canonical metadata fields', () => {
+    const cat = read('standards/test-types-catalog.md');
+    // Sample 5 random entries we know exist; assert they have Category + Tools + When/Skip + Effort + Tester skill
+    for (const id of ['e2e-browser-flow', 'security-rbac-matrix', 'ai-eval-suite-rubric', 'devops-dora-metrics', 'compliance-gdpr-art32']) {
+      const entry = cat.match(new RegExp(`### \`${id}\`[\\s\\S]*?(?=\\n###|\\n## |$)`));
+      assert.ok(entry, `entry ${id} missing`);
+      assert.match(entry[0], /\*\*Category:/, `entry ${id} missing Category`);
+      assert.match(entry[0], /\*\*Tools 2026:/, `entry ${id} missing Tools 2026`);
+      assert.match(entry[0], /\*\*When to use:/, `entry ${id} missing When to use`);
+      assert.match(entry[0], /\*\*Effort:/, `entry ${id} missing Effort`);
+      assert.match(entry[0], /\*\*Tester skill floor:/, `entry ${id} missing Tester skill floor`);
+    }
+  });
+
+  test('qa-engineer profile references the catalog', () => {
+    const profile = read('profiles/qa-engineer.yaml');
+    assert.match(profile, /test_types_catalog/);
+    assert.match(profile, /total_entries:\s*112/);
+    assert.match(profile, /test-types-catalog\.md/);
+    assert.match(profile, /category_list/);
+  });
+
+  test('qa-retrofit prompt has Phase 5a-bis catalog-selection oracle', () => {
+    const prompt = read('prompts/qa-retrofit.md');
+    assert.match(prompt, /Phase 5a-bis|Test-types-catalog selection oracle/);
+    assert.match(prompt, /Evidence-driven match/);
+    assert.match(prompt, /Stack negative filter/);
+    assert.match(prompt, /Q5 capacity floor/);
+    assert.match(prompt, /Q3 compliance escalation/);
+    assert.match(prompt, /Q1 risk-tier override/);
+  });
+
+  test('catalog has Sprint 2.10.4 web-research validation section with 148 cited URLs', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /Sources & corrections \(Sprint 2\.10\.4 web-research-validated/);
+    assert.match(cat, /148 cited URLs total/);
+    assert.match(cat, /catalog-research-1-taxonomy-2026/);
+    assert.match(cat, /catalog-research-2-security-2026/);
+    assert.match(cat, /catalog-research-3-ai-eval-2026/);
+    assert.match(cat, /catalog-research-4-devops-2026/);
+    assert.match(cat, /catalog-research-5-perf-a11y-compliance-2026/);
+  });
+
+  test('catalog applied research corrections — HTSM 4 axes, npm-audit deprecated, libFuzzer maintenance-only, IAST→ADR', () => {
+    const cat = read('standards/test-types-catalog.md');
+    // HTSM correction
+    assert.match(cat, /HTSM has 4 axes, not 2/i);
+    assert.match(cat, /CRUCSPIC STMP/);
+    // npm audit deprecated
+    assert.match(cat, /`npm audit` deprecated as sole gate/i);
+    assert.match(cat, /osv-scanner v2/);
+    // libFuzzer
+    assert.match(cat, /libFuzzer is in maintenance-only mode/);
+    // IAST → ADR
+    assert.match(cat, /IAST is consolidating into ADR/i);
+  });
+
+  test('catalog flags 2026 dates: ASVS 5.0 (May 2025), EAA 2025-06-28, EU AI Act 2026-08-02, PCI-DSS 4.0.1', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /ASVS 5\.0 confirmed released 2025-05-30/);
+    assert.match(cat, /EAA enforcement live since 2025-06-28/);
+    assert.match(cat, /EU AI Act high-risk.*2026-08-02/);
+    assert.match(cat, /PCI-DSS v4\.0\.1/);
+  });
+
+  test('catalog identifies missing-from-catalog entries for next refresh (MCP, A2A, cache-poisoning)', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /ai-mcp-protocol-test/);
+    assert.match(cat, /ai-a2a-protocol-test/);
+    assert.match(cat, /reliability-cache-poisoning/);
+  });
+});
+
 describe('Sprint 2.10.2 — installer profile selection (--profile=qa-tester)', () => {
   const installSh = read('install.sh');
   const installPs1 = read('install.ps1');

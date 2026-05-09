@@ -478,6 +478,55 @@ Tester capacity (Q5): <hours/week, skill profile>
 - Month 3: …
 ```
 
+### 5a-bis) Test-types-catalog selection oracle (Sprint 2.10.4)
+
+Before writing `cortex/qa/testing-gaps.md`, run the **catalog-selection oracle** against `~/.claude/shared/standards/test-types-catalog.md` (the exhaustive 112-entry SSOT):
+
+1. **Evidence-driven match.** For each audit § N finding, traverse the catalog and match `when_to_use` triggers. E.g. audit § 1 says "no E2E for full guest checkout" → match `e2e-browser-flow` + `e2e-mobile-viewport`.
+2. **Stack negative filter.** Drop entire categories irrelevant to the stack:
+   - `package.json` has no LLM SDK → drop **Category 8 (AI-specific, 12 entries)**
+   - No Postgres + RLS → drop `security-rls-bypass`
+   - No GraphQL → drop `contract-graphql-schema`
+   - No Docker → drop `devops-dockerfile-lint` + `devops-container-scan`
+3. **Q5 capacity floor.** Read `cortex/qa/AUDIT.md § Phase 3 Q5` (tester profile). Compare against catalog entry's `tester_skill_floor`:
+   - Q5 = "junior solo" → drop `senior-required` types from P0/P1 (surface as P2 with ratchet plan), keep `junior` + `mid-with-pairing`
+   - Q5 = "senior team" → keep all tiers; recommend the senior-only types where applicable
+4. **Q3 compliance escalation.** Read `cortex/qa/AUDIT.md § Phase 3 Q3` (regulatory target). For each catalog entry tagged with the matching compliance bucket, ESCALATE one priority tier:
+   - Q3 = "GDPR Art. 32" → `security-audit-log-contract` + `compliance-gdpr-art32` move to P0 (regardless of audit signal)
+   - Q3 = "ASVS L2" → all `security-*` entries with ASVS L2 mapping become P0/P1 minimum
+   - Q3 = "WCAG 2.2 AA + EAA 2025" → `a11y-axe-component` + `a11y-keyboard-nav` + `compliance-wcag-22-aa` to P0
+5. **Q1 risk-tier override.** Phase 3 Q1 (top business risk) trumps audit-signal priority. If Q1 = "tenant data leak", `security-tenant-isolation` + `security-bola-idor` + `security-rls-bypass` are P0 even if audit didn't surface them.
+6. **Cap output.** Right-size by tester capacity per Q5:
+   - Junior solo (≤ 15h/week): max 5 P0 + 10 P1 + 15 P2
+   - Mid pair (~25h/week): max 7 P0 + 15 P1 + 20 P2
+   - Senior team (40+h/week): full backlog
+
+Document the SELECTION OUTCOME in `cortex/qa/AUDIT.md` § "Catalog selection (Phase 5a-bis)":
+
+```markdown
+## Catalog selection (Phase 5a-bis)
+
+Catalog source: ~/.claude/shared/standards/test-types-catalog.md (112 entries)
+
+**Categories filtered out** (stack-irrelevant):
+- Category 8 — AI-specific (no LLM SDK in deps)
+- Category 9.* — IaC subset (PaaS deploy, no Terraform/k8s)
+
+**Selected types: <N> of 112**
+
+| Catalog ID | Category | Audit § | Q3 escalation | Q5 tier | Priority |
+|---|---|---|---|---|---|
+| e2e-browser-flow | functional | §1 (money-path gap) | — | junior | P0 |
+| security-rbac-matrix | security | §7 (RBAC tests = 0) | ASVS L2 → P0 | mid | P0 |
+| ... | ... | ... | ... | ... | ... |
+
+**Skipped with rationale:**
+- `security-pen-test` — Q5 capacity (junior solo can't sponsor); revisit in 6 months
+- `compliance-iso-25010-coverage` — Q3 didn't flag ISO 9001 in scope
+```
+
+Then write Phase 5b backlog using the selected catalog IDs as `[type: <id>]` tags on each gap entry. Tester clicks through to the catalog for tool decision tree + 2026 best practices per type.
+
 ### 5b) `cortex/qa/testing-gaps.md`
 
 Prioritized backlog. Format mirrors `cortex/recommendations.md` but with QA semantics.
