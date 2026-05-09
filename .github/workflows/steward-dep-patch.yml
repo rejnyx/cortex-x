@@ -1,4 +1,4 @@
-# hermes-dep-patch.yml — autonomous Hermes patch-only dep updater workflow.
+# steward-dep-patch.yml — autonomous Steward patch-only dep updater workflow.
 #
 # Sprint 1.8.4 shipped dep_update_patch action_kind. This workflow runs weekly
 # (Sundays 04:00 UTC) and bumps every patch-level outdated dependency: npm
@@ -10,7 +10,7 @@
 # Failures are journaled; ReasoningBank-lite memory captures lessons (e.g.
 # "this pkg is known to break tests on patch update, skip next time").
 
-name: hermes dep-patch
+name: steward dep-patch
 
 on:
   workflow_dispatch:        # manual run for ad-hoc updates
@@ -22,12 +22,12 @@ on:
                             # concurrency group below isolates them.
 
 concurrency:
-  group: hermes-dep-patch-${{ github.event.repository.name }}
+  group: steward-dep-patch-${{ github.event.repository.name }}
   cancel-in-progress: false
 
 jobs:
-  hermes-dep-patch:
-    name: hermes dep-patch
+  steward-dep-patch:
+    name: steward dep-patch
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -52,15 +52,15 @@ jobs:
       - name: Verify pre-update test baseline
         run: |
           npm test
-          # If pre-update tests are red, do NOT update — Hermes verifies via
+          # If pre-update tests are red, do NOT update — Steward verifies via
           # npm test, so a red baseline = false positives across patch bumps.
 
-      - name: Configure git identity (Hermes commits)
+      - name: Configure git identity (Steward commits)
         run: |
-          git config user.name  "Hermes (cortex-x)"
-          git config user.email "hermes@cortex-x.local"
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
 
-      - name: Hermes dep-patch dry-run (plan only)
+      - name: Steward dep-patch dry-run (plan only)
         id: plan
         run: |
           mkdir -p $GITHUB_WORKSPACE/.cortex-data
@@ -79,7 +79,7 @@ jobs:
         env:
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
 
-      - name: Hermes dep-patch execute (npm install --save patches, commit, draft PR)
+      - name: Steward dep-patch execute (npm install --save patches, commit, draft PR)
         if: steps.plan.outputs.has_action == 'true'
         run: |
           node bin/cortex-steward.cjs execute \
@@ -93,6 +93,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hermes-dep-patch-journal-${{ github.run_id }}
+          name: steward-dep-patch-journal-${{ github.run_id }}
           path: .cortex-data/journal/
           retention-days: 30

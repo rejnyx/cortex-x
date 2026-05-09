@@ -1,11 +1,11 @@
-# hermes-todo-triage.yml — autonomous Hermes TODO/FIXME triage workflow.
+# steward-todo-triage.yml — autonomous Steward TODO/FIXME triage workflow.
 #
 # Sprint 1.8.7 shipped todo_triage action_kind. This workflow runs monthly
 # (1st of each month, 04:00 UTC) and triages stale TODO/FIXME/XXX/HACK
 # markers older than 30 days into gh issues with code-context bodies.
 #
 # No LLM, no file edits — only opens gh issues. Each candidate produces ONE
-# issue labeled `hermes-triage` for downstream filtering.
+# issue labeled `steward-triage` for downstream filtering.
 #
 # Why monthly: TODO accumulation is slow. Daily/weekly triage would create
 # noise; monthly hits the sweet spot for catching genuine stale TODOs.
@@ -14,7 +14,7 @@
 # the side effect is purely external (gh issues). runExecute returns ok with
 # `skip_commit: true` and bypasses stage/commit/push/PR pipeline.
 
-name: hermes todo-triage
+name: steward todo-triage
 
 on:
   workflow_dispatch:        # manual run via GH UI
@@ -24,12 +24,12 @@ on:
                             # SLO review which already runs the 1st.
 
 concurrency:
-  group: hermes-todo-triage-${{ github.event.repository.name }}
+  group: steward-todo-triage-${{ github.event.repository.name }}
   cancel-in-progress: false
 
 jobs:
-  hermes-todo-triage:
-    name: hermes todo-triage
+  steward-todo-triage:
+    name: steward todo-triage
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -51,12 +51,12 @@ jobs:
       - name: Install deps
         run: npm ci || npm install
 
-      - name: Configure git identity (Hermes commits — unused on todo-triage but kept for journal)
+      - name: Configure git identity (Steward commits — unused on todo-triage but kept for journal)
         run: |
-          git config user.name  "Hermes (cortex-x)"
-          git config user.email "hermes@cortex-x.local"
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
 
-      - name: Hermes todo-triage dry-run (plan only)
+      - name: Steward todo-triage dry-run (plan only)
         id: plan
         run: |
           mkdir -p $GITHUB_WORKSPACE/.cortex-data
@@ -76,7 +76,7 @@ jobs:
           CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
           GH_TOKEN:         ${{ github.token }}
 
-      - name: Hermes todo-triage execute (gh issue create per candidate)
+      - name: Steward todo-triage execute (gh issue create per candidate)
         if: steps.plan.outputs.has_action == 'true'
         run: |
           node bin/cortex-steward.cjs execute \
@@ -90,6 +90,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hermes-todo-triage-journal-${{ github.run_id }}
+          name: steward-todo-triage-journal-${{ github.run_id }}
           path: .cortex-data/journal/
           retention-days: 30
