@@ -27,6 +27,24 @@ Original task spec preserved for context: This task requires preserving the enti
 ### 2. (DONE 2026-05-09) Sprint 1.9.0 — Spec-driven verification
 ~~Generalize Sprint 1.8.13's hardcoded content-preservation guardrail into per-kind acceptance criteria.~~ Shipped end-to-end: `bin/steward/_lib/spec-verifier.cjs` (430 LoC, 5 criterion kinds), 9 shipped action_kinds migrated to `acceptance_criteria[]`, `applyEditsToFilesystem` captures `previousSizes` + `edits[]`, `execute.cjs` wires spec-verifier between `applyAction` and `runNpmTest` (Q5=BEFORE — fail-fast on cheap deterministic checks), 8 new error codes (`SPEC_VIOLATION` … `SPEC_LLM_JUDGE_NOT_IMPLEMENTED`), inline `EDIT_DESTRUCTIVE_REWRITE` removed from action-engine.cjs (single source of truth = recommendation kind's `no_destructive_rewrite` criterion). Tests: 790 → 859 (+69 across unit/contract/integration). R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` (Option D, all 5 operator defaults accepted). Unblocks Sprint 2.0 Langfuse + 2.1 autoresearch fitness signal + 2.2 worktree judge + 2.3 mutation testing.
 
+### 5. Add a TROUBLESHOOTING section header to docs/steward-usage.md
+Open `docs/steward-usage.md` and append a new section at the very end (after the last existing line). The new section MUST start with the exact heading `## Troubleshooting common cron failures` (level-2 markdown header). Below the heading, add a single short paragraph (1-3 sentences) explaining that operators should consult `docs/troubleshooting.md` for cron failure diagnostics, mention `STEWARD_HALT` as the kill-switch, and reference `cortex/journal/` as the audit trail. Do NOT modify any existing content — append-only edit. Keep the new content under 500 characters total. The total file should grow by ~200-500 bytes; spec-verifier `no_destructive_rewrite` criterion enforces no shrink >50% so this is safely under the threshold.
+[audit: spec-verifier no_destructive_rewrite criterion + Sprint 1.6.19 troubleshooting.md merge] [src: docs/steward-usage.md current state + docs/troubleshooting.md exists]
+
+### 6. Add JSDoc @description tag to the loadAllowedUserIds export in bin/discord-bridge/auth.cjs
+Open `bin/discord-bridge/auth.cjs` and locate the `loadAllowedUserIds` function (around the top of the file). Above its `function` keyword line, add a 3-line JSDoc block in this exact form:
+```
+/**
+ * @description Parse STEWARD_DISCORD_ALLOWED_USER_IDS env var into a Set of snowflake IDs.
+ */
+```
+Place the block immediately above the `function loadAllowedUserIds(` line, with no blank line between. Do NOT change function logic, signature, or return value. Do NOT add JSDoc to other functions. Do NOT delete or alter existing comments. Pure annotation. The file grows by ~120 bytes; well under any shrink threshold.
+[audit: docs/standards/coding-behavior.md JSDoc convention + Sprint 2.6 Discord bridge auth.cjs current state] [src: bin/discord-bridge/auth.cjs file head]
+
+### 7. Add a constant CORTEX_TOOL_SPEC_VERSION to bin/cortex/tools/index.cjs
+Open `bin/cortex/tools/index.cjs` and add ONE new constant export immediately after the `const TOOLS = Object.freeze([...])` declaration: `const CORTEX_TOOL_SPEC_VERSION = 'v0';`. Then add `CORTEX_TOOL_SPEC_VERSION,` to the `module.exports = { ... }` block (alphabetical order: place it after `CODES` and before `NAME_REGEX`). Do NOT change any existing TOOLS array entry, validator, or filename map. Do NOT delete any existing exports. Pure addition: ~80 bytes added; spec-verifier shrink threshold is well-clear.
+[audit: Sprint 2.9 R1 memo §7 versioning ("v0", "v0.5", "v1.0", "v1.5" planned) + bin/cortex/tools/_spec.md §7] [src: bin/cortex/tools/index.cjs current exports + spec versioning convention]
+
 ## DO this sprint (cited)
 
 ### 3. D-1 git history PII purge + v0.1.0 tag

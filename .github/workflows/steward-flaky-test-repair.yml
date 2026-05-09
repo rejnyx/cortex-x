@@ -1,0 +1,98 @@
+# steward-flaky-test-repair.yml — autonomous Steward flaky-test quarantiner.
+#
+# Sprint 1.8.5 shipped flaky_test_repair action_kind. This workflow runs
+# weekly (Tuesday 07:00 UTC) and scans source for `// HERMES-FLAKY: reason`
+# markers above test/it/describe blocks, replacing them with .skip + opening
+# gh issues to track the underlying flake.
+#
+# Mixed pattern: file edits (test → test.skip) + gh issue creation. Atomic
+# commit + draft PR for the skip; issue created separately.
+#
+# Cost: zero LLM (deterministic marker scan + AST-light edits).
+
+name: steward flaky-test-repair
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * 2'     # Weekly Tuesday at 07:00 UTC
+
+concurrency:
+  group: steward-flaky-test-repair-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-flaky-test-repair:
+    name: steward flaky-test-repair
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: write           # commit on steward/<date>-flaky-...
+      pull-requests: write      # gh pr create --draft
+      issues: write             # gh issue create per flake
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # journal lookup needs history
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Verify pre-action test baseline
+        run: npm test
+
+      - name: Configure git identity (Steward commits)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward flaky-test-repair dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=flaky_test_repair \
+            --json > /tmp/steward-flaky-plan.json
+          cat /tmp/steward-flaky-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-flaky-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No flaky markers — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward flaky-test-repair execute (file edits + commit + draft PR + gh issues)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-flaky-plan.json
+        env:
+          # No OPENROUTER_API_KEY — flaky_test_repair is deterministic
+          STEWARD_DAILY_USD_CAP:      '5'
+          STEWARD_WEEKLY_USD_CAP:     '25'
+          STEWARD_MONTHLY_USD_CAP:    '80'
+          STEWARD_TOKEN_VELOCITY_CAP: '50000'
+          STEWARD_FAILURE_BREAKER:    '3'
+          CORTEX_DATA_HOME:           ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                   ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-flaky-test-repair-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

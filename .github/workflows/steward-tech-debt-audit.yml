@@ -1,0 +1,101 @@
+# steward-tech-debt-audit.yml — autonomous Steward qlty + knip snapshot.
+#
+# Sprint 2.5 shipped tech_debt_audit action_kind. This workflow runs
+# weekly (Thursday 09:00 UTC) and snapshots code-health metrics via qlty
+# (cognitive complexity, duplication, lcom) + knip (TS unused exports),
+# opening an advisory PR when drift exceeds thresholds vs. the prior
+# snapshot.
+#
+# File-edit pattern: writes snapshot to cortex/tech-debt/<date>.json,
+# commits + opens draft PR. Cost: zero LLM.
+
+name: steward tech-debt-audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 4'     # Weekly Thursday at 09:00 UTC
+
+concurrency:
+  group: steward-tech-debt-audit-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-tech-debt-audit:
+    name: steward tech-debt-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Verify pre-action test baseline
+        run: npm test
+
+      - name: Configure git identity (Steward commits)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Install qlty (best-effort, fail-open)
+        run: |
+          curl -fsSL https://qlty.sh | bash || echo "qlty install failed; tech_debt_audit will fail-open"
+          echo "$HOME/.qlty/bin" >> $GITHUB_PATH
+
+      - name: Steward tech-debt-audit dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=tech_debt_audit \
+            --json > /tmp/steward-techdebt-plan.json
+          cat /tmp/steward-techdebt-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-techdebt-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No tech-debt drift detected — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward tech-debt-audit execute (qlty + knip snapshot, commit, draft PR if drift)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-techdebt-plan.json
+        env:
+          # No OPENROUTER_API_KEY — tech_debt_audit is deterministic
+          STEWARD_DAILY_USD_CAP:      '5'
+          STEWARD_WEEKLY_USD_CAP:     '25'
+          STEWARD_MONTHLY_USD_CAP:    '80'
+          STEWARD_TOKEN_VELOCITY_CAP: '50000'
+          STEWARD_FAILURE_BREAKER:    '3'
+          CORTEX_DATA_HOME:           ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                   ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-tech-debt-audit-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

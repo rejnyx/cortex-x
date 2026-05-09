@@ -1,0 +1,93 @@
+# steward-test-coverage-gap.yml — autonomous Steward coverage-gap detector.
+#
+# Sprint 1.8.9 shipped test_coverage_gap action_kind. This workflow runs
+# weekly (Monday 06:00 UTC) and reads coverage/coverage-summary.json,
+# cross-references with recently changed files (lookback 14 days), and
+# opens gh issues for files with low coverage that have been actively
+# edited.
+#
+# No LLM, no file edits — only opens gh issues. Each candidate produces
+# ONE issue labeled `steward-coverage-gap`.
+#
+# Skip-commit pattern: this workflow does NOT commit anything to the repo.
+
+name: steward test-coverage-gap
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'     # Weekly Monday at 06:00 UTC
+
+concurrency:
+  group: steward-test-coverage-gap-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-test-coverage-gap:
+    name: steward test-coverage-gap
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read           # reads coverage + git log
+      issues: write            # gh issue create per gap
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # full history for git log lookback
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Generate coverage (best-effort)
+        run: npm run test:coverage || echo "coverage script unavailable; skipping"
+
+      - name: Configure git identity (Steward — unused but kept for journal)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward test-coverage-gap dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=test_coverage_gap \
+            --json > /tmp/steward-coverage-plan.json
+          cat /tmp/steward-coverage-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-coverage-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No coverage gaps surfaced — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward test-coverage-gap execute (gh issue create per gap)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-coverage-plan.json
+        env:
+          # No OPENROUTER_API_KEY — test_coverage_gap is deterministic
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-test-coverage-gap-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

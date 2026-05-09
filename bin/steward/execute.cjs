@@ -1932,13 +1932,19 @@ async function _runExecuteInner(opts, ctx) {
       }, applyResult));
       // Sprint 1.8.3 — record lesson so next run avoids the same root cause
       safeRecordLesson(slug, applyResult, plan);
+      // Sprint 2.9.7: action-side returns may carry exitCode (e.g. autoresearch
+      // ALL_CANDIDATES_FAILED = ensemble defense fired correctly → exitCode:0).
+      // Propagate the explicit exit code if present; otherwise default to 1.
+      const propagatedExitCode = (typeof applyResult.exitCode === 'number')
+        ? applyResult.exitCode
+        : (applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? EX_USAGE : 1);
       return {
         ok: false,
         code: applyResult.code || 'ACTION_FAILED',
         error: applyResult.error || 'action engine returned failure',
         engine: applyResult.engine,
         next_steps: applyResult.next_steps,
-        exitCode: applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? EX_USAGE : 1,
+        exitCode: propagatedExitCode,
       };
     }
 
@@ -2072,12 +2078,24 @@ async function _runExecuteInner(opts, ctx) {
           code: `${specResult.code}:${failureId}`,
           error: specResult.error || `criterion '${failureId}' rejected the action`,
         }, plan);
+        // Sprint 2.9.7: SPEC_VIOLATION on a block-severity criterion is the
+        // defense layer working as designed (e.g. no_destructive_rewrite catches
+        // an unsafe LLM rewrite). Atomic rollback completed; nothing pushed;
+        // lesson recorded; journal `execute_spec_failed` event still drives
+        // the cross-session loop detector (Sprint 1.9.1) toward STEWARD_HALT.
+        // Return shape stays ok:false + code:SPEC_VIOLATION (existing test
+        // contract intact) but exitCode:0 so cron dashboards don't false-fail
+        // when the defense fires correctly. Other SPEC_* codes (MALFORMED,
+        // PREDICATE_THREW, SHELL_TIMEOUT) indicate internal bugs, not the
+        // defense doing its job — those stay exit 1.
+        const cleanRollback = specResult.code === 'SPEC_VIOLATION';
         return {
           ok: false,
           code: specResult.code,
           error: specResult.error || `spec-verifier rejected at criterion ${failureId}`,
           spec_failures: specResult.spec_failures || [],
           touchedFiles,
+          exitCode: cleanRollback ? 0 : 1,
         };
       }
     }
@@ -2471,7 +2489,10 @@ if (require.main === module) {
   }
 
     if (result.ok) process.exit(0);
-    if (result.exitCode) process.exit(result.exitCode);
+    // Sprint 2.9.7 fix: typeof check so exitCode=0 (clean defense-block exit)
+    // is honored. Previous truthy check `if (result.exitCode)` would skip 0
+    // and fall through to exit 1.
+    if (typeof result.exitCode === 'number') process.exit(result.exitCode);
     process.exit(1);
   }
 }

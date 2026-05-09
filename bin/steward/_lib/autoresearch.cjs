@@ -639,6 +639,10 @@ async function runAutoresearch(plan, deps, opts = {}) {
     : { collapsed: false, pairs: [], allSimilar: false };
 
   if (passing.length === 0) {
+    // Sprint 2.9.7: ensemble defense fired correctly — N candidates tried,
+    // all rejected by spec-verifier OR npm test gate. Return shape stays
+    // ok:false + same code (existing test contract intact) but exitCode:0
+    // so cron dashboards don't false-fail when the ensemble protects us.
     return {
       ok: false,
       code: 'STEWARD_AUTORESEARCH_ALL_CANDIDATES_FAILED',
@@ -646,6 +650,7 @@ async function runAutoresearch(plan, deps, opts = {}) {
       candidates,
       collapse,
       budget: { spent_usd: budget.spentUsd },
+      exitCode: 0,
     };
   }
 

@@ -1,0 +1,93 @@
+# steward-doc-drift.yml — autonomous Steward documentation-drift detector.
+#
+# Sprint 1.8.6 shipped doc_drift action_kind. This workflow runs monthly
+# (1st of each month, 05:00 UTC — one hour after todo-triage) and scans
+# package exports vs. docs corpus, opening gh issues for undocumented
+# symbols + drifted documentation.
+#
+# No LLM, no file edits — only opens gh issues. Each candidate produces
+# ONE issue labeled `steward-doc-drift` for downstream filtering.
+#
+# Why monthly: doc drift accumulates slowly; daily would be noise.
+#
+# Skip-commit pattern: this workflow does NOT commit anything to the repo —
+# the side effect is purely external (gh issues). runExecute returns ok with
+# `skip_commit: true` and bypasses stage/commit/push/PR pipeline.
+
+name: steward doc-drift
+
+on:
+  workflow_dispatch:        # manual run via GH UI
+  schedule:
+    - cron: '0 5 1 * *'     # Monthly 1st at 05:00 UTC (1h after todo-triage)
+
+concurrency:
+  group: steward-doc-drift-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-doc-drift:
+    name: steward doc-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read           # only reads source + docs corpus
+      issues: write            # gh issue create per drift
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity (Steward — unused on doc-drift but kept for journal)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward doc-drift dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=doc_drift \
+            --json > /tmp/steward-doc-plan.json
+          cat /tmp/steward-doc-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-doc-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No drift detected — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward doc-drift execute (gh issue create per drift)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-doc-plan.json
+        env:
+          # No OPENROUTER_API_KEY — doc-drift is deterministic, no LLM call
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-doc-drift-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
