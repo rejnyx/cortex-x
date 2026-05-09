@@ -33,12 +33,16 @@ const FORBIDDEN_TOKENS = Object.freeze([
 // false-positive on prefix `rm -rf /`, and `> /dev/sdb` undetected because
 // only `/dev/sda` was in the literal list.
 const FORBIDDEN_REGEXES = Object.freeze([
-  // rm -rf with absolute root path (catches /, /home, /etc, /var, /usr, /opt — but NOT /tmp/x).
-  // Word-boundary on -rf flag avoids matching `rm -rfd /tmp` style legitimate forms.
-  // Also catches --recursive --force long-form.
-  /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\/(?:home|etc|usr|var|opt|root|boot|lib|sbin|bin|sys|proc)?\b/i,
-  /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\/\s*$/,
+  // Recursive removal of a system-critical absolute root path. Dangerous dir
+  // is REQUIRED (Sprint 2.9 R2 followup: optional group caused false-positive
+  // on `rm -rf /tmp/x` because empty match + \b passed). /tmp is NOT in the
+  // dangerous list — legitimate cleanup target.
+  /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\/(home|etc|usr|var|opt|root|boot|lib|sbin|bin|sys|proc)\b/i,
+  // Bare root: `rm -rf /` followed by end-of-string or whitespace+end.
+  /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\/(\s*$|\s+&|\s+;|\s+\|)/,
+  // Wildcard root: `rm -rf /*`.
   /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\/\*/,
+  // Home expansion forms.
   /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+\$HOME\b/i,
   /\brm\s+(-[rRfF]+|--recursive|--force)(\s+(-[rRfF]+|--recursive|--force))*\s+~(?:\/|\s|$)/,
 
