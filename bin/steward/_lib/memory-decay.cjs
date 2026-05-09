@@ -146,9 +146,18 @@ function decayPass(items, opts = {}) {
   if (archiveCount === 0) {
     return { keep: scored, archive: [], params };
   }
-  // scored is sorted descending; archive = bottom N
-  const keep = scored.slice(0, scored.length - archiveCount);
-  const archive = scored.slice(scored.length - archiveCount);
+  // Sprint 2.9.7b property-test fix: Sprint 2.8 R1 acceptance criterion
+  // ("zero blocker lessons archived") was declared but never enforced.
+  // Property test in tests/unit/steward/memory-decay-properties.test.cjs
+  // surfaced the gap. Now: archive ONLY from the non-blocker pool. Blocker
+  // lessons encode load-bearing failure-mode knowledge and must persist
+  // (until hard-coded retention sweep, which is itself out of scope here).
+  const nonBlockers = scored.filter((it) => it.impact !== 'blocker');
+  const blockers = scored.filter((it) => it.impact === 'blocker');
+  const cappedArchiveCount = Math.min(archiveCount, nonBlockers.length);
+  const archive = nonBlockers.slice(nonBlockers.length - cappedArchiveCount);
+  const keptNonBlockers = nonBlockers.slice(0, nonBlockers.length - cappedArchiveCount);
+  const keep = [...blockers, ...keptNonBlockers].sort((a, b) => b._score - a._score);
   return { keep, archive, params };
 }
 
