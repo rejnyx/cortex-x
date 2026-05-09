@@ -129,7 +129,10 @@ standards_included:
   - ssot           # tests are also subject to SSOT; duplicated fixtures = anti-pattern
 
 # Research topic taxonomy (qa-retrofit Phase 4 uses this)
+# Split into testing-only (10) + DevOps/CI quality (5) per Sprint 2.10.1 operator request.
+# Rationale: a 2026 tester owns the full "is verification real" surface, not just test code.
 qa_concerns:
+  # Testing-only concerns
   - e2e-strategy
   - unit-fitness
   - contract-testing
@@ -140,6 +143,25 @@ qa_concerns:
   - test-observability
   - mutation-fitness
   - risk-based-prioritization
+  # DevOps/CI quality concerns (Sprint 2.10.1)
+  - ci-pipeline-testing       # actionlint, pinact, gate consistency, secret hygiene
+  - iac-testing               # kubeval, kube-linter, tflint, OPA/Conftest, drift detection
+  - container-security        # hadolint, Trivy/grype, syft SBOM, SLSA provenance
+  - deploy-safety             # canary/blue-green, post-deploy smoke, observability assertion, DORA
+  - secret-supply-chain       # gitleaks, osv-scanner, npm-audit, dep pinning
+
+# Auto-research-nudge pattern (Sprint 2.10.1)
+# Every gap in testing-gaps.md ships with an inline "Research nudge:" line —
+# trains junior testers to research-first before writing the fix. Per Sprint
+# 2.10 R1: orgs that audit-then-research closed the 75/16 AI-testing adoption gap.
+auto_research_nudge:
+  enabled: true
+  apply_to: [P0, P1, P2]
+  skip_for_trivial: true     # don't nudge for <5-minute gaps
+  nudge_format: |
+    Before starting this gap, paste into Claude Code:
+    > "Research best practices 2026 for <gap-specific concern>: <2-3 sub-questions>.
+    >  Min 5 cited URLs. 200-word memo."
 
 # References (grounded in)
 grounded_in:
@@ -171,3 +193,9 @@ research_topics:
   - "tsDetect test-smell detection in TypeScript 2026"
   - "Pact + Schemathesis contract testing for REST API pairs"
   - "AI-augmented QA workflows — Claude Code + Playwright MCP 2026"
+  # DevOps/CI quality (Sprint 2.10.1)
+  - "actionlint + pinact GitHub Actions correctness gates 2026"
+  - "Trivy + Syft container image scanning + SBOM 2026"
+  - "kube-linter + Conftest IaC policy gates 2026"
+  - "DORA metrics dashboard tooling 2026"
+  - "gitleaks + osv-scanner secret + dep gates in CI 2026"

@@ -90,6 +90,19 @@ describe('Sprint 2.10 — qa-retrofit prompt has all 7 phases', () => {
     assert.match(promptText, /--seed-tests/);
   });
 
+  test('phase 5e (auto-research-nudge pattern, Sprint 2.10.1)', () => {
+    assert.match(promptText, /Phase 5e — Auto-research-nudge/);
+    assert.match(promptText, /Research nudge:/);
+  });
+
+  test('phase 4 references DevOps/CI concerns (Sprint 2.10.1)', () => {
+    assert.match(promptText, /ci-pipeline-testing/);
+    assert.match(promptText, /container-security/);
+    assert.match(promptText, /deploy-safety/);
+    assert.match(promptText, /secret-supply-chain/);
+    assert.match(promptText, /iac-testing/);
+  });
+
   test('phase 7 (final on_complete)', () => {
     assert.match(promptText, /## Phase 7 — Final on_complete/);
   });
@@ -143,13 +156,26 @@ describe('Sprint 2.10 — qa-engineer profile structure', () => {
     assert.match(profileText, /soft_block/);
   });
 
-  test('declares 10 QA-specific concerns', () => {
+  test('declares 10 QA-specific concerns + 5 DevOps/CI quality concerns (Sprint 2.10.1)', () => {
     assert.match(profileText, /qa_concerns/);
+    // Testing concerns
     assert.match(profileText, /e2e-strategy/);
     assert.match(profileText, /mutation-fitness/);
     assert.match(profileText, /security-testing/);
     assert.match(profileText, /a11y-testing/);
     assert.match(profileText, /risk-based-prioritization/);
+    // DevOps/CI concerns (Sprint 2.10.1 expansion)
+    assert.match(profileText, /ci-pipeline-testing/);
+    assert.match(profileText, /iac-testing/);
+    assert.match(profileText, /container-security/);
+    assert.match(profileText, /deploy-safety/);
+    assert.match(profileText, /secret-supply-chain/);
+  });
+
+  test('declares auto_research_nudge pattern (Sprint 2.10.1)', () => {
+    assert.match(profileText, /auto_research_nudge/);
+    assert.match(profileText, /enabled: true/);
+    assert.match(profileText, /skip_for_trivial: true/);
   });
 
   test('grounded in ISO 25010:2023 + ASVS 5.0 + HTSM + tsDetect', () => {

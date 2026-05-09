@@ -365,7 +365,9 @@ Append answers to `cortex/qa/AUDIT.md` § "Phase 3 — Human input":
 
 ### QA-specific concern taxonomy (overrides planner's default 6)
 
-For QA retrofit, the concerns are:
+For QA retrofit, the concerns split into **testing-only (10)** + **DevOps/CI quality (5)**. Testing without DevOps quality gates = false confidence; DevOps without testing = unreliable substrate. The qa-engineer profile owns BOTH because they together determine "is the system actually verified end-to-end" — and a great tester learns this combination as a single skill.
+
+**Testing concerns (10):**
 - `e2e-strategy` — Playwright vs Cypress, browser matrix, video/trace, parallelization
 - `unit-fitness` — coverage thresholds, mutation testing (StrykerJS), property-based (fast-check)
 - `contract-testing` — Pact / OpenAPI / Schemathesis, FE-BE drift, type generation
@@ -376,6 +378,15 @@ For QA retrofit, the concerns are:
 - `test-observability` — flake tracking, test impact analysis, CI artifact discipline
 - `mutation-fitness` — StrykerJS, threshold strategy, incremental mode
 - `risk-based-prioritization` — ISO 25010 mapping, risk-coverage tradeoff
+
+**DevOps/CI quality concerns (5) — added Sprint 2.10.1 per operator request:**
+- `ci-pipeline-testing` — workflow correctness (`actionlint`), action pinning (`pinact`), gate consistency (does PR run what main runs?), secret hygiene
+- `iac-testing` — Terraform/Pulumi/k8s YAML linting (`kubeval`, `kube-linter`, `tflint`), policy gates (OPA/Conftest), drift detection
+- `container-security` — Dockerfile lint (`hadolint`), image scan (`Trivy`/`grype`), SBOM generation (`syft`), provenance (SLSA)
+- `deploy-safety` — canary/blue-green/rollback discipline, post-deploy smoke synthetic checks, observability assertion (logs/metrics reach pipeline), DORA metrics dashboard
+- `secret-supply-chain` — `gitleaks` PR + history scan, `osv-scanner` / `Snyk` dependency gate, npm-audit policy, `pinact` for action pinning
+
+A great tester in 2026 owns the full "is the verification real" surface — not just the test code. The testing pyramid is a subset of the assurance pyramid; the qa-engineer profile names both.
 
 Topic naming: `{stack-or-profile}-qa-{concern}-{year}`. Examples:
 - `nextjs16-qa-e2e-strategy-2026`
@@ -534,6 +545,34 @@ If invoked: pick top 3 P0 gaps from `cortex/qa/testing-gaps.md` and write execut
 - Marked `.skip` if implementation requires fixtures the audit can't generate (e.g. real Stripe sandbox key) — with a TODO line explaining
 
 Don't seed more than 3 — past that, the AI is generating speculative tests that the human won't review. 3 high-quality sample tests >> 30 boilerplate ones.
+
+---
+
+## Phase 5e — Auto-research-nudge pattern (NEW Sprint 2.10.1 per operator request)
+
+The biggest leap a junior tester makes when adopting cortex-x is **internalizing that web research is a first-class step**, not a luxury. To accelerate that learning, every gap in `cortex/qa/testing-gaps.md` ends with an explicit *"Research nudge:"* line that proposes a 1-paragraph WebSearch query the tester can paste into Claude Code BEFORE writing the first line of the fix.
+
+Pattern format (added inline at the end of each gap entry):
+
+```markdown
+- **GAP-NNN** — <title>. <existing fields>. [audit: …] [src: …] [research: …]
+  **Research nudge:** Before starting this gap, paste into Claude Code:
+  > "Research best practices 2026 for <specific concern>: <2-3 specific sub-questions>. Min 5 cited URLs. 200-word memo."
+```
+
+Example for a real gap from this audit:
+
+```markdown
+- **GAP-002** — Full guest-checkout E2E flow. …
+  **Research nudge:** Before starting, paste:
+  > "Research best practices 2026 for Playwright E2E full e-commerce checkout flow including 3DS challenge handling, payment gateway sandbox patterns (Stripe-mock equivalent for ComGate/CSOB), and address validation interplay with 3DS2 risk fields. Min 5 cited URLs. 200-word memo."
+```
+
+**Why this matters (per Sprint 2.10 R1 research):** testdevlab 2026 found that orgs which ran an audit-then-research-first loop closed the 75/16 AI-testing-adoption gap. Junior testers in particular benefit from this nudge because the alternative ("LLM, write me a Playwright test for checkout") produces hallucinated APIs (~30% semantic-drift rate per Shekhar 2026). The nudge teaches the discipline by example.
+
+**Backlog generator behavior:** when synthesizing `cortex/qa/testing-gaps.md` in Phase 5b, append a `**Research nudge:**` line under EVERY gap (P0/P1/P2). For SKIP entries, the nudge becomes *"Verify SKIP rationale stays current — re-research:"* so the deferral isn't permanent.
+
+**Don't over-nudge:** for trivial gaps (e.g. "add `npm run test:coverage` script") skip the nudge — adding research overhead to a 5-minute task is friction, not value.
 
 ---
 
