@@ -42,7 +42,7 @@ Place the block immediately above the `function loadAllowedUserIds(` line, with 
 [audit: docs/standards/coding-behavior.md JSDoc convention + Sprint 2.6 Discord bridge auth.cjs current state] [src: bin/discord-bridge/auth.cjs file head]
 
 ### 7. Add a constant CORTEX_TOOL_SPEC_VERSION to bin/cortex/tools/index.cjs
-Open `bin/cortex/tools/index.cjs` and add ONE new constant export immediately after the `const TOOLS = Object.freeze([...])` declaration: `const CORTEX_TOOL_SPEC_VERSION = 'v0';`. Then add `CORTEX_TOOL_SPEC_VERSION,` to the `module.exports = { ... }` block (alphabetical order: place it after `CODES` and before `NAME_REGEX`). Do NOT change any existing TOOLS array entry, validator, or filename map. Do NOT delete any existing exports. Pure addition: ~80 bytes added; spec-verifier shrink threshold is well-clear.
+Open `bin/cortex/tools/index.cjs` and add ONE new constant export immediately after the `const TOOLS = Object.freeze([...])` declaration: `const CORTEX_TOOL_SPEC_VERSION = 'v0';`. Then add the new line `  CORTEX_TOOL_SPEC_VERSION,` to the `module.exports = { ... }` block, **inserted on a new line directly before the line `  NAME_REGEX,`** (do NOT reorder any other exports — the existing order in the module.exports block must stay byte-for-byte identical except for this one inserted line). Do NOT change any existing TOOLS array entry, validator, or filename map. Do NOT delete any existing exports. Pure addition: ~80 bytes added; spec-verifier shrink threshold is well-clear.
 [audit: Sprint 2.9 R1 memo §7 versioning ("v0", "v0.5", "v1.0", "v1.5" planned) + bin/cortex/tools/_spec.md §7] [src: bin/cortex/tools/index.cjs current exports + spec versioning convention]
 
 ## DO this sprint (cited)

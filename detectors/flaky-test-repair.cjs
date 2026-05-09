@@ -30,6 +30,17 @@ const path = require('path');
 
 const DEFAULT_MAX_CANDIDATES = 5;
 const FLAKY_MARKER_RE = /\bHERMES-FLAKY\b[:\s]*([^\n]*)/g;
+
+// Sprint 2.9.7a R2 fix (security MEDIUM): defense-in-depth path allow-list.
+// flaky_test_repair edits files (replaces `test/it/describe` with .skip).
+// A misplaced HERMES-FLAKY marker in production source would let the detector
+// rewrite that file. Restrict to files that look like tests by path. The
+// runtime-side spec-verifier ears criterion `flaky_repair_adds_skip` covers
+// behavior intent; this is the file-path defense layer.
+const TEST_FILE_PATH_RE = /(?:^|\/)(?:__tests__|tests?)\/|\.test\.|\.spec\./;
+function isTestFilePath(relPath) {
+  return TEST_FILE_PATH_RE.test(relPath.replace(/\\/g, '/'));
+}
 // Captures: test('name', ...), it('name', ...), describe('name', ...)
 // across single + double + backtick quotes.
 const TEST_DECL_RE = /^(\s*)((?:test|it|describe))\s*\(\s*(['"`])([^'"`]+)\3/;
@@ -153,13 +164,16 @@ function detectFlakyMarkers({ cwd, mockFiles, maxCandidates } = {}) {
     }
   } else {
     for (const filePath of walkSourceFiles(repoRoot)) {
+      const rel = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+      // Sprint 2.9.7a R2 fix: refuse to .skip-rewrite files outside test paths.
+      // A HERMES-FLAKY marker in production code is operator error; the safe
+      // response is to ignore the marker entirely (cron exits clean) rather
+      // than risk shipping a .skip on a real production test suite.
+      if (!isTestFilePath(rel)) continue;
       let content;
       try { content = fs.readFileSync(filePath, 'utf8'); } catch { continue; }
       const markers = scanContentForMarkers(content);
       for (const m of markers) {
-        // Normalize to forward slashes so JSON output + git stage commands are
-        // platform-consistent (path.relative emits backslashes on Windows).
-        const rel = path.relative(repoRoot, filePath).replace(/\\/g, '/');
         found.push({ file: rel, ...m });
       }
     }
@@ -232,7 +246,10 @@ if (require.main === module) {
   }
 }
 
+// Sprint 2.9.7a: expose path-allowlist predicate for tests.
 module.exports = {
+  isTestFilePath,
+  TEST_FILE_PATH_RE,
   detectFlakyMarkers,
   scanContentForMarkers,
   applyQuarantineEdits,
