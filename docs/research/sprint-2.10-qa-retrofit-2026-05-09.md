@@ -111,6 +111,21 @@ Pre-cached for the field-test colleague. Findings if the planner is invoked on t
 - ✅ Sprint 2.10 entry in `docs/steward-roadmap.md` + `CHANGELOG.md`
 - ✅ R1 memo (this file) traces every claim to ≥2 sources via 3-hop chain
 
+## Sprint 2.10.1 follow-up (same-day operator-driven extension)
+
+**Operator request 1 (during dogfood):** "doplň do toho testing profilu i devops a podobné CI věci, k testingu to patří taky a může to zvýšit skill testera"
+
+**Operator request 2 (during dogfood):** "když to začne tester používat cortex, tak ať mu cortex na vše sám doporučuje researche na webu, ať to ty lidi konečně pochopí jak to je OP dělat researche"
+
+**Shipped Sprint 2.10.1**:
+
+1. **DevOps/CI concern taxonomy expansion** — qa_concerns went from 10 → 15. New concerns: `ci-pipeline-testing` (actionlint, pinact, gate consistency), `iac-testing` (kubeval, kube-linter, tflint, OPA/Conftest), `container-security` (hadolint, Trivy/grype, syft SBOM), `deploy-safety` (canary, post-deploy smoke, DORA), `secret-supply-chain` (gitleaks, osv-scanner, dep pinning).
+2. **Auto-research-nudge pattern** — every gap in `cortex/qa/testing-gaps.md` ships with an inline `**Research nudge:**` line proposing a 1-paragraph WebSearch query. Trains junior testers in the audit-then-research-first discipline that closed the 75/16 AI-testing-adoption gap (testdevlab 2026 [4]). Skipped for trivial gaps (<5min) to avoid friction-without-value.
+3. **Profile + planner + prompt synchronized** — `profiles/qa-engineer.yaml` declares `qa_concerns: [15 concerns]` + `auto_research_nudge: { enabled: true, apply_to: [P0, P1, P2], skip_for_trivial: true }`. `agents/planner.md` documents the 15-concern taxonomy. `prompts/qa-retrofit.md` adds Phase 5e auto-research-nudge generator behavior.
+4. **Field-test deliverables (order-mage/eshop + admin)** — auditor (this session) wrote 6 deliverables (AUDIT.md + testing-strategy.md + testing-gaps.md per repo) with the Sprint 2.10.1 concern set already applied. Admin testing-gaps.md surfaces 7 explicit DevOps/CI gaps (GAP-017 through GAP-023) that the testing-only taxonomy would have missed.
+
+**Why this matters**: a 2026 tester owns the full "is verification real" surface — not just test code. Test-pass without a CI gate that runs them = nothing verified. The qa-engineer profile explicitly names both layers so junior testers learn this from day 1.
+
 ## Out of scope (explicit non-goals)
 
 - **Auto-running mutation testing** in `qa-retrofit` — recommended in P5, not executed. Stryker integration into `/test-audit` runtime = Sprint 2.3 implementation work (separate, operator-approved).

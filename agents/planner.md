@@ -50,8 +50,9 @@ Profile-specific concern overrides:
 
 ### QA-engineer concern taxonomy (only when invoked via `/test-audit` / `qa-retrofit.md`)
 
-When the planner is invoked from `qa-retrofit.md` Phase 4, the concern taxonomy is REPLACED with this QA-specific set:
+When the planner is invoked from `qa-retrofit.md` Phase 4, the concern taxonomy is REPLACED with this QA-specific set. Sprint 2.10.1 expanded it to **15 concerns** = 10 testing-only + 5 DevOps/CI quality.
 
+**Testing-only concerns (10):**
 - `e2e-strategy` — Playwright vs Cypress, browser matrix, video/trace, parallelization, INP awareness
 - `unit-fitness` — coverage thresholds, branch + MC/DC, fast-check property-based
 - `contract-testing` — Pact / OpenAPI / Schemathesis, FE-BE drift, type generation
@@ -62,6 +63,13 @@ When the planner is invoked from `qa-retrofit.md` Phase 4, the concern taxonomy 
 - `test-observability` — flake tracking, test impact analysis, CI artifact discipline (videos, traces)
 - `mutation-fitness` — StrykerJS 9 incremental, threshold strategy, agentic-era mutation testing
 - `risk-based-prioritization` — ISO 25010:2023 mapping, Bach HTSM SFDPOT traversal, risk-coverage tradeoff
+
+**DevOps/CI quality concerns (5) — Sprint 2.10.1 expansion:**
+- `ci-pipeline-testing` — `actionlint`, `pinact`, gate consistency (PR runs what main runs?), secret hygiene
+- `iac-testing` — `kubeval`, `kube-linter`, `tflint`, OPA/Conftest, drift detection
+- `container-security` — `hadolint`, `Trivy`/`grype`, `syft` SBOM, SLSA provenance
+- `deploy-safety` — canary/blue-green/rollback, post-deploy smoke synthetic checks, observability assertion, DORA metrics
+- `secret-supply-chain` — `gitleaks`, `osv-scanner`, `npm-audit` policy, action pinning
 
 Topic naming: `{stack-or-profile}-qa-{concern}-{year}` (note the `-qa-` infix). Examples: `nextjs16-qa-e2e-strategy-2026`, `supabase-qa-rls-rbac-matrix-2026`, `vercel-ai-sdk-qa-eval-suite-2026`.
 

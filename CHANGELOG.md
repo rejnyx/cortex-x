@@ -4,6 +4,32 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 late night — Sprint 2.10.1 DevOps/CI + auto-research-nudge + order-mage dogfood)
+
+**Operator-driven same-day extension after Sprint 2.10 + manual dogfood pass on `order-mage/eshop` + `order-mage/admin`** (private repos cloned to `c:/tmp/qa-dogfood/`, deliverables mirrored to `docs/dogfood/order-mage-2026-05-09/`).
+
+**Sprint 2.10.1 expansion (operator request 1):** "doplň do toho testing profilu i devops a podobné CI věci" — `qa_concerns` taxonomy expanded from **10 → 15** (testing-only + DevOps/CI quality):
+- `ci-pipeline-testing` — `actionlint`, `pinact`, gate consistency (PR runs what main runs?), secret hygiene
+- `iac-testing` — `kubeval`, `kube-linter`, `tflint`, OPA/Conftest, drift detection
+- `container-security` — `hadolint`, `Trivy`/`grype`, `syft` SBOM, SLSA provenance
+- `deploy-safety` — canary/blue-green, post-deploy smoke, observability assertion, DORA metrics
+- `secret-supply-chain` — `gitleaks`, `osv-scanner`, `npm-audit` policy, action pinning
+
+**Auto-research-nudge pattern (operator request 2):** "ať cortex sám doporučuje researche na webu, ať to lidi konečně pochopí jak je OP dělat researche". Every gap in `cortex/qa/testing-gaps.md` ships with inline `**Research nudge:**` line proposing a WebSearch query. Trains junior testers in the audit-then-research-first discipline. New `prompts/qa-retrofit.md` Phase 5e generator behavior + `profiles/qa-engineer.yaml auto_research_nudge: { enabled: true, apply_to: [P0, P1, P2], skip_for_trivial: true }`.
+
+**Dogfood deliverables (`docs/dogfood/order-mage-2026-05-09/`):**
+- `README.md` — preview-flow brief for the colleague + top-line findings + caveats
+- `eshop/` — AUDIT.md (12-section ISO 25010:2023) + testing-strategy.md + testing-gaps.md (20 gaps: 5 P0 / 10 P1 / 5 P2 / 4 SKIP / 2 OPEN / 1 FYI)
+- `admin/` — same shape; 28 gaps (5 P0 / 11 P1 testing / 7 P1 DevOps/CI / 5 P2 / 4 SKIP / 3 OPEN / 1 FYI)
+
+**Top-line findings, joint pattern across both repos:** "Tests written, gate missing." 200+ test files exist + Playwright + Docker e2e infra staged + payment gateway specs + 97-spec backend-integration suite — but PR gates run `vitest` only (eshop) or `nx affected:build` only (admin, NO tests). One-line CI fix per repo closes ~70% of the runtime risk class.
+
+**Top eshop findings:** Money-path E2E gap (no full guest-checkout-to-paid coverage); zero a11y/mutation/property/visual; payment-gateway tests are unit-only. Strong unit foundation in critical-path utilities.
+
+**Top admin findings:** PR gate runs ZERO tests (single biggest fix-multiplier); auth + RBAC + tenant-isolation tests = 0 (Security score 1/5); `libs/emails` 0 tests on money + auth path templates. `apps/backend-integration` 97-spec suite is gold standard — preserve.
+
+**Tests**: 1647 → **1737** (+90 from Sprint 2.10 → 2.10.1) — 49 structure tests now cover Sprint 2.10.1 expansion (DevOps concerns + auto-research-nudge + Phase 5e prompt section).
+
 ### Added (2026-05-09 late evening — Sprint 2.10 QA Retrofit)
 
 **Sprint 2.10 (QA Retrofit infrastructure)** — depth-first testing-lens audit pipeline. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Field-test target: `order-mage/eshop` + `order-mage/admin`. R1 memo: `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` (web-research-dispatch-backed, 38 cited sources across 4 parallel research agents).
