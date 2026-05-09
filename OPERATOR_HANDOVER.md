@@ -72,15 +72,38 @@
 | `steward-tech-debt-audit.yml` | ⚠️ first-run might fail-open | qlty NOT installed in CI per Sprint 2.9.7a security hardening; detector returns `TECH_DEBT_QLTY_MISSING` cleanly |
 | `steward-autoresearch.yml` | ✅ defense-blocked exit 0 expected | recommendations.md still has HUMAN-ONLY items; ensemble defense fires; new fix makes this exit 0 |
 
-## What I shipped tonight while you were not testing manually
+## What I shipped after writing this handover (autonomous evening continuation)
 
-After you wrote handover, I autonomously continued (this list lives in commits below this handover commit; see `git log --since="2026-05-09 23:30 UTC"`). Topics I picked:
+Final commit count after handover: **5 more commits** = 28 total today. Tests went from 1601 → **1629** (+28 from autonomous block alone).
 
-1. **Sprint 2.3 R1 memo** — Stryker mutation-testing fitness signal design. R1-only, awaiting operator approval before implementation.
-2. **Property-based tests** (fast-check) for R2-flagged invariant code: `globToRegex`, `annotation-routing` 16-perm sweep, `bash.checkForbidden` known-bad inputs, `memory-decay` scoring monotonicity.
-3. **Sprint 2.7.1 — pattern_transfer LLM dispatch wire-up.** Currently `ACTION_KIND_NOT_DISPATCHABLE`; closes that hard-fail by wiring sibling-reader + LLM call + assertEditWithinCwd spec-verifier hook.
+**Shipped (NOT just planned)**:
 
-If any of these surfaced unexpected complexity, I stopped before pushing and noted it here.
+1. **Sprint 2.3 R1 memo** — `docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md`. **Web-research-dispatch-backed** (10 sources cited). Recommendation: StrykerJS 9.6 incremental mode + risk-tiered thresholds (80% `bin/steward/_lib`, 70% orchestrators, 75% `bin/cortex/tools`, 60% advisory `detectors/`). Defer Meta ACH (FSE 2025 LLM mutation generation) to Sprint 3.x. **GHA quota burn flagged HIGH** — mitigation = weekly-only nightly OR self-hosted runner.
+
+2. **Sprint 2.7.1 R1 memo** — `docs/research/sprint-2.7.1-pattern-transfer-llm-dispatch-2026-05-09.md`. Design for closing `pattern_transfer` `ACTION_KIND_NOT_DISPATCHABLE` gap. NOT implemented (operator-review-needed before 460 LoC + LLM dispatch goes in).
+
+3. **Property-based tests — 4 new files, +112 tests across high-risk primitives**:
+   - `tests/unit/cortex-tools/property-invariants.test.cjs` (72 tests): annotation-routing 16-perm sweep, bash forbidden-pattern 32 known-bad + 24 known-safe, glob.globToRegex invariants
+   - `tests/unit/steward/memory-decay-properties.test.cjs` (6 tests): scoring monotonicity, decay floor, impact ordering
+   - `tests/unit/steward/cost-safety-properties.test.cjs` (9 tests): multi-window monotonicity, malformed-input safety, loop-detector at/below threshold, budget gate at cap
+   - `tests/unit/steward/spec-verifier-properties.test.cjs` (19 tests): validateCriterion shape, RCE-token denylist enforcement, simpleGlobMatch boundaries, filterTargets subset invariant, runChecks no-throw contract
+
+4. **REAL BUG SURFACED + FIXED via property test**: `bin/steward/_lib/memory-decay.cjs decayPass()` was archiving blocker lessons in violation of Sprint 2.8 R1 acceptance criterion. Property test caught it. Fix: filter scored items into nonBlockers + blockers; archive ONLY from nonBlockers pool. Blockers always kept.
+
+5. **Roadmap + CHANGELOG entries** for Sprint 2.9.7 + 2.9.7a + 2.9.7b + 2.9.7c + 2.3 R1 + 2.7.1 R1 (commit `6070b75`).
+
+**Commits (post-handover)**:
+- `2c8a290` — property tests + memory-decay bug fix + 2 R1 memos + handover
+- `6070b75` — roadmap + CHANGELOG entries
+- `c038fa5` — cost-safety property tests (Sprint 2.9.7c)
+- `fc42ac2` — spec-verifier property tests (Sprint 2.9.7c followup)
+
+**Tests final**: 1349 → **1629 (+280 today)**.
+
+**Did NOT do** (correctly deferred for operator-review tomorrow):
+- Sprint 2.7.1 implementation (460 LoC + LLM dispatch + lethal-trifecta defense; needs awake operator)
+- Sprint 2.3 implementation (StrykerJS integration; needs operator decision on cadence + threshold)
+- Halt-check + action-engine property tests (next companion wave; operator-decided priority)
 
 ## Known gaps deferred (NOT today's work)
 
