@@ -147,12 +147,45 @@ curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | b
 
 (Token needs `repo` read scope on `Rejnyx/cortex-x`.)
 
+### Profile selection at install time (Sprint 2.10.2)
+
+Pick a profile to tailor the post-install slash-skill priming. Profiles:
+
+| Profile | Primes | Best for |
+|---|---|---|
+| **`dev`** (default) | `/cortex-init` → arrow-key New / Existing / Framework | full-stack developer, general use |
+| **`qa-tester`** | `/test-audit` (front-loaded) + `/cortex-init` (chain after) | QA engineer / tester onboarding to a new repo |
+| **`ai-engineer`** | `/cortex-init` with ai-agent profile emphasis | AI / agent-heavy projects |
+| **`minimal`** | framework only, no extra slash-skill | power users with bespoke flows |
+
+**Three ways to set it:**
+
+```bash
+# Option 1 — interactive (default if TTY)
+./install.sh                            # prompts: "Profile [dev]:"
+
+# Option 2 — env var
+CORTEX_PROFILE=qa-tester ./install.sh
+
+# Option 3 — CLI arg
+./install.sh --profile=qa-tester
+```
+
+For `qa-tester` specifically, the profile activates **auto-research-per-gap** in `/test-audit` runs (every P0/P1 gap gets a 200-word web-fetched memo with implementation patterns + cited URLs). Removes the cold-start tax for junior testers. See [docs/qa-tester-onboarding.md](./docs/qa-tester-onboarding.md) for the day-1 walkthrough.
+
 ### After install — three commands per project
 
 ```bash
 cd ~/your-project
 cortex-bootstrap      # interactive: [N]ew / [E]xisting / [F]ramework
 claude                # auto-primes /start (new) or /audit (existing)
+```
+
+### After install (qa-tester profile) — one command per repo
+
+```bash
+cd ~/repo-to-audit
+claude                # /test-audit produces a senior-QA-consultant deliverable in 30 min
 ```
 
 ### Manual install (after a clone)

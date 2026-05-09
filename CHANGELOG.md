@@ -4,6 +4,41 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-10 mid-morning — Sprint 2.10.5 self-audit + tutorial + README + Sprint 2.10.6 Phase 1b existing-tests modernization)
+
+**Sprint 2.10.5 — eat-our-own-dogfood self-audit** (operator: "klidně to celé dokonči, ještě máme čas. já ani nevím co řeká teď"):
+
+1. **`cortex/qa/AUDIT.md`** — 12-section ISO 25010:2023 self-audit on cortex-x itself. Quality scorecard 1-5 per char + Phase 5a-bis catalog selection (17 of 117 catalog entries selected). **Load-bearing finding**: defense-by-design / defense-by-regression-test gap — cortex-x has 4 defense layers (spec-verifier + halt-check + redact + path-safety) all unit-tested as libraries but ZERO end-to-end "adversarial input → defense fires" regression.
+2. **`cortex/qa/testing-strategy.md`** — 12-month pyramid plan, tool decisions, CI gates, ISO 25010 coverage targets, 3-month execution plan, anti-patterns specific to cortex-x.
+3. **`cortex/qa/testing-gaps.md`** — 24 gaps prioritized: 4 P0 (adversarial regression suite, StrykerJS mutation, evals/ runner, tool-call validation) + 14 P1 (testing + DevOps) + 5 P2 + 4 SKIP + 3 OPEN. Single highest-leverage finding: GAP-001 + GAP-002 ≤12h each, both produce regression artifact protecting Sprint 2.x burn-in.
+
+This validates the Sprint 2.10 prompt on a real (non-tmpdir) repo — non-application framework with autonomous-agent surfaces. Audit's selection oracle correctly filtered out a11y / e-commerce / regulated-industry categories; correctly escalated AI-eval + security to P0 given Q1 risk model.
+
+**Sprint 2.10.5 — colleague-onboarding tutorial:**
+
+`docs/qa-tester-onboarding.md` — day-1 walkthrough for the new junior tester: setup (5 min), first audit (30 min run + 30 min review), Phase 3 question discipline, week-1 cadence, philosophy (audit-then-research-first, mutation > coverage %, determinism is dead, defense-by-design ≠ defense-by-test). References pre-cached order-mage dogfood as worked example.
+
+**Sprint 2.10.5 — README.md profile section** — visible at top install instructions; profile selection table (dev / qa-tester / ai-engineer / minimal); 3 ways to set (interactive / env / CLI flag); link to qa-tester-onboarding.md.
+
+**Sprint 2.10.6 — Phase 1b existing-tests modernization analysis** (operator: "do profilu přidat, že pokud už tam existují nějaké testy, tak se analyzují, udělá se na ně research na webu, a tak dále analyzuje, vyhodnotí"):
+
+When `profile: qa-tester` AND repo has > 0 existing test files (skip greenfield):
+1. **Detect existing test frameworks/tools** — Vitest/Jest/node:test/Playwright/Cypress/@testing-library/axe-core/Stryker/fast-check/Pact/MSW/Storybook/Nx (12 tool categories)
+2. **Parallel WebSearch dispatch (cap 5 tools per audit)** — each agent: 200-word memo with 3 modern patterns + 3 anti-patterns (with detection regex if possible) + 1 migration recipe + 5+ cited URLs
+3. **Apply findings to existing test files** — match anti-patterns / deprecated patterns / upgrade opportunities per file
+4. **Output**: extend `cortex/qa/test-inventory.md` with "Modernization opportunities (Phase 1b)" section + per-file findings table + research cache pointers
+5. **Feed into testing-gaps.md** as P1 (high-severity) or P2 (medium/low) `[type: smell-modernization]` — NEVER P0 (existing tests still pass; modernization is improvement, not block-release)
+
+**Why Phase 1b matters**: junior tester inheriting a repo defaults to "tests work, don't touch" — preserves bit-rot. Phase 1b surfaces 2024-best-practice patterns deprecated in 2025-2026 + green-test-but-defective anti-patterns + upgrade paths the original author didn't track. Calibrates tester's "what's a good pattern?" judgment via citation chains week by week.
+
+**Cost guard**: 5 tools × ~60K tokens ≈ ~300K total per audit (Max x20 covers; metered API gets warning). `--no-existing-tests-analysis` flag skips entirely.
+
+**Profile + tests synchronized**:
+- `profiles/qa-engineer.yaml`: `analyze_existing_tests: { enabled: true, trigger_threshold: 1, max_tools_per_run: 5, backlog_type_tag: smell-modernization, cost_guard: {...} }`
+- `tests/unit/qa-retrofit-structure.test.cjs`: 12 new test groups (6 self-audit + 5 Phase 1b + 1 README/tutorial cross-ref)
+
+**Tests**: 1765 → **1777** (+12).
+
 ### Added (2026-05-10 morning — Sprint 2.10.4 follow-up: inline-merge research corrections + 5 new entries (112→117) + live install end-to-end smoke)
 
 **Operator:** "pokračuj merge research findings do test-types-catalog" + "otestuj to sám na nějakém novém složce, zda vše funguje jak má".
