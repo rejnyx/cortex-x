@@ -1676,21 +1676,23 @@ async function _runExecuteInner(opts, ctx) {
   try {
     originalBranch = gitOps.getCurrentBranch(repoRoot);
 
-    // Phase 5 — Branch checkout
-    const checkout = gitOps.checkoutNewBranch(repoRoot, plan.branch);
-    if (!checkout.ok) {
-      safeJournal(slug, {
-        ts: new Date().toISOString(),
-        trigger: plan.trigger || 'manual',
-        tier: 'T2',
-        event: 'execute_checkout_failed',
-        outcome: 'failure',
-        actor: 'steward',
-        action_key: plan.action.action_key,
-        action_id: plan.action_id,
-        branch: plan.branch,
-      });
-      return { ok: false, code: 'CHECKOUT_FAILED', error: checkout.stderr || checkout.error || 'unknown checkout error' };
+    // Phase 5 — Branch checkout (skipped for skip_commit kinds per Sprint 2.9.6)
+    if (!plan.skip_commit) {
+      const checkout = gitOps.checkoutNewBranch(repoRoot, plan.branch);
+      if (!checkout.ok) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          trigger: plan.trigger || 'manual',
+          tier: 'T2',
+          event: 'execute_checkout_failed',
+          outcome: 'failure',
+          actor: 'steward',
+          action_key: plan.action.action_key,
+          action_id: plan.action_id,
+          branch: plan.branch,
+        });
+        return { ok: false, code: 'CHECKOUT_FAILED', error: checkout.stderr || checkout.error || 'unknown checkout error' };
+      }
     }
 
     // Phase 6 — Apply action (async — engines may make network calls).

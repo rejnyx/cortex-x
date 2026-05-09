@@ -372,6 +372,38 @@ function runDryRun(opts = {}) {
     // for atomic rollback semantics: dry-run output is advisory, executor
     // re-detects against the live tree at execution time.
     if (kind === 'todo_triage') {
+      // Sprint 2.9.6 fix: run detector at dry-run time so we get clean
+      // no_actionable_step exits when there's nothing to triage. Detector is
+      // cheap (filesystem walk + git blame), no network. Saves an execute-side
+      // failure when there are no fresh TODOs.
+      try {
+        const todoTriage = require('../../detectors/todo-triage.cjs');
+        const detected = todoTriage.triageTodos({ cwd: repoRoot, skipBlame: true, skipGh: true });
+        if (detected.candidates.length === 0) {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T0',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            action_kind: 'todo_triage',
+            total_markers: detected.total_markers,
+            skipped_recent: detected.skipped_recent,
+            skipped_dup: detected.skipped_dup,
+          });
+          return {
+            ok: true,
+            no_actionable_step: true,
+            slug,
+            action_kind: 'todo_triage',
+            total_markers: detected.total_markers,
+          };
+        }
+      } catch (e) {
+        // Detector failure is not fatal — fall through to plan-shape so
+        // executor can re-detect with full context (and surface its own error).
+      }
       return buildDeterministicPlan({
         slug, trigger, isoDate, kind,
         synthTitle: 'Triage stale TODO markers',
@@ -381,6 +413,33 @@ function runDryRun(opts = {}) {
     }
 
     if (kind === 'dep_update_patch') {
+      // Sprint 2.9.6 fix: dry-run detector probe — exit clean if no patch
+      // updates available rather than failing at execute-time.
+      try {
+        const depPatch = require('../../detectors/dep-update-patch.cjs');
+        const detected = depPatch.detectPatchUpdates({ cwd: repoRoot });
+        if (!detected || !detected.candidates || detected.candidates.length === 0) {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T0',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            action_kind: 'dep_update_patch',
+            outdated_count: (detected && detected.outdated_count) || 0,
+          });
+          return {
+            ok: true,
+            no_actionable_step: true,
+            slug,
+            action_kind: 'dep_update_patch',
+            outdated_count: (detected && detected.outdated_count) || 0,
+          };
+        }
+      } catch (e) {
+        // Probe failure (npm not in PATH on weird hosts) → fall through.
+      }
       return buildDeterministicPlan({
         slug, trigger, isoDate, kind,
         synthTitle: 'Patch-only npm dependency updates',
