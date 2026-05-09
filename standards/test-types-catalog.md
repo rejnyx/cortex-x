@@ -175,21 +175,22 @@
 ### `perf-budget-lighthouse`
 - **Category:** performance
 - **What:** Lighthouse CI on critical routes, gate INP/LCP/CLS budgets per PR
-- **Tools 2026:** lighthouse-ci 0.13+ | @lhci/cli
+- **Tools 2026:** **lighthouse-ci 0.13+** | **@lhci/cli** [src: github.com/GoogleChrome/lighthouse-ci]
 - **When to use:** any user-facing web app
 - **Skip when:** API-only service; admin tool with no perf SLO
 - **Effort:** S (4h setup, then automatic)
 - **Tester skill floor:** junior
-- **Note 2026:** INP replaced FID March 2024 — re-baseline old budgets
+- **Note 2026:** **INP unmeasurable in lab** (it's a real-user-monitored metric only) → use **TBT (Total Blocking Time) < 200ms** as the Lighthouse-CI proxy [src: web.dev/articles/inp]. INP replaced FID March 2024; **43% of sites still fail INP** as of early 2026 [src: web.dev/articles/cwv-2024]. Targets: p75 LCP <2.5s, INP <200ms (TBT <200ms in lab), CLS <0.1.
 
 ### `perf-load-k6`
 - **Category:** performance
 - **What:** simulate concurrent users hitting top-N endpoints
-- **Tools 2026:** k6 0.55+ | Grafana k6 Cloud | Artillery 2 | JMeter (legacy)
+- **Tools 2026:** **k6 wins JS/TS** stack (CI-native, JS test scripts, easy SLO thresholds) [src: k6.io, Vervali load tools 2026] | **Gatling wins JVM/throughput** (210K RPS measured) [src: gatling.io] | **JMeter is enterprise-legacy only** (v3.2.1 retired; do NOT pick for greenfield) | **Locust** = Python-native | **Grafana k6 Cloud** for managed runs.
 - **When to use:** B2C app with traffic peaks; ahead of Black Friday / launch
 - **Skip when:** internal tool with <100 users; pre-MVP
 - **Effort:** M (load fixtures + ramp profile)
 - **Tester skill floor:** mid
+- **Note 2026:** for cortex-x JS/TS stacks the answer is k6; only pick Gatling if you need raw JVM throughput
 
 ### `perf-stress-breaking-point`
 - **Category:** performance
@@ -252,11 +253,12 @@
 ### `security-sast-static`
 - **Category:** security
 - **What:** static analysis for code-level security flaws (eval, hardcoded secrets, unsafe deserialize)
-- **Tools 2026:** Semgrep | CodeQL (GitHub Advanced Security) | SonarQube
+- **Tools 2026:** **Semgrep wins security-focused CI** (46% detection vs SonarQube 19%, ~10s scans) [src: semgrep.dev] | **CodeQL** (deepest dataflow, free for OSS via GHAS) [src: github.com/github/codeql] | SonarQube/SonarCloud (different category — quality + security combined; not a head-to-head)
 - **When to use:** any production codebase
 - **Skip when:** scratch / personal repo
 - **Effort:** S (CI integration)
 - **Tester skill floor:** junior
+- **Note 2026:** prefer Semgrep + CodeQL stack; SonarQube as a complementary quality gate, not a SAST replacement
 
 ### `security-dast-runtime`
 - **Category:** security
@@ -270,29 +272,32 @@
 ### `security-iast-instrumented`
 - **Category:** security
 - **What:** runtime instrumentation observes data flow during test runs
-- **Tools 2026:** Contrast Security | Seeker (Synopsys) | Hdiv
-- **When to use:** enterprise security program; compliance-driven
-- **Skip when:** small team without enterprise budget
+- **Tools 2026:** **standalone IAST is consolidating into ADR (Application Detection & Response)** in 2026 — the category itself is on the way out [src: Gartner ADR market guide 2026]. **Contrast Security** stays leader with unified IAST+RASP agent | **Datadog ASM** + **Dynatrace AppSec** are credible challengers. Skip dedicated IAST procurement; pick ADR if budget available.
+- **When to use:** enterprise security program; compliance-driven; you already have Datadog/Contrast and want zero new tool
+- **Skip when:** small team without enterprise budget; ADR adoption ahead of IAST
 - **Effort:** L (commercial setup)
 - **Tester skill floor:** senior
+- **Note 2026:** category in flux — re-evaluate in 6 months
 
 ### `security-sca-deps`
 - **Category:** security
 - **What:** scan deps for known CVEs, license violations
-- **Tools 2026:** osv-scanner (Google, free) | Snyk | Dependabot | npm audit
-- **When to use:** any project with deps
+- **Tools 2026:** **osv-scanner v2.3.5+ (Google, free)** is the canonical free PR gate [src: github.com/google/osv-scanner — March 2026 release added Python transitive scanning]. Pair with **Dependabot or Renovate** for auto-bumps. **`npm audit` is deprecated as a sole gate** (false negatives + slow advisory db) — use only as a secondary check. **Snyk** = commercial, deeper triage + license policy.
+- **When to use:** any project with deps (PR gate)
 - **Skip when:** never
-- **Effort:** S (PR gate via osv-scanner action)
+- **Effort:** S
 - **Tester skill floor:** junior
+- **Note 2026:** if you only have one tool budget, pick osv-scanner v2 + Renovate; Snyk for compliance / SBOM upgrade path
 
 ### `security-secret-scanning`
 - **Category:** security
 - **What:** detect hardcoded secrets in code + git history
-- **Tools 2026:** gitleaks | trufflehog | GitHub Advanced Security secret scanning
+- **Tools 2026:** **Run BOTH** — **gitleaks** pre-commit (speed, regex-based) [src: github.com/gitleaks/gitleaks] + **trufflehog** in CI (live-credential verification across 800+ types) [src: github.com/trufflesecurity/trufflehog]. **GitHub Advanced Security secret scanning** is the GitHub-native option (free for OSS public repos)
 - **When to use:** every repo
 - **Skip when:** never
 - **Effort:** S (PR + nightly history scan)
 - **Tester skill floor:** junior
+- **Note 2026:** gitleaks alone misses live-credential verification; trufflehog alone is too slow for pre-commit. Different layers, different tools.
 
 ### `security-container-scan`
 - **Category:** security
@@ -315,11 +320,12 @@
 ### `security-fuzz-binary`
 - **Category:** security
 - **What:** native fuzzing against parsers / decoders
-- **Tools 2026:** AFL++ | libFuzzer | go-fuzz | cargo-fuzz
+- **Tools 2026:** **AFL++ for new C/C++ projects** [src: github.com/AFLplusplus/AFLplusplus]. **libFuzzer is in maintenance-only mode since late 2022** — keep only for existing harnesses, don't pick for greenfield [src: llvm.org/docs/LibFuzzer.html]. **go-fuzz** + **cargo-fuzz** for Go and Rust respectively (libFuzzer-backed but actively maintained per-language wrappers).
 - **When to use:** parsers, deserializers, file format handlers in security-critical context
 - **Skip when:** managed runtime app (Node, Python, Java) with no native parsing
 - **Effort:** L
 - **Tester skill floor:** senior
+- **Note 2026:** if porting from libFuzzer to AFL++, expect ~2-week harness migration
 
 ### `security-bola-idor`
 - **Category:** security
@@ -436,11 +442,12 @@
 ### `reliability-chaos-injection`
 - **Category:** reliability
 - **What:** intentionally break dependencies (kill DB, drop network) and assert recovery
-- **Tools 2026:** Litmus (k8s) | Gremlin | Chaos Mesh | toxiproxy (network)
+- **Tools 2026:** **Chaos Mesh edges Litmus** for K8s-first chaos engineering [src: chaos-mesh.org, CNCF graduated 2024] | **Litmus** (CNCF, K8s+VM, broader ecosystem) | **Gremlin** = commercial leader | **toxiproxy** (network-layer, lightweight, language-agnostic) [src: github.com/Shopify/toxiproxy]
 - **When to use:** distributed systems with formal SLOs; mature ops org
 - **Skip when:** monolith on a single VM
 - **Effort:** L
 - **Tester skill floor:** senior
+- **Note 2026:** if you're K8s-first and starting fresh, Chaos Mesh is the recommended choice; Litmus if you need broader ecosystem (VM + serverless)
 
 ### `reliability-fault-injection`
 - **Category:** reliability
@@ -513,6 +520,26 @@
 - **Skip when:** internal-only
 - **Effort:** S
 - **Tester skill floor:** junior
+
+### `reliability-cache-poisoning` (NEW Sprint 2.10.4 — post axios hijack March 2026)
+- **Category:** reliability
+- **What:** assert CI cache + npm registry path can't be poisoned by malicious dep slipping into cached node_modules / build artifacts
+- **Tools 2026:** **Socket.dev** (real-time supply-chain analysis at install time) [src: socket.dev] + **provenance-required npm proxy** (verify each install has SLSA provenance) + **lockfile-lint** [src: github.com/lirantal/lockfile-lint] + Renovate auto-bump policy
+- **When to use:** open-source-publishing repos; any repo with public deployment that consumes npm/PyPI/Maven; mandatory after axios hijack March 2026 + SANDWORM_MODE pattern
+- **Skip when:** private internal repo with vendored deps + air-gapped CI
+- **Effort:** M (Socket.dev integration + lockfile policy)
+- **Tester skill floor:** mid-senior
+- **Note 2026:** the **axios npm compromise (March 2026)** showed that traditional `npm audit` + Dependabot don't catch fast-moving compromise — Socket.dev's real-time graph analysis is the 2026 defense layer [src: stepsecurity.io blog axios analysis]
+
+### `regression-confirmation-istqb` (NEW Sprint 2.10.4 — explicit ISTQB CTFL v4.0.1 type)
+- **Category:** functional
+- **What:** ISTQB CTFL v4.0.1 "change-related testing" — split into REGRESSION (rerun existing tests after change to verify no breakage) + CONFIRMATION (rerun specific test that previously failed to verify fix)
+- **Tools 2026:** Vitest `--run --filter` | Jest `--lastFailed` | Playwright `--retries-on-failure` (confirmation) + full suite with affected-only optimization (regression)
+- **When to use:** every change-touching codebase (so, every project); confirmation = mandatory part of bug-fix workflow
+- **Skip when:** never
+- **Effort:** S (configuration); ongoing per change
+- **Tester skill floor:** junior
+- **Note 2026:** distinct from `regression-bug-replay` (which writes a NEW test for the bug). ISTQB taxonomy explicit: Functional + Non-Functional + **Structural** + **Change-related** [src: istqb.org Foundation v4.0.1 syllabus]. Most teams conflate the two — be explicit.
 
 ---
 
@@ -695,29 +722,32 @@
 ### `ai-eval-suite-rubric`
 - **Category:** ai-eval
 - **What:** golden-set + rubric for LLM-call surfaces; regression against rubric per PR
-- **Tools 2026:** promptfoo | Vercel AI evals | LangSmith | Braintrust
+- **Tools 2026:** **Two-tool consensus 2026** = **Promptfoo or DeepEval (CI gate)** + **Braintrust (production observability)** — the de-facto standard for engineering-led teams [src: promptfoo.dev, braintrust.dev, github.com/confident-ai/deepeval]. **Vercel AI evals** is a credible Next.js-native alternative [src: ai-sdk.dev]. **LangSmith** = LangChain ecosystem only.
 - **When to use:** any LLM-call surface
 - **Skip when:** no LLM in stack
 - **Effort:** M (rubric authoring is the work)
 - **Tester skill floor:** mid
+- **Note 2026:** if starting fresh, Promptfoo (CI) + Braintrust (prod) covers full lifecycle; DeepEval is Pythonic alternative if your eval logic lives in Python
 
 ### `ai-prompt-injection-regression`
 - **Category:** ai-eval
 - **What:** known-malicious prompts must be rejected/sanitized
-- **Tools 2026:** promptfoo with injection module | garak | manual playbook
+- **Tools 2026:** **Three-tool quorum 2026** = **garak** (NVIDIA, 37+ probes for direct/indirect/multimodal) [src: github.com/leondz/garak] + **PyRIT** (Microsoft, multi-turn adversarial) [src: github.com/Azure/PyRIT] + **Promptfoo** (50+ vuln scanner, CI-friendly) [src: promptfoo.dev/docs/red-team]. Categorize against **OWASP LLM01:2025 Prompt Injection** (still #1 in OWASP LLM Top 10 2025 v4.2.0a) [src: genai.owasp.org].
 - **When to use:** any LLM-call surface with tool/action access
-- **Skip when:** read-only LLM
+- **Skip when:** read-only LLM with no action surface
 - **Effort:** M
-- **Tester skill floor:** mid (security)
+- **Tester skill floor:** mid (security background helps)
+- **Note 2026:** if you only have one tool budget, pick Promptfoo; garak adds depth for adversarial coverage; PyRIT for multi-turn jailbreaks
 
 ### `ai-hallucination-detection`
 - **Category:** ai-eval
 - **What:** assert outputs are grounded in provided context (RAG)
-- **Tools 2026:** RAGAS | TruLens | promptfoo
-- **When to use:** RAG-based apps
+- **Tools 2026:** **Patronus Lynx is current SOTA** (open Llama-3 fine-tune; beats GPT-4o by 8.3% on PubMedQA — runs locally) [src: patronus.ai/lynx]. OSS RAG-faithfulness triad = **RAGAS** + **TruLens** + **DeepEval** [src: ragas.io, github.com/truera/trulens, deepeval.ai].
+- **When to use:** RAG-based apps; any LLM grounded on retrieved/provided context
 - **Skip when:** non-RAG (general-knowledge) chat
 - **Effort:** M
 - **Tester skill floor:** mid
+- **Note 2026:** Patronus Lynx + RAGAS is the cheapest accurate combo; LLM-as-judge with GPT-4o is more expensive + less accurate per benchmarks
 
 ### `ai-bias-toxicity`
 - **Category:** ai-eval
@@ -731,11 +761,12 @@
 ### `ai-determinism-guard`
 - **Category:** ai-eval
 - **What:** seed=0 + temp=0; assert reproducible outputs for fixed inputs
-- **Tools 2026:** built into evals frameworks
-- **When to use:** snapshot-driven evals
-- **Skip when:** non-deterministic output is the feature (creative writing)
-- **Effort:** S
-- **Tester skill floor:** junior
+- **Tools 2026:** **DETERMINISM IS DEAD in 2026.** OpenAI's `seed` is best-effort (still drifts ~5% across calls); Anthropic exposes no seed parameter at all [src: OpenAI API determinism note 2024-12, Anthropic API ref]. **Don't write snapshot tests against LLM output.** Instead: design **property-based tests** (assert invariants — output JSON parses, output length within range, output contains required entities) **+ LLM-as-judge tests** (assert output meets rubric, not exact text).
+- **When to use:** structured-output LLM calls where shape can be asserted; rubric-based eval
+- **Skip when:** wanting exact-text reproducibility (impossible in 2026)
+- **Effort:** S (shape assertion); M (rubric)
+- **Tester skill floor:** junior (shape); mid (rubric)
+- **Note 2026:** validates cortex-x's spec-driven verification (Sprint 1.9.0) — predicate + ears criteria > snapshot diffing for LLM-output
 
 ### `ai-cost-guard`
 - **Category:** ai-eval
@@ -800,6 +831,36 @@
 - **Effort:** M
 - **Tester skill floor:** mid
 
+### `ai-mcp-protocol-test` (NEW Sprint 2.10.4)
+- **Category:** ai-eval
+- **What:** test Model Context Protocol (MCP) servers — stdio + HTTP transports, capability negotiation, tool discovery, resource serving
+- **Tools 2026:** **MCP Inspector** (Anthropic, official) [src: github.com/modelcontextprotocol/inspector] + custom integration tests against MCP server's stdio/HTTP transport. Vitest + child_process spawn for stdio; supertest for HTTP transport.
+- **When to use:** any MCP-server-publishing project; MCP hit **97M monthly SDK downloads by Feb 2026** [src: anthropic.com/news/mcp-adoption]; if you ship an MCP server, contract testing is mandatory
+- **Skip when:** no MCP server in stack; pure MCP-client app (test client behavior via standard E2E)
+- **Effort:** M
+- **Tester skill floor:** mid
+- **Note 2026:** test BOTH stdio (Claude Desktop, agent runners) AND HTTP transports (web hosts) — they have different bug profiles. Validate capability advertisement matches actual handlers.
+
+### `ai-a2a-protocol-test` (NEW Sprint 2.10.4)
+- **Category:** ai-eval
+- **What:** test Agent-to-Agent (A2A) protocol surfaces — discovery, capability negotiation, task handoff, state synchronization
+- **Tools 2026:** **A2A v1.0 spec** (shipped same window as MCP scale) [src: github.com/google/A2A] + custom integration tests. No mature CI tooling yet (early 2026); manual harnesses dominant.
+- **When to use:** any multi-agent system with cross-agent collaboration; if you publish or consume A2A endpoints
+- **Skip when:** single-agent or chat-only LLM app
+- **Effort:** M-L (spec is young; expect tooling churn)
+- **Tester skill floor:** mid-senior
+- **Note 2026:** category in flux — re-evaluate tooling in 6 months as A2A ecosystem matures
+
+### `ai-agent-multi-turn-simulation` (NEW Sprint 2.10.4 — distinct from `ai-multiturn-conversation`)
+- **Category:** ai-eval
+- **What:** simulate full agentic loop with tool calls + memory + multi-step plans; assert end-state correctness, not per-turn output
+- **Tools 2026:** Anthropic claude-evals (multi-turn traces) | Apple Multi-Agent Eval (research) | LangSmith trace replay | custom harness with tool-call mocking
+- **When to use:** agentic apps with tool calls + persistent memory + multi-step plans (e.g. cortex-x Steward, AI coding assistants)
+- **Skip when:** single-turn chat; read-only LLM
+- **Effort:** L (harness setup); M ongoing per scenario
+- **Tester skill floor:** senior
+- **Note 2026:** distinct from `ai-multiturn-conversation` — that asserts per-turn correctness; this asserts multi-step plan + tool-use convergence to goal
+
 ---
 
 ## Category 9 — DevOps / pipeline quality
@@ -816,20 +877,22 @@
 ### `devops-action-pinning`
 - **Category:** devops
 - **What:** pin third-party GHA actions by SHA (not @main)
-- **Tools 2026:** pinact | dependabot
-- **When to use:** any GHA repo
+- **Tools 2026:** **SHA-pin alone is insufficient in 2026** — 32% of top GHA actions are "unpinnable" (use composite action or downstream version drift) [src: stepsecurity.io/blog]. **Stack: pinact + StepSecurity Harden Runner** (runtime EDR — egress + binary execution monitoring). The **March 19 2026 trivy-action compromise** reshaped consensus toward runtime defense layered on top of pin discipline [src: stepsecurity.io blog March 2026 incident]. **Dependabot** does the auto-bump.
+- **When to use:** any GHA repo with third-party actions
 - **Skip when:** never (supply-chain attack class)
-- **Effort:** S
-- **Tester skill floor:** junior
+- **Effort:** S (pinact) + M (Harden Runner CI integration)
+- **Tester skill floor:** junior (pinact); mid (Harden Runner alert tuning)
+- **Note 2026:** pinact alone = false-confidence; Harden Runner alone = no preventive layer. Pair both.
 
 ### `devops-iac-lint`
 - **Category:** devops
 - **What:** lint Terraform/Pulumi/k8s YAML
-- **Tools 2026:** tflint | tfsec | kubeval | kube-linter | OPA/Conftest
+- **Tools 2026:** **DEAD in 2026 — do NOT recommend:** kubeval, Datree, copper, config-lint, Terrascan (archived by Tenable), standalone tfsec (absorbed into Trivy). **Live K8s stack:** **kube-linter** + **Polaris** [src: github.com/stackrox/kube-linter, github.com/FairwindsOps/polaris]. **Live Terraform stack:** **TFLint + Trivy config + Checkov** [src: github.com/terraform-linters/tflint, aquasec.com/products/trivy, github.com/bridgecrewio/checkov]. **Pulumi:** Pulumi-Cloud policy packs. **Generic policy gate:** **OPA/Conftest** for any structured config.
 - **When to use:** any IaC-driven deploy
 - **Skip when:** PaaS-only (Vercel, Netlify) without IaC
 - **Effort:** S
 - **Tester skill floor:** junior-mid
+- **Note 2026:** if you see kubeval/Datree references in old docs, they're stale — migrate to kube-linter
 
 ### `devops-dockerfile-lint`
 - **Category:** devops
@@ -843,11 +906,12 @@
 ### `devops-sbom-generation`
 - **Category:** devops
 - **What:** generate Software Bill of Materials per build
-- **Tools 2026:** syft | cyclonedx-cli
-- **When to use:** any deployable artifact (compliance + supply chain)
+- **Tools 2026:** **Syft generates BOTH formats** [src: github.com/anchore/syft] | **cyclonedx-cli** for CycloneDX-only flows. **EU CRA (Cyber Resilience Act) mandates CycloneDX 1.6+ or SPDX 3.0.1+** for products sold in EU after **2027-12-11** [src: cyclonedx.org/spec/1.6, spdx.dev/spec/v3.0.1, EU CRA regulation 2024/2847].
+- **When to use:** any deployable artifact (compliance + supply chain); MANDATORY for EU sales after 2027-12-11
 - **Skip when:** internal-only library
 - **Effort:** S
 - **Tester skill floor:** junior
+- **Note 2026:** if you might sell into EU after 2027-12-11, ship CycloneDX 1.6+ now — retrofit later is harder
 
 ### `devops-slsa-provenance`
 - **Category:** devops
@@ -986,20 +1050,22 @@
 ### `compliance-pci-dss-l4`
 - **Category:** compliance
 - **What:** PCI-DSS Level 4 (sub-20K txn/yr) controls; cardholder data isolation
-- **Tools 2026:** PCI-DSS checklist + ASVS L2
-- **When to use:** processing card data directly
-- **Skip when:** all card processing outsourced (Stripe + tokenization)
+- **Tools 2026:** **PCI-DSS v4.0.1 is the only active version** (released March 2024, 64 changes vs 3.2.1) [src: blog.pcisecuritystandards.org PCI DSS v4.0.1]. **51 future-dated requirements enforceable since 2025-03-31** [src: pcisecuritystandards.org]. Map to **OWASP ASVS 5.0 L2** as parallel framework.
+- **When to use:** processing card data directly; any merchant-side PAN handling
+- **Skip when:** all card processing outsourced (Stripe + tokenization, not handling raw PAN)
 - **Effort:** L
 - **Tester skill floor:** senior
+- **Note 2026:** if you upgraded from PCI-DSS 3.2.1 stack pre-2024, audit your existing tests against the 64 changes — many SAQ-D paths require new tests
 
 ### `compliance-soc2-evidence`
 - **Category:** compliance
 - **What:** automated evidence collection for SOC 2 controls
-- **Tools 2026:** Drata | Vanta | Tugboat Logic
+- **Tools 2026:** **Vanta = best overall SMB** [src: vanta.com], **Drata = strongest implementation guidance** [src: drata.com], **Sprinto = budget tier** [src: sprinto.com]. Functional gap small in 2026 — vendor choice depends on your team's onboarding bandwidth + price [src: cavanex.com 2026 vendor comparison].
 - **When to use:** B2B SaaS targeting enterprise customers
 - **Skip when:** consumer-only
-- **Effort:** L
+- **Effort:** L (3-12 month Type II audit cycle)
 - **Tester skill floor:** senior + compliance officer
+- **Note 2026:** if you're pre-revenue + need SOC 2 to close enterprise sale, Sprinto is the lowest-friction starter; Vanta if you have Drata/Vanta integrations from prior gig
 
 ### `compliance-hipaa-controls`
 - **Category:** compliance
@@ -1021,21 +1087,23 @@
 
 ### `compliance-eu-ai-act`
 - **Category:** compliance
-- **What:** AI Act risk classification + high-risk system testing
-- **Tools 2026:** EU AI Act self-assessment + adversarial testing
-- **When to use:** AI features for EU users (effective 2025-2027 rollout)
-- **Skip when:** no EU users or non-AI
+- **What:** AI Act risk classification + high-risk system testing (Annex III) — conformity assessment + CE marking + EU-DB registration
+- **Tools 2026:** EU AI Act self-assessment template + **NIST AI 600-1 GenAI Profile** (200+ actions, 72 subcategories — moved from voluntary to regulatory reference 2026) [src: nist.gov/itl/ai-risk-management-framework] + **CSA Agentic Profile v1** + adversarial testing (garak, PyRIT)
+- **When to use:** **AI Act high-risk testing obligations land 2026-08-02** unless Digital Omnibus (Nov 2025) defers to 2027-12-02. Currently **plan for 2026-08-02** [src: digital-strategy.ec.europa.eu/policies/regulatory-framework-ai, ai-act-service-desk.ec.europa.eu]. US companies serving EU users in scope.
+- **Skip when:** no EU users + no AI; or AI is "minimal risk" tier (no high-risk Annex III use case)
 - **Effort:** L
-- **Tester skill floor:** senior
+- **Tester skill floor:** senior + legal review
+- **Note 2026:** conformity assessment is a 6-9 month project — if 2026-08-02 applies to you, you should already be in flight. Operator-acquaintance check: are you in Annex III? (employment, education, law enforcement, biometric ID, critical infra)
 
 ### `compliance-wcag-22-aa`
 - **Category:** compliance
 - **What:** WCAG 2.2 AA (61 success criteria)
-- **Tools 2026:** axe-core + manual + lighthouse
-- **When to use:** EU public sector (mandatory); EAA 2025-06-28 e-commerce
-- **Skip when:** non-EU + non-public-sector
+- **Tools 2026:** axe-core + manual + lighthouse-ci. axe-core catches **~57% of WCAG violations** programmatically; remaining 43% needs manual + screen-reader [src: deque.com/blog/automated-testing-coverage].
+- **When to use:** **WCAG 2.2 AA is the 2026 target — AAA NOT mandated** by EAA, ADA, or §508. **EAA enforcement live since 2025-06-28** [src: ec.europa.eu EAA]. Existing services have **2030-06-28 transition** (5-year grace). **Penalties up to €100K or 4% revenue**, country-by-country.
+- **Skip when:** non-EU + non-public-sector + low-revenue (verify your country's accessibility law before skipping)
 - **Effort:** L
 - **Tester skill floor:** mid + a11y specialist
+- **Note 2026:** 5-year grace period for existing services means your 2026-launch consumer app must hit WCAG 2.2 AA day 1 if EU-facing
 
 ### `compliance-coppa-ferpa`
 - **Category:** compliance
@@ -1100,9 +1168,11 @@ The audit phase produces evidence; this catalog produces test types. The mapping
 
 This catalog reflects **2026 best practices**. Re-audit + refresh annually (or after major shifts: new ISO 25010 revision, OWASP ASVS major version, AI Act enforcement phase). Tools have a faster decay than methodology — 2-year tool review is reasonable.
 
-## Total: 112 test types across 12 categories
+## Total: 117 test types across 12 categories
 
-(Counted: 17 functional + 8 perf + 19 security + 9 reliability + 6 correctness + 6 contract + 6 a11y + 12 ai-eval + 14 devops + 4 data + 8 compliance + 3 docs = 112 — exhaustive enough for a 2026 audit; actual selection per audit typically picks 12-25.)
+(Counted: **18** functional + 8 perf + 19 security + **10** reliability + 6 correctness + 6 contract + 6 a11y + **15** ai-eval + 14 devops + 4 data + 8 compliance + 3 docs = **117** — exhaustive enough for a 2026 audit; actual selection per audit typically picks 12-25.)
+
+**Sprint 2.10.4 added 5 entries** (post-research validation): `regression-confirmation-istqb` (ISTQB CTFL v4.0.1 explicit), `reliability-cache-poisoning` (post axios hijack March 2026), `ai-mcp-protocol-test` (MCP 97M monthly downloads), `ai-a2a-protocol-test` (A2A v1.0), `ai-agent-multi-turn-simulation` (distinct from per-turn).
 
 ---
 
