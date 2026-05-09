@@ -62,7 +62,22 @@ function pushCheck({ id, severity, status, message, expected, actual }) {
 }
 
 // ── individual checks ───────────────────────────────────────────────────────
-const HOME = os.homedir();
+// Resolve home directory respecting test/CI env overrides.
+// On Windows, os.homedir() returns USERPROFILE — but install.sh + the
+// install-roundtrip integration test set HOME to an isolated tmpdir to
+// avoid polluting the user's real ~/.claude/. We honor HOME first so the
+// verifier checks the SAME home the installer wrote to.
+//
+// Precedence: HOME (explicit, set by tests/install) > USERPROFILE (Windows
+// native) > os.homedir() fallback.
+function resolveHome() {
+  if (process.env.HOME && fs.existsSync(process.env.HOME)) return process.env.HOME;
+  if (process.platform === 'win32' && process.env.USERPROFILE && fs.existsSync(process.env.USERPROFILE)) {
+    return process.env.USERPROFILE;
+  }
+  return os.homedir();
+}
+const HOME = resolveHome();
 const CLAUDE_HOME = path.join(HOME, '.claude');
 const SHARED = path.join(CLAUDE_HOME, 'shared');
 const DATA_HOME = resolveCortexDataHome();
