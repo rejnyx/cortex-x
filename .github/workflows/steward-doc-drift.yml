@@ -80,9 +80,11 @@ jobs:
           node bin/cortex-steward.cjs execute \
             --plan-file=/tmp/steward-doc-plan.json
         env:
-          # No OPENROUTER_API_KEY — doc-drift is deterministic, no LLM call
-          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
-          GH_TOKEN:         ${{ github.token }}
+          # No OPENROUTER_API_KEY — doc-drift is deterministic, no LLM call.
+          # Cost caps + breaker for shared-ledger gate (Sprint 2.9.7a R2).
+          STEWARD_FAILURE_BREAKER: '3'
+          CORTEX_DATA_HOME:        ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                ${{ github.token }}
 
       - name: Upload journal artifact
         if: always()

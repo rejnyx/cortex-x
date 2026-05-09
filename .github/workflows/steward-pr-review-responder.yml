@@ -76,9 +76,11 @@ jobs:
           node bin/cortex-steward.cjs execute \
             --plan-file=/tmp/steward-prresp-plan.json
         env:
-          # No OPENROUTER_API_KEY — pr_review_responder is deterministic
-          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
-          GH_TOKEN:         ${{ github.token }}
+          # No OPENROUTER_API_KEY — pr_review_responder is deterministic.
+          # Cost caps + breaker for shared-ledger gate (Sprint 2.9.7a R2).
+          STEWARD_FAILURE_BREAKER: '3'
+          CORTEX_DATA_HOME:        ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                ${{ github.token }}
 
       - name: Upload journal artifact
         if: always()

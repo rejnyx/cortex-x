@@ -105,6 +105,17 @@ const lessons = require('./_lib/lessons.cjs');
 const EX_USAGE = 64;
 const EX_TEMPFAIL = 75;
 
+// Sprint 2.9.7a (R2 edge-case HIGH): validate exit codes before propagation.
+// `typeof NaN === 'number'`, `typeof Infinity === 'number'`, and oversize ints
+// all pass the naive typeof check but Node coerces them unsafely:
+// process.exit(NaN) → 1, process.exit(256) → 0 (mod 256), etc. Reject anything
+// outside the POSIX [0, 255] integer range; fall back to a caller-provided
+// default (typically 1 for failure paths).
+function validExitCodeOrDefault(value, fallback) {
+  if (Number.isInteger(value) && value >= 0 && value <= 255) return value;
+  return fallback;
+}
+
 function loadPlan(planFile) {
   if (!planFile) {
     return { ok: false, code: 'MISSING_PLAN_FILE', error: '--plan-file is required' };
@@ -1934,10 +1945,10 @@ async function _runExecuteInner(opts, ctx) {
       safeRecordLesson(slug, applyResult, plan);
       // Sprint 2.9.7: action-side returns may carry exitCode (e.g. autoresearch
       // ALL_CANDIDATES_FAILED = ensemble defense fired correctly → exitCode:0).
-      // Propagate the explicit exit code if present; otherwise default to 1.
-      const propagatedExitCode = (typeof applyResult.exitCode === 'number')
-        ? applyResult.exitCode
-        : (applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? EX_USAGE : 1);
+      // Sprint 2.9.7a (R2 edge-case HIGH): validate before propagation —
+      // NaN/Infinity/oversize ints would silently corrupt the exit code.
+      const fallbackExitCode = applyResult.code === 'CLAUDE_SDK_NOT_IMPLEMENTED' ? EX_USAGE : 1;
+      const propagatedExitCode = validExitCodeOrDefault(applyResult.exitCode, fallbackExitCode);
       return {
         ok: false,
         code: applyResult.code || 'ACTION_FAILED',
@@ -2489,10 +2500,8 @@ if (require.main === module) {
   }
 
     if (result.ok) process.exit(0);
-    // Sprint 2.9.7 fix: typeof check so exitCode=0 (clean defense-block exit)
-    // is honored. Previous truthy check `if (result.exitCode)` would skip 0
-    // and fall through to exit 1.
-    if (typeof result.exitCode === 'number') process.exit(result.exitCode);
-    process.exit(1);
+    // Sprint 2.9.7a (R2 edge-case HIGH): validate exit code before passing
+    // to process.exit. NaN/Infinity/oversize ints corrupt silently.
+    process.exit(validExitCodeOrDefault(result.exitCode, 1));
   }
 }

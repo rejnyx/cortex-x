@@ -52,10 +52,14 @@ jobs:
           git config user.name  "Steward (cortex-x)"
           git config user.email "steward@cortex-x.local"
 
-      - name: Install qlty (best-effort, fail-open)
-        run: |
-          curl -fsSL https://qlty.sh | bash || echo "qlty install failed; tech_debt_audit will fail-open"
-          echo "$HOME/.qlty/bin" >> $GITHUB_PATH
+      # Sprint 2.9.7a R2 (security HIGH): we DO NOT pipe-curl-to-bash from
+      # qlty.sh in CI. The detector at detectors/tech-debt-audit.cjs already
+      # fail-opens cleanly when qlty is not on PATH (returns status:'qlty-missing'
+      # → runtime returns code TECH_DEBT_QLTY_MISSING, journal records skip).
+      # Operators who want full audit results install qlty manually with a
+      # pinned-version setup-action OR pre-install step in their fork. Default
+      # cron run is "scan + skip if no qlty" which is the safer posture for
+      # an autonomous agent runner.
 
       - name: Steward tech-debt-audit dry-run (plan only)
         id: plan
@@ -84,6 +88,10 @@ jobs:
             --plan-file=/tmp/steward-techdebt-plan.json
         env:
           # No OPENROUTER_API_KEY — tech_debt_audit is deterministic
+          # Sprint 2.9.7a R2 (security HIGH): cost caps + breaker are defense-
+          # in-depth even on deterministic kinds — they gate against shared-
+          # ledger spend from prior LLM runs (Sprint 1.9.1 cross-session cost
+          # ledger reads journal). Same env block ships on every cron now.
           STEWARD_DAILY_USD_CAP:      '5'
           STEWARD_WEEKLY_USD_CAP:     '25'
           STEWARD_MONTHLY_USD_CAP:    '80'

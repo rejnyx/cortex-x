@@ -247,3 +247,39 @@ describe('formatIssueTitle / formatIssueBody', () => {
     assert.match(body, /no reason supplied/);
   });
 });
+
+describe('Sprint 2.9.7a — path allow-list (security MEDIUM defense)', () => {
+  test('isTestFilePath accepts *.test.* paths', () => {
+    assert.equal(detector.isTestFilePath('foo.test.js'), true);
+    assert.equal(detector.isTestFilePath('a/b/c.test.cjs'), true);
+    assert.equal(detector.isTestFilePath('src/x.test.ts'), true);
+  });
+
+  test('isTestFilePath accepts *.spec.* paths', () => {
+    assert.equal(detector.isTestFilePath('foo.spec.js'), true);
+    assert.equal(detector.isTestFilePath('a/b/c.spec.tsx'), true);
+  });
+
+  test('isTestFilePath accepts __tests__/ + tests/ + test/ directories', () => {
+    assert.equal(detector.isTestFilePath('__tests__/auth.js'), true);
+    assert.equal(detector.isTestFilePath('app/__tests__/x.js'), true);
+    assert.equal(detector.isTestFilePath('tests/auth.cjs'), true);
+    assert.equal(detector.isTestFilePath('test/x.js'), true);
+    assert.equal(detector.isTestFilePath('a/b/tests/x.js'), true);
+  });
+
+  test('isTestFilePath REJECTS production source paths', () => {
+    assert.equal(detector.isTestFilePath('src/auth.cjs'), false);
+    assert.equal(detector.isTestFilePath('bin/cortex/tools/bash.cjs'), false);
+    assert.equal(detector.isTestFilePath('lib/foo.js'), false);
+    assert.equal(detector.isTestFilePath('docs/README.md'), false);
+    // Files merely CONTAINING the word "test" in the name don't match.
+    assert.equal(detector.isTestFilePath('attestation.js'), false);
+    assert.equal(detector.isTestFilePath('contest.cjs'), false);
+  });
+
+  test('isTestFilePath normalizes Windows backslashes', () => {
+    assert.equal(detector.isTestFilePath('a\\b\\c.test.js'), true);
+    assert.equal(detector.isTestFilePath('a\\__tests__\\auth.js'), true);
+  });
+});
