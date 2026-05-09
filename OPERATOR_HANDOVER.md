@@ -74,7 +74,7 @@
 
 ## What I shipped after writing this handover (autonomous evening continuation)
 
-Final commit count after handover: **5 more commits** = 28 total today. Tests went from 1601 → **1629** (+28 from autonomous block alone).
+Final commit count after handover: **6 more commits** = 29 total today. Tests went from 1601 → **1683** (+82 from autonomous block alone).
 
 **Shipped (NOT just planned)**:
 
@@ -82,28 +82,33 @@ Final commit count after handover: **5 more commits** = 28 total today. Tests we
 
 2. **Sprint 2.7.1 R1 memo** — `docs/research/sprint-2.7.1-pattern-transfer-llm-dispatch-2026-05-09.md`. Design for closing `pattern_transfer` `ACTION_KIND_NOT_DISPATCHABLE` gap. NOT implemented (operator-review-needed before 460 LoC + LLM dispatch goes in).
 
-3. **Property-based tests — 4 new files, +112 tests across high-risk primitives**:
+3. **Property-based tests — 7 new files, +166 tests across high-risk primitives** (covers ALL primitives recommended by Sprint 2.3 R1 §3.4):
    - `tests/unit/cortex-tools/property-invariants.test.cjs` (72 tests): annotation-routing 16-perm sweep, bash forbidden-pattern 32 known-bad + 24 known-safe, glob.globToRegex invariants
-   - `tests/unit/steward/memory-decay-properties.test.cjs` (6 tests): scoring monotonicity, decay floor, impact ordering
+   - `tests/unit/cortex-tools/path-safety-properties.test.cjs` (20 tests): hasNulByte detection, Windows device/UNC rejection, isWithinCwd containment + transitivity, isWithinCwdLexical `..` resolution, assertPathSafe typed-error-code contract
+   - `tests/unit/steward/memory-decay-properties.test.cjs` (6 tests): scoring monotonicity, decay floor, impact ordering, blocker-protection invariant
    - `tests/unit/steward/cost-safety-properties.test.cjs` (9 tests): multi-window monotonicity, malformed-input safety, loop-detector at/below threshold, budget gate at cap
    - `tests/unit/steward/spec-verifier-properties.test.cjs` (19 tests): validateCriterion shape, RCE-token denylist enforcement, simpleGlobMatch boundaries, filterTargets subset invariant, runChecks no-throw contract
+   - `tests/unit/steward/halt-check-properties.test.cjs` (13 tests): kill-switch invariants — fleet vs project precedence, read-only contract, toggle observability, performance <50ms/call
+   - `tests/unit/steward/action-engine-properties.test.cjs` (21 tests): stripJsonFences idempotency, extractUsage NaN/negative rejection, isDenylistedPath secret-path coverage, scrubClaudeCliEnv leak-key removal, matchForbiddenFlag form-variants, containsShellMetacharacters injection chars, redactSecrets Bearer-token masking
 
 4. **REAL BUG SURFACED + FIXED via property test**: `bin/steward/_lib/memory-decay.cjs decayPass()` was archiving blocker lessons in violation of Sprint 2.8 R1 acceptance criterion. Property test caught it. Fix: filter scored items into nonBlockers + blockers; archive ONLY from nonBlockers pool. Blockers always kept.
 
 5. **Roadmap + CHANGELOG entries** for Sprint 2.9.7 + 2.9.7a + 2.9.7b + 2.9.7c + 2.3 R1 + 2.7.1 R1 (commit `6070b75`).
 
 **Commits (post-handover)**:
-- `2c8a290` — property tests + memory-decay bug fix + 2 R1 memos + handover
+- `2c8a290` — property tests (4 files, 106 tests) + memory-decay bug fix + 2 R1 memos + handover
 - `6070b75` — roadmap + CHANGELOG entries
 - `c038fa5` — cost-safety property tests (Sprint 2.9.7c)
 - `fc42ac2` — spec-verifier property tests (Sprint 2.9.7c followup)
+- `5182d80` — handover update
+- `c12357c` — halt-check + path-safety + action-engine property tests (Sprint 2.9.7c final wave, +54 tests)
 
-**Tests final**: 1349 → **1629 (+280 today)**.
+**Tests final**: 1349 → **1683 (+334 today)**.
 
 **Did NOT do** (correctly deferred for operator-review tomorrow):
 - Sprint 2.7.1 implementation (460 LoC + LLM dispatch + lethal-trifecta defense; needs awake operator)
-- Sprint 2.3 implementation (StrykerJS integration; needs operator decision on cadence + threshold)
-- Halt-check + action-engine property tests (next companion wave; operator-decided priority)
+- Sprint 2.3 implementation (StrykerJS integration; needs operator decision on cadence + threshold + GHA quota burn mitigation)
+- Sprint 2.2 worktree supervisor R1 (waits on burn-in cost data — won't have data until billing fixed)
 
 ## Known gaps deferred (NOT today's work)
 
