@@ -4,6 +4,27 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-10 early morning — Sprint 2.10.2 installer profile + 2.10.3 auto-research-per-gap)
+
+**Sprint 2.10.2 (operator request 3):** "když uživatel nainstaluje cortex, ať si může vybrat profil — testerka Verča si vybere QA tester a hned dostane vše potřebné". Installer extended:
+
+- `install.sh` + `install.ps1` accept `--profile=<name>` CLI arg, `$CORTEX_PROFILE` env, OR interactive prompt (TTY-gated). Profiles: `dev` | `qa-tester` | `ai-engineer` | `minimal`.
+- For `qa-tester`: installs `/test-audit` user-skill at `~/.claude/skills/test-audit/SKILL.md` (sibling of `/cortex-init`), writes `profile: qa-tester` to `~/.claude/cortex/user.yaml`, banner shows QA-tailored "Next step" with `/test-audit` first + qa-engineer profile reference + standards-to-read-first list.
+- Default `dev` install unchanged — `/test-audit` stays at `shared/skills/test-audit/` only (canonical), no user-level promotion.
+- Integration tests (`tests/integration/install-roundtrip.test.cjs`) exercise both paths: qa-tester install creates user-skill + writes profile field + banner mentions `/test-audit`; default install does NOT install user-level `/test-audit` (keeps default lean).
+
+**Sprint 2.10.3 (operator request 4, junior-tester focused):** "do toho QA tester profilu implementuj, že všechny nálezy budou automaticky proscanovány research na webu... ona je mladá holka bez zkušeností". Auto-research-PER-GAP:
+
+- New Phase 5f in `prompts/qa-retrofit.md` — when `profile: qa-tester` is active (auto-detected from `~/.claude/cortex/user.yaml`), every P0 + top-P1 gap (cap 15) gets a parallel WebSearch agent dispatch. Each agent writes a 200-word memo: 3 implementation patterns + 2 anti-patterns + 1 minimal-working-example code/config snippet + 5+ cited URLs.
+- **Inline append to `cortex/qa/testing-gaps.md`** — synthesizer attaches `**Research findings (auto-fetched <date>)**:` block under each gap entry. Junior tester opens the deliverable + sees implementation know-how next to the gap, no separate research step required.
+- 3-wave parallel dispatch (5 agents per wave) — 15 gaps ≈ ~5 min added to audit; ~900K tokens total (Max x20 covers easily; metered API gets warning).
+- Privacy guardrail: research queries derived from generic gap titles, NOT from audit's repo-internal findings text. Repo internals stay off the public web.
+- `profiles/qa-engineer.yaml` declares `auto_research_per_gap: { enabled: true, max_gaps: 15, parallel_waves: 5, apply_to: [P0, P1], cost_guard: {...} }`. Override via `--auto-research-gaps` / `--no-auto-research-gaps`.
+
+**Why this matters for junior testers** (Shekhar 2026 cited): removes cold-start tax (gap entry already populated with patterns + sources), calibrates "what's a good source?" judgment via citation-chain examples, reduces hallucination class of bug, builds confidence reviewing AI-suggested fixes alongside senior teammates.
+
+**Tests**: 1737 → **1747** (+10 from 2.10.2 — 8 structure + 2 integration); 1747 → **1751** (+4 from 2.10.3 structure tests covering Phase 5f + auto_research_per_gap profile config). Final: 1349 → **1751** (+402 today).
+
 ### Added (2026-05-09 late night — Sprint 2.10.1 DevOps/CI + auto-research-nudge + order-mage dogfood)
 
 **Operator-driven same-day extension after Sprint 2.10 + manual dogfood pass on `order-mage/eshop` + `order-mage/admin`** (private repos cloned to `c:/tmp/qa-dogfood/`, deliverables mirrored to `docs/dogfood/order-mage-2026-05-09/`).

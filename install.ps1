@@ -130,6 +130,28 @@ if (-not $Language -and [Environment]::UserInteractive) {
 }
 if (-not $Language) { $Language = "en" }
 
+# Profile selection (Sprint 2.10.2) — pick the user role to tailor post-install
+# experience. dev (default) | qa-tester (Verča — primes /test-audit) |
+# ai-engineer | minimal. Precedence: -Profile param > $env:CORTEX_PROFILE >
+# interactive prompt > "dev" default. Skip prompt in non-interactive runs.
+$Profile = $env:CORTEX_PROFILE
+foreach ($a in $args) {
+    if ($a -match '^--profile=(.+)$') { $Profile = $Matches[1] }
+}
+if (-not $Profile -and [Environment]::UserInteractive) {
+    Write-Host "Which role best describes you? (tailors which slash-skill is primed)"
+    Write-Host "  dev          — full-stack developer (default — primes /cortex-init)"
+    Write-Host "  qa-tester    — QA engineer / tester (primes /test-audit + qa-engineer profile)"
+    Write-Host "  ai-engineer  — AI / agent engineer (primes /cortex-init + ai-agent profile)"
+    Write-Host "  minimal      — framework only, no extra skill"
+    $Profile = Read-Host "Profile [dev]"
+}
+if (-not $Profile) { $Profile = "dev" }
+if (@("dev","qa-tester","ai-engineer","minimal") -notcontains $Profile) {
+    Write-Host "  warning: unknown profile '$Profile' — falling back to 'dev'."
+    $Profile = "dev"
+}
+
 # Identity capture (Sprint 1.7.4) — auto-detect from git config + Intl + gh.
 # Detector ALWAYS runs when node + detector are available (so platform/locale
 # always populate). Interactive Y/n confirmation only when interactive + not
@@ -188,6 +210,7 @@ Write-Host "  from:     $CortexRoot"
 Write-Host "  to:       $SharedTarget"
 Write-Host "  channel:  $Channel"
 Write-Host "  language: $Language"
+Write-Host "  profile:  $Profile"
 Write-Host ""
 
 # Channel resolution.
@@ -326,6 +349,7 @@ platform: $CortexUserPlatform
 locale: $CortexUserLocale
 gh_login: $CortexUserGhLogin
 language: $Language
+profile: $Profile
 confirmed: $CortexUserConfirmed
 detected_at: $DetectedAt
 "@
@@ -424,6 +448,17 @@ New-Item -ItemType Directory -Force -Path $UserSkillsDir | Out-Null
 $CortexInitSkillSrc = Join-Path $CortexRoot "shared/skills/cortex-init/SKILL.md"
 if (Test-Path $CortexInitSkillSrc) {
     Copy-Item -Path $CortexInitSkillSrc -Destination (Join-Path $UserSkillsDir "SKILL.md") -Force
+}
+
+# Sprint 2.10.2 — profile-specific slash-skill priming. For qa-tester also
+# install /test-audit at user-level so it's the prominent entry point.
+if ($Profile -eq "qa-tester") {
+    $TestAuditSkillDir = Join-Path $ClaudeHome "skills/test-audit"
+    New-Item -ItemType Directory -Force -Path $TestAuditSkillDir | Out-Null
+    $TestAuditSkillSrc = Join-Path $CortexRoot "shared/skills/test-audit/SKILL.md"
+    if (Test-Path $TestAuditSkillSrc) {
+        Copy-Item -Path $TestAuditSkillSrc -Destination (Join-Path $TestAuditSkillDir "SKILL.md") -Force
+    }
 }
 
 # Generate INSTALL_NOTES.md with all the verbose detail. Keep terminal output
@@ -557,19 +592,60 @@ $AgentCount = (Get-ChildItem -Path (Join-Path $ClaudeHome "agents") -Filter "*.m
 Write-Host "  ✓ cortex-x installed"
 Write-Host "    framework  ~/.claude/shared/      (cortex-x assets · prompts · standards · skills · staging)"
 Write-Host "    agents     ~/.claude/agents/      ($AgentCount default agents — auto-discovered by Claude Code)"
-Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point — type /cortex-init in any project)"
+if ($Profile -eq "qa-tester") {
+    Write-Host "    skill      ~/.claude/skills/test-audit/   (RECOMMENDED for QA — type /test-audit in any project)"
+    Write-Host "    skill      ~/.claude/skills/cortex-init/  (general retrofit — chain after /test-audit if needed)"
+} else {
+    Write-Host "    skill      ~/.claude/skills/cortex-init/  (RECOMMENDED entry point — type /cortex-init in any project)"
+}
 Write-Host "    user data  $CortexDataHome/      (research · projects · insights · journal · evals — your own knowledge graph)"
 Write-Host "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 Write-Host "    language   $LangName ($Language)"
+Write-Host "    profile    $Profile"
 Write-Host "    notes      $InstallNotes"
 Write-Host ""
-Write-Host "  Next step (recommended) — open Claude Code in any project dir:"
-Write-Host ""
-Write-Host "    claude"
-Write-Host "    /cortex-init"
-Write-Host ""
-Write-Host "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
-Write-Host "    writes the marker, chains to the right cortex-x workflow."
+switch ($Profile) {
+    "qa-tester" {
+        Write-Host "  Next step (QA tester) — open Claude Code at the root of the repo you're auditing:"
+        Write-Host ""
+        Write-Host "    claude"
+        Write-Host "    /test-audit"
+        Write-Host ""
+        Write-Host "  ↳ /test-audit produces a senior-QA-consultant deliverable in 30 min:"
+        Write-Host "    cortex/qa/AUDIT.md (12-section ISO 25010:2023), testing-strategy.md,"
+        Write-Host "    testing-gaps.md (P0/P1/P2 backlog with auto-research-nudge per gap)."
+        Write-Host ""
+        Write-Host "  Profile loaded: qa-engineer (~/.claude/shared/profiles/qa-engineer.yaml)"
+        Write-Host "    Risk-tiered quality gates · 15 QA concerns (testing + DevOps/CI) · ASVS 5.0 mappings"
+        Write-Host ""
+        Write-Host "  Standards to read first:"
+        Write-Host "    ~/.claude/shared/standards/testing.md      — pyramid + 5 pillars per test"
+        Write-Host "    ~/.claude/shared/standards/correctness.md  — Zod boundaries, property-based, mutation"
+        Write-Host "    ~/.claude/shared/standards/security.md     — 8-layer defense, ASVS L1/L2 alignment"
+    }
+    "ai-engineer" {
+        Write-Host "  Next step (AI engineer) — open Claude Code in any project dir:"
+        Write-Host ""
+        Write-Host "    claude"
+        Write-Host "    /cortex-init   # use ai-agent profile for AI-heavy projects"
+        Write-Host ""
+        Write-Host "  Profile loaded: ai-agent (~/.claude/shared/profiles/ai-agent.yaml)"
+        Write-Host "    Lethal-trifecta defense · 7 MUST patterns · safe-tool wrapper · evals scaffold"
+    }
+    "minimal" {
+        Write-Host "  Next step — framework installed, no extra skill primed."
+        Write-Host "  Invoke prompts manually from ~/.claude/shared/prompts/."
+    }
+    default {
+        Write-Host "  Next step (recommended) — open Claude Code in any project dir:"
+        Write-Host ""
+        Write-Host "    claude"
+        Write-Host "    /cortex-init"
+        Write-Host ""
+        Write-Host "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
+        Write-Host "    writes the marker, chains to the right cortex-x workflow."
+    }
+}
 Write-Host ""
 Write-Host "  Steward — your AI nightly autopilot (after scaffold):"
 Write-Host "    Drop cortex/recommendations.md in your repo; Steward opens a draft PR overnight."

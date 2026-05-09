@@ -163,6 +163,38 @@ auto_research_nudge:
     > "Research best practices 2026 for <gap-specific concern>: <2-3 sub-questions>.
     >  Min 5 cited URLs. 200-word memo."
 
+# Auto-research-PER-GAP pattern (Sprint 2.10.3) — for junior testers without
+# prior experience. When the qa-engineer profile is active (set by install
+# --profile=qa-tester), Phase 5f dispatches up to 15 parallel WebSearch agents,
+# one per P0+top-P1 gap, and inlines the resulting 200-word memo (3 patterns +
+# 2 anti-patterns + minimal-working-example snippet + 5+ cited URLs) directly
+# under each gap entry in testing-gaps.md. Removes the cold-start tax for
+# juniors who don't yet know which sources to trust. SKIP/OPEN/off-limits gaps
+# are NEVER auto-researched (context-dependent). Cost guard: hard stop at 15.
+auto_research_per_gap:
+  enabled: true              # default ON for qa-tester profile
+  max_gaps: 15               # P0 + top P1 by risk; past 15 = budget-prohibitive
+  parallel_waves: 5          # anthropic multi-agent paper budget
+  apply_to: [P0, P1]         # NEVER P2/SKIP/OPEN/off-limits/FYI
+  query_template: |
+    Research best practices 2026 for <gap.title> in <stack>:
+    - 3 concrete implementation patterns with cited URLs (min 2 sources per claim)
+    - 2 anti-patterns to avoid (cited)
+    - 1 minimal-working-example code/config snippet
+    - 200-word memo, 5+ cited URLs, recency-biased to last 12 months
+  output_path: "{cortex_data_home}/research/{slug}-qa-gap-{gap_id}-{date}.md"
+  inline_summary: true       # append summary under gap entry in testing-gaps.md
+  cost_guard:
+    hard_stop_at_gap_count: 15
+    estimated_tokens_per_gap: 60000  # ~900K total for full sweep
+    flat_subscription_safe: true     # Claude Max x20 covers this
+    metered_warning: true            # warn in Phase 7 closing on metered plan
+
+# Profile-aware default behavior
+# - profile: qa-tester  → auto_research_per_gap.enabled = true (Phase 5f fires)
+# - profile: dev / ai-engineer / minimal → only auto_research_nudge fires (Phase 5e)
+# Override via prompt --auto-research-gaps / --no-auto-research-gaps
+
 # References (grounded in)
 grounded_in:
   - "ISO/IEC 25010:2023 — Software product quality model (9 characteristics: Functional Suitability, Performance Efficiency, Compatibility, Interaction Capability, Reliability, Security, Maintainability, Flexibility, Safety)"

@@ -102,6 +102,38 @@ if [ -z "$CORTEX_LANGUAGE" ] && [ -t 0 ]; then
 fi
 CORTEX_LANGUAGE="${CORTEX_LANGUAGE:-en}"
 
+# Profile selection (Sprint 2.10.2) — pick the user role to tailor post-install
+# experience. dev (default, full developer experience) | qa-tester (Verča —
+# tester role, primes /test-audit + qa-engineer profile) | ai-engineer (heavy
+# AI-agent stack focus) | minimal (just the framework, no extra slash-skill).
+#
+# Precedence: --profile=<name> CLI arg > $CORTEX_PROFILE env > interactive
+# prompt > "dev" default. Skip prompt if non-interactive (CI / unattended).
+CORTEX_PROFILE="${CORTEX_PROFILE:-}"
+for arg in "$@"; do
+  case "$arg" in
+    --profile=*) CORTEX_PROFILE="${arg#--profile=}" ;;
+  esac
+done
+if [ -z "$CORTEX_PROFILE" ] && [ -t 0 ]; then
+  echo
+  echo "Which role best describes you? (tailors which slash-skill is primed)"
+  echo "  dev          — full-stack developer (default — primes /cortex-init)"
+  echo "  qa-tester    — QA engineer / tester (primes /test-audit + qa-engineer profile)"
+  echo "  ai-engineer  — AI / agent engineer (primes /cortex-init + ai-agent profile)"
+  echo "  minimal      — framework only, no extra skill"
+  printf "Profile [dev]: "
+  read -r CORTEX_PROFILE || true
+fi
+CORTEX_PROFILE="${CORTEX_PROFILE:-dev}"
+case "$CORTEX_PROFILE" in
+  dev|qa-tester|ai-engineer|minimal) ;;
+  *)
+    echo "  warning: unknown profile '$CORTEX_PROFILE' — falling back to 'dev'."
+    CORTEX_PROFILE="dev"
+    ;;
+esac
+
 # Identity capture (Sprint 1.7.4) — auto-detect from git config + Intl + gh.
 # Detector ALWAYS runs when node + detector are available (so platform/locale
 # always populate). Interactive Y/n confirmation only when TTY + not CORTEX_NO_IDENTITY.
@@ -150,6 +182,7 @@ echo "  from:     $CORTEX_ROOT"
 echo "  to:       $CLAUDE_HOME/shared"
 echo "  channel:  $CHANNEL"
 echo "  language: $CORTEX_LANGUAGE"
+echo "  profile:  $CORTEX_PROFILE"
 echo
 
 # Channel resolution — check out appropriate ref before copying.
@@ -280,6 +313,7 @@ platform: $CORTEX_USER_PLATFORM
 locale: $CORTEX_USER_LOCALE
 gh_login: $CORTEX_USER_GH_LOGIN
 language: $CORTEX_LANGUAGE
+profile: $CORTEX_PROFILE
 confirmed: $CORTEX_USER_CONFIRMED
 detected_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
 YAML
@@ -337,6 +371,17 @@ fi
 mkdir -p "$CLAUDE_HOME/skills/cortex-init"
 if [ -f "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" ]; then
   cp "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" "$CLAUDE_HOME/skills/cortex-init/SKILL.md"
+fi
+
+# Sprint 2.10.2 — profile-specific slash-skill priming. For qa-tester, also
+# install /test-audit at user-level so it's the prominent entry point. The
+# skill content stays in shared/ canonical location; this is just a top-level
+# marker for Claude Code's skill discovery.
+if [ "$CORTEX_PROFILE" = "qa-tester" ]; then
+  mkdir -p "$CLAUDE_HOME/skills/test-audit"
+  if [ -f "$CORTEX_ROOT/shared/skills/test-audit/SKILL.md" ]; then
+    cp "$CORTEX_ROOT/shared/skills/test-audit/SKILL.md" "$CLAUDE_HOME/skills/test-audit/SKILL.md"
+  fi
 fi
 
 # Generate INSTALL_NOTES.md with all the verbose detail. Keep terminal output
@@ -473,19 +518,60 @@ AGENT_COUNT=$(ls -1 "$CLAUDE_HOME/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')
 echo "  ✓ cortex-x installed"
 echo "    framework  ~/.claude/shared/                  (cortex-x assets · prompts · standards · skills · staging)"
 echo "    agents     ~/.claude/agents/                  ($AGENT_COUNT default agents — auto-discovered by Claude Code)"
-echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point — type /cortex-init in any project)"
+if [ "$CORTEX_PROFILE" = "qa-tester" ]; then
+  echo "    skill      ~/.claude/skills/test-audit/       (RECOMMENDED for QA — type /test-audit in any project)"
+  echo "    skill      ~/.claude/skills/cortex-init/      (general retrofit — chain after /test-audit if needed)"
+else
+  echo "    skill      ~/.claude/skills/cortex-init/      (RECOMMENDED entry point — type /cortex-init in any project)"
+fi
 echo "    user data  $CORTEX_DATA_HOME/                  (research · projects · insights · journal · evals — your own knowledge graph)"
 echo "    bootstrap  ~/.claude/shared/bin/cortex-bootstrap"
 echo "    language   $LANG_NAME ($CORTEX_LANGUAGE)"
+echo "    profile    $CORTEX_PROFILE"
 echo "    notes      $INSTALL_NOTES"
 echo
-echo "  Next step (recommended) — open Claude Code in any project dir:"
-echo
-echo "    claude"
-echo "    /cortex-init"
-echo
-echo "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
-echo "    writes the marker, chains to the right cortex-x workflow."
+case "$CORTEX_PROFILE" in
+  qa-tester)
+    echo "  Next step (QA tester) — open Claude Code at the root of the repo you're auditing:"
+    echo
+    echo "    claude"
+    echo "    /test-audit"
+    echo
+    echo "  ↳ /test-audit produces a senior-QA-consultant deliverable in 30 min:"
+    echo "    cortex/qa/AUDIT.md (12-section ISO 25010:2023), testing-strategy.md,"
+    echo "    testing-gaps.md (P0/P1/P2 backlog with auto-research-nudge per gap)."
+    echo
+    echo "  Profile loaded: qa-engineer (~/.claude/shared/profiles/qa-engineer.yaml)"
+    echo "    Risk-tiered quality gates · 15 QA concerns (testing + DevOps/CI) · ASVS 5.0 mappings"
+    echo
+    echo "  Standards to read first:"
+    echo "    ~/.claude/shared/standards/testing.md      — pyramid + 5 pillars per test"
+    echo "    ~/.claude/shared/standards/correctness.md  — Zod boundaries, property-based, mutation"
+    echo "    ~/.claude/shared/standards/security.md     — 8-layer defense, ASVS L1/L2 alignment"
+    ;;
+  ai-engineer)
+    echo "  Next step (AI engineer) — open Claude Code in any project dir:"
+    echo
+    echo "    claude"
+    echo "    /cortex-init   # use ai-agent profile for AI-heavy projects"
+    echo
+    echo "  Profile loaded: ai-agent (~/.claude/shared/profiles/ai-agent.yaml)"
+    echo "    Lethal-trifecta defense · 7 MUST patterns · safe-tool wrapper · evals scaffold"
+    ;;
+  minimal)
+    echo "  Next step — framework installed, no extra skill primed."
+    echo "  Invoke prompts manually from ~/.claude/shared/prompts/."
+    ;;
+  *)
+    echo "  Next step (recommended) — open Claude Code in any project dir:"
+    echo
+    echo "    claude"
+    echo "    /cortex-init"
+    echo
+    echo "  ↳ /cortex-init asks New / Existing / Framework-only via arrow keys,"
+    echo "    writes the marker, chains to the right cortex-x workflow."
+    ;;
+esac
 echo
 echo "  Steward — your AI nightly autopilot (after scaffold):"
 echo "    Drop cortex/recommendations.md in your repo; Steward opens a draft PR overnight."

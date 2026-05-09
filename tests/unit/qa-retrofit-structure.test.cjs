@@ -95,6 +95,13 @@ describe('Sprint 2.10 — qa-retrofit prompt has all 7 phases', () => {
     assert.match(promptText, /Research nudge:/);
   });
 
+  test('phase 5f (auto-research-PER-GAP, Sprint 2.10.3, qa-tester profile)', () => {
+    assert.match(promptText, /Phase 5f — Auto-research-PER-GAP/);
+    assert.match(promptText, /Cap at 15 gaps/);
+    assert.match(promptText, /Privacy note/);
+    assert.match(promptText, /junior tester/i);
+  });
+
   test('phase 4 references DevOps/CI concerns (Sprint 2.10.1)', () => {
     assert.match(promptText, /ci-pipeline-testing/);
     assert.match(promptText, /container-security/);
@@ -176,6 +183,15 @@ describe('Sprint 2.10 — qa-engineer profile structure', () => {
     assert.match(profileText, /auto_research_nudge/);
     assert.match(profileText, /enabled: true/);
     assert.match(profileText, /skip_for_trivial: true/);
+  });
+
+  test('declares auto_research_per_gap pattern (Sprint 2.10.3, junior-tester focused)', () => {
+    assert.match(profileText, /auto_research_per_gap/);
+    assert.match(profileText, /max_gaps:\s*15/);
+    assert.match(profileText, /parallel_waves:\s*5/);
+    assert.match(profileText, /apply_to:\s*\[P0,\s*P1\]/);
+    assert.match(profileText, /flat_subscription_safe:\s*true/);
+    assert.match(profileText, /hard_stop_at_gap_count:\s*15/);
   });
 
   test('grounded in ISO 25010:2023 + ASVS 5.0 + HTSM + tsDetect', () => {
@@ -287,6 +303,58 @@ describe('Sprint 2.10 — planner agent QA concern override', () => {
 
   test('declares topic naming convention with -qa- infix', () => {
     assert.match(plannerText, /\{stack-or-profile\}-qa-\{concern\}-\{year\}/);
+  });
+});
+
+describe('Sprint 2.10.2 — installer profile selection (--profile=qa-tester)', () => {
+  const installSh = read('install.sh');
+  const installPs1 = read('install.ps1');
+
+  test('install.sh accepts --profile=<name> CLI arg', () => {
+    assert.match(installSh, /--profile=\*/);
+    assert.match(installSh, /CORTEX_PROFILE=/);
+  });
+
+  test('install.sh has interactive profile prompt (TTY-gated)', () => {
+    assert.match(installSh, /Which role best describes you\?/);
+    assert.match(installSh, /qa-tester.*QA engineer/i);
+    assert.match(installSh, /ai-engineer/);
+    assert.match(installSh, /minimal/);
+  });
+
+  test('install.sh validates known profiles + falls back to dev', () => {
+    assert.match(installSh, /dev\|qa-tester\|ai-engineer\|minimal/);
+    assert.match(installSh, /falling back to 'dev'/);
+  });
+
+  test('install.sh installs /test-audit user-skill when profile=qa-tester', () => {
+    assert.match(installSh, /CORTEX_PROFILE.*=.*"qa-tester"/);
+    assert.match(installSh, /skills\/test-audit/);
+    assert.match(installSh, /shared\/skills\/test-audit\/SKILL\.md/);
+  });
+
+  test('install.sh writes profile to user.yaml', () => {
+    assert.match(installSh, /profile:\s*\$CORTEX_PROFILE/);
+  });
+
+  test('install.sh banner is profile-aware (qa-tester recommends /test-audit)', () => {
+    assert.match(installSh, /Next step \(QA tester\)/);
+    assert.match(installSh, /\/test-audit/);
+    assert.match(installSh, /qa-engineer.*profiles/);
+  });
+
+  test('install.ps1 mirrors --profile + interactive prompt + qa-tester install', () => {
+    assert.match(installPs1, /\$Profile\s*=/);
+    assert.match(installPs1, /Which role best describes you\?/);
+    assert.match(installPs1, /qa-tester.*QA engineer/i);
+    assert.match(installPs1, /\$Profile\s+-eq\s+"qa-tester"/);
+    assert.match(installPs1, /skills\/test-audit/);
+  });
+
+  test('install.ps1 writes profile to user.yaml + has profile-aware banner', () => {
+    assert.match(installPs1, /profile:\s*\$Profile/);
+    assert.match(installPs1, /"qa-tester"\s*\{/);
+    assert.match(installPs1, /\/test-audit/);
   });
 });
 
