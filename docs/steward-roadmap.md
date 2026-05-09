@@ -473,6 +473,37 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
+### Sprint 2.9.6 — dry-run dispatcher gap + cron infrastructure complete ✅ SHIPPED 2026-05-09 (S effort)
+
+**Status**: ✅ Shipped 2026-05-09 across 5 micro-commits (`17ad518` 2.9.6 dispatcher branches, `e5bf7cb` 2.9.6b skip_commit validation, `0ae1084` 2.9.6c skip Phase 5 checkout + early probe, `c267ca2` 2.9.6d NO_CANDIDATES whitelist, `6861c7b` 2.9.6e CLI formatter, `15e671f` Sprint 4.7 rebrand finishing).
+
+**Why**: "Turn on all crons" session-trigger surfaced a pre-existing v0.7-era bug — `bin/steward/dry-run.cjs` only handled `recommendation` + `recommendation_harvest`. Cron workflows for `todo_triage` (Sprint 1.8.7) and `dep_update_patch` (Sprint 1.8.4) had been registered for months but never ran successfully end-to-end. Each kind fell through to the default LLM path and either crashed on `OPENROUTER_API_KEY` requirement or wasted daily cap on irrelevant recommendations.
+
+**What shipped**:
+- `buildDeterministicPlan` helper in dry-run.cjs.
+- Dispatch branches for all 9 deterministic kinds: `todo_triage`, `dep_update_patch`, `flaky_test_repair`, `doc_drift`, `lint_fix_shipper`, `test_coverage_gap`, `pr_review_responder`, `tech_debt_audit`, `pattern_transfer` (last hard-fails per Sprint 2.7.1 status).
+- `recommendations.md` parse + slug-check gated to kinds that need it (`recommendation` + `recommendation_harvest`); deterministic kinds run on bare repos cleanly.
+- Early detector probes for `todo_triage` + `dep_update_patch` at dry-run time → clean `no_actionable_step` exits.
+- `execute.cjs` Phase 5 (checkoutNewBranch) gated on `!plan.skip_commit` — skip_commit kinds (todo_triage, doc_drift, etc.) don't need a branch.
+- `execute.cjs` plan validation: `branch + commit_message` only required when `!skip_commit`.
+- `NO_CANDIDATES_CODES` whitelist — detector "scanned, nothing to do" exits as success-shape `no_action: true` instead of failure.
+- CLI formatter defensive on skip_commit results (no more "Cannot read properties of undefined (reading 'join')" on success).
+
+**Sprint 4.7 rebrand finishing** (15e671f): cron workflow YAML `name:`, step names, concurrency groups, git identity, journal artifact prefixes, branch-prefix comments, gh issue label all renamed `hermes/Hermes` → `steward/Steward`. 2 historical references preserved (migration trace + backward-compat doc).
+
+**End-to-end cron verification 2026-05-09**:
+- ✅ steward harvest (recommendation_harvest)
+- ✅ steward todo-triage (todo_triage) — first successful run ever
+- ✅ steward dep-patch (dep_update_patch) — first successful run ever
+- ⚠️ steward nightly (recommendation) — spec-verifier `no_destructive_rewrite` blocks unsafe LLM rewrites; expected behavior given current `cortex/recommendations.md` only has HUMAN-ONLY items
+- ⚠️ steward autoresearch — same root cause; ensemble of 3 candidates all spec-verifier-blocked
+
+**Tests**: 1502 → 1513 (+11 dispatcher tests + 1 cross-platform bash regex test).
+
+**Follow-up needed**: operator adds fresh LLM-able items to `cortex/recommendations.md` so nightly + autoresearch produce real PRs. Current items are HUMAN-ONLY (D-1 git history purge, MIGRATIONS append) by design.
+
+---
+
 ### Sprint 2.9 — Tools Foundation v0 ✅ SHIPPED 2026-05-09 (M effort, ⭐ STRATEGIC)
 
 **Status**: ✅ Shipped 2026-05-09. New `bin/cortex/tools/` module tree (~2k LoC): descriptor spec + validator + 6 reference tools (read/write/edit/glob/grep/bash) + 4 runtime adapters (toMcpServer primary, toClaudeAgentSdk, toOpenAiAgents, toVercelAiSdk-stub) + annotation routing + 2 shared libs (`_lib/path-safety.cjs` + `_lib/limits.cjs`). 6-agent R2 review pipeline (acceptance + blind + correctness + security + ssot + edge-case) surfaced 6 BLOCKER + 18 HIGH + 9 MEDIUM findings; all BLOCKERs and key HIGHs fixed in hardening pass before merge. 1349 → 1502 tests (+153). R1 memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md).
