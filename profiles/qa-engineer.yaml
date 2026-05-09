@@ -127,6 +127,36 @@ standards_included:
   - correctness
   - security
   - ssot           # tests are also subject to SSOT; duplicated fixtures = anti-pattern
+  - test-types-catalog  # Sprint 2.10.4 — exhaustive 112-entry catalog of 2026 test types
+
+# Test types catalog reference (Sprint 2.10.4)
+# The qa-engineer profile owns the complete 2026 catalog of ~112 test types
+# across 12 categories. Audit picks the SUBSET; profile owns the SUPERSET.
+# Selection during Phase 5 of qa-retrofit.md is evidence-driven:
+#   audit_finding × catalog.when_to_use → match
+#   stack_signal × catalog.skip_when    → filter
+#   q5_capacity × catalog.tester_skill_floor → tier
+#   q3_compliance × catalog.compliance_tag → escalate
+test_types_catalog:
+  source: "{cortex_source}/standards/test-types-catalog.md"
+  total_entries: 112
+  categories: 12
+  selection_principle: "Apply the LEAST testing necessary to verify the most critical risks"
+  category_list:
+    - functional         # 17 entries (unit-pure-function ... i18n-runtime-render)
+    - performance        # 8 entries (perf-budget-lighthouse ... perf-cold-start-budget)
+    - security           # 19 entries (sast ... rls-bypass)
+    - reliability        # 9 entries (chaos-injection ... rate-limit-test)
+    - correctness        # 6 entries (property-fast-check ... line-branch-coverage)
+    - contract           # 6 entries (pact-consumer ... api-versioning)
+    - a11y               # 6 entries (axe-component ... rtl-locale)
+    - ai-eval            # 12 entries (eval-suite-rubric ... multiturn-conversation)
+    - devops             # 14 entries (workflow-lint ... cache-poisoning)
+    - data               # 4 entries (validation-boundary ... etl-lineage)
+    - compliance         # 8 entries (gdpr-art32 ... coppa-ferpa)
+    - docs               # 3 entries (link-rot ... api-doc-drift)
+  typical_audit_selection: "12-25 entries from the 112-entry catalog"
+  re_curation_cadence: "annually (or after major shifts: ISO 25010 revision, ASVS major version, AI Act enforcement phase)"
 
 # Research topic taxonomy (qa-retrofit Phase 4 uses this)
 # Split into testing-only (10) + DevOps/CI quality (5) per Sprint 2.10.1 operator request.

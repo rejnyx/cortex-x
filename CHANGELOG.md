@@ -4,6 +4,31 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-10 morning — Sprint 2.10.4 exhaustive test-types catalog SSOT + 5-agent web research validation)
+
+**Operator request 5:** "ať náš QA tester profil obsahuje všechny možné druh testování úplně všechny, ale použije je jen podle scanu retrofitu co zjistí" + follow-up "udělej na to i research na webu".
+
+**Shipped Sprint 2.10.4:**
+
+1. **`standards/test-types-catalog.md`** — exhaustive 112-entry catalog across 12 categories (functional 17 + perf 8 + security 19 + reliability 9 + correctness 6 + contract 6 + a11y 6 + ai-eval 12 + devops 14 + data 4 + compliance 8 + docs 3). Each entry: Category / What / Tools 2026 / When to use / Skip when / Effort (S/M/L) / Tester skill floor (junior/mid/senior).
+
+2. **Profile owns SUPERSET, audit picks SUBSET.** `profiles/qa-engineer.yaml` references the catalog via `test_types_catalog: { source, total_entries: 112, categories: 12, selection_principle: "Apply the LEAST testing necessary to verify the most critical risks" }`. Typical audit picks 12-25 of 112.
+
+3. **Phase 5a-bis catalog-selection oracle** in `prompts/qa-retrofit.md` — maps audit findings × catalog `when_to_use` triggers, filters by stack (drop AI category if no LLM SDK), tiers by Q5 capacity (junior solo skips senior-only types), escalates by Q3 compliance + Q1 risk-tier. Outputs `cortex/qa/AUDIT.md § "Catalog selection (Phase 5a-bis)"` with selected types + skipped-with-rationale.
+
+4. **5 parallel web-research agents (148 cited URLs total)** validated catalog entries:
+   - Research 1 (taxonomy, 22 URLs): ISO/IEC 25010:2023 9 chars confirmed; **Bach HTSM has 4 axes, not 2** (Project Environment + Product Elements/SFDPOT + Quality Criteria/CRUCSPIC STMP + Test Techniques/FDSFSCURA-9); ISTQB CTFL v4.0.1 current; 5 post-2024 additions to track for next refresh.
+   - Research 2 (security, 32 URLs): **`npm audit` deprecated as sole gate → osv-scanner v2.3.5+**; **libFuzzer maintenance-only since late 2022 → AFL++**; **IAST consolidating into ADR**; Schemathesis 4.5x next-best confirmed; ASVS 5.0 released 2025-05-30; OWASP API Top 10 2023 still current (BOLA #1, ~40%); OWASP LLM Top 10 2025 (PDF v4.2.0a) — LLM01 Prompt Injection still #1.
+   - Research 3 (AI/LLM, 35 URLs): two-tool eval consensus = **Promptfoo/DeepEval (CI gate) + Braintrust (prod observability)**; three-tool prompt-injection quorum = **garak + PyRIT + Promptfoo**; Patronus Lynx is hallucination SOTA; **determinism is dead** (seed=0 best-effort, use property-based + LLM-judge); cost-threshold pattern = `cost < $0.005/call` fail-PR; **EU AI Act high-risk 2026-08-02 hard deadline** (Annex III); MCP+A2A testing is new category cortex-x has zero coverage for (97M monthly SDK downloads Feb 2026).
+   - Research 4 (DevOps, 25 URLs): **dead tools** (kubeval, Datree, copper, config-lint, Terrascan, standalone tfsec); **live stack** (kube-linter + Polaris; TFLint + Trivy config + Checkov); SHA-pin alone insufficient (32% top actions unpinnable); March 19 2026 trivy-action compromise reshaped consensus → pinact + StepSecurity Harden Runner; EU CRA mandates CycloneDX 1.6+ or SPDX 3.0.1+; Chaos Mesh edges Litmus K8s-first.
+   - Research 5 (perf+a11y+compliance, 34 URLs): k6 wins JS/TS, Gatling wins JVM (210K RPS), JMeter retired; **INP unmeasurable in lab → use TBT <200ms as Lighthouse-CI proxy**; 43% of sites still fail INP; WCAG 2.2 AA is 2026 target (AAA NOT mandated); **EAA enforcement live since 2025-06-28** (existing services 2030-06-28 transition, penalties €100K/4% revenue); PCI-DSS v4.0.1 only active version; **EU AI Act high-risk 2026-08-02** confirmed.
+
+5. **Catalog now flags missing entries for Sprint 2.10.5 refresh:** `ai-mcp-protocol-test`, `ai-a2a-protocol-test`, `reliability-cache-poisoning` (Socket.dev pattern post-axios hijack), `change-related-regression-confirmation` as explicit ISTQB CTFL v4.0.1 type, `ai-agent-multi-turn-simulation` distinct from `ai-multiturn-conversation`.
+
+6. **Raw research caches archived** at `c:\tmp\catalog-research-{1..5}-*.md` (148 cited URLs total grounding the catalog).
+
+**Tests**: 1749 → **1759** (+10) — 10 new structure tests covering catalog SSOT existence, 12-category enumeration, selection rules + Phase 5a-bis cross-reference, 148-cited-URL section, research corrections (HTSM 4-axis, npm-audit deprecated, libFuzzer maintenance-only, IAST→ADR), 2026 compliance dates (ASVS 5.0, EAA, EU AI Act, PCI-DSS), and missing-for-next-refresh flags (MCP, A2A, cache-poisoning).
+
 ### Added (2026-05-10 early morning — Sprint 2.10.2 installer profile + 2.10.3 auto-research-per-gap)
 
 **Sprint 2.10.2 (operator request 3):** "když uživatel nainstaluje cortex, ať si může vybrat profil — testerka Verča si vybere QA tester a hned dostane vše potřebné". Installer extended:

@@ -156,6 +156,41 @@ Pre-cached for the field-test colleague. Findings if the planner is invoked on t
 - Reduces hallucination class of bug — fewer "Claude wrote a test using Playwright API X" when X doesn't exist
 - Builds confidence — junior sees "I'm not making this up, here's the source" when reviewing AI-suggested fixes with senior teammates
 
+## Sprint 2.10.4 follow-up — exhaustive test-types catalog SSOT (operator request, all 2026 test types)
+
+**Operator request 5:** "ať náš QA tester profil obsahuje všechny možné druh testování úplně všechny, ale použije je jen podle scanu retrofitu co zjistí"
+
+Profile owns the SUPERSET (catalog of everything possible in 2026); audit picks the SUBSET (what's actually needed for this stack × risk × capacity). Cleaner than embedding everything in the prompt or profile inline.
+
+**Shipped Sprint 2.10.4**:
+
+1. **`standards/test-types-catalog.md`** — exhaustive 112-entry catalog across 12 categories:
+   - Functional (17 entries): unit / integration / e2e-browser / e2e-mobile / acceptance-bdd / smoke / regression / snapshot / golden-master / story-storybook / visual-regression / cross-browser / i18n × 2 / hook-behavior / component-rendering / pure-function
+   - Performance (8): lighthouse / k6 / stress / soak / spike / memory-leak / bundle-size / cold-start
+   - Security (19): SAST / DAST / IAST / SCA / secret-scanning / container / fuzz × 2 / BOLA-IDOR / RBAC matrix / tenant-isolation / authn / CSRF / injection / prompt-injection / lethal-trifecta / audit-log / pen-test / ASVS L1-L3 / RLS-bypass
+   - Reliability (9): chaos / fault-injection / idempotency / replay / migration roll-fwd + back / backup-restore / circuit-breaker / rate-limit
+   - Correctness (6): property-fast-check / state-machine / metamorphic / mutation / MC/DC / line-branch
+   - Contract (6): Pact / OpenAPI-Schemathesis / GraphQL / gRPC-protobuf / DB-schema-drift / API-versioning
+   - A11y (6): axe-component / lighthouse-score / keyboard-nav / screen-reader / color-contrast / RTL-locale
+   - AI-eval (12): eval-rubric / prompt-injection-regression / hallucination / bias-toxicity / determinism / cost-guard / output-shape / tool-call / loop-detection / RAG-retrieval / embedding-drift / multiturn
+   - DevOps (14): workflow-lint / action-pinning / IaC-lint / Dockerfile-lint / SBOM / SLSA / canary / blue-green / rollback-drill / observability-assertion / alert-rule / DORA / build-reproducibility / cache-poisoning
+   - Data (4): validation-boundary / PII-redaction / retention-TTL / ETL-lineage
+   - Compliance (8): GDPR Art.32 / PCI-DSS L4 / SOC 2 / HIPAA / ISO 25010 / EU AI Act / WCAG 2.2 AA / COPPA-FERPA
+   - Docs (3): link-rot / code-snippet-executability / API-doc-drift
+2. **Each entry has canonical metadata**: Category, What, Tools 2026, When to use, Skip when, Effort (S/M/L), Tester skill floor (junior/mid/senior).
+3. **`profiles/qa-engineer.yaml`** declares `test_types_catalog: { source: ..., total_entries: 112, categories: 12, selection_principle: ... }` and references the catalog for Phase 5.
+4. **`prompts/qa-retrofit.md` Phase 5a-bis** — catalog-selection oracle. Maps audit findings × catalog `when_to_use` triggers, filters by stack (drop AI category if no LLM SDK), tiers by Q5 capacity (junior solo skips senior-only types), escalates by Q3 compliance + Q1 risk-tier. Outputs `cortex/qa/AUDIT.md § "Catalog selection (Phase 5a-bis)"` with selected types + skipped-with-rationale.
+5. **Selection principle**: "Apply the LEAST testing necessary to verify the most critical risks" — typical audit picks 12-25 of 112 entries. Mutation score = honest fitness function; line coverage = vanity.
+
+**Web research follow-up (5 parallel agents dispatched, citations merged into catalog):**
+- Testing taxonomy 2026 (ISO 25010:2023 verification, ISTQB CTFL v4.0.1, Bach HTSM 4-axis correction)
+- Security testing tools 2026 (ASVS 5.0 release date, npm-audit deprecation, libFuzzer maintenance-only, Semgrep > SonarQube for security CI)
+- AI/LLM testing 2026 (promptfoo / Vercel AI evals / LangSmith comparison, OWASP LLM Top 10 2025 status)
+- DevOps quality gates 2026 (osv-scanner v2 vs Snyk, Trivy vs Grype, SBOM standards SPDX vs CycloneDX 1.6)
+- Perf + a11y + compliance 2026 (k6 vs JMeter, INP migration, EAA 2025-06-28 enforcement, EU AI Act phased rollout)
+
+Raw research caches at `c:\tmp\catalog-research-{1..5}-*.md`. Catalog corrections applied: HTSM split into Product Elements (SFDPOT) + Techniques (FDSFSCURA-9), `npm audit` flagged deprecated as sole gate, libFuzzer marked maintenance-only.
+
 ## Out of scope (explicit non-goals)
 
 - **Auto-running mutation testing** in `qa-retrofit` — recommended in P5, not executed. Stryker integration into `/test-audit` runtime = Sprint 2.3 implementation work (separate, operator-approved).
