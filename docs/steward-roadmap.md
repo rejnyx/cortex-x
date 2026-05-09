@@ -232,19 +232,28 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.3 — Mutation testing as fitness signal (S-M effort)
+### Sprint 2.3 — Mutation testing as fitness signal (S-M effort) — R1 ✅ DONE 2026-05-09
+
+**Status**: 📋 R1 research complete 2026-05-09 (autonomous evening session). Implementation awaiting operator approval. R1 memo: [`docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md`](research/sprint-2.3-mutation-testing-fitness-2026-05-09.md) — 10 sources cited.
 
 **Why round out Tier 1**: makes verification *more* rigorous than just "tests pass". If LLM patch passes tests but mutation score regresses, reject — the existing tests aren't actually exercising the diff.
 
-**Scope**:
+**R1 recommendation (from web research dispatch)**: StrykerJS 9.6 incremental mode + risk-tiered thresholds (80% `bin/steward/_lib`, 70% orchestrators, 75% `bin/cortex/tools`, 60% advisory `detectors/`). Companion fast-check property tests (Sprint 2.9.7b already established the pattern). Defer Meta ACH (FSE 2025) LLM mutation generation to Sprint 3.x. GHA quota burn flagged HIGH; mitigation = weekly-only nightly OR self-hosted runner.
+
+**Scope (R1 §4)**:
 - Stryker (JS mutation testing) integrated into `verifier.cjs` as a post-`npm test` gate (only for `recommendation` kind initially, since deterministic kinds don't change code logic).
 - Pre-edit baseline mutation score captured to journal.
 - Post-edit mutation score must be ≥ baseline; if lower → `EDIT_MUTATION_REGRESSION`.
+- New action_kind `mutation_score_drift` (Sprint 2.5 tech_debt_audit pattern) — files gh issue when nightly mutation score drops > 5pp.
 
-**Pre-implementation research dispatch**:
-- "Stryker for JS in 2026 + Property-Generated Solver (arXiv 2506.18315) + Meta FSE 2026 mutation-guided LLM test gen. Performance budget for incremental mutation testing."
+**Companion: Property-Generated Solver pattern** — fast-check + hand-rolled property tests for halt-check, cost-safety, spec-verifier, action-engine, path-safety. Sprint 2.9.7b shipped the first wave (78 hand-rolled property tests).
 
-**Stolen from**: Stryker Mutator + Meta FSE 2026 paper.
+**Open questions for operator (R1 §8)**:
+1. Cadence: per-PR incremental + nightly full, OR weekly-only full (GHA quota concern)?
+2. Self-hosted runner for full mutation runs?
+3. Initial threshold: 80% hard from day 1 OR measure-only mode 2 weeks → ratchet?
+
+**Stolen from**: StrykerJS 9.6 incremental mode + Property-Generated Solver (arXiv 2506.18315) + Meta ACH (arXiv 2501.12862, FSE 2025).
 
 ---
 
@@ -470,6 +479,33 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 **Out of scope (Sprint 3.x territory)**: vector DB (sqlite-vec triggered at ~100 memory files), knowledge graph (Tier 4), per-agent personal memory (R1 said no at <12 specialists), memory exchange between agents (premature; pull-based shared kb is right primitive).
 
 **Stolen from**: Anthropic Memory Tool docs (Sept 2025 release) + Anthropic context-editing docs + ReasoningBank paper (arXiv 2509.25140) + Google ReasoningBank blog + Mem0 State-of-AI-Agent-Memory 2026 + cortex-x's existing Sprint 1.8.3 lessons machinery.
+
+---
+
+### Sprint 2.9.7 + 2.9.7a + 2.9.7b — All-green cron + R2 hardening + property tests ✅ SHIPPED 2026-05-09 (S-M effort)
+
+**Status**: ✅ Shipped 2026-05-09 across 3 commits (`dec9acf` + `47cc2a7` + `2c8a290`). Tests 1517 → 1601 (+84). Closes "all crons green" goal modulo GHA billing.
+
+**Sprint 2.9.7 (`dec9acf`)** — three coordinated tracks:
+- **Track 1**: 3 fresh LLM-able items in `cortex/recommendations.md` (TROUBLESHOOTING append, JSDoc, version constant). Append-only, well under spec-verifier shrink threshold.
+- **Track 2**: Surgical `exitCode:0` fix — SPEC_VIOLATION + `STEWARD_AUTORESEARCH_ALL_CANDIDATES_FAILED` (defense layers fired correctly) now exit clean. Result shape stays `ok:false + code:SPEC_VIOLATION` (existing test contract intact); only process exit code changes 1 → 0. Other SPEC_* codes (MALFORMED, PREDICATE_THREW, etc.) still exit 1.
+- **Track 3**: 6 new cron YAMLs (`steward-{doc-drift,test-coverage-gap,pr-review-responder,flaky-test-repair,lint-fix,tech-debt-audit}.yml`) with staggered schedules.
+
+**Sprint 2.9.7a (`47cc2a7`)** — R2 hardening (3 reviewers in parallel: blind + security + edge-case):
+- HIGH NaN/Infinity exitCode validation: `validExitCodeOrDefault` helper, `Number.isInteger(x) && 0 ≤ x ≤ 255`.
+- HIGH qlty pipe-to-shell removed from tech-debt-audit YAML (compromised qlty.sh + `contents:write` was a real supply-chain risk; detector fail-opens cleanly).
+- MEDIUM flaky_test_repair path allow-list: regex restricts edits to `*.test.* / *.spec.* / __tests__ / tests / test` paths; production source with misplaced markers is skipped.
+- Cost-cap env block on deterministic skip_commit workflows (shared-ledger gate against prior LLM spend).
+
+**Sprint 2.9.7b (`2c8a290`)** — property-based tests + bug fix:
+- 78 new hand-rolled property tests (zero-deps): annotation-routing 16-perm sweep, bash forbidden-pattern 32 known-bad + 24 known-safe + idempotency, glob.globToRegex invariants, memory-decay scoring monotonicity + impact ordering + decay floor + partition completeness.
+- **Real bug surfaced + fixed**: `bin/steward/_lib/memory-decay.cjs decayPass()` now actually enforces Sprint 2.8 R1 acceptance criterion "zero blocker lessons archived". Old behavior took bottom N% scored items irrespective of impact (could archive blockers if very old + low frequency). New: filter into nonBlockers + blockers; archive ONLY from nonBlockers pool capped at nonBlockers.length.
+
+**Companion R1 memos (autonomous evening session)** — awaiting operator approval:
+- `docs/research/sprint-2.7.1-pattern-transfer-llm-dispatch-2026-05-09.md` — design for closing pattern_transfer ACTION_KIND_NOT_DISPATCHABLE gap.
+- `docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md` — web-research-backed (10 sources) Stryker integration design.
+
+**Final cron verification BLOCKED by GHA billing** (NOT a code regression). All 11 manually-triggered workflows died at job-start with GitHub error: *"recent account payments have failed or your spending limit needs to be increased."* Operator handover: `OPERATOR_HANDOVER.md`.
 
 ---
 
