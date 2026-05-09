@@ -4,6 +4,35 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 evening — Sprint 2.9.7 + 2.9.7a + 2.9.7b property tests + bug fix)
+
+**Sprint 2.9.7 (commit `dec9acf`)** — three coordinated tracks for "all-green cron":
+- **Track 1**: 3 fresh LLM-able items in `cortex/recommendations.md` (TROUBLESHOOTING section append, JSDoc on `loadAllowedUserIds`, `CORTEX_TOOL_SPEC_VERSION` constant) — append-only edits well under spec-verifier shrink threshold.
+- **Track 2**: Surgical exitCode=0 fix — `SPEC_VIOLATION` block-criterion failures (defense layer working as designed) + `STEWARD_AUTORESEARCH_ALL_CANDIDATES_FAILED` (ensemble defense) now return `exitCode:0` so cron dashboards don't false-fail. Result shape stays `ok:false + code:SPEC_VIOLATION` (existing test contract intact). Other SPEC_* codes (MALFORMED, PREDICATE_THREW, etc.) stay exit 1 — those indicate internal bugs, not defense doing its job.
+- **Track 3**: 6 new cron workflow YAMLs for action_kinds without cron coverage (`steward-doc-drift`, `steward-test-coverage-gap`, `steward-pr-review-responder`, `steward-flaky-test-repair`, `steward-lint-fix`, `steward-tech-debt-audit`). Cron schedules staggered to avoid concurrent runs.
+
+**Sprint 2.9.7a (commit `47cc2a7`)** — R2 hardening pass (3 reviewers in parallel: blind-hunter + security-auditor + edge-case-hunter):
+- **R2 edge-case HIGH (NaN/Infinity exitCode)**: `typeof NaN === 'number'` passed naive guard; `process.exit(NaN)` coerces to 1, `process.exit(256)` wraps to 0. New helper `validExitCodeOrDefault(value, fallback)` enforces `Number.isInteger(x) && x >= 0 && x <= 255`. Both CLI exit + orchestrator propagation now route through it.
+- **R2 security HIGH (qlty pipe-to-shell)**: `curl … | bash` from `qlty.sh` removed from `steward-tech-debt-audit.yml`. With `contents: write` + `pull-requests: write` permissions, a compromised qlty.sh could execute arbitrary code with full PR-write. Detector already fail-opens cleanly when qlty is missing (`status:'qlty-missing'` → `code:TECH_DEBT_QLTY_MISSING` → journal records skip). Operators install qlty manually if they want full audit.
+- **R2 security MEDIUM (flaky_test_repair path allow-list)**: detector now restricts edits to `*.test.* / *.spec.* / __tests__/ / tests/ / test/` paths via `isTestFilePath()` predicate. Production source files with misplaced `HERMES-FLAKY` markers are simply skipped (operator error gets ignored, not amplified into a `.skip` on real test suites).
+- Plus minor cleanups: cost-cap env on deterministic skip_commit workflows (shared-ledger gate against prior LLM spend), recommendations Item 7 wording clarification, unused import drop, `idx > 0` → `idx >= 0`.
+
+**Sprint 2.9.7b (commit `2c8a290`)** — property-based test pass + bug fix:
+- 78 new hand-rolled property tests (zero-deps, same pattern as Sprint 1.6.21):
+  - annotation-routing 16-permutation exhaustive sweep
+  - bash forbidden-pattern: 32 known-bad commands all detected; 24 known-safe commands (legitimate cleanup, mentions of dangerous patterns in strings) all NOT false-positive; idempotency
+  - glob.globToRegex: literal match, single-star path-separator boundary, double-star recursive crossing, brace alternation recursive translate, question-mark single-char, 50 random patterns no-throw, malformed char-class surfaces typed `TOOL_GLOB_PATTERN_INVALID` at handler boundary
+  - memory-decay: importance score non-negative + finite for 100 random items, decay floor prevents underflow on extremely old items (1970-era ts), impact ordering at equal age+freq, monotonicity in frequency, monotonicity in age, decayPass partition completeness
+- **Real bug surfaced + fixed**: `bin/steward/_lib/memory-decay.cjs decayPass()` now actually enforces Sprint 2.8 R1 acceptance criterion "zero blocker lessons archived". Old behavior took bottom N% scored items irrespective of impact (could archive blockers if their score was low — e.g. very old + low frequency). New behavior: filter scored into nonBlockers + blockers; archive ONLY from nonBlockers pool capped at nonBlockers.length; blockers always kept.
+
+**Sprint 2.7.1 R1 memo (autonomous evening session)** — `docs/research/sprint-2.7.1-pattern-transfer-llm-dispatch-2026-05-09.md`. Design for closing `pattern_transfer` `ACTION_KIND_NOT_DISPATCHABLE` gap (sibling-reader + LLM dispatch + assertEditWithinCwd hook + 3 acceptance criteria). Awaiting operator approval before implementation.
+
+**Sprint 2.3 R1 memo (autonomous evening session)** — `docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md`. Web-research-dispatch-backed (10 sources). Recommendation: StrykerJS 9.6 incremental mode + risk-tiered thresholds (80% `bin/steward/_lib`, 70% orchestrators, 75% `bin/cortex/tools`, 60% advisory `detectors/`). Companion fast-check property tests (already established pattern via Sprint 2.9.7b). Defer Meta ACH LLM mutation generation to Sprint 3.x. GHA quota burn flagged HIGH; mitigation = weekly nightly only OR self-hosted runner.
+
+**OPERATOR_HANDOVER.md** — tomorrow-morning checklist for billing/quota fix + workflow re-trigger sequence.
+
+**Tests**: 1349 → 1601 (+252 today total — 2026-05-09 marathon session: Sprint 2.9 + 2.9.0a + 2.9.6{a-e} + 2.9.7 + 2.9.7a + 2.9.7b + 4.7 rebrand + property tests + bug fix).
+
 ### Fixed (2026-05-09 — Sprint 2.9.6 dry-run dispatcher gap)
 
 Pre-existing v0.7-era bug surfaced during the "turn on all crons" session
