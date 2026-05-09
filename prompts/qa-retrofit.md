@@ -548,6 +548,64 @@ Don't seed more than 3 — past that, the AI is generating speculative tests tha
 
 ---
 
+## Phase 5f — Auto-research-PER-GAP (Sprint 2.10.3, qa-tester profile default ON)
+
+> **For junior testers without prior experience** — every gap gets a 200-word web-research memo attached inline, fetched + cited at audit time. Tester opens the deliverable and finds the implementation know-how next to the gap; no separate research step required.
+
+**When this fires automatically:**
+- `~/.claude/cortex/user.yaml` has `profile: qa-tester` (set by `install.{sh,ps1} --profile=qa-tester`), OR
+- prompt invoked with `--auto-research-gaps` flag, OR
+- `cortex/qa-context.md` frontmatter has `auto_research_gaps: true`
+
+When this is OFF (default for `dev` / `ai-engineer` / `minimal` profiles), Phase 5e nudge-only behavior applies — the tester paste-runs research themselves.
+
+### Behavior
+
+1. **Cap at 15 gaps total** (P0 + top P1 by risk). Past that = budget-prohibitive (15 parallel WebSearch agents ≈ ~5-8 minutes added to audit). SKIP / OPEN / off-limits / FYI gaps NEVER auto-research (they're context-dependent or already researched).
+2. **Dispatch in waves of 5** (max 5 parallel agents at once per anthropic multi-agent paper budget). 15 gaps = 3 waves, ≈ 90s per wave with Sonnet-class agent.
+3. **Per-gap query template** (built from gap's existing `**Research nudge:**` line):
+   ```
+   Research best practices 2026 for <gap.title> in <stack>:
+   - 3 concrete implementation patterns with cited URLs (min 2 sources per claim)
+   - 2 anti-patterns to avoid (cited)
+   - 1 minimal-working-example code/config snippet
+   - 200-word memo, 5+ cited URLs, recency-biased to last 12 months
+   ```
+4. **Each agent writes to** `$CORTEX_DATA_HOME/research/<slug>-qa-gap-<gap-id>-<date>.md`
+5. **Synthesizer pulls each memo** + appends inline under the gap entry as:
+   ```markdown
+   - **GAP-NNN** — <title>. <existing fields>. [audit: …] [src: …] [research: …]
+     **Research nudge:** <existing nudge line>
+     **Research findings (auto-fetched 2026-MM-DD):**
+     - **3 implementation patterns:** <bullet list with cited URLs>
+     - **Anti-patterns:** <bullet list with cited URLs>
+     - **Minimum working example:**
+       ```<lang>
+       <code/config snippet>
+       ```
+     **Sources:** <5+ cited URLs>
+     Full memo: `$CORTEX_DATA_HOME/research/<slug>-qa-gap-<gap-id>-<date>.md`
+   ```
+
+### Why this matters specifically for junior testers
+
+Per Sprint 2.10 R1 research [Shekhar 2026]: when LLMs write tests without grounding, ~30% suffer semantic drift (test passes but doesn't verify what the tester meant). The fix is **research-first, code-second** — but a junior tester doesn't yet know which sources to trust, what query to run, or how to filter for recency. Pre-fetching + inlining the research:
+
+- **Removes the cold-start tax** — tester opens GAP-001 and sees Playwright CI patterns + Stripe-mock examples + the exact code stub, with sources
+- **Calibrates the tester's "what's a good source?" judgment** — every research finding shows a citation chain (claim → cited URL); over weeks, the tester learns to spot quality
+- **Reduces hallucination class of bug** — fewer "Claude wrote a test using Playwright API X" when X doesn't exist (the inlined memo references real X from Playwright docs)
+- **Builds confidence** — junior sees "I'm not making this up, here's the source" when reviewing AI-suggested fixes with senior teammates
+
+### Cost guard
+
+Auto-research per gap dispatches up to 15 parallel WebSearch agents ≈ ~50K-80K tokens per gap (research output is small but reasoning is real). 15 × 60K ≈ 900K tokens per audit run. On flat-subscription plans (Claude Max x20) this is fine. On metered API: hard stop after 15 gaps; warn in `cortex/qa/AUDIT.md § Phase 7 closing`. Operator can opt out via `--no-auto-research-gaps` even with `profile: qa-tester` set.
+
+### Privacy note
+
+Research queries are derived from gap titles, NOT from the audit's findings text. So `GAP-002 — Full guest-checkout E2E flow` becomes a generic Playwright e-commerce checkout query, NOT `Research how to test order-mage's checkout that uses ComGate`. Keeps the audit's repo-internal findings off the public web.
+
+---
+
 ## Phase 5e — Auto-research-nudge pattern (NEW Sprint 2.10.1 per operator request)
 
 The biggest leap a junior tester makes when adopting cortex-x is **internalizing that web research is a first-class step**, not a luxury. To accelerate that learning, every gap in `cortex/qa/testing-gaps.md` ends with an explicit *"Research nudge:"* line that proposes a 1-paragraph WebSearch query the tester can paste into Claude Code BEFORE writing the first line of the fix.

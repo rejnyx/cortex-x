@@ -126,6 +126,36 @@ Pre-cached for the field-test colleague. Findings if the planner is invoked on t
 
 **Why this matters**: a 2026 tester owns the full "is verification real" surface — not just test code. Test-pass without a CI gate that runs them = nothing verified. The qa-engineer profile explicitly names both layers so junior testers learn this from day 1.
 
+## Sprint 2.10.2 follow-up — installer profile selection (same-day operator extension)
+
+**Operator request 3:** "možná by jsme mohli mít i možnost, že kdyř uživatel nainstaluje cortex, tak si bude moct vybrat profil, testerka Verča si vybere QA tester a hned dostane vše potřebné pro ni"
+
+**Shipped Sprint 2.10.2**:
+
+1. **`install.sh` + `install.ps1` extended** — accept `--profile=<name>` CLI arg, `$CORTEX_PROFILE` env var, OR interactive prompt (TTY-gated). Profiles: `dev` (default) | `qa-tester` (Verča) | `ai-engineer` | `minimal`.
+2. **qa-tester profile installs `/test-audit` user-skill** at `~/.claude/skills/test-audit/SKILL.md` (sourozenec `/cortex-init` — Verča může napsat `/test-audit` ve svém claude session a běží přímo).
+3. **Profile written to `~/.claude/cortex/user.yaml`** as `profile: qa-tester` — session-start hook + Phase 5f auto-research-per-gap can read it.
+4. **Profile-aware install banner** — `qa-tester` profile gets QA-tailored "Next step" with `/test-audit` first, qa-engineer profile reference, and standards-to-read-first list (`testing.md`, `correctness.md`, `security.md`).
+5. **Integration tests** (`tests/integration/install-roundtrip.test.cjs`) — qa-tester install creates `/test-audit` user-skill + writes `profile: qa-tester` to user.yaml + banner mentions `/test-audit`. Default `dev` install does NOT install `/test-audit` at user level (keeps default install lean).
+
+## Sprint 2.10.3 follow-up — auto-research-PER-GAP (operator request, junior-tester focused)
+
+**Operator request 4:** "do toho QA tester profilu implementuj, že všechny nálezy budou automaticky proscanovány research na webu a nejlepší know how a implementace toho do reálných usecases pro nejlepší výsledky. ona je mladá holka bez zkušeností"
+
+**Shipped Sprint 2.10.3**:
+
+1. **Phase 5f auto-research-per-gap** in `prompts/qa-retrofit.md` — when `profile: qa-tester` (or `--auto-research-gaps` flag), every P0 + top-P1 gap (cap 15) gets a parallel WebSearch agent dispatch. Each agent writes a 200-word memo with: 3 concrete implementation patterns, 2 anti-patterns, 1 minimal-working-example code/config snippet, 5+ cited URLs.
+2. **Inline append to testing-gaps.md** — synthesizer pulls each per-gap memo + appends `**Research findings (auto-fetched <date>)**:` block under the gap entry. Junior tester opens the deliverable + sees implementation know-how next to the gap, no separate research step required.
+3. **3-wave parallel dispatch** (5 agents per wave, anthropic multi-agent budget) — 15 gaps ≈ 90s × 3 waves ≈ 5 min added to audit; ~900K tokens total (Max x20 covers easily).
+4. **Privacy guardrail** — research queries derived from generic gap titles, NOT from audit's repo-internal findings text. Repo internals stay off the public web.
+5. **`profiles/qa-engineer.yaml` declares** `auto_research_per_gap: { enabled: true, max_gaps: 15, apply_to: [P0, P1], cost_guard: { hard_stop_at_gap_count: 15, flat_subscription_safe: true, metered_warning: true } }`.
+
+**Why this matters specifically for junior testers** (per Sprint 2.10 R1 research [Shekhar 2026]):
+- Removes cold-start tax — tester opens GAP-001 + sees Playwright CI patterns + Stripe-mock examples + exact code stub WITH sources
+- Calibrates "what's a good source?" judgment over weeks via citation-chain examples
+- Reduces hallucination class of bug — fewer "Claude wrote a test using Playwright API X" when X doesn't exist
+- Builds confidence — junior sees "I'm not making this up, here's the source" when reviewing AI-suggested fixes with senior teammates
+
 ## Out of scope (explicit non-goals)
 
 - **Auto-running mutation testing** in `qa-retrofit` — recommended in P5, not executed. Stryker integration into `/test-audit` runtime = Sprint 2.3 implementation work (separate, operator-approved).

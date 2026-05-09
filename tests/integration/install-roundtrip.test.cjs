@@ -175,6 +175,65 @@ describe('install.sh roundtrip', { skip: !bashAvailable() }, () => {
     assert.match(r.stdout, /^cortex-steward \d+\.\d+\.\d+/, `unexpected version output: ${r.stdout}`);
   });
 
+  test('Sprint 2.10.2 — qa-tester profile installs /test-audit user-skill + writes profile to user.yaml', () => {
+    // Run install with CORTEX_PROFILE=qa-tester in a separate isolated home
+    // so it doesn't pollute the existing dev-profile install state.
+    const qaHome = makeIsolatedHome();
+    try {
+      const r = spawnSync('bash', [path.join(REPO_ROOT, 'install.sh')], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          HOME: qaHome,
+          CORTEX_LANGUAGE: 'en',
+          CORTEX_PROFILE: 'qa-tester',
+          CORTEX_HOME: REPO_ROOT,
+          CORTEX_NO_UPDATE: '1',
+          CORTEX_DATA_HOME: path.join(qaHome, '.cortex'),
+        },
+      });
+      if (r.status !== 0) {
+        throw new Error(`qa-tester install exited ${r.status}\nstdout:\n${r.stdout}\nstderr:\n${r.stderr}`);
+      }
+
+      // /test-audit skill installed at user level
+      const testAuditSkill = path.join(qaHome, '.claude', 'skills', 'test-audit', 'SKILL.md');
+      assert.ok(fs.existsSync(testAuditSkill),
+        `qa-tester profile: /test-audit user-skill missing at ${testAuditSkill}`);
+
+      // /cortex-init still installed (qa-tester gets BOTH)
+      const cortexInitSkill = path.join(qaHome, '.claude', 'skills', 'cortex-init', 'SKILL.md');
+      assert.ok(fs.existsSync(cortexInitSkill),
+        `qa-tester profile: /cortex-init user-skill missing at ${cortexInitSkill}`);
+
+      // user.yaml has profile field set to qa-tester
+      const userYaml = fs.readFileSync(path.join(qaHome, '.claude', 'cortex', 'user.yaml'), 'utf8');
+      assert.match(userYaml, /^profile:\s*qa-tester$/m,
+        `user.yaml should have "profile: qa-tester" line:\n${userYaml}`);
+
+      // Banner mentions /test-audit (operator + colleague see this)
+      assert.match(r.stdout, /\/test-audit/, 'install banner should mention /test-audit for qa-tester');
+      assert.match(r.stdout, /Next step \(QA tester\)/, 'banner should have QA tester next-step block');
+    } finally {
+      rmIfExists(qaHome);
+    }
+  });
+
+  test('Sprint 2.10.2 — default (dev) profile does NOT install /test-audit user-skill', () => {
+    // The first install in this describe used CORTEX_PROFILE missing → defaults
+    // to "dev". Confirm /test-audit was NOT installed at user-level for dev.
+    // (It still exists at shared/skills/test-audit/ — that's fine, it's the
+    // shared canonical location. We're just checking the user-level promotion.)
+    const devTestAuditSkill = path.join(isolatedHome, '.claude', 'skills', 'test-audit');
+    assert.ok(!fs.existsSync(devTestAuditSkill),
+      `dev profile should NOT have /test-audit at user level (would clutter the default install)`);
+
+    // user.yaml should have profile: dev
+    const userYaml = fs.readFileSync(path.join(isolatedHome, '.claude', 'cortex', 'user.yaml'), 'utf8');
+    assert.match(userYaml, /^profile:\s*dev$/m, `default install should have profile: dev`);
+  });
+
   test('Sprint 1.7.6 — session-start hook produces valid JSON with additionalContext', () => {
     const hookPath = path.join(isolatedHome, '.claude', 'shared', 'hooks', 'session-start.cjs');
     assert.ok(fs.existsSync(hookPath), `session-start.cjs missing at ${hookPath}`);
