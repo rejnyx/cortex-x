@@ -482,6 +482,31 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
+### Sprint 2.10 — QA Retrofit infrastructure ✅ SHIPPED 2026-05-09 (M effort, operator-targeted dogfood)
+
+**Status**: ✅ Shipped 2026-05-09 late evening. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl." Field-test target: `order-mage/eshop` + `order-mage/admin`. R1 memo: [`docs/research/sprint-2.10-qa-retrofit-2026-05-09.md`](research/sprint-2.10-qa-retrofit-2026-05-09.md) — 38 cited sources via 4 parallel research agents.
+
+**Why**: 75% of orgs target AI-driven testing, only 16% successfully adopt — differentiator is starting with audit baseline before automating (testdevlab 2026). cortex-x already has audit infra (existing-project-audit, planner, synthesizer, research dispatch); the QA lens closes the gap with a senior-consultant deliverable on day 1.
+
+**Position**: "AI-augmented tester" not "tester replacement". 2026 industry consensus = QA → Quality Architect / SDET-AI; AI handles regression + maintenance, humans own exploratory + business-intent + risk decisions.
+
+**What shipped**:
+- `prompts/qa-retrofit.md` — 7-phase audit (P0 detect → P1 inventory + tsDetect 5-detector smell scan → P2 4-agent ISO 25010:2023 9-char + 3 cortex extras with Bach HTSM SFDPOT depth traversal → P3 5-Q human gate → P4 QA-specific 10-concern research → P5 testing-strategy.md + testing-gaps.md synthesis → P6 sample-test seeding opt-in)
+- `profiles/qa-engineer.yaml` — framework-agnostic lens; risk-tiered quality gates (high-risk: 80% line + 70% branch + 75% mutation, mid: 70/60/60, low: advisory); ASVS L1/L2/L3 compliance mappings
+- `templates/testing-strategy.md.hbs` + `templates/testing-gaps.md.hbs` — Handlebars templates with full 3-hop citation traceability slots; 9 ISO 25010:2023 char target rows; pyramid plan; P0/P1/P2/SKIP/OPEN/off-limits backlog format
+- `shared/skills/test-audit/SKILL.md` — `/test-audit` slash command, auto-distributed via existing `install.{sh,ps1}` `shared/*` recursive copy
+- `agents/planner.md` — extended with QA-engineer profile override (10 QA-specific concerns); topic naming `{stack-or-profile}-qa-{concern}-{year}`
+
+**Grounded in**: ISO/IEC 25010:2023 (9 chars including new Safety, promoted from sub-char), OWASP ASVS 5.0 (May 2025), Bach HTSM SFDPOT, Feathers characterization tests + seams, Gregory/Crispin Agile Testing Quadrants, Peruma et al. tsDetect FSE'20 (5-detector starter at 85-100% precision), Trail of Bits 2026 mutation-testing-for-the-agentic-era, Anthropic Claude Code best-practices doc.
+
+**Tests**: +46 — `tests/unit/qa-retrofit-structure.test.cjs` (artifact existence + 7-phase prompt structure + grounded-references + risk-tiered profile + template hbs slots + skill cross-references + planner override + R1 memo 30+ sources + 3-hop traceability tags).
+
+**Field-test plan**: colleague clones cortex-x → `./install.ps1` → in her duplicate of `order-mage/eshop` invokes `/cortex-init` (general retrofit) then `/test-audit` (QA lens) → 30-min audit produces 6 deliverables in `cortex/qa/`. Optional `--seed-tests` materializes top 3 P0 gaps as runnable test files. Repeat for `order-mage/admin`. Expected wow moment: she walks in day 2 with a senior-consultant deliverable already done; reviews + executes, doesn't build.
+
+**Out of scope** (explicit non-goals): auto-running mutation testing in `qa-retrofit` (recommended in P5, not executed; Stryker integration = Sprint 2.3 work); auto-generating > 3 sample tests; replacing `/audit` (siblings, not overlap); profile auto-detection (qa-engineer is invoked explicitly).
+
+---
+
 ### Sprint 2.9.7 + 2.9.7a + 2.9.7b — All-green cron + R2 hardening + property tests ✅ SHIPPED 2026-05-09 (S-M effort)
 
 **Status**: ✅ Shipped 2026-05-09 across 3 commits (`dec9acf` + `47cc2a7` + `2c8a290`). Tests 1517 → 1601 (+84). Closes "all crons green" goal modulo GHA billing.

@@ -103,7 +103,39 @@ Final commit count after handover: **6 more commits** = 29 total today. Tests we
 - `5182d80` — handover update
 - `c12357c` — halt-check + path-safety + action-engine property tests (Sprint 2.9.7c final wave, +54 tests)
 
-**Tests final**: 1349 → **1683 (+334 today)**.
+**Tests final after autonomous block**: 1349 → **1683 (+334)**.
+
+## Sprint 2.10 — QA Retrofit (added late evening, after operator request)
+
+User asked: "udělej cortex master of testing guru pro novou kolegyni testerku, projet jak červ celý projekt, najít všechny slabiny, opravdu hluboké a dávající smysl. Field test na `order-mage/eshop` + `order-mage/admin`. Onborading otázek + research + testing do rozjetého projektu. Ona to zkouší příští týden."
+
+**Shipped**:
+1. **`prompts/qa-retrofit.md`** — 7-phase QA-focused audit (sibling of `existing-project-audit.md` but testing lens). 9 ISO 25010:2023 chars + 3 cortex extras + Bach HTSM SFDPOT depth traversal + tsDetect 5-detector starter smell scan + 5-Q human gate + 10 QA-specific research concerns + testing-strategy/testing-gaps synthesis + opt-in sample-test seeding.
+2. **`profiles/qa-engineer.yaml`** — framework-agnostic lens; risk-tiered quality gates (high: 80/70/75, mid: 70/60/60, low: advisory); ASVS L1/L2/L3 mappings; CI gating (block-on-red / soft-block / inform-only / nightly).
+3. **`templates/testing-strategy.md.hbs`** + **`templates/testing-gaps.md.hbs`** — Handlebars with full 3-hop citation slots; pyramid plan (now/3mo/12mo); P0/P1/P2/SKIP/OPEN/off-limits format.
+4. **`shared/skills/test-audit/SKILL.md`** — `/test-audit` slash command, auto-distributed via existing `install.{sh,ps1}`.
+5. **`agents/planner.md`** — extended with QA-engineer 10-concern override.
+6. **`docs/research/sprint-2.10-qa-retrofit-2026-05-09.md`** — R1 memo with 38 cited URLs across 4 parallel research agents (AI-augmented QA workflows, e-commerce testing 2026, deep audit methodology, admin security ASVS 5.0).
+7. **`tests/unit/qa-retrofit-structure.test.cjs`** — +46 structure tests validating artifacts exist + cross-references + 3-hop traceability.
+
+**Tests final after Sprint 2.10**: 1683 → **1729 (+46)**, 1349 → **1729 (+380 today total)**.
+
+**Field-test playbook for the colleague (next week)**:
+1. `git clone cortex-x && cd cortex-x && ./install.ps1` (Windows) or `./install.sh` (Unix)
+2. In her duplicate of `order-mage/eshop`: `claude` → invoke `/cortex-init` (general retrofit, fills CLAUDE.md)
+3. Then: `/test-audit` (QA lens, 30-min run produces 6 deliverables in `cortex/qa/`)
+4. Optional: paste prompt with `--seed-tests` to materialize top 3 P0 gaps as runnable test files in `tests/qa-retrofit/`
+5. Repeat for `order-mage/admin` — separate audit, separate `cortex/qa/` directory
+6. Day 2: she reviews + executes the backlog with the team
+
+**Pre-cached findings for order-mage** (in R1 memo §"Stack-specific research"):
+- 12 minimum E2E flows for e-commerce
+- Playwright 1.50+ over Cypress 14 (~23% faster, 2.5x cheaper CI)
+- `stripe-mock` for CI (never real Stripe)
+- OpenAPI + Pact + Schemathesis for the eshop ↔ admin contract
+- ASVS 5.0 Level 2 + BOLA detection (≥2 authenticated users + OpenAPI schema)
+- Supabase `service_role` RLS-bypass regression test pattern
+- INP-aware Lighthouse CI gates (FID retired March 2024)
 
 **Did NOT do** (correctly deferred for operator-review tomorrow):
 - Sprint 2.7.1 implementation (460 LoC + LLM dispatch + lethal-trifecta defense; needs awake operator)

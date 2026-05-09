@@ -1,0 +1,131 @@
+---
+phase: 5-qa-strategy
+date: {{date}}
+slug: {{slug}}
+based_on:
+  audit: cortex/qa/AUDIT.md
+  inventory: cortex/qa/test-inventory.md
+  research: {{cortexDataHome}}/research/{{slug}}-qa-{{date}}.md
+quality_model: ISO/IEC 25010:2023
+---
+
+# Testing strategy — {{projectName}}, {{date}}
+
+**Stack:** {{stack}}
+**Top business risk (Phase 3 Q1):** {{topRisk}}
+**Compliance target (Phase 3 Q3):** {{compliance}}
+**Tester capacity (Phase 3 Q5):** {{testerProfile}}
+
+---
+
+## Pyramid target (12-month plan)
+
+|              | Now           | 3 months      | 12 months     |
+|--------------|---------------|---------------|---------------|
+| Unit         | {{unitNow}}   | {{unit3mo}}   | {{unit12mo}}  |
+| Integration  | {{intNow}}    | {{int3mo}}    | {{int12mo}}   |
+| Contract     | {{ctrNow}}    | {{ctr3mo}}    | {{ctr12mo}}   |
+| E2E          | {{e2eNow}}    | {{e2e3mo}}    | {{e2e12mo}}   |
+| Mutation     | {{mutNow}}    | {{mut3mo}}    | {{mut12mo}}   |
+| Property     | {{pbtNow}}    | {{pbt3mo}}    | {{pbt12mo}}   |
+| Perf budget  | {{perfNow}}   | {{perf3mo}}   | {{perf12mo}}  |
+| A11y         | {{a11yNow}}   | {{a11y3mo}}   | {{a11y12mo}}  |
+| AI evals     | {{evalNow}}   | {{eval3mo}}   | {{eval12mo}}  |
+
+> Ratio matters more than count. 500 unit + 2 E2E is fragile. Aim for the layer mix of `60-75% unit / 20-30% integration / 5-10% E2E + critical perf/security as cross-cuts`.
+
+---
+
+## Tool decisions (cited)
+
+- **Unit/component:** {{unitTool}} [src: {{unitToolUrl}}] [research: {{unitTopic}}]
+- **Integration:** {{intTool}} [src: {{intToolUrl}}] [research: {{intTopic}}]
+- **E2E:** {{e2eTool}} [src: {{e2eToolUrl}}] [research: {{e2eTopic}}]
+- **Mutation:** {{mutTool}} (threshold: {{mutThreshold}}) [src: {{mutToolUrl}}] [research: {{mutTopic}}]
+- **Property-based:** {{pbtTool}} [src: {{pbtToolUrl}}] [research: {{pbtTopic}}]
+- **Contract:** {{ctrTool}} [src: {{ctrToolUrl}}] [research: {{ctrTopic}}]
+- **Perf:** {{perfTool}} (gates: {{perfGates}}) [src: {{perfToolUrl}}] [research: {{perfTopic}}]
+- **A11y:** {{a11yTool}} [src: {{a11yToolUrl}}] [research: {{a11yTopic}}]
+- **Visual regression:** {{visualTool}} [src: {{visualToolUrl}}] [research: {{visualTopic}}]
+- **AI evals:** {{evalTool}} [src: {{evalToolUrl}}] [research: {{evalTopic}}]
+
+---
+
+## CI gating philosophy
+
+| Gate | Layer | Action |
+|---|---|---|
+| Block on red | unit + integration + critical-path E2E | merge blocked |
+| Soft-block | mutation score regression > {{mutDelta}} | warn, require justification |
+| Soft-block | perf budget regression > {{perfDelta}}% | warn, require justification |
+| Inform-only | a11y score, visual diff, full-suite mutation | annotate PR, don't block |
+| Nightly only | sandbox payments, full mutation, k6 load | non-blocking, alert on regression |
+
+---
+
+## Coverage thresholds (risk-tiered, mutation-aware)
+
+Coverage % is a vanity metric on its own. Mutation score is the honest fitness function. Tier modules by business risk:
+
+| Tier | Examples | Line cov | Branch cov | Mutation score |
+|---|---|---|---|---|
+| **High-risk** | payment, auth, RLS, billing, AI-tool dispatch | 80% | 70% | 75% |
+| **Mid-risk** | orchestrators, business logic, schema migrations | 70% | 60% | 60% |
+| **Low-risk** | UI presentation, glue, formatters | 50% | — | — (advisory) |
+| **Excluded** | generated, vendored, configs, scaffolds | — | — | — |
+
+Stryker `break: <high-risk-mutation>` in CI = hard gate. Don't break the build on low-risk advisory tier.
+
+---
+
+## ISO 25010:2023 coverage target
+
+For each of the 9 ISO characteristics, define ONE measurable target this sprint:
+
+- **Functional Suitability:** {{funcTarget}}
+- **Performance Efficiency:** {{perfTarget}}
+- **Compatibility:** {{compatTarget}}
+- **Interaction Capability:** {{interactTarget}}
+- **Reliability:** {{reliabTarget}}
+- **Security:** {{secTarget}} (mapped to ASVS L{{asvsLevel}})
+- **Maintainability:** {{maintTarget}}
+- **Flexibility:** {{flexTarget}}
+- **Safety:** {{safetyTarget}}
+
+---
+
+## Out-of-scope (cited reasoning)
+
+- {{skip1}} [research: {{skip1Topic}}] [src: {{skip1Url}}]
+- {{skip2}} [research: {{skip2Topic}}] [src: {{skip2Url}}]
+
+---
+
+## Three-month execution plan (paired with backlog in testing-gaps.md)
+
+### Month 1 — close P0 (block-release-worthy)
+- Week 1: GAP-001, GAP-002, GAP-003
+- Week 2: GAP-004, GAP-005
+
+### Month 2 — close top P1 + first SKIP revisits
+- Week 3-4: GAP-006 through GAP-010
+- Week 5-6: revisit deferred SKIP items if velocity allows
+
+### Month 3 — pyramid rebalance + mutation sweep
+- Week 7-8: bring high-risk modules to mutation threshold
+- Week 9-10: convert top-3 brittle E2E to integration where contract testing covers
+- Week 11-12: re-run `/test-audit` for delta — measure progress
+
+---
+
+## Anti-patterns to avoid in this stack
+
+- {{antipattern1}}
+- {{antipattern2}}
+- {{antipattern3}}
+
+---
+
+## Re-audit cadence
+
+Re-run `/test-audit` every 3 months (or after major refactor / acquisition / stack-version bump). The diff between the new `cortex/qa/AUDIT.md` and the previous one is the progress signal.
