@@ -2428,18 +2428,34 @@ if (require.main === module) {
   } else if (!quiet) {
     if (result.ok) {
       console.log(`[steward execute] ✓ slug=${result.slug}`);
-      console.log(`  branch: ${result.branch}`);
-      console.log(`  commit: ${result.commit_sha}`);
-      console.log(`  files:  ${result.touched_files.join(', ')}`);
-      console.log(`  verify: ${result.verifier}`);
-      console.log(`  engine: ${result.engine}`);
-      if (result.pr) {
-        if (result.pr.status === 'created') {
-          console.log(`  PR:     ${result.pr.url}`);
-        } else if (result.pr.status === 'pushed') {
-          console.log('  PR:     branch pushed (PR creation skipped)');
-        } else {
-          console.log(`  PR:     ${result.pr.status}${result.pr.reason ? ' — ' + result.pr.reason : ''}${result.pr.error ? ' — ' + result.pr.error : ''}`);
+      // Sprint 2.9.6c: skip_commit kinds (todo_triage, doc_drift, etc.)
+      // and no_action results don't produce branch / commit / touched_files.
+      // Defensive logging — only print fields that exist.
+      if (result.no_action) {
+        console.log(`  no_action: true (${result.code || 'no candidates'})`);
+        if (result.message) console.log(`  reason: ${result.message}`);
+      } else {
+        if (result.branch) console.log(`  branch: ${result.branch}`);
+        if (result.commit_sha) console.log(`  commit: ${result.commit_sha}`);
+        if (Array.isArray(result.touched_files)) {
+          console.log(`  files:  ${result.touched_files.join(', ')}`);
+        }
+        if (result.verifier !== undefined) console.log(`  verify: ${result.verifier}`);
+        if (result.engine !== undefined) console.log(`  engine: ${result.engine}`);
+        if (Array.isArray(result.opened_issues) && result.opened_issues.length > 0) {
+          console.log(`  issues: ${result.opened_issues.length} opened`);
+          for (const issue of result.opened_issues.slice(0, 5)) {
+            console.log(`    - ${issue.title || '?'} ${issue.url ? '→ ' + issue.url : ''}`);
+          }
+        }
+        if (result.pr) {
+          if (result.pr.status === 'created') {
+            console.log(`  PR:     ${result.pr.url}`);
+          } else if (result.pr.status === 'pushed') {
+            console.log('  PR:     branch pushed (PR creation skipped)');
+          } else {
+            console.log(`  PR:     ${result.pr.status}${result.pr.reason ? ' — ' + result.pr.reason : ''}${result.pr.error ? ' — ' + result.pr.error : ''}`);
+          }
         }
       }
     } else if (result.code === 'CLAUDE_SDK_NOT_IMPLEMENTED') {
