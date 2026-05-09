@@ -473,9 +473,52 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.9 — Tools Foundation v0 (M effort, ⭐ STRATEGIC)
+### Sprint 2.9 — Tools Foundation v0 ✅ SHIPPED 2026-05-09 (M effort, ⭐ STRATEGIC)
 
-**Status**: 📋 PLANNED 2026-05-09 (R1 memo committed). Awaiting operator approval before implementation.
+**Status**: ✅ Shipped 2026-05-09. New `bin/cortex/tools/` module tree (~2k LoC): descriptor spec + validator + 6 reference tools (read/write/edit/glob/grep/bash) + 4 runtime adapters (toMcpServer primary, toClaudeAgentSdk, toOpenAiAgents, toVercelAiSdk-stub) + annotation routing + 2 shared libs (`_lib/path-safety.cjs` + `_lib/limits.cjs`). 6-agent R2 review pipeline (acceptance + blind + correctness + security + ssot + edge-case) surfaced 6 BLOCKER + 18 HIGH + 9 MEDIUM findings; all BLOCKERs and key HIGHs fixed in hardening pass before merge. 1349 → 1502 tests (+153). R1 memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md).
+
+**Hardening pass shipped (R2 closed-out)**:
+- Extracted `_lib/path-safety.cjs` (5 duplicates → 1 SSOT) with fail-closed semantics + UNC/device-prefix rejection + Windows case-insensitive containment + parent-mode for `write`.
+- Extracted `_lib/limits.cjs` (4 duplicates of MAX_FILE_BYTES + 2 of MAX_DEPTH/MAX_RESULTS → 1 SSOT).
+- TOCTOU symlink-swap defense in `write` + `edit` via `O_NOFOLLOW` on POSIX (Windows: lstat-only fallback).
+- Bash forbidden-token list rewritten as REGEX patterns: rm -rf `[/home, /etc, /var, /usr, /opt, /]`, disk-device writes (`> /dev/sd*` / `nvme*` / `hd*` / `vd*` / `xvd*`), pipe-to-shell (curl/wget/fetch | sh/bash/zsh/ksh/fish/python/ruby/perl/node), process-substitution `bash <(curl …)`, eval/source curl, halt with full trailing context, Windows-specific `del /F /S /Q`, `format X: /Y`, `Remove-Item -Recurse -Force`.
+- Bash env scrub: switched from denylist (5 keys) → ALLOWLIST (PATH, HOME, USER, USERPROFILE, LANG, TZ, SHELL, TEMP, TMP, SystemRoot, COMSPEC + STEWARD_BASH_ENV_PASSTHROUGH).
+- Bash output-cap: track Buffer arrays not string concat (UTF-8 multibyte truncation defense).
+- Bash empty `STEWARD_BASH_ALLOWLIST` (after trim) now FAIL-CLOSED instead of silent-disable.
+- Bash spawn null-check stdout/stderr + sync-error handler.
+- Bash `\s` Unicode whitespace + `/u` flag for NBSP/NNBSP/MMSP/IDEOGRAPHIC bypass defense.
+- `read.cjs` magic-byte sniff for binary files (NUL byte in first 8 KiB → `TOOL_READ_BINARY`).
+- `read.cjs` EOL detection (lf/crlf/mixed) for round-trip fidelity.
+- `edit.cjs` non-overlapping count (`aa` in `aaaa` counts 2, not 3 — Sprint 1.6.18 lesson class).
+- `edit.cjs` shrink defense applied unconditionally (was inverted boolean — replace_all=true is MORE destructive, not less).
+- `edit.cjs` directory-target rejection + `not-a-file` rejection.
+- `write.cjs` directory-target rejection + parent-not-directory rejection.
+- `glob.cjs` recursive alternative translation (`{*.cjs,*.js}` no longer crashes).
+- `glob.cjs` Windows-friendly `dev:ino==0:0` path-key fallback.
+- `grep.cjs` per-line regex deadline (`GREP_PER_LINE_REGEX_DEADLINE_MS=50` → ReDoS defense).
+- `grep.cjs` count-mode `total_matches` accurate (was hardcoded 0).
+- `grep.cjs` default-exclude `node_modules / .git / dist / build / .next / target / .venv / __pycache__ / .cache / coverage / .nyc_output / .turbo / .parcel-cache / .svelte-kit` (opt-in via `include_noise=true`).
+- `validate-descriptor.cjs` strict `AsyncFunction.constructor.name` check (was tautology accepting any function).
+- `validate-descriptor.cjs` `$ref` walker (was `JSON.stringify().includes('"$ref"')` — false-positive on enum values).
+- `validate-descriptor.cjs` filename-match enforced via `index.cjs` `FILENAME_BY_TOOL` map at load-time.
+- `toMcpServer.cjs` proto-pollution defense: reject `__proto__` / `constructor` / `prototype` keys recursively in `validateArgs`; `Object.create(null)` for tool lookup.
+- `toMcpServer.cjs` buffer cap (`MCP_MAX_LINE_BYTES=10MiB`) → JSON-RPC `-32700` parse error response on overflow.
+- `toMcpServer.cjs` parse-error response (was stderr-only, leaving client hanging).
+- `toMcpServer.cjs` notifications (no `id`) get NO response per JSON-RPC spec.
+- `toMcpServer.cjs` `additionalProperties: false` enforced even when `properties` is empty.
+- New tests: 153 (validator + 6 tool handlers + 4 adapters + annotation routing + path-safety + Tier 5 catalog hash regression).
+- New SKILL.md template: `templates/skills/example-using-cortex-tools.md`.
+
+**Out-of-v0-scope findings (deferred to Sprint 2.9.5+ or operator-acknowledged)**:
+- Full Pattern 2 architectural split (reader-only + writer-only MCP servers) — Sprint 4.0 marketplace concern.
+- Pattern 5 HITL gate on raw MCP for destructive tools — Sprint 2.9.5 (when MCP server exposed beyond Steward internal use).
+- Pattern 1 `<untrusted>` markers around tool output — Sprint 2.9.5.
+- Property-based tests (fast-check on globToRegex + annotation 16-perm sweep + edit invariants) — Sprint 2.3 + 2.9.5 territory.
+- Stryker mutation testing config — Sprint 2.3 territory.
+- Vercel AI SDK adapter actual TS implementation with Zod re-wrap — Sprint 2.9.5.
+- WebFetch + WebSearch tools with `openWorldHint` cost-window integration — Sprint 2.9.5.
+- Annotation-routing → action-engine integration — Sprint 2.9.5 (currently dead code from Steward POV; routing helpers + tests verify contract holds).
+- Lethal-trifecta architectural verdict (reader + writer + bash in one session) — accepted as v0 limit; Steward upstream gates (acceptance criteria + spec-verifier + halt-check + cost-windows) compensate for internal use.
 
 **Why now**: operator-instinct dispatch 2026-05-09 confirmed that Claude Code's curated tool palette (Read / Write / Edit / Glob / Grep / Bash + ~18 others) is the right set of names to borrow, BUT the right *spec format* is **MCP** (Model Context Protocol — donated to Linux Foundation Dec 2025, governed by Anthropic + OpenAI + Google + MSFT + AWS, embedded in Claude Agent SDK as the lingua franca). Sprint 2.9 ships a neutral tool-descriptor spec (MCP-shaped JSON Schema + annotation taxonomy) + 6 reference tools + 4 runtime adapters. **Strategic moat**: tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) integrate **for free** with Steward's existing safety mechanics — Sprint 1.9.0 spec-verifier, halt-check, journal write-trailers, cost-windows. No other framework's tool catalog wires into a verifier-driven autonomous runtime.
 

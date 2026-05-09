@@ -4,6 +4,70 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 — Sprint 2.9 Tools Foundation v0 ⭐ STRATEGIC)
+
+Sprint 2.9 ships a portable, MCP-shaped tool descriptor format + 6 reference tools + 4 runtime adapters + annotation routing. Strategic interoperability moat: same descriptor runs in Steward, Claude Agent SDK, Vercel AI SDK, OpenAI Agents, and any MCP client (Cursor, Codex, Aider, Windsurf). Tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) auto-wire into Sprint 1.9.0 spec-verifier + 1.9.1 cost windows + halt-check.
+
+R1 memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](docs/research/sprint-2.9-tools-foundation-2026-05-09.md) — 14 sources cited, recommendation Option (b) neutral spec + adapters, MCP as the spec format (donated to Linux Foundation Dec 2025; Anthropic's own Claude Agent SDK already speaks MCP via `createSdkMcpServer`).
+
+**Files added (`bin/cortex/tools/`)**:
+- `_spec.md` — descriptor format + JSON Schema example + cross-runtime mapping table.
+- `_lib/validate-descriptor.cjs` (~280 LoC) — strict validator with cross-checks: name regex, additionalProperties:false, $ref walker (no false-positives on enum values), AsyncFunction.constructor.name strict check, annotation consistency cross-check.
+- `_lib/path-safety.cjs` (~150 LoC) — `isWithinCwd` (target + parent modes), `assertPathSafe`, NUL byte + UNC + Windows device-prefix rejection. SSOT for filesystem containment.
+- `_lib/limits.cjs` — single source for MAX_FILE_BYTES, MAX_RESULTS, MAX_DEPTH, BASH_*, MCP_MAX_LINE_BYTES, GREP_PER_LINE_REGEX_DEADLINE_MS.
+- `_lib/annotation-routing.cjs` (~120 LoC) — maps annotations to required safety gates (spec_verifier, halt_check, cost_windows, retry_safety).
+- `read.cjs` / `write.cjs` / `edit.cjs` / `glob.cjs` / `grep.cjs` / `bash.cjs` — 6 reference tools borrowing Claude Code taxonomy in MCP-shaped descriptors.
+- `_adapters/toMcpServer.cjs` (primary, stdio JSON-RPC) — protocolVersion 2025-11-25, full `tools/list` + `tools/call` + `initialize`, proto-pollution defense, 10 MiB buffer cap, JSON-RPC -32700 parse-error response, notifications get no response.
+- `_adapters/toClaudeAgentSdk.cjs` — array for `createSdkMcpServer` + optional Claude Code capitalization (Read/Write/Edit/...).
+- `_adapters/toOpenAiAgents.cjs` — `FunctionTool` POJOs with `strict_json_schema` default true.
+- `_adapters/toVercelAiSdk.cjs` — JS stub (TS adapter with Zod re-wrap deferred to 2.9.5).
+- `index.cjs` — palette + null-prototype `TOOL_BY_NAME` lookup + eager filename-match validation at module load.
+- `templates/skills/example-using-cortex-tools.md` — operator-facing SKILL.md template.
+
+**Tests added (`tests/unit/cortex-tools/`)**: 153 tests across 6 files (validator + tool handlers + adapter roundtrip + annotation routing + path-safety + Tier 5 catalog hash drift detector).
+
+**Defense-in-depth surface (R2 hardening pass)**:
+- TOCTOU symlink-swap defense in `write` + `edit` via POSIX `O_NOFOLLOW`.
+- Bash forbidden-pattern REGEX list: rm -rf for `/{home,etc,usr,var,opt,root,boot,lib,sbin,bin,sys,proc}` + `/$` + `/*` + `$HOME` + `~`; disk-device writes to `> /dev/{sd*,nvme*,hd*,xvd*,vd*}`; pipe-to-shell across curl/wget/fetch → sh/bash/zsh/ksh/fish/python/ruby/perl/node; process substitution `bash <(curl)`; eval/source curl; halt with full trailing context; Windows `del /F /S /Q`, `format X: /Y`, `Remove-Item -Recurse -Force`.
+- Bash env scrub switched from denylist (5 keys) to ALLOWLIST (PATH, HOME, USER, USERPROFILE, LANG, TZ, SHELL, TEMP, TMP, SystemRoot, COMSPEC + STEWARD_BASH_ENV_PASSTHROUGH).
+- Bash output buffer = Buffer arrays sliced by bytes (UTF-8 multibyte truncation defense).
+- Bash empty `STEWARD_BASH_ALLOWLIST` (after trim) FAIL-CLOSED instead of silent-disable.
+- Bash spawn null-check stdout/stderr + sync-error handler.
+- Bash `\s` Unicode whitespace + `/u` flag for NBSP/NNBSP/MMSP/IDEOGRAPHIC bypass defense.
+- `read.cjs` magic-byte sniff for binary files (NUL byte in first 8 KiB → `TOOL_READ_BINARY`).
+- `read.cjs` EOL detection (lf/crlf/mixed) for round-trip fidelity.
+- `edit.cjs` non-overlapping count fix (`aa` in `aaaa` counts 2, not 3).
+- `edit.cjs` shrink defense applied unconditionally (was inverted boolean — replace_all=true is MORE destructive, not less).
+- `edit.cjs` directory-target rejection + `not-a-file` rejection.
+- `write.cjs` directory-target rejection + parent-not-directory rejection.
+- `glob.cjs` recursive alternative translation (`{*.cjs,*.js}` no longer crashes).
+- `glob.cjs` Windows-friendly `dev:ino==0:0` path-key fallback.
+- `grep.cjs` per-line regex deadline (50ms → ReDoS defense).
+- `grep.cjs` count-mode `total_matches` accurate (was hardcoded 0).
+- `grep.cjs` default-exclude `node_modules / .git / dist / build / .next / target / .venv / __pycache__ / ...` (opt-in via `include_noise=true`).
+- `validate-descriptor.cjs` strict `AsyncFunction.constructor.name` check.
+- `validate-descriptor.cjs` `$ref` walker (no JSON.stringify false-positive).
+- `validate-descriptor.cjs` filename-match enforced via `index.cjs` `FILENAME_BY_TOOL` map.
+- `toMcpServer.cjs` proto-pollution defense (`__proto__` / `constructor` / `prototype` keys rejected recursively + `Object.create(null)` for lookup).
+- `toMcpServer.cjs` 10 MiB buffer cap → JSON-RPC `-32700` on overflow.
+- `toMcpServer.cjs` JSON parse-error response (was stderr-only).
+- `toMcpServer.cjs` notifications get no response per JSON-RPC spec.
+- `toMcpServer.cjs` `additionalProperties: false` enforced when `properties` is empty.
+
+**Out-of-v0-scope findings deferred** (acknowledged in roadmap entry):
+- Pattern 2 architectural split (reader-only + writer-only MCP servers) — Sprint 4.0 marketplace.
+- Pattern 5 HITL gate on raw MCP for destructive tools — Sprint 2.9.5.
+- Pattern 1 `<untrusted>` markers around tool output — Sprint 2.9.5.
+- Property-based tests (fast-check) — Sprint 2.3 / 2.9.5 territory.
+- Stryker mutation testing config — Sprint 2.3 territory.
+- Vercel AI SDK actual TS adapter with Zod re-wrap — Sprint 2.9.5.
+- WebFetch + WebSearch tools — Sprint 2.9.5.
+- Annotation-routing → action-engine integration — Sprint 2.9.5 (currently a contract module + tests verify it holds; Steward POV is dead code until 2.9.5 wires it).
+
+**Tests**: 1349 → 1502 (+153). All 3 CI lanes green expected.
+
+**R2 review pipeline (6 agents in parallel)** found 6 BLOCKER + 18 HIGH + 9 MEDIUM. All BLOCKERs and key HIGHs fixed in same-commit hardening pass; out-of-scope items documented above.
+
 ### Fixed (2026-05-09 — Hardening pass after retrospective R2 review of Sprints 2.6 / 2.7 / 2.8 + Opus 4.7 research)
 Operator-requested hardening pass after the 5-sprint Tier-1-expansion run. Three retrospective R2 reviews + Opus 4.7 research dispatch surfaced findings that warranted same-day fixes rather than deferred 2.x.1 commits.
 
