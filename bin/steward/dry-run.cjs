@@ -94,6 +94,72 @@ function readProcessedActionIds(slug, daysBack = 14) {
   return processed;
 }
 
+// Sprint 2.9.6 dispatcher fix — synthetic plan builder for deterministic kinds.
+// Returns the same shape as recommendation_harvest plan so execute.cjs can
+// pick it up and dispatch to runTodoTriageAction / runDepUpdateAction / etc.
+//
+// All fields are stub-shaped because the actual detector run happens at
+// execute-time (live-tree re-detection for atomic rollback semantics). The
+// dry-run plan exists for journaling + lock acquisition + cron-skip on
+// no_actionable_step (which the dry-run does NOT determine for these kinds —
+// the executor decides per-detector at run-time).
+function buildDeterministicPlan({ slug, trigger, isoDate, kind, synthTitle, synthBodyPrefix, skipCommit }) {
+  const actionId = trailers.ulid();
+  const actionKey = `${slug}#${kind}-${isoDate}`;
+  const branchName = skipCommit
+    ? null
+    : `steward/${isoDate}-${slug}-${kind.replace(/_/g, '-')}-${shortId(actionId)}`;
+  const plan = {
+    ok: true,
+    mode: 'dry-run',
+    slug,
+    action_kind: kind,
+    action: {
+      num: null,
+      title: synthTitle,
+      body: synthBodyPrefix,
+      citations: [],
+      section: null,
+      action_key: actionKey,
+    },
+    branch: branchName,
+    action_id: actionId,
+    trigger,
+    skip_commit: skipCommit,
+  };
+  if (!skipCommit) {
+    plan.planned_commit = {
+      type: 'feat',
+      scope: slug,
+      subject: synthTitle.slice(0, 72),
+      body: synthBodyPrefix,
+      trailers: {
+        'Steward-Action-Id': actionId,
+        'Steward-Journal-Entry': `~/.cortex/journal/${slug}/${isoDate}.jsonl`,
+        'Steward-Trigger': trigger,
+        'Steward-Action-Kind': kind,
+        // Sprint 2.9.6: deterministic kinds don't pick from recommendations.md;
+        // the source IS the detector that produced the candidates.
+        'Steward-Recommendation-Source': `deterministic-detector (${kind})`,
+      },
+    };
+    plan.commit_message = trailers.buildCommitMessage(plan.planned_commit);
+  }
+  journal.appendJournal(slug, {
+    ts: new Date().toISOString(),
+    trigger,
+    tier: 'T0',
+    event: 'dry_run_completed',
+    outcome: 'success',
+    actor: 'steward',
+    action_kind: kind,
+    action_key: actionKey,
+    action_id: actionId,
+    branch: branchName,
+  });
+  return plan;
+}
+
 function runDryRun(opts = {}) {
   const slug = opts.slug;
   if (!slug) {
@@ -126,10 +192,15 @@ function runDryRun(opts = {}) {
     };
   }
 
-  // Step 2 — Recommendations file location
+  // Step 2 — Recommendations file location.
+  // Sprint 2.9.6: only enforce existence for kinds that actually read from
+  // recommendations.md. Deterministic kinds (todo_triage, dep_update_patch,
+  // doc_drift, etc.) run their own detectors and don't need the file.
   const recsPath = opts.recommendationsPath
     || path.join(repoRoot, 'cortex', 'recommendations.md');
-  if (!fs.existsSync(recsPath)) {
+  const kindNeedsRecommendations = (kind === actionKinds.DEFAULT_KIND
+    || kind === 'recommendation_harvest');
+  if (kindNeedsRecommendations && !fs.existsSync(recsPath)) {
     return {
       ok: false,
       error: `recommendations.md not found at ${recsPath}`,
@@ -157,33 +228,43 @@ function runDryRun(opts = {}) {
   }
 
   try {
-    // Step 4 — Parse recommendations
-    let parsed;
-    try {
-      parsed = recommendations.parseRecommendations(recsPath);
-    } catch (err) {
-      // Journal the parse failure before we exit
-      journal.appendJournal(slug, {
-        ts: new Date().toISOString(),
-        trigger,
-        tier: 'T2',
-        event: 'recommendations_parse_failed',
-        outcome: 'failure',
-        actor: 'steward',
-      });
-      return {
-        ok: false,
-        error: `recommendations parse failed: ${err.message}`,
-        code: 'PARSE_FAILED',
-      };
-    }
+    // Sprint 2.9.6 dispatcher fix — deterministic kinds run their own
+    // detectors and don't read from recommendations.md. Skip the
+    // parse + slug-check gate for them. Only `recommendation` and
+    // `recommendation_harvest` need recommendations.md.
+    const KINDS_REQUIRING_RECOMMENDATIONS_MD = new Set([
+      actionKinds.DEFAULT_KIND,        // 'recommendation'
+      'recommendation_harvest',
+    ]);
 
-    if (parsed.frontmatter.slug !== slug) {
-      return {
-        ok: false,
-        error: `slug mismatch: CLI=${slug}, recommendations.md=${parsed.frontmatter.slug}`,
-        code: 'SLUG_MISMATCH',
-      };
+    let parsed = null;
+    if (KINDS_REQUIRING_RECOMMENDATIONS_MD.has(kind)) {
+      // Step 4 — Parse recommendations (only for kinds that need it)
+      try {
+        parsed = recommendations.parseRecommendations(recsPath);
+      } catch (err) {
+        journal.appendJournal(slug, {
+          ts: new Date().toISOString(),
+          trigger,
+          tier: 'T2',
+          event: 'recommendations_parse_failed',
+          outcome: 'failure',
+          actor: 'steward',
+        });
+        return {
+          ok: false,
+          error: `recommendations parse failed: ${err.message}`,
+          code: 'PARSE_FAILED',
+        };
+      }
+
+      if (parsed.frontmatter.slug !== slug) {
+        return {
+          ok: false,
+          error: `slug mismatch: CLI=${slug}, recommendations.md=${parsed.frontmatter.slug}`,
+          code: 'SLUG_MISMATCH',
+        };
+      }
     }
 
     // Sprint 1.8.2c — kind dispatch. recommendation_harvest skips action
@@ -276,6 +357,75 @@ function runDryRun(opts = {}) {
         harvest_count: harvest.candidates.length,
       });
       return plan;
+    }
+
+    // Sprint 2.9.6 dispatcher fix — deterministic kinds (todo_triage,
+    // dep_update_patch) had cron workflows since Sprint 1.8.4/1.8.7 but never
+    // worked end-to-end because the dry-run dispatcher only knew about
+    // recommendation + recommendation_harvest. Other kinds fell through to
+    // the default recommendation flow and tried to invoke the LLM.
+    //
+    // Pattern: each deterministic kind runs its detector here in dry-run
+    // (cheap, no LLM, no side effects), checks for candidates, and either
+    // returns no_actionable_step or builds a synthetic plan. The executor
+    // (execute.cjs) re-runs the detector itself — that's intentional duplication
+    // for atomic rollback semantics: dry-run output is advisory, executor
+    // re-detects against the live tree at execution time.
+    if (kind === 'todo_triage') {
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: 'Triage stale TODO markers',
+        synthBodyPrefix: 'Open gh issues for fresh TODO/FIXME/XXX/HACK markers older than threshold (deterministic; no LLM, no file edits).',
+        skipCommit: true,
+      });
+    }
+
+    if (kind === 'dep_update_patch') {
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: 'Patch-only npm dependency updates',
+        synthBodyPrefix: 'Run npm outdated, classify wanted vs current as patch-only, npm install --save the patch upgrades, npm test gate (deterministic; no LLM).',
+        skipCommit: false,
+      });
+    }
+
+    if (kind === 'doc_drift' || kind === 'flaky_test_repair' || kind === 'lint_fix_shipper'
+        || kind === 'test_coverage_gap' || kind === 'pr_review_responder'
+        || kind === 'tech_debt_audit') {
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: `Run ${kind} detector`,
+        synthBodyPrefix: `Sprint 2.9.6: deterministic ${kind} kind dispatched via dry-run. Executor will run the detector against the live tree.`,
+        // tech_debt_audit + flaky_test_repair + lint_fix_shipper EDIT files;
+        // others (doc_drift, test_coverage_gap, pr_review_responder, todo_triage)
+        // are issue-only with skip_commit=true.
+        skipCommit: kind === 'doc_drift' || kind === 'test_coverage_gap'
+                    || kind === 'pr_review_responder',
+      });
+    }
+
+    if (kind === 'pattern_transfer') {
+      // Sprint 2.7.1: registered + routed through executor as
+      // ACTION_KIND_NOT_DISPATCHABLE. Mirror the same hard-fail at dry-run so
+      // operators get the gap explicitly.
+      const actionId = trailers.ulid();
+      journal.appendJournal(slug, {
+        ts: new Date().toISOString(),
+        trigger,
+        tier: 'T0',
+        event: 'no_actionable_step',
+        outcome: 'skipped',
+        actor: 'steward',
+        action_kind: 'pattern_transfer',
+        reason: 'pattern_transfer LLM dispatch not yet implemented (Sprint 2.7.1)',
+      });
+      return {
+        ok: true,
+        no_actionable_step: true,
+        slug,
+        action_kind: 'pattern_transfer',
+        reason: 'pattern_transfer LLM dispatch not yet implemented (Sprint 2.7.1)',
+      };
     }
 
     // Step 5 — Pick next action (skip already-processed)

@@ -4,6 +4,35 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Fixed (2026-05-09 — Sprint 2.9.6 dry-run dispatcher gap)
+
+Pre-existing v0.7-era bug surfaced during the "turn on all crons" session
+manual triggers: `bin/steward/dry-run.cjs` only handled `recommendation` and
+`recommendation_harvest` kinds. Cron workflows for `todo_triage` (Sprint 1.8.7)
+and `dep_update_patch` (Sprint 1.8.4) had been registered for months but never
+ran successfully end-to-end — both fell through to the default LLM path and
+failed with `OpenRouter response did not contain message content` or wasted
+the daily cap by picking unrelated recommendations.
+
+Fix: added `buildDeterministicPlan` helper + dispatch branches for all 9
+deterministic kinds (`todo_triage`, `dep_update_patch`, `flaky_test_repair`,
+`doc_drift`, `lint_fix_shipper`, `test_coverage_gap`, `pr_review_responder`,
+`tech_debt_audit`, `pattern_transfer`). Each kind builds a synthetic plan
+that the executor (`execute.cjs`) picks up + dispatches to its dedicated
+runner; the runner re-detects against the live tree at execute-time for
+atomic rollback semantics.
+
+`pattern_transfer` is registered but its executor is `ACTION_KIND_NOT_DISPATCHABLE`
+per Sprint 2.7.1; the new dispatcher mirrors that as `no_actionable_step` so
+operators see the gap explicitly rather than getting surprise LLM costs.
+
+Also: `recommendations.md` existence + parse + slug-check is now gated to
+kinds that actually read it (only `recommendation` + `recommendation_harvest`).
+Deterministic kinds run cleanly on bare repos without `cortex/recommendations.md`.
+
+10 new unit tests in `tests/unit/steward/dry-run-dispatcher.test.cjs` lock
+the fix in place. Tests: 1502 → 1512 (+10).
+
 ### Added (2026-05-09 — Sprint 2.9 Tools Foundation v0 ⭐ STRATEGIC)
 
 Sprint 2.9 ships a portable, MCP-shaped tool descriptor format + 6 reference tools + 4 runtime adapters + annotation routing. Strategic interoperability moat: same descriptor runs in Steward, Claude Agent SDK, Vercel AI SDK, OpenAI Agents, and any MCP client (Cursor, Codex, Aider, Windsurf). Tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) auto-wire into Sprint 1.9.0 spec-verifier + 1.9.1 cost windows + halt-check.
