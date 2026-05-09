@@ -194,6 +194,88 @@ Plus cortex extras worth flagging:
 
 ---
 
+## Phase 1b — Existing-tests modernization analysis (NEW Sprint 2.10.6, qa-tester profile default ON)
+
+> **For repos with existing tests:** before auditing for gaps, evaluate the existing test posture against 2026 best practices for the detected test frameworks/tools. Surfaces "your tests pass but pattern X is deprecated" + "your snapshot strategy violates 2026 anti-pattern Y" + concrete modernization recipes per test file.
+
+**When this fires:**
+- `profile: qa-tester` (per `~/.claude/cortex/user.yaml`), AND
+- Phase 1 inventory found > 0 existing test files (skip for greenfield repos — those go to `/start` instead)
+
+When OFF (default for `dev` / `ai-engineer` / `minimal` profiles), Phase 1b is skipped — Phase 2 audit alone is enough for general-purpose use.
+
+### Phase 1b workflow
+
+1. **Detect existing test frameworks + tools** from `package.json` + test config files + test-file imports:
+   - Test runners: Vitest / Jest / node:test / pytest / mocha
+   - E2E: Playwright / Cypress / WebdriverIO / Selenium
+   - Component: @testing-library/{react,vue,svelte,angular}
+   - A11y: axe-core / jest-axe / @axe-core/playwright / pa11y
+   - Visual: Chromatic / Percy / Playwright `toHaveScreenshot()`
+   - Mutation: Stryker / PIT / mutpy
+   - Property-based: fast-check / Hypothesis / jqwik
+   - Contract: Pact / Schemathesis / consumer-driven test framework
+   - Mocking: MSW / nock / Sinon / Jest auto-mock
+   - Storybook: + addon-a11y / addon-interactions / test-runner
+   - Build/test orchestration: Nx / Turbo / Lerna / Bazel
+
+2. **Parallel web research dispatch (cap 5 tools per audit run)** — for each detected tool/framework, spawn a research agent:
+   ```
+   "Research best practices 2026 for <tool>: 
+    - 3 modern usage patterns with 2026 cited URLs
+    - 3 anti-patterns / smells specific to this tool (with detection regex / static check if possible)
+    - 1 concrete migration recipe for the most common deprecation in 2026
+    - Min 5 cited URLs, recency-biased to last 12 months"
+   ```
+   Output: `$CORTEX_DATA_HOME/research/<slug>-tooling-<tool>-<date>.md` per tool.
+
+3. **Apply findings to existing test files** — for each test file:
+   - Match anti-patterns (e.g. Vitest `describe.only` left in main, Playwright CSS-class selectors, snapshot > 100 lines, Jest manual mocks of own modules)
+   - Match deprecated patterns (e.g. Cypress `cy.wait(5000)` without locator, Stryker config without incremental mode, jest-axe without `expect.extend`)
+   - Match upgrade opportunities (e.g. `@testing-library/react` < 16 → 16+ has `act()` baked in)
+   - Cite the research URL for each match
+
+4. **Output**: extend `cortex/qa/test-inventory.md` with a new section **"Modernization opportunities (Phase 1b)"**:
+
+   ```markdown
+   ## Modernization opportunities (Phase 1b — qa-tester profile only)
+
+   Tooling research caches:
+   - Vitest 4 → `$CORTEX_DATA_HOME/research/<slug>-tooling-vitest-<date>.md`
+   - Playwright 1.50+ → `$CORTEX_DATA_HOME/research/<slug>-tooling-playwright-<date>.md`
+   - … (one per detected tool, cap 5)
+
+   ### Per-file findings
+
+   | File | Tool | Finding | Severity | Catalog ID | Recipe |
+   |---|---|---|---|---|---|
+   | `tests/cart.spec.ts` | Playwright | CSS-class selectors (brittle per Playwright 2026 [src]) | MED | e2e-browser-flow | replace with role/label getters; see recipe at [research URL] |
+   | `tests/payment.spec.ts` | Vitest | Snapshot 187 lines (anti-pattern per tsDetect [src]) | LOW | smell-flag | extract dynamic regions to `mask:` config |
+   | `tests/auth.test.ts` | Jest | Manual mock of own module (tight-coupling smell [src]) | MED | smell-flag | refactor to dependency-inject test fixture |
+   ```
+
+5. **Feed into Phase 5b backlog** — high-severity Phase 1b findings become P1 gaps with `[type: smell-modernization]` tag. Low-severity = P2 backlog. Don't escalate Phase 1b to P0 by default — the existing tests still pass; modernization is improvement, not block-release-worthy.
+
+### Why this matters specifically for tester onboarding
+
+When a junior tester inherits a repo with existing tests, they default to "the tests work, why touch them?" That preserves bit-rot. Phase 1b surfaces:
+
+- **Patterns that were 2024-best-practice but deprecated in 2025-2026** (e.g. Cypress single-engine model post-Playwright industry shift)
+- **Anti-patterns that ship green tests but mask real defects** (e.g. snapshot tests on dynamic regions, Jest manual mocks of own modules)
+- **Upgrade paths the original author didn't track** (e.g. Stryker pre-incremental-mode config = 10× CI cost)
+
+The tester learns by review: "ok, my repo uses pattern X; cortex says 2026 standard is Y; here's the 1-paragraph 'why' with sources." That's calibration. Over weeks the tester internalizes which patterns to question.
+
+### Cost guard
+
+5 tools × ~60K tokens per research run = ~300K tokens added to audit. Max x20 covers easily; metered API gets warning. Cap at 5 detected tools (if 8 tools detected, pick 5 by usage frequency in the repo's test files). Skip Phase 1b entirely with `--no-existing-tests-analysis` flag.
+
+### Privacy note
+
+Research queries derived from generic tool names (e.g. "Playwright 2026 best practices") + generic anti-pattern detection. Repo-internal code is NOT sent in queries. Per-file findings reference local file paths only in the local deliverable — not in research queries.
+
+---
+
 ## Phase 2 — Quality-model audit (4 parallel agents, 9 ISO-25010:2023 chars + 3 cortex extras)
 
 **This is the load-bearing phase.** Spawn four parallel general-purpose agents via the Agent tool, each owning 3 of the 12 sections. The first 9 sections map directly to **ISO/IEC 25010:2023** product-quality characteristics (Functional Suitability, Performance Efficiency, Compatibility, Interaction Capability, Reliability, Security, Maintainability, Flexibility, Safety — Safety promoted to top-level in the 2023 revision). Sections 10-12 are cortex extras (correctness invariants, AI-specific testing, test observability) the standard doesn't yet cover at the right granularity for 2026 stacks.

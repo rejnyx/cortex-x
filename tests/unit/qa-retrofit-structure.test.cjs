@@ -517,6 +517,85 @@ describe('Sprint 2.10.2 — installer profile selection (--profile=qa-tester)', 
   });
 });
 
+describe('Sprint 2.10.5 — cortex-x self-audit deliverables (eat-our-own-dogfood)', () => {
+  test('cortex/qa/AUDIT.md exists (12-section ISO 25010:2023 self-audit)', () => {
+    assert.equal(exists('cortex/qa/AUDIT.md'), true);
+  });
+
+  test('cortex/qa/testing-strategy.md exists', () => {
+    assert.equal(exists('cortex/qa/testing-strategy.md'), true);
+  });
+
+  test('cortex/qa/testing-gaps.md exists', () => {
+    assert.equal(exists('cortex/qa/testing-gaps.md'), true);
+  });
+
+  test('self-audit references ISO 25010:2023 + Phase 5a-bis catalog selection', () => {
+    const audit = read('cortex/qa/AUDIT.md');
+    assert.match(audit, /ISO\/IEC 25010:2023/);
+    assert.match(audit, /Catalog selection \(Phase 5a-bis\)/);
+    assert.match(audit, /Selected types:.*\d+ of 117/);
+  });
+
+  test('self-audit testing-gaps surfaces P0 GAP-001 (adversarial regression suite)', () => {
+    const gaps = read('cortex/qa/testing-gaps.md');
+    assert.match(gaps, /GAP-001/);
+    assert.match(gaps, /Adversarial.*regression/i);
+    assert.match(gaps, /security-lethal-trifecta/);
+    assert.match(gaps, /ai-prompt-injection-regression/);
+  });
+
+  test('docs/qa-tester-onboarding.md tutorial exists for Verča (junior tester)', () => {
+    assert.equal(exists('docs/qa-tester-onboarding.md'), true);
+    const tutorial = read('docs/qa-tester-onboarding.md');
+    assert.match(tutorial, /Den 1/);
+    assert.match(tutorial, /\/test-audit/);
+    assert.match(tutorial, /Phase 3/);
+  });
+
+  test('README.md mentions qa-tester profile section', () => {
+    const readme = read('README.md');
+    assert.match(readme, /Profile selection at install time/);
+    assert.match(readme, /qa-tester/);
+    assert.match(readme, /docs\/qa-tester-onboarding\.md/);
+  });
+});
+
+describe('Sprint 2.10.6 — Phase 1b existing-tests modernization analysis', () => {
+  test('qa-retrofit prompt has Phase 1b for existing-tests modernization', () => {
+    const prompt = read('prompts/qa-retrofit.md');
+    assert.match(prompt, /Phase 1b — Existing-tests modernization analysis/);
+    assert.match(prompt, /smell-modernization/);
+    assert.match(prompt, /Detect existing test frameworks/i);
+  });
+
+  test('Phase 1b dispatches max 5 parallel research agents per tool', () => {
+    const prompt = read('prompts/qa-retrofit.md');
+    assert.match(prompt, /cap 5 tools per audit run/);
+    assert.match(prompt, /detected tool\/framework, spawn a research agent/);
+  });
+
+  test('Phase 1b feeds findings into testing-gaps.md as P1/P2 (NEVER P0)', () => {
+    const prompt = read('prompts/qa-retrofit.md');
+    assert.match(prompt, /high-severity Phase 1b findings become P1 gaps/);
+    assert.match(prompt, /Don't escalate Phase 1b to P0 by default/);
+  });
+
+  test('qa-engineer profile declares analyze_existing_tests config', () => {
+    const profile = read('profiles/qa-engineer.yaml');
+    assert.match(profile, /analyze_existing_tests/);
+    assert.match(profile, /trigger_threshold:\s*1/);
+    assert.match(profile, /max_tools_per_run:\s*5/);
+    assert.match(profile, /backlog_type_tag:\s*smell-modernization/);
+  });
+
+  test('analyze_existing_tests cost_guard + privacy preserved', () => {
+    const profile = read('profiles/qa-engineer.yaml');
+    assert.match(profile, /cost_guard:[\s\S]*?estimated_tokens_per_tool:\s*60000/);
+    assert.match(profile, /flat_subscription_safe:\s*true/);
+  });
+});
+
 describe('Sprint 2.10 — R1 memo three-hop traceability', () => {
   const memoText = read('docs/research/sprint-2.10-qa-retrofit-2026-05-09.md');
 

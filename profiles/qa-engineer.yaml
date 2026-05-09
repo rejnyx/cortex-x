@@ -202,6 +202,55 @@ auto_research_nudge:
 # under each gap entry in testing-gaps.md. Removes the cold-start tax for
 # juniors who don't yet know which sources to trust. SKIP/OPEN/off-limits gaps
 # are NEVER auto-researched (context-dependent). Cost guard: hard stop at 15.
+# Phase 1b — Existing-tests modernization analysis (Sprint 2.10.6)
+# When repo has > 0 existing test files AND profile is qa-tester:
+# 1. Detect existing test frameworks/tools in package.json + configs
+# 2. Dispatch parallel WebSearch (cap 5 tools) for 2026 best practices per tool
+# 3. Match anti-patterns / deprecated patterns / upgrade opportunities per file
+# 4. Append "Modernization opportunities" section to test-inventory.md
+# 5. Feed high-severity findings into testing-gaps.md as P1 [type: smell-modernization]
+#
+# Why: junior tester inheriting a repo defaults to "tests work, don't touch".
+# Phase 1b surfaces 2024-best-practice patterns deprecated in 2025-2026 +
+# green-test-but-defective anti-patterns + upgrade paths the original author
+# didn't track. Calibrates tester's "what's a good pattern?" judgment via
+# citation chains, week by week.
+analyze_existing_tests:
+  enabled: true              # default ON for qa-tester profile
+  trigger_threshold: 1       # only run if >0 existing test files (skip greenfield)
+  max_tools_per_run: 5       # cap parallel research dispatch
+  apply_to_files: all        # match anti-patterns + deprecations against every test file
+  query_template: |
+    Research best practices 2026 for <tool>:
+    - 3 modern usage patterns (2026 cited URLs)
+    - 3 anti-patterns / smells (with detection regex if possible)
+    - 1 concrete migration recipe for most common deprecation
+    - Min 5 cited URLs, recency-biased to last 12 months
+  output:
+    research_per_tool: "{cortex_data_home}/research/{slug}-tooling-{tool}-{date}.md"
+    inventory_section: "## Modernization opportunities (Phase 1b — qa-tester profile only)"
+    backlog_priority:
+      severity_high: P1
+      severity_medium: P2
+      severity_low: P2     # never P0 — existing tests still pass; modernization isn't block-release
+    backlog_type_tag: smell-modernization
+  cost_guard:
+    estimated_tokens_per_tool: 60000  # ~300K total for 5-tool sweep
+    flat_subscription_safe: true
+    metered_warning: true
+  detected_tools_examples:
+    test_runners: [vitest, jest, node:test, pytest, mocha]
+    e2e: [playwright, cypress, webdriverio, selenium]
+    component: [@testing-library/react, @testing-library/vue, vue-test-utils]
+    a11y: [axe-core, jest-axe, "@axe-core/playwright", pa11y]
+    visual: [chromatic, percy, playwright-screenshot]
+    mutation: [stryker, pit, mutpy]
+    property: [fast-check, hypothesis, jqwik]
+    contract: [pact, schemathesis]
+    mocking: [msw, nock, sinon]
+    storybook: [storybook, "@storybook/addon-a11y", "@storybook/addon-interactions"]
+    orchestration: [nx, turbo, lerna, bazel]
+
 auto_research_per_gap:
   enabled: true              # default ON for qa-tester profile
   max_gaps: 15               # P0 + top P1 by risk; past 15 = budget-prohibitive
