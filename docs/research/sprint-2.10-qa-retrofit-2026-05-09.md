@@ -8,7 +8,7 @@ operating_principles: R1 (research-before-implement), R3 (one defense layer + on
 
 # Sprint 2.10 — QA Retrofit (R1)
 
-> Operator request 2026-05-09: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Targeting `order-mage/eshop` + `order-mage/admin` as first dogfood.
+> Operator request 2026-05-09: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Targeting `<colleague-storefront-repo>` + `<colleague-admin-repo>` as first dogfood.
 
 ## Goal
 
@@ -58,7 +58,7 @@ Mirrors `/audit` shape. Auto-distributed via `install.sh` / `install.ps1` (`shar
 
 `agents/planner.md` updated with QA-engineer concern override (10 concerns instead of canonical 6). Topic naming convention: `{stack-or-profile}-qa-{concern}-{year}`.
 
-## Stack-specific research — order-mage/eshop + order-mage/admin
+## Stack-specific research — <colleague-storefront-repo> + <colleague-admin-repo>
 
 Pre-cached for the field-test colleague. Findings if the planner is invoked on this stack pair:
 
@@ -122,18 +122,18 @@ Pre-cached for the field-test colleague. Findings if the planner is invoked on t
 1. **DevOps/CI concern taxonomy expansion** — qa_concerns went from 10 → 15. New concerns: `ci-pipeline-testing` (actionlint, pinact, gate consistency), `iac-testing` (kubeval, kube-linter, tflint, OPA/Conftest), `container-security` (hadolint, Trivy/grype, syft SBOM), `deploy-safety` (canary, post-deploy smoke, DORA), `secret-supply-chain` (gitleaks, osv-scanner, dep pinning).
 2. **Auto-research-nudge pattern** — every gap in `cortex/qa/testing-gaps.md` ships with an inline `**Research nudge:**` line proposing a 1-paragraph WebSearch query. Trains junior testers in the audit-then-research-first discipline that closed the 75/16 AI-testing-adoption gap (testdevlab 2026 [4]). Skipped for trivial gaps (<5min) to avoid friction-without-value.
 3. **Profile + planner + prompt synchronized** — `profiles/qa-engineer.yaml` declares `qa_concerns: [15 concerns]` + `auto_research_nudge: { enabled: true, apply_to: [P0, P1, P2], skip_for_trivial: true }`. `agents/planner.md` documents the 15-concern taxonomy. `prompts/qa-retrofit.md` adds Phase 5e auto-research-nudge generator behavior.
-4. **Field-test deliverables (order-mage/eshop + admin)** — auditor (this session) wrote 6 deliverables (AUDIT.md + testing-strategy.md + testing-gaps.md per repo) with the Sprint 2.10.1 concern set already applied. Admin testing-gaps.md surfaces 7 explicit DevOps/CI gaps (GAP-017 through GAP-023) that the testing-only taxonomy would have missed.
+4. **Field-test deliverables (<colleague-storefront-repo> + admin)** — auditor (this session) wrote 6 deliverables (AUDIT.md + testing-strategy.md + testing-gaps.md per repo) with the Sprint 2.10.1 concern set already applied. Admin testing-gaps.md surfaces 7 explicit DevOps/CI gaps (GAP-017 through GAP-023) that the testing-only taxonomy would have missed.
 
 **Why this matters**: a 2026 tester owns the full "is verification real" surface — not just test code. Test-pass without a CI gate that runs them = nothing verified. The qa-engineer profile explicitly names both layers so junior testers learn this from day 1.
 
 ## Sprint 2.10.2 follow-up — installer profile selection (same-day operator extension)
 
-**Operator request 3:** "možná by jsme mohli mít i možnost, že kdyř uživatel nainstaluje cortex, tak si bude moct vybrat profil, testerka Verča si vybere QA tester a hned dostane vše potřebné pro ni"
+**Operator request 3:** "možná by jsme mohli mít i možnost, že kdyř uživatel nainstaluje cortex, tak si bude moct vybrat profil, testerka the junior tester si vybere QA tester a hned dostane vše potřebné pro ni"
 
 **Shipped Sprint 2.10.2**:
 
-1. **`install.sh` + `install.ps1` extended** — accept `--profile=<name>` CLI arg, `$CORTEX_PROFILE` env var, OR interactive prompt (TTY-gated). Profiles: `dev` (default) | `qa-tester` (Verča) | `ai-engineer` | `minimal`.
-2. **qa-tester profile installs `/test-audit` user-skill** at `~/.claude/skills/test-audit/SKILL.md` (sourozenec `/cortex-init` — Verča může napsat `/test-audit` ve svém claude session a běží přímo).
+1. **`install.sh` + `install.ps1` extended** — accept `--profile=<name>` CLI arg, `$CORTEX_PROFILE` env var, OR interactive prompt (TTY-gated). Profiles: `dev` (default) | `qa-tester` (the junior tester) | `ai-engineer` | `minimal`.
+2. **qa-tester profile installs `/test-audit` user-skill** at `~/.claude/skills/test-audit/SKILL.md` (sourozenec `/cortex-init` — the junior tester může napsat `/test-audit` ve svém claude session a běží přímo).
 3. **Profile written to `~/.claude/cortex/user.yaml`** as `profile: qa-tester` — session-start hook + Phase 5f auto-research-per-gap can read it.
 4. **Profile-aware install banner** — `qa-tester` profile gets QA-tailored "Next step" with `/test-audit` first, qa-engineer profile reference, and standards-to-read-first list (`testing.md`, `correctness.md`, `security.md`).
 5. **Integration tests** (`tests/integration/install-roundtrip.test.cjs`) — qa-tester install creates `/test-audit` user-skill + writes `profile: qa-tester` to user.yaml + banner mentions `/test-audit`. Default `dev` install does NOT install `/test-audit` at user level (keeps default install lean).
@@ -197,7 +197,7 @@ Raw research caches at `c:\tmp\catalog-research-{1..5}-*.md`. Catalog correction
 - **Auto-generating > 3 sample tests** — past 3, AI is generating speculative tests humans won't review. 3 high-quality sample tests >> 30 boilerplate ones.
 - **Replacing `/audit`** — these prompts are siblings. `/audit` is general 12-dim; `/test-audit` is testing lens. Run BOTH for comprehensive engagement.
 - **Profile auto-detection** — qa-engineer is invoked explicitly via `/test-audit`; the detector pipeline doesn't auto-classify a project as `qa-engineer` (it's a lens, not a stack).
-- **Implementing the field test on order-mage repos** — Sprint 2.10 ships the infrastructure; the dogfood field test is a separate session.
+- **Implementing the field test on <colleague-company> repos** — Sprint 2.10 ships the infrastructure; the dogfood field test is a separate session.
 
 ## Risks + mitigations
 
@@ -210,25 +210,25 @@ Raw research caches at `c:\tmp\catalog-research-{1..5}-*.md`. Catalog correction
 - **Risk:** Citations decay (URLs go 404 over months).
   **Mitigation:** `cortex-doctor` already verifies 3-hop chains periodically; same coverage applies to qa-retrofit outputs.
 
-- **Risk:** Stack-specific research (e.g. order-mage e-commerce) gets stale within months.
+- **Risk:** Stack-specific research (e.g. <colleague-company> e-commerce) gets stale within months.
   **Mitigation:** Phase 4 research has 12-month TTL per `config/research.yaml`; re-running `/test-audit` quarterly refreshes findings.
 
-## Field-test plan — order-mage/eshop + order-mage/admin
+## Field-test plan — <colleague-storefront-repo> + <colleague-admin-repo>
 
 Operator's colleague (junior tester) will:
 
 1. Clone cortex-x → `./install.ps1` → propagates `qa-retrofit` prompt + `test-audit` skill + templates + profile to her `~/.claude/`
-2. In her duplicate of `order-mage/eshop`: invoke `/cortex-init` → general retrofit (CLAUDE.md, etc.)
+2. In her duplicate of `<colleague-storefront-repo>`: invoke `/cortex-init` → general retrofit (CLAUDE.md, etc.)
 3. Then invoke `/test-audit` → 30-min QA audit produces:
    - `cortex/qa-context.md` (P0 — Next.js + Stripe-likely + admin pair detected)
    - `cortex/qa/test-inventory.md` (P1 — what tests exist, smell flags via tsDetect 5)
    - `cortex/qa/AUDIT.md` (P2 — 12 sections, ISO 25010:2023 + 3 cortex extras)
    - 5 questions (P3 — top business risk = checkout failure visibility, etc.)
-   - `$CORTEX_DATA_HOME/research/order-mage-eshop-qa-2026-05-09.md` (P4 — 4-5 stack-specific topics from QA concerns)
+   - `$CORTEX_DATA_HOME/research/colleague-storefront-qa-2026-05-09.md` (P4 — 4-5 stack-specific topics from QA concerns)
    - `cortex/qa/testing-strategy.md` (P5 — 12-month pyramid plan, tool decisions, CI gates, ISO targets)
    - `cortex/qa/testing-gaps.md` (P5 — P0/P1/P2 backlog with 3-hop citations)
 4. Optional: paste prompt with `--seed-tests` → top 3 P0 gaps materialize as runnable test files in `tests/qa-retrofit/`
-5. Repeat for `order-mage/admin` — separate run, separate `cortex/qa/` directory
+5. Repeat for `<colleague-admin-repo>` — separate run, separate `cortex/qa/` directory
 
 Expected wow moment: she walks in day 2 with a senior-consultant deliverable already done. Her job: review, edit, prioritize, and execute the backlog with the team.
 

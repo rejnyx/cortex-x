@@ -484,7 +484,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.10 — QA Retrofit infrastructure ✅ SHIPPED 2026-05-09 (M effort, operator-targeted dogfood)
 
-**Status**: ✅ Shipped 2026-05-09 late evening. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl." Field-test target: `order-mage/eshop` + `order-mage/admin`. R1 memo: [`docs/research/sprint-2.10-qa-retrofit-2026-05-09.md`](research/sprint-2.10-qa-retrofit-2026-05-09.md) — 38 cited sources via 4 parallel research agents.
+**Status**: ✅ Shipped 2026-05-09 late evening. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl." Field-test target: `<colleague-storefront-repo>` + `<colleague-admin-repo>`. R1 memo: [`docs/research/sprint-2.10-qa-retrofit-2026-05-09.md`](research/sprint-2.10-qa-retrofit-2026-05-09.md) — 38 cited sources via 4 parallel research agents.
 
 **Why**: 75% of orgs target AI-driven testing, only 16% successfully adopt — differentiator is starting with audit baseline before automating (testdevlab 2026). cortex-x already has audit infra (existing-project-audit, planner, synthesizer, research dispatch); the QA lens closes the gap with a senior-consultant deliverable on day 1.
 
@@ -501,7 +501,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 **Tests**: +46 — `tests/unit/qa-retrofit-structure.test.cjs` (artifact existence + 7-phase prompt structure + grounded-references + risk-tiered profile + template hbs slots + skill cross-references + planner override + R1 memo 30+ sources + 3-hop traceability tags).
 
-**Field-test plan**: colleague clones cortex-x → `./install.ps1` → in her duplicate of `order-mage/eshop` invokes `/cortex-init` (general retrofit) then `/test-audit` (QA lens) → 30-min audit produces 6 deliverables in `cortex/qa/`. Optional `--seed-tests` materializes top 3 P0 gaps as runnable test files. Repeat for `order-mage/admin`. Expected wow moment: she walks in day 2 with a senior-consultant deliverable already done; reviews + executes, doesn't build.
+**Field-test plan**: colleague clones cortex-x → `./install.ps1` → in her duplicate of `<colleague-storefront-repo>` invokes `/cortex-init` (general retrofit) then `/test-audit` (QA lens) → 30-min audit produces 6 deliverables in `cortex/qa/`. Optional `--seed-tests` materializes top 3 P0 gaps as runnable test files. Repeat for `<colleague-admin-repo>`. Expected wow moment: she walks in day 2 with a senior-consultant deliverable already done; reviews + executes, doesn't build.
 
 **Out of scope** (explicit non-goals): auto-running mutation testing in `qa-retrofit` (recommended in P5, not executed; Stryker integration = Sprint 2.3 work); auto-generating > 3 sample tests; replacing `/audit` (siblings, not overlap); profile auto-detection (qa-engineer is invoked explicitly).
 

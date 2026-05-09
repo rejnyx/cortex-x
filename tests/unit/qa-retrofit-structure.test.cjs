@@ -545,7 +545,7 @@ describe('Sprint 2.10.5 — cortex-x self-audit deliverables (eat-our-own-dogfoo
     assert.match(gaps, /ai-prompt-injection-regression/);
   });
 
-  test('docs/qa-tester-onboarding.md tutorial exists for Verča (junior tester)', () => {
+  test('docs/qa-tester-onboarding.md tutorial exists for the junior tester', () => {
     assert.equal(exists('docs/qa-tester-onboarding.md'), true);
     const tutorial = read('docs/qa-tester-onboarding.md');
     assert.match(tutorial, /Den 1/);

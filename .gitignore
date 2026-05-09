@@ -107,3 +107,10 @@ config/ship-ready-denylist.local.txt
 # Maintainer interview prep / job-search docs — never shipped, never tracked.
 # Pattern matches sanitize-rules.json fileExclusions for "docs/pohovor-*.md".
 /docs/pohovor-*.md
+
+# Dogfood archives — by definition contain audit findings about PRIVATE third-
+# party repos (colleague's company, employer's stack, etc.). Going public would
+# leak security findings + tech-debt evidence. Generate locally, review, NEVER
+# commit. Sprint 2.10.7 cleanup: removed pre-existing docs/dogfood/* archive
+# and added this rule to prevent recurrence.
+/docs/dogfood/
