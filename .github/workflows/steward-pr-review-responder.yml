@@ -1,0 +1,89 @@
+# steward-pr-review-responder.yml — autonomous Steward PR comment responder.
+#
+# Sprint 1.8.8 shipped pr_review_responder action_kind. This workflow runs
+# every 4 hours and scans open PRs for unresolved review comments, then
+# files gh issues to track follow-ups (tagged with the originating PR).
+#
+# No LLM, no file edits — only opens gh issues. Each candidate produces
+# ONE issue per actionable PR comment, labeled `steward-pr-followup`.
+#
+# Skip-commit pattern: this workflow does NOT commit anything to the repo.
+
+name: steward pr-review-responder
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'   # Every 4 hours
+
+concurrency:
+  group: steward-pr-review-responder-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-pr-review-responder:
+    name: steward pr-review-responder
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read       # gh pr list
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity (Steward — unused but kept for journal)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward pr-review-responder dry-run (plan only)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=pr_review_responder \
+            --json > /tmp/steward-prresp-plan.json
+          cat /tmp/steward-prresp-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-prresp-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No PR comments to respond to — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward pr-review-responder execute (gh issue create per comment)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-prresp-plan.json
+        env:
+          # No OPENROUTER_API_KEY — pr_review_responder is deterministic
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-pr-review-responder-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
