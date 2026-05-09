@@ -1872,6 +1872,46 @@ async function _runExecuteInner(opts, ctx) {
       }
     }
 
+    // Sprint 2.9.6c: detector "no candidates" is a success-shape exit, not a
+    // failure. todo_triage / dep_update_patch / flaky_test_repair / etc. each
+    // declare a *_NO_CANDIDATES code that means "scanned, found nothing to do".
+    // Treat as clean skip (exit 0) so the cron workflow doesn't false-fail.
+    const NO_CANDIDATES_CODES = new Set([
+      'TODO_TRIAGE_NO_CANDIDATES',
+      'DEP_UPDATE_NO_CANDIDATES',
+      'FLAKY_REPAIR_NO_CANDIDATES',
+      'DOC_DRIFT_NO_CANDIDATES',
+      'LINT_FIX_NO_CANDIDATES',
+      'COVERAGE_GAP_NO_CANDIDATES',
+      'PR_RESPONDER_NO_CANDIDATES',
+      'HARVEST_NO_CANDIDATES',
+    ]);
+    if (!applyResult.ok && NO_CANDIDATES_CODES.has(applyResult.code)) {
+      rollbackToOriginal(repoRoot, originalBranch, plan.branch);
+      safeJournal(slug, {
+        ts: new Date().toISOString(),
+        trigger: plan.trigger || 'manual',
+        tier: 'T0',
+        event: 'no_actionable_step',
+        outcome: 'skipped',
+        actor: 'steward',
+        action_kind: plan.action_kind,
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+        code: applyResult.code,
+        message: applyResult.error,
+      });
+      return {
+        ok: true,
+        no_action: true,
+        slug,
+        action_kind: plan.action_kind,
+        code: applyResult.code,
+        message: applyResult.error,
+        exitCode: 0,
+      };
+    }
+
     if (!applyResult.ok) {
       // Sprint 1.9.0 review (correctness/HIGH): when applyEditsToFilesystem
       // rejects mid-loop (denylist / unsafe path on edit N of M), files
