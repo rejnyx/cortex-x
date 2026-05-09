@@ -341,10 +341,54 @@ describe('Sprint 2.10.4 — test-types-catalog SSOT (exhaustive 2026 catalog)', 
     assert.match(cat, /risk-tier escalation/i);
   });
 
-  test('catalog declares ~112 entries total', () => {
+  test('catalog declares 117 entries total (112 base + 5 added Sprint 2.10.4 post-research)', () => {
     const cat = read('standards/test-types-catalog.md');
-    assert.match(cat, /112/);
+    assert.match(cat, /117 test types/);
     assert.match(cat, /typical_audit_selection|actual selection|typically picks/i);
+  });
+
+  test('catalog has 5 new Sprint 2.10.4 entries (MCP, A2A, multi-turn-sim, cache-poisoning, regression-confirmation)', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /### `ai-mcp-protocol-test` \(NEW Sprint 2\.10\.4\)/);
+    assert.match(cat, /### `ai-a2a-protocol-test` \(NEW Sprint 2\.10\.4\)/);
+    assert.match(cat, /### `ai-agent-multi-turn-simulation` \(NEW Sprint 2\.10\.4/);
+    assert.match(cat, /### `reliability-cache-poisoning` \(NEW Sprint 2\.10\.4/);
+    assert.match(cat, /### `regression-confirmation-istqb` \(NEW Sprint 2\.10\.4/);
+  });
+
+  test('catalog inline merge — security entries cite specific 2026 sources', () => {
+    const cat = read('standards/test-types-catalog.md');
+    // Verify inline citations were merged into the entries (not just appended at bottom)
+    assert.match(cat, /### `security-sast-static`[\s\S]*?Semgrep wins security-focused CI[\s\S]*?46% detection/);
+    assert.match(cat, /### `security-sca-deps`[\s\S]*?osv-scanner v2\.3\.5\+[\s\S]*?`npm audit` is deprecated/);
+    assert.match(cat, /### `security-fuzz-binary`[\s\S]*?libFuzzer is in maintenance-only mode/);
+    assert.match(cat, /### `security-iast-instrumented`[\s\S]*?consolidating into ADR/);
+    assert.match(cat, /### `security-secret-scanning`[\s\S]*?Run BOTH/);
+  });
+
+  test('catalog inline merge — AI entries cite 2026 leaders + determinism-is-dead', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /### `ai-eval-suite-rubric`[\s\S]*?Promptfoo or DeepEval.*Braintrust/);
+    assert.match(cat, /### `ai-prompt-injection-regression`[\s\S]*?garak.*PyRIT.*Promptfoo/);
+    assert.match(cat, /### `ai-hallucination-detection`[\s\S]*?Patronus Lynx is current SOTA/);
+    assert.match(cat, /### `ai-determinism-guard`[\s\S]*?DETERMINISM IS DEAD/);
+  });
+
+  test('catalog inline merge — DevOps entries note dead tools + March 2026 trivy-action incident', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /### `devops-iac-lint`[\s\S]*?DEAD in 2026/);
+    assert.match(cat, /### `devops-iac-lint`[\s\S]*?kube-linter.*Polaris/);
+    assert.match(cat, /### `devops-action-pinning`[\s\S]*?March 19 2026 trivy-action compromise/);
+    assert.match(cat, /### `devops-sbom-generation`[\s\S]*?EU CRA.*CycloneDX 1\.6/);
+  });
+
+  test('catalog inline merge — perf+compliance with 2026 dates + INP→TBT proxy', () => {
+    const cat = read('standards/test-types-catalog.md');
+    assert.match(cat, /### `perf-load-k6`[\s\S]*?k6 wins JS\/TS/);
+    assert.match(cat, /### `perf-budget-lighthouse`[\s\S]*?TBT.*200ms.*proxy/);
+    assert.match(cat, /### `compliance-wcag-22-aa`[\s\S]*?EAA enforcement live since 2025-06-28/);
+    assert.match(cat, /### `compliance-pci-dss-l4`[\s\S]*?PCI-DSS v4\.0\.1/);
+    assert.match(cat, /### `compliance-eu-ai-act`[\s\S]*?2026-08-02/);
   });
 
   test('every catalog entry has the canonical metadata fields', () => {
@@ -361,12 +405,13 @@ describe('Sprint 2.10.4 — test-types-catalog SSOT (exhaustive 2026 catalog)', 
     }
   });
 
-  test('qa-engineer profile references the catalog', () => {
+  test('qa-engineer profile references the catalog (117 entries post-Sprint 2.10.4)', () => {
     const profile = read('profiles/qa-engineer.yaml');
     assert.match(profile, /test_types_catalog/);
-    assert.match(profile, /total_entries:\s*112/);
+    assert.match(profile, /total_entries:\s*117/);
     assert.match(profile, /test-types-catalog\.md/);
     assert.match(profile, /category_list/);
+    assert.match(profile, /research_validated/);
   });
 
   test('qa-retrofit prompt has Phase 5a-bis catalog-selection oracle', () => {

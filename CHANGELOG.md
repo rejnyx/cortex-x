@@ -4,6 +4,55 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-10 morning — Sprint 2.10.4 follow-up: inline-merge research corrections + 5 new entries (112→117) + live install end-to-end smoke)
+
+**Operator:** "pokračuj merge research findings do test-types-catalog" + "otestuj to sám na nějakém novém složce, zda vše funguje jak má".
+
+**Inline-merge of 5-agent research corrections (148 cited URLs)** into individual catalog entries — previously only an apendix at bottom; now each affected entry has 2026 sources + corrections inline at point of use:
+
+- `security-sast-static`: Semgrep wins (46% vs SonarQube 19%); CodeQL deepest dataflow (free for OSS via GHAS); SonarQube positioned as different category (quality + security combined)
+- `security-sca-deps`: **`npm audit` flagged deprecated as sole gate** → osv-scanner v2.3.5+ canonical
+- `security-secret-scanning`: **Run BOTH** gitleaks pre-commit + trufflehog CI (different layers)
+- `security-iast-instrumented`: **standalone IAST consolidating into ADR** in 2026; Contrast still leader
+- `security-fuzz-binary`: **libFuzzer maintenance-only since late 2022** → AFL++ for greenfield
+- `ai-eval-suite-rubric`: **two-tool 2026 consensus** = Promptfoo/DeepEval (CI) + Braintrust (prod)
+- `ai-prompt-injection-regression`: **three-tool quorum** = garak + PyRIT + Promptfoo
+- `ai-hallucination-detection`: **Patronus Lynx is current SOTA** (open Llama-3 fine-tune, beats GPT-4o by 8.3%)
+- `ai-determinism-guard`: **DETERMINISM IS DEAD in 2026** — `seed=0` best-effort on OpenAI; Anthropic exposes none. Use property-based + LLM-judge tests, not snapshots
+- `devops-iac-lint`: **dead tools called out** (kubeval, Datree, copper, config-lint, Terrascan, standalone tfsec) → live stack kube-linter + Polaris (k8s); TFLint + Trivy config + Checkov (Terraform)
+- `devops-action-pinning`: **March 19 2026 trivy-action compromise** → SHA-pin alone insufficient; stack = pinact + StepSecurity Harden Runner
+- `devops-sbom-generation`: **EU CRA mandates CycloneDX 1.6+ or SPDX 3.0.1+** for products sold in EU after 2027-12-11
+- `reliability-chaos-injection`: Chaos Mesh edges Litmus for K8s-first 2026
+- `perf-load-k6`: k6 wins JS/TS, Gatling wins JVM (210K RPS), JMeter retired
+- `perf-budget-lighthouse`: **INP unmeasurable in lab** → use TBT <200ms as Lighthouse-CI proxy; 43% of sites still fail INP
+- `compliance-wcag-22-aa`: EAA enforcement live since 2025-06-28; existing services 2030-06-28 transition; penalties €100K/4% revenue
+- `compliance-pci-dss-l4`: **v4.0.1 only active version**; 51 future-dated requirements enforceable since 2025-03-31
+- `compliance-eu-ai-act`: **2026-08-02 hard deadline** (Annex III) unless Digital Omnibus defers to 2027-12-02
+- `compliance-soc2-evidence`: Vanta (best SMB) / Drata (strongest implementation) / Sprinto (budget tier)
+
+**5 new entries added (112 → 117 total)**:
+1. `regression-confirmation-istqb` (functional, NEW) — explicit ISTQB CTFL v4.0.1 change-related testing distinction (regression vs confirmation)
+2. `reliability-cache-poisoning` (reliability, NEW) — Socket.dev pattern post axios hijack March 2026 + SANDWORM_MODE incidents
+3. `ai-mcp-protocol-test` (ai-eval, NEW) — MCP Inspector + stdio/HTTP transport tests; 97M monthly SDK downloads Feb 2026
+4. `ai-a2a-protocol-test` (ai-eval, NEW) — Agent-to-Agent v1.0 protocol surfaces; tooling early stage
+5. `ai-agent-multi-turn-simulation` (ai-eval, NEW) — distinct from `ai-multiturn-conversation`; asserts multi-step plan + tool-use convergence to goal (relevant for cortex-x Steward)
+
+**Profile + tests synchronized**:
+- `profiles/qa-engineer.yaml`: `total_entries: 112` → `117`; category counts updated (functional 18, reliability 10, ai-eval 15); `research_validated` field added
+- `tests/unit/qa-retrofit-structure.test.cjs`: 6 new test groups verifying inline-merge happened + 5 new entries present + count is 117
+
+**Live install end-to-end smoke test (operator-requested)**:
+- Tested `bash install.sh CORTEX_PROFILE=qa-tester CORTEX_LANGUAGE=cs` in fresh `mktemp -d` isolated home
+- ✅ `/test-audit` user-skill installed at `~/.claude/skills/test-audit/SKILL.md`
+- ✅ `/cortex-init` also installed (qa-tester gets BOTH)
+- ✅ `~/.claude/cortex/user.yaml` has `profile: qa-tester` + `language: cs`
+- ✅ Banner shows QA-tailored "Next step" with `/test-audit` first + qa-engineer profile reference + standards read-first list
+- ✅ `test-types-catalog.md` (55KB) + `qa-engineer.yaml` (12KB) + `qa-retrofit.md` (40KB) all present in `~/.claude/shared/`
+- ✅ Install verification: 40 pass, 2 warn, 0 skip (warns are pre-existing cortex-steward bash shim path issue, unrelated to qa-tester)
+- ✅ Default `dev` profile in second isolated home: only `cortex-init` skill installed, NO `test-audit` at user level, `profile: dev` in user.yaml — confirms profile selection actually differentiates
+
+**Tests**: 1759 → **1765** (+6 new structure tests).
+
 ### Added (2026-05-10 morning — Sprint 2.10.4 exhaustive test-types catalog SSOT + 5-agent web research validation)
 
 **Operator request 5:** "ať náš QA tester profil obsahuje všechny možné druh testování úplně všechny, ale použije je jen podle scanu retrofitu co zjistí" + follow-up "udělej na to i research na webu".

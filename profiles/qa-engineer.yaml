@@ -139,24 +139,25 @@ standards_included:
 #   q3_compliance × catalog.compliance_tag → escalate
 test_types_catalog:
   source: "{cortex_source}/standards/test-types-catalog.md"
-  total_entries: 112
+  total_entries: 117          # 112 base + 5 added Sprint 2.10.4 post-research
   categories: 12
   selection_principle: "Apply the LEAST testing necessary to verify the most critical risks"
   category_list:
-    - functional         # 17 entries (unit-pure-function ... i18n-runtime-render)
+    - functional         # 18 entries (unit-pure-function ... regression-confirmation-istqb [NEW 2.10.4])
     - performance        # 8 entries (perf-budget-lighthouse ... perf-cold-start-budget)
     - security           # 19 entries (sast ... rls-bypass)
-    - reliability        # 9 entries (chaos-injection ... rate-limit-test)
+    - reliability        # 10 entries (chaos-injection ... cache-poisoning [NEW 2.10.4])
     - correctness        # 6 entries (property-fast-check ... line-branch-coverage)
     - contract           # 6 entries (pact-consumer ... api-versioning)
     - a11y               # 6 entries (axe-component ... rtl-locale)
-    - ai-eval            # 12 entries (eval-suite-rubric ... multiturn-conversation)
+    - ai-eval            # 15 entries (eval-suite-rubric ... mcp-protocol-test [NEW] / a2a-protocol-test [NEW] / agent-multi-turn-simulation [NEW])
     - devops             # 14 entries (workflow-lint ... cache-poisoning)
     - data               # 4 entries (validation-boundary ... etl-lineage)
     - compliance         # 8 entries (gdpr-art32 ... coppa-ferpa)
     - docs               # 3 entries (link-rot ... api-doc-drift)
-  typical_audit_selection: "12-25 entries from the 112-entry catalog"
+  typical_audit_selection: "12-25 entries from the 117-entry catalog"
   re_curation_cadence: "annually (or after major shifts: ISO 25010 revision, ASVS major version, AI Act enforcement phase)"
+  research_validated: "Sprint 2.10.4 — 5-agent web research, 148 cited URLs, inline corrections applied to all material-change entries"
 
 # Research topic taxonomy (qa-retrofit Phase 4 uses this)
 # Split into testing-only (10) + DevOps/CI quality (5) per Sprint 2.10.1 operator request.
