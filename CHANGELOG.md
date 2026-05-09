@@ -4,6 +4,23 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-09 late evening — Sprint 2.10 QA Retrofit)
+
+**Sprint 2.10 (QA Retrofit infrastructure)** — depth-first testing-lens audit pipeline. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl, ne flat testing." Field-test target: `order-mage/eshop` + `order-mage/admin`. R1 memo: `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` (web-research-dispatch-backed, 38 cited sources across 4 parallel research agents).
+
+**What shipped**:
+- `prompts/qa-retrofit.md` — 7-phase testing-focused audit (P0 detect → P1 inventory + tsDetect 5-detector smell scan → P2 4-agent ISO 25010:2023 9-char + 3 cortex extras with Bach HTSM SFDPOT depth traversal → P3 5-Q human gate → P4 QA-specific 10-concern research → P5 testing-strategy.md + testing-gaps.md synthesis → P6 sample-test seeding opt-in)
+- `profiles/qa-engineer.yaml` — framework-agnostic lens; risk-tiered quality gates (high-risk: 80% line + 70% branch + 75% mutation, mid: 70/60/60, low: advisory); CI gating philosophy (block-on-red / soft-block / inform-only / nightly-only); ASVS L1/L2/L3 compliance mappings
+- `templates/testing-strategy.md.hbs` + `templates/testing-gaps.md.hbs` — Handlebars templates with full 3-hop citation traceability slots (claim → finding ID → source URL); 9 ISO 25010:2023 char target rows; pyramid plan (now / 3mo / 12mo); P0/P1/P2/SKIP/OPEN/off-limits backlog format
+- `shared/skills/test-audit/SKILL.md` — `/test-audit` slash command, auto-distributed via existing `install.{sh,ps1}` `shared/*` recursive copy
+- `agents/planner.md` — extended with QA-engineer profile override (10 QA-specific concerns: e2e-strategy, unit-fitness, contract-testing, security-testing, perf-testing, a11y-testing, ai-eval, test-observability, mutation-fitness, risk-based-prioritization); topic naming `{stack-or-profile}-qa-{concern}-{year}`
+
+**Positioning** (research-grounded): "AI-augmented tester" not "tester replacement". 75% of orgs target AI testing, only 16% successfully adopt — differentiator is starting with audit baseline before automating (testdevlab 2026). cortex-x test-audit closes that gap with senior-consultant-grade deliverable on day 1.
+
+**Grounded in**: ISO/IEC 25010:2023 (9 chars including new Safety), OWASP ASVS 5.0 (May 2025), Bach HTSM SFDPOT, Feathers characterization tests + seams, Gregory/Crispin Agile Testing Quadrants, Peruma et al. tsDetect FSE'20 (5-detector starter at 85-100% precision), Trail of Bits 2026 mutation-testing-for-the-agentic-era, Anthropic Claude Code best-practices doc.
+
+**Tests**: 1601 → 1647 (+46) — `tests/unit/qa-retrofit-structure.test.cjs` validates artifacts exist + structure + cross-references + 30+ cited sources in R1 memo + 3-hop traceability tags in templates.
+
 ### Added (2026-05-09 evening — Sprint 2.9.7 + 2.9.7a + 2.9.7b property tests + bug fix)
 
 **Sprint 2.9.7 (commit `dec9acf`)** — three coordinated tracks for "all-green cron":

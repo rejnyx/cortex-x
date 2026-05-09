@@ -1,0 +1,173 @@
+name: qa-engineer
+description: QA-focused profile — for projects where the audit + retrofit goal is testing strategy specifically (existing repo, AI-augmented tester, ISO 25010 + ASVS 5.0 alignment). Pairs with /test-audit prompt.
+version: 1.0.0
+agentic_ready: true   # this profile EXPECTS AI-augmented testing workflows from day 1
+
+# AI SDK selection — see standards/ai-sdks.md decision tree
+ai_sdk: vercel       # web tier; AI-aug agents like Claude Code MCP slot in here
+ai_sdk_web: null
+
+stack:
+  framework: "*"             # framework-agnostic — qa-engineer is a lens, not a stack choice
+  runtime: "*"
+  language: "*"
+  testing:
+    unit: vitest@4 | jest@30 | node:test
+    component: react-testing-library@16 | vue-test-utils@2
+    integration: vitest@4 + msw@3
+    contract:
+      provider_schema: openapi
+      consumer: pact@13
+      fuzzer: schemathesis
+    e2e: playwright@1.50
+    mutation: stryker@9 | pitest@1
+    property: fast-check@4 | hypothesis
+    visual: chromatic | percy | playwright_screenshot
+    a11y: axe-core@4 + jest-axe | lighthouse-ci
+    perf: k6@0.55 + lighthouse-ci
+    load: k6 | artillery
+    ai_eval: vercel-ai-evals | promptfoo
+
+detect:
+  # qa-engineer is invoked explicitly via /test-audit; no auto-detection
+  invoke_via: ["/test-audit", "qa-retrofit prompt"]
+  fallback: existing-project-audit  # if user wants general audit, fall back to /audit
+
+conventions:
+  language_ui: czech       # Dave's preference; override per project
+  language_code: english
+  test_naming:
+    unit: "*.test.{ts,tsx,js,cjs}"
+    integration: "*.integration.test.{ts,cjs}"
+    e2e: "tests/e2e/**/*.spec.{ts,js}"
+    contract: "tests/contract/**/*.test.{ts,cjs}"
+    property: "tests/property/**/*.test.{ts,cjs}"
+    eval: "evals/**/*.{json,yaml}"
+  assertion_style: arrange-act-assert
+  determinism: required    # no Math.random, no Date.now in test bodies, no real network
+
+scaffolds:
+  testing_strategy: templates/testing-strategy.md.hbs
+  testing_gaps: templates/testing-gaps.md.hbs
+  qa_audit_section: templates/CLAUDE.md.hbs   # appends QA section
+
+structure:
+  - tests/
+  - tests/unit/
+  - tests/integration/
+  - tests/contract/
+  - tests/e2e/
+  - tests/property/
+  - tests/qa-retrofit/         # sample tests seeded by Phase 6 (opt-in)
+  - tests/fixtures/
+  - evals/                     # AI eval suite (golden set, regression rubric)
+  - cortex/qa/                 # qa-retrofit deliverables live here
+
+# Quality gates (mutation-tier-aware, not just line coverage)
+quality_gates:
+  high_risk_modules:
+    line_coverage: 80
+    branch_coverage: 70
+    mutation_score: 75
+    examples: [payment, auth, rls, billing, ai_tool_dispatch]
+  mid_risk_modules:
+    line_coverage: 70
+    branch_coverage: 60
+    mutation_score: 60
+    examples: [orchestrators, business_logic, schema_migrations]
+  low_risk_modules:
+    line_coverage: 50
+    mutation_score: advisory  # don't gate, just report
+    examples: [ui_presentation, glue, formatters]
+  excluded:
+    - "**/dist/**"
+    - "**/.next/**"
+    - "**/node_modules/**"
+    - "**/*.generated.*"
+
+# CI gating philosophy
+ci_gates:
+  block_on_red: [unit, integration, critical_path_e2e]
+  soft_block: [mutation_regression, perf_budget_regression]
+  inform_only: [a11y_score, visual_diff, full_mutation_sweep]
+  nightly_only: [stripe_sandbox, k6_load, full_mutation]
+
+# Compliance mappings
+compliance_targets:
+  default: ASVS_L1
+  recommended_by_stack:
+    nextjs-saas: ASVS_L2
+    chatbot-platform: ASVS_L2
+    ai-agent: ASVS_L2
+    browser-agent: ASVS_L2
+    minimal: ASVS_L1
+    astro-static: ASVS_L1
+
+# Cortex-x adversarial pipeline (for synthesis review)
+agents:
+  - cortex-thinker      # meta — proactive cross-project insights
+  - blind-hunter        # diff-only test review (catches brittle assertions)
+  - edge-case-hunter    # boundary condition enumeration in tests
+  - acceptance-auditor  # verifies gaps map to documented acceptance criteria
+  - security-auditor    # ASVS 5.0 alignment of security tests
+  - correctness-auditor # property-test + mutation-fitness coverage
+  - ssot-enforcer       # duplicate test fixtures, parallel test files
+
+hooks:
+  - block-destructive
+  - session-start
+  - pre-compact
+
+skills:
+  - test-audit
+  - cortex-init
+
+standards_included:
+  - testing
+  - correctness
+  - security
+  - ssot           # tests are also subject to SSOT; duplicated fixtures = anti-pattern
+
+# Research topic taxonomy (qa-retrofit Phase 4 uses this)
+qa_concerns:
+  - e2e-strategy
+  - unit-fitness
+  - contract-testing
+  - security-testing
+  - perf-testing
+  - a11y-testing
+  - ai-eval
+  - test-observability
+  - mutation-fitness
+  - risk-based-prioritization
+
+# References (grounded in)
+grounded_in:
+  - "ISO/IEC 25010:2023 — Software product quality model (9 characteristics: Functional Suitability, Performance Efficiency, Compatibility, Interaction Capability, Reliability, Security, Maintainability, Flexibility, Safety)"
+  - "OWASP ASVS 5.0 (May 2025) — Application Security Verification Standard, Levels 1/2/3"
+  - "James Bach — Heuristic Test Strategy Model (HTSM) — SFDPOT × FDSFSCURA"
+  - "Michael Feathers — Working Effectively with Legacy Code (characterization tests + seam model)"
+  - "Janet Gregory + Lisa Crispin — Agile Testing Quadrants (Q1-Q4)"
+  - "Peruma et al., FSE'20 — tsDetect (19 test-smell detectors)"
+  - "Trail of Bits 2026 — Mutation testing for the agentic era (StrykerJS as fitness function)"
+
+# Initial sprint shape (when applied to a fresh repo audit)
+initial_sprint:
+  phase_1: P0 detect (test surface inventory)
+  phase_2: P1 inventory (smell scan + hot-file × test-coverage map)
+  phase_3: P2 audit (12-section ISO 25010 + cortex extras)
+  phase_4: P3 human gate (5 irreducible questions)
+  phase_5: P4 research (3-5 stack-specific topics)
+  phase_6: P5 synthesis (testing-strategy.md + testing-gaps.md)
+  phase_7: P6 sample-test seeding (opt-in, top 3 P0 gaps)
+
+# 2026 default research topics for QA retrofit (planner can override per project)
+research_topics:
+  - "ISO/IEC 25010:2023 Safety characteristic testing 2026"
+  - "StrykerJS 9 mutation testing thresholds 2026"
+  - "Playwright 1.50+ vs Cypress 14 for e-commerce 2026"
+  - "OWASP ASVS 5.0 Level 2 admin panel test patterns"
+  - "fast-check property-based testing legacy codebase patterns"
+  - "tsDetect test-smell detection in TypeScript 2026"
+  - "Pact + Schemathesis contract testing for REST API pairs"
+  - "AI-augmented QA workflows — Claude Code + Playwright MCP 2026"

@@ -128,7 +128,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 
 ## Roadmap
 
-**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-5 QA infrastructure landed 2026-05-07: 207 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates)
+**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-5 QA infrastructure landed 2026-05-07: 207 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates) + **QA Retrofit lens shipped 2026-05-09 Sprint 2.10** (`prompts/qa-retrofit.md` + `profiles/qa-engineer.yaml` + `shared/skills/test-audit/SKILL.md` + 2 hbs templates with 3-hop citation traceability; ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM + tsDetect FSE'20 grounded; AI-augmented-tester positioning, not replacement)
 - Shared hooks (block-destructive, session-start [+ detector integration 2026-04-20], pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20

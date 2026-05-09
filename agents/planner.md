@@ -46,6 +46,24 @@ Profile-specific concern overrides:
 - `browser-agent` profile → add `browser-isolation` (BAS, persistent context)
 - `chatbot-platform` profile → add `multi-tenant-isolation` (RLS, prompt injection across tenants)
 - `astro-static` / `minimal` → drop to 3 concerns (security, performance, deployment); skip testing/observability — over-delivers
+- `qa-engineer` profile (invoked via `/test-audit`) → REPLACE the canonical 6 concerns with the QA-specific 10 below
+
+### QA-engineer concern taxonomy (only when invoked via `/test-audit` / `qa-retrofit.md`)
+
+When the planner is invoked from `qa-retrofit.md` Phase 4, the concern taxonomy is REPLACED with this QA-specific set:
+
+- `e2e-strategy` — Playwright vs Cypress, browser matrix, video/trace, parallelization, INP awareness
+- `unit-fitness` — coverage thresholds, branch + MC/DC, fast-check property-based
+- `contract-testing` — Pact / OpenAPI / Schemathesis, FE-BE drift, type generation
+- `security-testing` — OWASP ASVS 5.0 (May 2025) Level 1/2/3, BOLA/IDOR, RBAC matrix, audit logging
+- `perf-testing` — k6, Lighthouse CI, Web Vitals (INP since 2024), bundle budget
+- `a11y-testing` — axe-core, lighthouse-ci a11y, keyboard, ARIA, WCAG 2.2
+- `ai-eval` — eval suites for LLM features, prompt injection, hallucination guards, deterministic seeds
+- `test-observability` — flake tracking, test impact analysis, CI artifact discipline (videos, traces)
+- `mutation-fitness` — StrykerJS 9 incremental, threshold strategy, agentic-era mutation testing
+- `risk-based-prioritization` — ISO 25010:2023 mapping, Bach HTSM SFDPOT traversal, risk-coverage tradeoff
+
+Topic naming: `{stack-or-profile}-qa-{concern}-{year}` (note the `-qa-` infix). Examples: `nextjs16-qa-e2e-strategy-2026`, `supabase-qa-rls-rbac-matrix-2026`, `vercel-ai-sdk-qa-eval-suite-2026`.
 
 ## Selection rules
 

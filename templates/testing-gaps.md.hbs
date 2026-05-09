@@ -1,0 +1,96 @@
+---
+phase: 5-qa-gaps
+date: {{date}}
+slug: {{slug}}
+based_on:
+  audit: cortex/qa/AUDIT.md
+  inventory: cortex/qa/test-inventory.md
+  research: {{cortexDataHome}}/research/{{slug}}-qa-{{date}}.md
+quality_model: ISO/IEC 25010:2023
+asvs_target: L{{asvsLevel}}
+---
+
+# Testing gaps — {{projectName}}, {{date}}
+
+**Stack:** {{stack}}
+**Q1 top risk:** {{topRisk}}
+**Tester profile (Q5):** {{testerProfile}}
+**Compliance (Q3):** {{compliance}}
+
+> Backlog format: `GAP-NNN — title. Type: <missing-X>. Risk if unfixed: <one sentence>. Estimate: <Xh>. Owner skill: <profile>. [audit: §N] [src: URL] [research: topic-name]`
+>
+> Three-hop traceability is mandatory: every gap traces claim → finding ID (audit § OR research topic) → source URL.
+
+---
+
+## P0 — block-release-worthy (must close before next prod release)
+
+> Default budget: 5 items. Solo junior gets first 3; senior team can absorb all 5.
+
+- **GAP-001** — {{p0_1}}. **Type:** {{p0_1_type}}. **Risk if unfixed:** {{p0_1_risk}}. **Estimate:** {{p0_1_est}}. **Owner skill:** {{p0_1_owner}}. [audit: §{{p0_1_dim}}] [src: {{p0_1_src}}] [research: {{p0_1_topic}}]
+- **GAP-002** — {{p0_2}}. **Type:** {{p0_2_type}}. **Risk if unfixed:** {{p0_2_risk}}. **Estimate:** {{p0_2_est}}. **Owner skill:** {{p0_2_owner}}. [audit: §{{p0_2_dim}}] [src: {{p0_2_src}}] [research: {{p0_2_topic}}]
+- **GAP-003** — {{p0_3}}. [audit: §{{p0_3_dim}}] [src: {{p0_3_src}}] [research: {{p0_3_topic}}]
+- **GAP-004** — {{p0_4}}. [audit: §{{p0_4_dim}}] [src: {{p0_4_src}}] [research: {{p0_4_topic}}]
+- **GAP-005** — {{p0_5}}. [audit: §{{p0_5_dim}}] [src: {{p0_5_src}}] [research: {{p0_5_topic}}]
+
+---
+
+## P1 — sprint-worthy (close in next 2-week sprint)
+
+> Default budget: 10 items. Junior solo skips this section; senior team or pair triages weekly.
+
+- **GAP-006** — {{p1_1}}. [audit: §{{p1_1_dim}}] [src: {{p1_1_src}}] [research: {{p1_1_topic}}]
+- **GAP-007** — {{p1_2}}. [audit: §{{p1_2_dim}}] [src: {{p1_2_src}}] [research: {{p1_2_topic}}]
+- **GAP-008** — {{p1_3}}. [audit: §{{p1_3_dim}}] [src: {{p1_3_src}}] [research: {{p1_3_topic}}]
+- _(continue up to 10 items)_
+
+---
+
+## P2 — backlog (close opportunistically, track but don't gate)
+
+> Default budget: 15 items max — past that, gaps decay into "we'll do it eventually."
+
+- **GAP-016** — {{p2_1}}. [audit: §{{p2_1_dim}}] [src: {{p2_1_src}}] [research: {{p2_1_topic}}]
+- _(continue, max 15)_
+
+---
+
+## SKIP — researched and intentionally NOT recommended (cited)
+
+These look tempting but the synthesizer recommends NOT doing them given Q5 (capacity) + audit findings. Each entry must justify the skip with research + project context.
+
+- {{skip_1}} [src: {{skip_1_src}}] [research: {{skip_1_topic}}]
+  Reason: {{skip_1_reason}}
+- {{skip_2}} [src: {{skip_2_src}}] [research: {{skip_2_topic}}]
+  Reason: {{skip_2_reason}}
+
+---
+
+## OPEN QUESTIONS (sources disagree or context-dependent — operator decides)
+
+When 2+ authoritative sources contradict and both pass recency + authority filters, surface both sides. Don't pick.
+
+- **{{open_1}}** — recommendation lean: {{open_1_lean}} because {{open_1_reasoning}}. [src A: {{open_1_src_a}}] vs [src B: {{open_1_src_b}}]
+- **{{open_2}}** — _(if applicable)_
+
+---
+
+## Off-limits zones (Phase 3 Q4) — flagged but NOT actionable
+
+These gaps exist but the user said area X is off-limits without permission. FYI only — do NOT add to backlog without operator override.
+
+- FYI: {{offlimits_1}} (in {{offlimits_1_zone}}) — flagged in audit §{{offlimits_1_dim}}; not on backlog per Q4
+- FYI: {{offlimits_2}} (in {{offlimits_2_zone}}) — flagged in audit §{{offlimits_2_dim}}; not on backlog per Q4
+
+---
+
+## Progress meta
+
+- **Total gaps surfaced:** {{totalGaps}}
+- **P0:** {{p0Count}} | **P1:** {{p1Count}} | **P2:** {{p2Count}}
+- **SKIPs (cited):** {{skipCount}}
+- **OPEN:** {{openCount}}
+- **Off-limits FYI:** {{offlimitsCount}}
+- **Quality scorecard summary** (from audit): {{qualityScorecard}}
+
+Re-audit `/test-audit` in 3 months to measure progress on this backlog.
