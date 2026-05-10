@@ -57,6 +57,11 @@ const otelEmitter = require('./_lib/otel-emitter.cjs');
 // Sprint 1.9.1 — multi-window cost safety + loop detector. Pre-flight gates
 // layer above existing daily cap + per-action_key failure breaker.
 const costSafety = require('./_lib/cost-safety.cjs');
+// Sprint 2.13.1 — self-invocation tracker: every action_kind execution
+// becomes one root invocation event. Per-execute persistence to
+// $CORTEX_DATA_HOME/self-invocations/<slug>.jsonl makes the chain
+// visible via `cortex-steward status --self-invocations`.
+const selfInvocation = require('./_lib/self-invocation.cjs');
 // Sprint 2.0b — action-kind-based model routing. selectModel() resolves the
 // model slug for an LLM action_kind under the active profile + per-kind +
 // CLI overrides. routingPolicy.checkPerActionBudget gates each LLM action
@@ -1375,11 +1380,28 @@ async function runExecute(opts = {}) {
     },
   });
 
+  // Sprint 2.13.1 — self-invocation tracker handles populated by inner
+  // function once the plan is loaded (slug-bound). Outer finally
+  // finalizes regardless of which return path the inner takes — pre-lock
+  // budget caps, halt, lock contention, and post-commit success all
+  // get a completed/failure event.
+  const ctx = { tracer, agentSpan, invocationTracker: null, rootInvocationId: null };
+
   let result;
   try {
-    result = await _runExecuteInner(opts, { tracer, agentSpan });
+    result = await _runExecuteInner(opts, ctx);
     return result;
   } finally {
+    // Sprint 2.13.1 — finalize self-invocation with run outcome.
+    if (ctx.invocationTracker && ctx.rootInvocationId) {
+      try {
+        const outcome = result && result.ok ? 'success' : 'failure';
+        ctx.invocationTracker.afterInvoke(ctx.rootInvocationId, {
+          outcome,
+          error: result && result.error,
+        });
+      } catch (_) { /* best-effort */ }
+    }
     try {
       // Tag AGENT span with the run's result-shape so the trace is useful
       // even before the operator drills into children.
@@ -1427,10 +1449,54 @@ async function _runExecuteInner(opts, ctx) {
   // Phase 2 — Plan validation
   const loaded = loadPlan(opts.planFile);
   if (!loaded.ok) {
+    // R2 MEDIUM fix: surface plan-load failures into the self-invocation
+    // chain log under a synthetic 'unknown' slug. Otherwise the very runs
+    // that fail earliest (corrupt plan files, missing CLI args) are
+    // invisible in the chain log — the layer meant to surface autonomy
+    // events misses the most diagnostic ones.
+    try {
+      const fallbackTracker = selfInvocation.createInvocationTracker({ slug: 'unknown' });
+      const inv = fallbackTracker.beforeInvoke({
+        skill: 'execute:plan_load_failed',
+        args: { planFile: opts.planFile, code: loaded.code },
+      });
+      if (inv.ok) {
+        fallbackTracker.afterInvoke(inv.invocationId, { outcome: 'failure', error: loaded.error });
+      }
+    } catch (_) { /* best-effort — never block on tracker init */ }
     return loaded;
   }
   const plan = loaded.plan;
   const slug = plan.slug;
+
+  // Phase 2.0 — Sprint 2.13.1 self-invocation tracker. Each runExecute
+  // counts as one root invocation event in the operator-visible chain
+  // log. Tracker handles are stored on `ctx` so the outer runExecute
+  // wrapper finalizes the invocation on every return path (pre-lock
+  // budget caps, halt, lock contention, and post-commit success).
+  // Tracker is best-effort — its own failure cannot block the run.
+  try {
+    ctx.invocationTracker = selfInvocation.createInvocationTracker({ slug });
+    const inv = ctx.invocationTracker.beforeInvoke({
+      skill: `execute:${plan.action_kind || 'recommendation'}`,
+      args: {
+        action_kind: plan.action_kind || 'recommendation',
+        action_key: plan.action && plan.action.action_key,
+        engine,
+        trigger: plan.trigger,
+      },
+    });
+    if (inv.ok) ctx.rootInvocationId = inv.invocationId;
+    // Note: blocked guardrail fires (e.g. UNKNOWN_PARENT) cannot apply
+    // to a root invocation since parentId=null. So `inv.ok=false` here
+    // is unexpected; we degrade silently and journal will lack the
+    // self-invocation cross-reference for this run.
+  } catch (err) {
+    // Slug validation failure (path-traversal etc.) — best-effort log
+    // and proceed. The actual run security still relies on existing
+    // halt-check + lock + denylist gates, not this tracker.
+    process.stderr.write(`[steward:self-invocation] tracker init failed: ${err.message}\n`);
+  }
 
   // Phase 2.5 — Budget + circuit-breaker gates (Sprint 1.6.19)
   // Both run before lock acquisition: a tripped gate journals the refusal
