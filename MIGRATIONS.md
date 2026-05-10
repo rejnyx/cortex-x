@@ -1358,3 +1358,51 @@ touch .cortex/secret-sweep-disabled            # disables 2.6b
 - v1.5 deferred:
   - workflow_hardener: auto-fix via PR (requires HARD_DENYLIST per-kind exception); branch-protection drift detection via `gh api`
   - secret_history_sweep: per-finding gh issue (not just one bundled); rotation-helper script template
+
+---
+
+## Sprint 2.2.5 v1.5 — prompt-content injection (2026-05-10)
+
+Closes the architectural gap surfaced in Round 11 dogfood (run 25627821093, 2026-05-10): v1 ops (str_replace + insert) require the LLM to know the file's `expectedSha256`, but pre-v1.5 prompt builder never injected file content. LLM hallucinated the SHA (real output: `expectedSha256=ff5a9eef58ac... but actual=f0c0446765e4...`). Engine SHA gate caught it correctly — no bad commit landed. **Defense-by-design works as designed.** This sprint plumbs the missing piece: prompt builder now reads referenced files + injects content + SHA so the LLM copies it verbatim.
+
+### What landed
+
+1. **`extractFileReferences(body, repoRoot)`** in [`bin/steward/_lib/action-engine.cjs`](./bin/steward/_lib/action-engine.cjs) — detects backtick-wrapped path references (`/-separated path or `extension`-bearing token), reads files (capped per-file 16 KiB + aggregate 64 KiB + max 8 files), computes SHA256, returns `[{path, sha256, content, bytes}]`.
+
+2. **Defenses (all enforced)**:
+   - HARD_DENYLIST — `.env*`, `*.pem`, `*.key`, `package.json`, `bin/steward/`, `.github/workflows/`, `.git/`, `.ssh/`, etc. NEVER injected into prompt.
+   - Path traversal — paths with `..` rejected.
+   - Absolute paths — `/etc/...` and `C:/...` rejected.
+   - Symlinks — `lstat` + `isSymbolicLink()` rejection (mirrors splice.cjs Sprint 2.2.5 v0 defense).
+   - Realpath containment — file MUST resolve under realpath(repoRoot).
+   - Null byte / newline in path — rejected.
+   - Unknown extensions — only path-shaped (with `/`) OR allowed-extension tokens accepted.
+
+3. **`buildUserPrompt` extension** — injects detected refs as TRUSTED `<file path="..." sha256="..." bytes="...">CONTENT</file>` blocks AFTER the `<untrusted>` recommendation body. System prompt explicitly instructs the LLM: *"COPY the sha256 attribute verbatim into your op's expectedSha256 field. DO NOT compute it yourself; DO NOT hallucinate; the engine validates byte-for-byte."*
+
+4. **System prompt update** — `STEWARD_SYSTEM_PROMPT` for `str_replace` + `insert` ops now references the v1.5 sha-injection mechanism explicitly so the LLM understands the contract end-to-end.
+
+5. **rec #6 + #7 unmarked** in [`cortex/recommendations.md`](./cortex/recommendations.md) — Round 11 incident class is now closed; v1 ops can be exercised autonomously again. Next Steward nightly cron will pick rec #6 (JSDoc on `bin/discord-bridge/auth.cjs`) as the v1 dogfood.
+
+### Tests
+
++15 in [`tests/unit/steward/prompt-content-injection.test.cjs`](./tests/unit/steward/prompt-content-injection.test.cjs):
+- 3 happy-path cases (single ref, multi-ref dedup, SHA byte-for-byte)
+- 9 defense cases (path traversal, absolute paths, HARD_DENYLIST, missing files, directories, max-files cap, oversized files, null bytes, empty/non-string body)
+- 3 buildUserPrompt integration cases (file block emitted on real ref, omitted on no-ref, non-fatal on extraction error)
+
+### Verification
+
+- `npm test`: 1984 pass / 0 fail / 2 skipped (1986 total → +15 vs prior).
+- Manual smoke: `extractFileReferences` correctly produces `<file path="docs/foo.md" sha256="<64-hex>" bytes="<n>">` block for a synthetic body referencing `docs/foo.md` with content "# Foo\nBar baz.\n"; SHA matches `crypto.createHash('sha256').update(content, 'utf8').digest('hex')`.
+
+### Next nightly cron prediction
+
+Picker now finds rec #6 (no `[HUMAN-ONLY]` marker, no `(DONE)` marker). Rec #6 body says "Open `bin/discord-bridge/auth.cjs` and locate the `loadAllowedUserIds` function..." — backtick-wrapped path. Prompt builder will inject that file's content + SHA. LLM emits `{kind: 'insert', after_line: <n>, text: '<jsdoc block>', expectedSha256: '<sha-from-block>'}`. Engine SHA gate validates → atomic apply → npm test → spec-verifier → atomic commit → draft PR.
+
+### Reference
+
+- Round 11 incident: dogfood-2026-05-10 run 25627821093 in `cortex/journal/cortex-x/`
+- Sprint 2.2.5 v0 splice primitive: 2026-05-10 commit `09dabb2`
+- Sprint 2.2.5 v1 (str_replace + insert ops + LLM-as-code defense): 2026-05-10 commit `09dabb2`
+- v1 dogfood failure (rec #1 / 6 / 7 marked HUMAN-ONLY): commits `1d46b19` + `6930929`
