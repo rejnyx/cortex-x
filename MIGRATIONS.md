@@ -1116,6 +1116,42 @@ Files intentionally NOT rewritten — they document the migration or contain leg
 > **Windows users:** do not install cortex-x under `C:\Users\Public\` or any world-readable shared directory. `.hook-errors.log` mode 0o600 is honored only on Unix; on Windows it inherits the parent directory's ACL. Install under `$HOME` (typically `C:\Users\<you>\`) to keep error logs private.
 
 Optional: detect + refuse install under problematic paths.
+
+---
+
 ## Sprint 1.8.12 + 1.8.13 — halt-check, apiKey, AUTH_REJECTED, content-preservation guardrail (2026-05-08)
 
-Four commits (0deb71c→182c310) delivered +18 tests (772→790) addressing four incident root causes. A workspace-path collision in the halt-check filter allowed Steward to operate on `.cortex-data/` directories; fixed by adding an explicit path-prefix check that rejects any target under `.cortex-data/`. A GH secret `\n` trap caused apiKey values with trailing newlines to be accepted but silently truncated; fixed by trimming whitespace server-side and emitting `KEY_MALFORMED` when the trimmed value is empty. Provisioning-vs-inference confusion was resolved by distinguishing `AUTH_REJECTED` (inference-time) from existing `PROVISIONING_REJECTED` (provisioning-time), plus a standalone `AUTH_REJECTED` handler in the engine loop. A critical LLM destructive-rewrite pattern where Steward fabricated prior content when asked to "update" an existing file was shut down with `EDIT_DESTRUCTIVE_REWRITE`: the spec-verifier now rejects edits that shrink an existing file below 50% of its original size unless `replace_all: true` is explicitly set. Lesson-hint normalization ensures one incident class = one defense layer + one regression test. Downstream consumers should adopt the `replace_all` opt-out for genuine rewrites and watch for `EDIT_DESTRUCTIVE_REWRITE` rejection when appending.
+Non-breaking — pure hardening. Four commits (`0deb71c` → `182c310`) addressing four distinct incident root causes surfaced over the 2026-05-08 dogfood loop. Tests: 772 → 790 (+18). **Note**: this entry was originally Steward's first autonomous PR ([#7](https://github.com/Rejnyx/cortex-x/pull/7), commit `da172fa` 2026-05-10) via the Sprint 2.2.5 v0 `edit_ops[]` primitive — the operator polished structure post-merge.
+
+#### What landed
+
+1. **Halt-check workspace-path collision** — When `CORTEX_DATA_HOME` pointed inside the workspace, the dry-run step wrote `.cortex-data/journal/<slug>/<date>.jsonl` which the execute step's halt-check then read as a dirty working tree (`DIRTY_TREE`). Fix: explicit path-prefix check that rejects any halt target under `.cortex-data/` regardless of resolution. `.gitignore` rule added for the runtime data dir as belt-and-braces.
+2. **GH Secret `\n` trap** — Repository secrets ending in a stray newline (the typical paste-into-GitHub-UI failure mode) were accepted by the engine then silently truncated to empty when used in HTTP headers. Fix: trim apiKey server-side; emit `KEY_MALFORMED` when the trimmed value is empty. Distinct from `AUTH_REJECTED` so the operator knows whether to rotate vs. reformat the secret.
+3. **Provisioning vs. inference key confusion** — Anthropic's API distinguishes provisioning-time (token issuance) from inference-time (call-time) auth failures, but the engine collapsed both into one error code. Fix: distinct `AUTH_REJECTED` (inference-time) vs. existing `PROVISIONING_REJECTED` (provisioning-time) + standalone `AUTH_REJECTED` handler in the engine loop with a clearer remediation hint.
+4. **LLM destructive-rewrite + fabricated content** — When asked to "update" an existing file, V4 Flash rewrote the file from scratch and fabricated plausible-looking prior content (PR #3 / PR #4 incident class). `EDIT_DESTRUCTIVE_REWRITE` shipped as a hardcoded guardrail in `action-engine.cjs`: refuse if new file < 50% of existing size unless `edit.replace_all=true`. Generalized into the per-kind `no_destructive_rewrite` criterion in Sprint 1.9.0; this 1.8.13 patch was the load-bearing precursor.
+5. **Lesson-hint normalization** — Incident-class telemetry was inconsistent across the four root causes. Normalized so one incident class = one defense layer + one regression test, with stable `lesson_text` keys for `lessons-learned.jsonl` recall.
+
+#### Engage
+
+No opt-in needed — additive hardening across the engine. Existing flows pick up the new error codes automatically. To watch for the new shape:
+
+```bash
+# Distinguish provisioning vs inference auth failures in journal
+grep -E '"root_cause":"(AUTH_REJECTED|PROVISIONING_REJECTED|KEY_MALFORMED)"' \
+     ~/.cortex/journal/<slug>/*.jsonl
+
+# Watch for EDIT_DESTRUCTIVE_REWRITE rejections (Sprint 1.9.0 superseded with
+# no_destructive_rewrite SPEC_VIOLATION; both shapes appear in older journals)
+grep -E '"root_cause":"(EDIT_DESTRUCTIVE_REWRITE|SPEC_VIOLATION:.*no_destructive_rewrite)"' \
+     ~/.cortex/journal/<slug>/*.jsonl
+```
+
+#### Rollback
+
+Each of the four fixes is independently revertible (commit-by-commit). Reverting `EDIT_DESTRUCTIVE_REWRITE` re-opens the destructive-rewrite incident class — do NOT revert without a same-day re-apply or replacement defense (Sprint 1.9.0 `no_destructive_rewrite` criterion is the supersede path).
+
+#### Reference
+
+- Commits: `0deb71c` … `182c310` (4 commits in Sprint 1.8.12 + 1.8.13 block).
+- Generalized in Sprint 1.9.0 (commit `82140c5` family): hardcoded `EDIT_DESTRUCTIVE_REWRITE` removed from `action-engine.cjs`, replaced by per-kind `no_destructive_rewrite` criterion in `bin/steward/_lib/action-kinds.cjs`. Single source of truth lives in the criterion's `predicate`.
+- Sprint 2.10.7 above adds the cross-platform scrub fix + `[HUMAN-ONLY]` / `(DONE)` parser skip predicates; together with this Sprint 1.8.12 + 1.8.13 hardening they form the "defense-by-design" layer that the Sprint 2.2.5 v0 `edit_ops[]` primitive builds on top of.
