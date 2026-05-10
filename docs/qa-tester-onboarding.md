@@ -163,4 +163,27 @@ Tvoje práce den 1: spustíš `/test-audit` na svůj duplikát firemního repa, 
 - **Sprint 2.10 R1 memo (background):** `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` — proč jsme to postavili, 38 cited sources
 - **Self-audit příklad:** `cortex/qa/AUDIT.md` v cortex-x samotném — meta-příklad jak audit vypadá na production-grade frameworku
 
+## Pokud chceš to ukázat manažerovi / tech leadovi
+
+Po prvním auditu máš v rukou objektivní deliverable — můžeš ho použít k diskuzi. Doporučená sequence:
+
+1. **Začni s `cortex/qa/AUDIT.md § Executive summary`** — 5 bullets, < 2 minuty čtení. Nech ho je přečíst první. Ty mlč.
+2. **Quality scorecard** — 9 ISO 25010 charakteristik + 3 cortex extras se skóre 1-5. Vizuálně okamžitě vidí "kde jsme silní, kde slabí." Většina senior managers tohle ocení (mnohem víc než "máme málo testů").
+3. **`testing-gaps.md` § P0 sekce** — ≤ 5 položek. Ne víc. Každý gap má **risk if unfixed** (jednověta proč to bolí) + **estimate** (S/M/L) + **owner skill** (junior/mid/senior). To je rozhodovací matice na týdenní 1:1.
+4. **Talking point:** "Toto není můj subjektivní názor — je to ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM grounded audit. 148 citovaných URLs. Senior konzultant by tohle psal 2 týdny, mně to bot vygeneroval za 30 min. Co zafixovat první?"
+5. **Pokud reagují skepticky** ("AI něco vyplivlo, nedůvěřuji tomu") — ukaž jim **3-hop traceability** v gapech: každý finding má `[audit: §X]` (kde to vidíš v audit dokumentu) + `[src: file:line]` (kde to je v jejich kódu) + `[research: topic]` (které best practice to cituje). Ne hallucination — file:line citace.
+6. **Pokud reagují obranně** ("náš tým to ví, jen nemáme čas") — to je validní bod. Audit je *evidence*, ne obvinění. Tvůj follow-up: "Co kdybych vzala 1 P0 týdně, ty bys reviewnul? Za 12 týdnů máme všech 12 fixed."
+
+**Nepokoušej se být arrogantní.** AI deliverable ti dává hard data, nemá ti nahrazovat soft skills. Tvoje hodnota = umíš to interpretovat business-relevantně + máš empatii ke kontextu týmu.
+
+## Pokud manažer chce vidět "framework, který to udělal"
+
+cortex-x je veřejně dokumentovaný (GitHub: `Rejnyx/cortex-x`, dnes private, na cestě k v0.1.0 public). Klíčové demo body pro tech-lead/CTO publikum:
+
+- **Spec-driven verification** — každá AI změna musí splnit `acceptance_criteria[]` před commitem. 5 criterion kinds (shell/file_predicate/regex/ears_text/llm_judge). Bez toho rollback.
+- **Property-based + mutation testing** — fast-check chytl reálný cross-platform security regression (2026-05-10) v `scrubClaudeCliEnv` který by jinak existoval indefinitely.
+- **Multi-window cost guards** — daily $5 / weekly $25 / monthly $80 + token velocity cap + cross-session loop detector. AI se nezacyklí ani v exotických případech.
+- **8-layer defense per `standards/security.md`** + § Agentic Security 2026 (lethal trifecta, 7 MUST patterns) — production-grade safety, ne demo.
+- **Defense-by-design ≠ defense-by-regression-test** je load-bearing finding z self-auditu cortex-x. 4 defense layers existují, **end-to-end adversarial regression test** je top P0 ve self-backlogu. Honestní.
+
 Welcome to AI-augmented testing 2026. The bar is: walk in den 1 with a senior-consultant deliverable already on disk. You review it, don't build it.
