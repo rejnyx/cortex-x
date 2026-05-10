@@ -155,6 +155,16 @@ const STEWARD_HARD_DENYLIST = [
   /\.pem$/i,                                            // private keys by extension
   /\.key$/i,                                            // ditto
   /^secrets?(\/|$)/i,                                   // secrets/ secret/ folders
+  // Sprint 2.3a hardening — `reports/` is owned by the `mutation_score_drift`
+  // action_kind. The per-kind acceptance criterion `mutation_audit_only_writes_snapshot`
+  // already enforces ownership at spec-verifier time, but Layer 1 now adds
+  // engine-level defense-in-depth: any path under `reports/` EXCEPT the
+  // canonical `reports/mutation.json` snapshot is denied. Hypothetical future
+  // kind that forgets the criterion would still be blocked here. The negative
+  // lookahead `(?!mutation\.json$)` allows the one path the kind is supposed
+  // to write; everything else (`reports/mutation.html`, `reports/coverage/`,
+  // `reports/.stryker-tmp/`, etc.) is per-run scratch and gitignored.
+  /^reports\/(?!mutation\.json$).+/i,
 ];
 
 function isDenylistedPath(relPath) {
