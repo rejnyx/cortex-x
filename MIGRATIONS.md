@@ -1203,3 +1203,70 @@ Each item is independently revertible. Reverting the action_kind stub re-opens t
 - 6-agent R2 review committed in `a737c6d` re-scoped Sprint 2.3 into 2.3a (foundation, this entry) + 2.3b (runner+Stryker, deferred).
 - Sprint 2.3b prerequisites: vitest migration (Phase -1), throwaway-clone baseline (Phase 0), full Stryker integration with R2 amendments (Phase 1). Estimated 25-35 h.
 - `mutation_score_drift` will land under `0.3.0` once 2.3b ships.
+
+---
+
+## Sprint 2.11 — `senior_tester_review` action_kind (2026-05-10)
+
+Non-breaking — 12th capability, hybrid LLM + deterministic. Tests: 1867 → 1913 (+46). All 3 CI lanes green pre-commit.
+
+#### Why this exists
+
+**Open niche** — no SaaS or GitHub App ships a cron-driven "audit existing tests for quality" mode (Diffblue Cover generates new tests; Mabl/Functionize/TestSprite/Applitools all sit in authoring). Research lane crystallized 2024-Q4 → 2025-Q4: UTRefactor (FSE'25) 89 % smell reduction, Agentic-LMs (IEEE Software) Phi-4-14B pass@5 75.3 % within 5 % of frontier, Sandoval ESE 2025 13 new test smells in 4 categories explicitly extending tsDetect for AI-generated tests.
+
+#### What landed (Sprint 2.11)
+
+1. **39-smell registry SSOT** ([`bin/steward/_lib/test-smell-registry.cjs`](./bin/steward/_lib/test-smell-registry.cjs)) — 21 tsDetect FSE'20 + 13 Sandoval ESE 2025 (NASE / NARV / ARPM / OIMT / DS / TSES / TSVM / NNA / EDNA / EDED / EDIS / TOFA / AC) + 5 cortex-original / SNUTS-aligned (hidden_io, generic_test_name, comments_only_test, no_reproducibility_marker, suboptimal_assert). Each entry: id, name, category, severity, languages, description, repair_hint, tags. Schema validated by [`tests/unit/steward/test-smell-registry.test.cjs`](./tests/unit/steward/test-smell-registry.test.cjs).
+
+2. **Phase A deterministic detector** ([`bin/steward/_lib/test-smell-detector.cjs`](./bin/steward/_lib/test-smell-detector.cjs)) — zero-deps regex/heuristic walker. 16 of 39 smells covered with regex (line-level + block-level + file-level patterns); remaining 23 are registry-only for Phase B LLM citation. ReDoS defense: per-pattern 50ms deadline + 1 MiB per-file cap + 5000-file walk cap + 200-finding aggregate cap. Block-extractor uses brace-matching state machine to find `test()`/`it()` bodies for per-block detection.
+
+3. **Phase B LLM judge (opt-in)** + **Phase C deliverer** ([`bin/steward/_lib/senior-tester-action.cjs`](./bin/steward/_lib/senior-tester-action.cjs)) — judge enabled via `STEWARD_SENIOR_TESTER_JUDGE=1`. Default v1 ships deterministic-only ($0/run). Judge is one LLM call against deepseek-v4-flash (~$0.005/run); strict JSON-mode response with `summary / top_3_strategic_gaps / ranked_findings / layer_balance_assessment / estimated_effort_hours`. Phase C writes journal entry + opens ONE gh issue with checklist (never N issues per finding). Auth/timeout/secret-redaction defenses parallel openrouter-engine.
+
+4. **SMURF-aligned layer balance** — replaces the folkloric 70/20/10 ratio (Cohn 2009 specified no percentages; Google's 2024-10 SMURF guidance explicitly rejects fixed ratios). Detects gross anti-patterns: `ice_cream_cone` (e2e > 40%), `no_unit_foundation` (zero unit tests), `unit_only` (95%+ unit suggesting classification gap). Cites SMURF ref in output payload.
+
+5. **Action_kind registry entry** ([`bin/steward/_lib/action-kinds.cjs`](./bin/steward/_lib/action-kinds.cjs)) — `senior_tester_review` shipped under `0.3.0` with 2 acceptance criteria (`senior_tester_no_working_tree_edits` blocks any source/test edit; `senior_tester_review_only_ears` documents the contract).
+
+6. **Pre-flight detector probe** ([`detectors/senior-tester-review.cjs`](./detectors/senior-tester-review.cjs)) — shallow `<100ms` walk to confirm at least one test file exists under `tests/`/`test/`/`__tests__/`/`spec/`/`specs/`. Returns `ready` / `no-test-files` / `opted-out`. Operator opt-out via `.cortex/senior-tester-disabled` sentinel.
+
+7. **Dispatcher branches** — `bin/steward/dry-run.cjs` and `bin/steward/execute.cjs` both wired. Executor runs Phase A + (optional Phase B) + Phase C; surfaces findings_count / files_scanned / layer_anti_patterns / judge_used to journal for `cortex-steward status` visibility. `SENIOR_TESTER_NO_TEST_FILES` added to `NO_CANDIDATES_CODES` whitelist for clean exit-0 on greenfield.
+
+8. **Monthly cron workflow** ([`.github/workflows/steward-senior-tester-review.yml`](./.github/workflows/steward-senior-tester-review.yml)) — runs 1st of month, 04:00 UTC. Default `STEWARD_SENIOR_TESTER_JUDGE=0` (deterministic-only); operator opts in via repo variable.
+
+9. **Tests** (+46) — registry contract + detector behavior (15 positive/negative cases for regex coverage + 5 layer-balance heuristic cases) + senior-tester-action shape + 4-test integration pipeline (greenfield → no_actionable; with-tests → plan; clean suite → ok+skip_commit; dirty suite → findings).
+
+#### Engage
+
+The cron triggers automatically. Manual run:
+
+```bash
+node bin/cortex-steward.cjs dry-run --slug=<repo> --kind=senior_tester_review --json > /tmp/plan.json
+node bin/cortex-steward.cjs execute --plan-file=/tmp/plan.json
+# Output: journal entry at $CORTEX_DATA_HOME/journal/<slug>/senior-tester-YYYY-MM.md
+#         + ONE gh issue (label: steward-senior-tester) with severity-grouped checklist
+```
+
+To enable LLM judge enrichment:
+
+```bash
+gh secret set OPENROUTER_API_KEY  # already set if other Steward kinds work
+gh variable set STEWARD_SENIOR_TESTER_JUDGE --body '1'
+```
+
+To opt out for a specific repo:
+
+```bash
+mkdir -p .cortex && touch .cortex/senior-tester-disabled
+git add .cortex/senior-tester-disabled && git commit -m 'opt out senior-tester-review'
+```
+
+#### Rollback
+
+Each component is independently revertible. Reverting the action_kind entry alone leaves the registry + detector + judge as orphaned modules. Reverting the executor branch keeps the kind dispatchable but hard-fails as `ACTION_KIND_NOT_DISPATCHABLE` (similar to pattern_transfer pre-2.7.1).
+
+#### Reference
+
+- R1 architecture memo: [`docs/research/sprint-2.11-senior-tester-research-2026-05-10.md`](./docs/research/sprint-2.11-senior-tester-research-2026-05-10.md)
+- Smell taxonomy memo: [`docs/research/sprint-2.11-smell-taxonomy-research-2026-05-10.md`](./docs/research/sprint-2.11-smell-taxonomy-research-2026-05-10.md)
+- Synthesis memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](./docs/research/cortex-x-housekeeping-audit-2026-05-10.md)
+- Companion research artifacts (Sprint 2.10 `/test-audit` retrofit prompt + Sprint 2.3a mutation foundation) ground the deeper QA stack.
+- v1.5 deferred: regex detectors for the 13 Sandoval smells (TOFA / NASE / NARV deterministic-detectable; rest LLM-only); auto-refactor PR shape gated on `mutation_score_drift` baseline + delta ≥ 0.

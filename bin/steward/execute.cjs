@@ -1806,6 +1806,45 @@ async function _runExecuteInner(opts, ctx) {
         code: 'ACTION_KIND_NOT_DISPATCHABLE',
         error: 'pattern_transfer kind is registered but executor not yet implemented. Wait for Sprint 2.7.1 dedicated commit that wires sibling-reader + LLM dispatch + assertEditWithinCwd spec-verifier hook. To prevent silent runs, this branch returns a hard failure so cron operators see the gap explicitly.',
       };
+    } else if (plan.action_kind === 'senior_tester_review') {
+      // Sprint 2.11 — hybrid 2-stage test-quality auditor. Deterministic
+      // Phase A + optional Phase B LLM judge + deterministic Phase C.
+      // Audit-only: never edits source/test files (skip_commit=true).
+      // Sprint 2.11 R2 fixes:
+      //   - blind-hunter HIGH-3: isoDate now defaults to YYYY-MM (was no-op
+      //     conditional that always sent undefined).
+      //   - edge-case BLOCKER-3: STEWARD_SENIOR_TESTER_JUDGE accepts truthy
+      //     strings (1|true|yes|on, case-insensitive); strict '1' check
+      //     silently disabled judge for operators setting "true".
+      const seniorTester = require('./_lib/senior-tester-action.cjs');
+      const judgeEnv = (process.env.STEWARD_SENIOR_TESTER_JUDGE || '').trim().toLowerCase();
+      applyResult = await seniorTester.runSeniorTesterReview({
+        repoRoot,
+        slug,
+        isoDate: new Date().toISOString().slice(0, 7), // YYYY-MM
+        dataHome: process.env.CORTEX_DATA_HOME,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+        judgeEnabled: judgeEnv === '1' || judgeEnv === 'true' || judgeEnv === 'yes' || judgeEnv === 'on',
+        projectProfile: opts.projectProfile,
+      });
+      // Surface findings to journal for status visibility.
+      if (applyResult.ok && applyResult.phaseA) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T0',
+          event: 'senior_tester_review_completed',
+          actor: 'steward',
+          action_kind: 'senior_tester_review',
+          outcome: 'success',
+          findings_count: applyResult.phaseA.total_findings,
+          files_scanned: applyResult.phaseA.files_scanned,
+          layer_anti_patterns: (applyResult.phaseA.layer_balance.anti_patterns || []).map((a) => a.id),
+          judge_used: !!(applyResult.judgeResult && applyResult.judgeResult.ok),
+          journal_path: applyResult.journalPath || null,
+          issue_url: (applyResult.issue && applyResult.issue.url) || null,
+        });
+      }
     } else if (plan.action_kind === 'tech_debt_audit') {
       // Sprint 2.5 — deterministic tech debt snapshot. No LLM call.
       const techDebtAudit = require('./_lib/tech-debt-audit.cjs');
@@ -1913,6 +1952,10 @@ async function _runExecuteInner(opts, ctx) {
       'COVERAGE_GAP_NO_CANDIDATES',
       'PR_RESPONDER_NO_CANDIDATES',
       'HARVEST_NO_CANDIDATES',
+      // Sprint 2.11 — senior_tester_review can also short-circuit cleanly
+      // when the repo has no test files (e.g. greenfield clone before tests
+      // are scaffolded).
+      'SENIOR_TESTER_NO_TEST_FILES',
     ]);
     if (!applyResult.ok && NO_CANDIDATES_CODES.has(applyResult.code)) {
       rollbackToOriginal(repoRoot, originalBranch, plan.branch);

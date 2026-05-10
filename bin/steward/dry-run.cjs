@@ -463,6 +463,46 @@ function runDryRun(opts = {}) {
       });
     }
 
+    // Sprint 2.11 — senior_tester_review. Hybrid kind: deterministic
+    // detector + optional LLM judge. Dry-run probes for at least one test
+    // file; full Phase A walk happens at execute time. Always skip_commit
+    // (audit-only — never edits source/test files in v1).
+    if (kind === 'senior_tester_review') {
+      try {
+        const probe = require('../../detectors/senior-tester-review.cjs');
+        const detected = probe.detect({ repoRoot });
+        if (detected.status !== 'ready') {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T0',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            action_kind: 'senior_tester_review',
+            reason: detected.reason || detected.status,
+          });
+          return {
+            ok: true,
+            no_actionable_step: true,
+            slug,
+            action_kind: 'senior_tester_review',
+            probe_status: detected.status,
+            reason: detected.reason || detected.status,
+          };
+        }
+      } catch (e) {
+        // Probe failure → fall through to plan-shape; executor will surface
+        // its own error if Phase A walks 0 files.
+      }
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: `Senior tester review ${isoDate.slice(0, 7)}`,
+        synthBodyPrefix: 'Sprint 2.11: walk tests/, run 16-smell deterministic detector, optional LLM judge synthesis, write journal + open ONE gh issue. Audit-only — no source/test edits.',
+        skipCommit: true,
+      });
+    }
+
     if (kind === 'pattern_transfer') {
       // Sprint 2.7.1: registered + routed through executor as
       // ACTION_KIND_NOT_DISPATCHABLE. Mirror the same hard-fail at dry-run so
