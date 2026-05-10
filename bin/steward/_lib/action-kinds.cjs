@@ -550,6 +550,78 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.5b: 13th capability — workflow_hardener (deterministic) ──
+  // v1 = ADVISORY only: scans .github/workflows/*.yml for hardening gaps
+  // (unpinned action SHAs, missing permissions: / concurrency: /
+  // timeout-minutes:), writes journal entry + opens ONE gh issue with
+  // proposed patches. NO auto-apply in v1 — .github/workflows/** is in
+  // engine HARD_DENYLIST (privilege-escalation footgun if Steward could
+  // rewrite its own CI). v1.5 (Sprint 2.5b.1) will add auto-fix behind
+  // explicit env flag with per-finding spec criteria.
+  //
+  // Cadence: weekly cron `0 03 * * 0` (Sunday 03:00 UTC, before existing
+  // dep-patch 04:00). Cost: $0/run (no LLM call).
+  // R1 memo: docs/research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md
+  workflow_hardener: {
+    description:
+      'Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag.',
+    requires_llm: false,
+    source: '.github/workflows/*.yml + workflow-hardener heuristics',
+    detector: 'detectors/workflow-hardener.cjs',
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // gh issue + journal only; no working-tree edits in v1
+    shipped_in: '0.3.0', // Sprint 2.5b v1
+    acceptance_criteria: [
+      {
+        id: 'workflow_hardener_no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'workflow_hardener v1 only writes journal + opens gh issue; touched files MUST be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'workflow_hardener_advisory_only_ears',
+        kind: 'ears_text',
+        ears: 'WHILE workflow_hardener runs in v1 advisory mode THE SYSTEM SHALL only write journal entries and open gh issues without editing any workflow files',
+        severity: 'block',
+      },
+    ],
+  },
+
+  // ── Sprint 2.6b: 14th capability — secret_history_sweep (deterministic) ──
+  // v1 wraps TruffleHog full-history scan with --only-verified. On verified
+  // hit: opens gh issue with severity LABEL. NO auto-PR (secret revocation
+  // requires human — rotate key, then commit-history rewrite is destructive).
+  // Cadence: weekly cron `0 02 * * 0` (Sunday 02:00 UTC, before
+  // workflow_hardener 03:00). Cost: $0/run (no LLM call).
+  // Fail-open: missing trufflehog binary → kind skipped with warn line.
+  // R1 memo: docs/research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md
+  secret_history_sweep: {
+    description:
+      'TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing.',
+    requires_llm: false,
+    source: 'trufflehog git file://. --only-verified --json --since-commit=<last-sweep-sha>',
+    detector: 'detectors/secret-history-sweep.cjs',
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // gh issue + journal only; read-only against repo
+    shipped_in: '0.3.0', // Sprint 2.6b v1
+    acceptance_criteria: [
+      {
+        id: 'secret_sweep_no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'secret_history_sweep v1 only writes journal + opens gh issue; touched files MUST be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'secret_sweep_read_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN secret_history_sweep runs THE SYSTEM SHALL only read git history and emit journal/gh-issue without editing any source file',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── Sprint 2.11: 12th capability — senior_tester_review (hybrid LLM) ──
   // Hybrid 2-stage: deterministic Phase A detector (test-smell-detector.cjs
   // walks tests/, applies regex over 16 of 39 registry smells, layer-balance

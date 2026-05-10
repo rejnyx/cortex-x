@@ -463,6 +463,76 @@ function runDryRun(opts = {}) {
       });
     }
 
+    // Sprint 2.5b — workflow_hardener. Advisory analyzer for
+    // .github/workflows/*.yml. Always skip_commit (audit-only in v1).
+    if (kind === 'workflow_hardener') {
+      try {
+        const probe = require('../../detectors/workflow-hardener.cjs');
+        const detected = probe.detect({ repoRoot });
+        if (detected.status !== 'ready') {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T0',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            action_kind: 'workflow_hardener',
+            reason: detected.reason || detected.status,
+          });
+          return {
+            ok: true,
+            no_actionable_step: true,
+            slug,
+            action_kind: 'workflow_hardener',
+            probe_status: detected.status,
+            reason: detected.reason || detected.status,
+          };
+        }
+      } catch (e) { /* fall through to plan-shape */ }
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: `Workflow hardener weekly audit ${isoDate}`,
+        synthBodyPrefix: 'Sprint 2.5b: scan .github/workflows/*.yml for unpinned SHAs / missing permissions / missing concurrency / missing timeout-minutes; open advisory gh issue. Audit-only — no workflow edits.',
+        skipCommit: true,
+      });
+    }
+
+    // Sprint 2.6b — secret_history_sweep. TruffleHog full-history scan.
+    // Always skip_commit (read-only — only writes are journal + gh issue).
+    if (kind === 'secret_history_sweep') {
+      try {
+        const probe = require('../../detectors/secret-history-sweep.cjs');
+        const detected = probe.detect({ repoRoot });
+        if (detected.status !== 'ready') {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T0',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            action_kind: 'secret_history_sweep',
+            reason: detected.reason || detected.status,
+          });
+          return {
+            ok: true,
+            no_actionable_step: true,
+            slug,
+            action_kind: 'secret_history_sweep',
+            probe_status: detected.status,
+            reason: detected.reason || detected.status,
+          };
+        }
+      } catch (e) { /* fall through */ }
+      return buildDeterministicPlan({
+        slug, trigger, isoDate, kind,
+        synthTitle: `Secret history sweep ${isoDate}`,
+        synthBodyPrefix: 'Sprint 2.6b: TruffleHog full-history scan with --only-verified. On verified hit: open gh issue. NO auto-PR. Read-only.',
+        skipCommit: true,
+      });
+    }
+
     // Sprint 2.11 — senior_tester_review. Hybrid kind: deterministic
     // detector + optional LLM judge. Dry-run probes for at least one test
     // file; full Phase A walk happens at execute time. Always skip_commit

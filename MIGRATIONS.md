@@ -1270,3 +1270,91 @@ Each component is independently revertible. Reverting the action_kind entry alon
 - Synthesis memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](./docs/research/cortex-x-housekeeping-audit-2026-05-10.md)
 - Companion research artifacts (Sprint 2.10 `/test-audit` retrofit prompt + Sprint 2.3a mutation foundation) ground the deeper QA stack.
 - v1.5 deferred: regex detectors for the 13 Sandoval smells (TOFA / NASE / NARV deterministic-detectable; rest LLM-only); auto-refactor PR shape gated on `mutation_score_drift` baseline + delta ≥ 0.
+
+---
+
+## Sprint 2.5b + 2.6b — DevOps hygiene action_kinds (advisory v1) (2026-05-10)
+
+Non-breaking — 13th + 14th capabilities. Both deterministic, $0/run, weekly cron, advisory-only v1 (gh issue + journal; no source/workflow file edits).
+
+### Why these two
+
+R1 housekeeping audit (`docs/research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`) identified two narrow but high-signal gaps in cortex-x's existing 9-kind palette:
+
+1. **`workflow_hardener`** (Sprint 2.5b) — GitHub Actions security hardening. GitHub's [Aug-2025 policy](https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/) enforces SHA pinning; [2026 roadmap](https://github.com/orgs/community/discussions/190621) adds workflow lockfiles. Renovate/Dependabot cover version drift but explicitly do NOT do workflow security hardening (missing `permissions:` / `concurrency:` / `timeout-minutes:`). [StepSecurity Secure-Repo](https://github.com/step-security/secure-repo) is the reference precedent. Pre-public-launch ship gate.
+
+2. **`secret_history_sweep`** (Sprint 2.6b) — Verified-credential history scan. cortex-x has `no-pii.yml` (regex-only at HEAD) + `policy-check.cjs NO_SECRET_READ` (subprocess-level). Neither covers **rotated-but-leaked keys, encoded blobs, deep history**. [TruffleHog](https://github.com/trufflesecurity/trufflehog) full-history with `--only-verified` covers 800+ secret types and verifies them as currently-active. Pre-public-flip MUST: any verified credential in history is exposed the moment repo flips public.
+
+### What landed (Sprint 2.5b — workflow_hardener)
+
+1. **Detector** ([`detectors/workflow-hardener.cjs`](./detectors/workflow-hardener.cjs)) — `<100ms` shallow probe. Returns `ready`/`no-workflows`/`opted-out` (sentinel `.cortex/workflow-hardener-disabled`).
+
+2. **Analyzer** ([`bin/steward/_lib/workflow-hardener-action.cjs`](./bin/steward/_lib/workflow-hardener-action.cjs)) — 4 deterministic rules:
+   - `unpinned_action` (HIGH): `uses: org/action@<mutable-tag>` instead of 40-char SHA. Per GitHub Aug-2025 + tj-actions/changed-files compromise canonical incident.
+   - `missing_permissions` (HIGH): no top-level `permissions:` block. Wiz/StepSecurity P1.
+   - `missing_concurrency` (MEDIUM): no `concurrency:` block.
+   - `missing_timeout` (MEDIUM): job lacks `timeout-minutes:`.
+
+3. **Output**: ONE gh issue per cron run with severity-grouped checklist + per-rule fix hint + journal entry. Findings sorted by severity then file:line. **NO auto-apply in v1** — `.github/workflows/**` is in engine HARD_DENYLIST (privilege-escalation footgun). Auto-fix in Sprint 2.5b.1 behind explicit env flag.
+
+4. **Cron workflow** ([`.github/workflows/steward-workflow-hardener.yml`](./.github/workflows/steward-workflow-hardener.yml)) — `0 3 * * 0` (Sunday 03:00 UTC, before dep-patch 04:00). 10-min timeout. `contents: read + issues: write`.
+
+5. **action_kind registry entry** with 2 acceptance criteria (`workflow_hardener_no_working_tree_edits` + advisory EARS). `WORKFLOW_HARDENER_NO_WORKFLOWS` added to `NO_CANDIDATES_CODES` for clean exit on greenfield repos.
+
+### What landed (Sprint 2.6b — secret_history_sweep)
+
+1. **Detector** ([`detectors/secret-history-sweep.cjs`](./detectors/secret-history-sweep.cjs)) — checks for `.git/` + `trufflehog` binary on PATH. Fail-open returns `no-trufflehog` if binary missing. Sentinel `.cortex/secret-sweep-disabled` for opt-out.
+
+2. **Action** ([`bin/steward/_lib/secret-sweep-action.cjs`](./bin/steward/_lib/secret-sweep-action.cjs)) — wraps `trufflehog git file://. --only-verified --json --since-commit=<last>`. Incremental sweeps via `journal/<slug>/secret-sweep-state.json` (last_swept_sha persisted between runs). 32 MiB stdout cap; 10-min timeout. Output cap of 50 findings per run (operator can manually re-run).
+
+3. **Output**: ONE gh issue per cron run with severity:high + security labels, listing each verified credential by detector + commit SHA + file:line. **Issue body explicitly says ROTATE first; rewrite history second**. NO auto-PR — secret revocation is destructive + human-only.
+
+4. **Cron workflow** ([`.github/workflows/steward-secret-history-sweep.yml`](./.github/workflows/steward-secret-history-sweep.yml)) — `0 2 * * 0` (Sunday 02:00 UTC). 30-min timeout (full history is slow). `fetch-depth: 0` for full git history. Self-bootstraps trufflehog via curl install script; fail-open if install fails.
+
+5. **action_kind registry entry** with 2 acceptance criteria. `TRUFFLEHOG_NOT_FOUND` + `TRUFFLEHOG_SPAWN_ERROR` + `SECRET_SWEEP_NO_HEAD` added to `NO_CANDIDATES_CODES`.
+
+### Tests
+
++30 across 2 new files:
+- `tests/unit/steward/workflow-hardener.test.cjs` — 16 cases (detection rules + analyzeAll + flow + detector probe)
+- `tests/unit/steward/secret-sweep.test.cjs` — 14 cases (argument validation + sha state + getCurrentSha + formatIssueBody + detector probe)
+
+### Defenses (R2 hardening applied pre-commit)
+
+Both kinds inherit defenses from Sprint 2.11 senior-tester R2 review:
+- Slug guard via `SAFE_SLUG_REGEX = /^[A-Za-z0-9._\-]{1,64}$/`
+- Date guard via `SAFE_DATE_REGEX = /^\d{4}-\d{2}(-\d{2})?$/`
+- Try/catch around journal-write + issue-open so partial success returns with phaseCError
+- gh issue body uses `gh issue create --body-file <tmp>` with mode 0o600 + try/finally cleanup
+- TruffleHog SHA validation: `SAFE_SHA_REGEX = /^[a-f0-9]{40}$/i` before passing as `--since-commit`
+
+### Engage
+
+Both crons fire automatically. Manual run:
+
+```bash
+# workflow_hardener
+node bin/cortex-steward.cjs dry-run --slug=<repo> --kind=workflow_hardener --json > /tmp/plan.json
+node bin/cortex-steward.cjs execute --plan-file=/tmp/plan.json
+
+# secret_history_sweep (requires trufflehog on PATH)
+brew install trufflehog || curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+node bin/cortex-steward.cjs dry-run --slug=<repo> --kind=secret_history_sweep --json > /tmp/plan.json
+node bin/cortex-steward.cjs execute --plan-file=/tmp/plan.json
+```
+
+To opt out per repo:
+
+```bash
+mkdir -p .cortex
+touch .cortex/workflow-hardener-disabled       # disables 2.5b
+touch .cortex/secret-sweep-disabled            # disables 2.6b
+```
+
+### Reference
+
+- R1 research memo: [`docs/research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`](./docs/research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md)
+- Synthesis memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](./docs/research/cortex-x-housekeeping-audit-2026-05-10.md) §3
+- v1.5 deferred:
+  - workflow_hardener: auto-fix via PR (requires HARD_DENYLIST per-kind exception); branch-protection drift detection via `gh api`
+  - secret_history_sweep: per-finding gh issue (not just one bundled); rotation-helper script template

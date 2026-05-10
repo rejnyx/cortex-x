@@ -9,7 +9,7 @@ cortex-x is moving in 4 tiers from "excellent dev tool" to "operator's second br
 | Tier | Status | Theme |
 |---|---|---|
 | 0 — Foundation | ✅ shipped (v0.8 + Sprint 1.8.13 + 1.9.0) | Scaffold + 9-kind capability palette + safety mechanics + spec-driven verification |
-| 1 — Verification + multi-agent | ✅ Sprint 1.9 + 2.0 + 2.0b + 2.1 + 2.2.5 v0/v1 + 2.3a + 2.11 shipped (2026-05-08 → 2026-05-10) · ⏳ 2.3b runner+Stryker (operator OK pending), 2.5b/2.6b devops hygiene (proposed) | Spec-driven verification (✅), Phoenix OTLP observability (✅), autoresearch overnight burst (✅), `edit_ops[]` primitive (✅), mutation-testing fitness foundation (✅), `senior_tester_review` 12th capability (✅, ⭐ DIFFERENTIATOR), runner+Stryker integration (deferred) |
+| 1 — Verification + multi-agent | ✅ Sprint 1.9 + 2.0 + 2.0b + 2.1 + 2.2.5 v0/v1 + 2.3a + 2.5b + 2.6b + 2.11 shipped (2026-05-08 → 2026-05-10) · ⏳ 2.3b runner+Stryker (operator OK pending) | Spec-driven verification (✅), Phoenix OTLP observability (✅), autoresearch overnight burst (✅), `edit_ops[]` primitive (✅), mutation-testing fitness foundation (✅), `senior_tester_review` 12th capability (✅, ⭐ DIFFERENTIATOR), `workflow_hardener` 13th + `secret_history_sweep` 14th capabilities (✅ devops hygiene), runner+Stryker integration (deferred) |
 | 2 — Compound learners | ⏳ Sprint 3.0–3.3 | AlphaEvolve prompt evolution, self-extending capabilities, FTS5 skills, GraphRAG |
 | 3 — Productization | ⏳ Sprint 4.0–4.7 | Capability marketplace, WaaS for clients, voice → recommendation, identity LoRA |
 | 4 — Persistent entity | 🔮 Sprint 5.0+ | Self-hosted home server, soul abstraction, Obsidian SSOT, multi-source life ingest |
