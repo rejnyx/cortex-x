@@ -98,6 +98,38 @@ eval_suite:
   baseline_commit: null  # set after first run
   required_score_threshold: 0.8  # 8/10 tasks must pass or PR blocked
 
+  # =============================================================================
+  # CROSS-MODEL TRANSFER GATE (Sprint LR.7)
+  # =============================================================================
+  # Spec: docs/eval-cross-model-protocol.md (normative; this is just the SSOT
+  # config that the protocol references).
+  # DGM finding: improvements that don't transfer across models are overfit, not
+  # progress. Gate every proposal on prompts/standards/profiles/agents/action-
+  # kinds/llm-judge-schemas with min 2 models + transfer_ratio >= 1.0.
+  cross_model_transfer:
+    enabled: true
+    primary_model: "deepseek/deepseek-v4-flash"          # baseline = what users actually run
+    secondary_models:
+      - "anthropic/claude-sonnet-4-6"                    # detects Claude-shape lock-in
+      - "openai/gpt-5-mini"                              # acceptable fallback when Anthropic quota exhausted
+    min_transfer_ratio: 1.0                              # < 1.0 on any secondary = merge_blocked
+    fail_closed_on_missing_run: true                     # absent secondary score = block, never extrapolate
+    subset_first_for_weekly: true                        # DGM tiered approach: 3-task subset first
+    subset_size: 3
+    expand_to_full_threshold: 1.0                        # subset must hit >= 1.0 to expand to 10-task suite
+    gate_mandatory_paths:
+      - "prompts/**"
+      - "standards/**"
+      - "profiles/**"
+      - "agents/**"
+      - "bin/steward/_lib/action-kinds.cjs"
+      - "bin/steward/_lib/llm-judge-schema.cjs"
+    gate_optional_paths:
+      - "templates/**"
+      - "tools/**"
+      - "tests/**"
+      - "docs/**"
+
 # =============================================================================
 # PROPOSAL GATING
 # =============================================================================
