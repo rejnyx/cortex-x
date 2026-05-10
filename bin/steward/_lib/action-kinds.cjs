@@ -550,6 +550,51 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.11: 12th capability — senior_tester_review (hybrid LLM) ──
+  // Hybrid 2-stage: deterministic Phase A detector (test-smell-detector.cjs
+  // walks tests/, applies regex over 16 of 39 registry smells, layer-balance
+  // computed) → optional Phase B LLM judge (STEWARD_SENIOR_TESTER_JUDGE=1
+  // opt-in; deepseek-v4-flash, ~$0.005/run) → deterministic Phase C deliverer
+  // (writes journal/senior-tester-YYYY-MM.md + opens ONE gh issue with
+  // checklist; no source/test edits).
+  //
+  // Cadence: monthly (1st of month, 04:00 UTC). Test-smell drift is slow.
+  // Cost ceiling (R4): default $0/run; ~$0.005/run with judge enabled.
+  // Differentiator: no SaaS or GitHub App ships cron-driven "audit existing
+  // tests" mode (Diffblue Cover generates new tests; Mabl/Functionize
+  // authoring; Sprint 2.10 /test-audit is one-shot retrofit).
+  //
+  // R1 memo: docs/research/sprint-2.11-senior-tester-research-2026-05-10.md
+  // Smell taxonomy memo: c:/tmp/sprint-2.11-smell-taxonomy-research-2026-05-10.md
+  // Grounded in: tsDetect FSE'20, Sandoval ESE 2025 (DOI 10.1007/s10664-025-10718-x),
+  // SNUTS.js SBES 2024, SMURF Google 2024-10.
+  senior_tester_review: {
+    description:
+      '2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files in v1.',
+    requires_llm: false, // judge is opt-in via STEWARD_SENIOR_TESTER_JUDGE=1
+    source: 'fs walk of tests/ + test smell registry + (optional) LLM judge call',
+    detector: 'detectors/senior-tester-review.cjs',
+    cost_envelope: 'free', // default; opt-in judge runs $0.005/run via deepseek-v4-flash
+    blast_radius: 'minimal', // gh issue + journal only; no source/test edits
+    shipped_in: '0.3.0', // Sprint 2.11 v1
+    acceptance_criteria: [
+      // Sprint 2.11 R1: action MUST NOT edit source/test files. Audit only.
+      {
+        id: 'senior_tester_no_working_tree_edits',
+        kind: 'file_predicate',
+        description: 'senior_tester_review v1 only writes journal + opens gh issue; touched files MUST be empty.',
+        predicate: 'touchedFiles.length === 0',
+        severity: 'block',
+      },
+      {
+        id: 'senior_tester_review_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN senior_tester_review runs THE SYSTEM SHALL only write journal entries and open gh issues without editing any source or test files',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:

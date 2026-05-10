@@ -1,0 +1,95 @@
+# steward-senior-tester-review.yml — Sprint 2.11 monthly cron.
+#
+# 2-stage hybrid test-quality auditor. Phase A walks tests/ + applies regex
+# heuristics from the 39-smell registry (tsDetect 21 + Sandoval ESE 2025 13
+# + cortex-original 5). Phase B (optional) calls deepseek-v4-flash for
+# strategic synthesis when STEWARD_SENIOR_TESTER_JUDGE=1. Phase C writes
+# journal/senior-tester-YYYY-MM.md + opens ONE gh issue with checklist.
+#
+# Audit only — never edits source/test files. skip_commit=true.
+#
+# Cadence: monthly, 1st at 04:00 UTC. Same window as todo-triage; both are
+# slow-drift signals. STEWARD_SENIOR_TESTER_JUDGE=0 is the default — operator
+# opts in by setting it to 1 in repo secrets if they want LLM enrichment.
+#
+# Cost: $0/run by default; ~$0.005/run with judge enabled.
+
+name: steward senior-tester-review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 1 * *'   # Monthly 1st at 04:00 UTC
+
+concurrency:
+  group: steward-senior-tester-review-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-senior-tester-review:
+    name: steward senior-tester-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity (audit-only — kept for journal)
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward senior-tester-review dry-run (probe)
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=senior_tester_review \
+            --json > /tmp/steward-senior-tester-plan.json
+          cat /tmp/steward-senior-tester-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-senior-tester-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No test files found — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward senior-tester-review execute (Phase A + Phase C; Phase B opt-in)
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-senior-tester-plan.json
+        env:
+          # OPENROUTER_API_KEY only required when STEWARD_SENIOR_TESTER_JUDGE=1.
+          # Default v1 ships deterministic-only — no LLM call, no API key needed.
+          OPENROUTER_API_KEY:                ${{ secrets.OPENROUTER_API_KEY }}
+          STEWARD_SENIOR_TESTER_JUDGE:       ${{ vars.STEWARD_SENIOR_TESTER_JUDGE || '0' }}
+          STEWARD_SENIOR_TESTER_MODEL:       ${{ vars.STEWARD_SENIOR_TESTER_MODEL || '' }}
+          CORTEX_DATA_HOME:                  ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:                          ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-senior-tester-review-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30
