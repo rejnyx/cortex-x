@@ -141,15 +141,25 @@ function parseRecommendations(filePath) {
 // Action selection: return first item from DO-this-week not yet present in
 // the journal as a completed action_id. Hermes feeds in the journal entries
 // it has already processed.
+//
+// Items tagged `[HUMAN-ONLY]` in the title are skipped — operator marks these
+// as not Steward-actionable (typically destructive rewrites that trip the
+// spec-verifier `no_destructive_rewrite` criterion, force-pushes, secrets
+// rotation, or any task requiring human judgment). The marker is the same
+// one used by humans when triaging the recommendations list.
+function isHumanOnly(item) {
+  return /\[HUMAN[\s-]?ONLY\]/i.test(item.title || '');
+}
+
 function pickNextAction(parsed, processedActionIds) {
   const doThisWeek = parsed.sections['DO this week'] || [];
   const processed = new Set(processedActionIds || []);
 
   for (const item of doThisWeek) {
     const actionKey = `${parsed.frontmatter.slug}#week-${item.num}`;
-    if (!processed.has(actionKey)) {
-      return { ...item, actionKey, sectionTitle: 'DO this week' };
-    }
+    if (processed.has(actionKey)) continue;
+    if (isHumanOnly(item)) continue;
+    return { ...item, actionKey, sectionTitle: 'DO this week' };
   }
   return null;
 }
@@ -160,4 +170,5 @@ module.exports = {
   parseActionItems,
   extractCitations,
   pickNextAction,
+  isHumanOnly,
 };
