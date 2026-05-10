@@ -111,6 +111,26 @@ const EDIT_POSITION_EARS = {
   severity: 'block',
 };
 
+// Sprint 2.11.1 SSOT m1 — shared no-working-tree-edits criterion factory.
+// Issue-only kinds (doc_drift, todo_triage, test_coverage_gap, pr_review_responder,
+// workflow_hardener, secret_history_sweep, senior_tester_review) all need the
+// same "touchedFiles MUST be empty" guard. Previously the criterion object
+// was copy-pasted 7 times with subtly different IDs (some prefixed by kind,
+// some not). This factory generates the canonical object so kind, predicate
+// and severity are SSOT; description carries the per-kind reason; id remains
+// backward-compatible (idOverride preserves the existing string for kinds
+// that landed pre-2.11.1, so cross-session loop detector counts don't
+// reset).
+function noWorkingTreeEditsCriterion({ kindName, description, idOverride }) {
+  return {
+    id: idOverride || `${kindName}_no_working_tree_edits`,
+    kind: 'file_predicate',
+    description,
+    predicate: 'touchedFiles.length === 0',
+    severity: 'block',
+  };
+}
+
 // Sprint 2.2.5 v1 — str_replace + insert criteria. These are runtime-evaluated
 // against ops that declare kind=str_replace / kind=insert. Engine-side splice.cjs
 // already enforces these at apply time (failures = EDIT_OP_ANCHOR_NOT_FOUND /
@@ -275,13 +295,11 @@ const ACTION_KINDS = {
       // doc_drift v1 ONLY files gh issues — no working-tree edits. Therefore
       // touchedFiles MUST be empty. If something edits files, that's a
       // regression we want to catch.
-      {
-        id: 'no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'doc_drift',
+        idOverride: 'no_working_tree_edits',
         description: 'doc_drift v1 only files gh issues; touched files must be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'doc_drift_issues_only_ears',
         kind: 'ears_text',
@@ -301,13 +319,11 @@ const ACTION_KINDS = {
     blast_radius: 'minimal', // gh issue create only; no file edits
     shipped_in: '0.1.0', // Sprint 1.8.7
     acceptance_criteria: [
-      {
-        id: 'no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'todo_triage',
+        idOverride: 'no_working_tree_edits',
         description: 'todo_triage only files gh issues; touched files must be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'todo_triage_issues_only_ears',
         kind: 'ears_text',
@@ -331,13 +347,11 @@ const ACTION_KINDS = {
     blast_radius: 'minimal', // gh issues only
     shipped_in: '0.1.0', // Sprint 1.8.10
     acceptance_criteria: [
-      {
-        id: 'no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'test_coverage_gap',
+        idOverride: 'no_working_tree_edits',
         description: 'test_coverage_gap v1 files gh issues only; touched files must be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'coverage_gap_issues_only_ears',
         kind: 'ears_text',
@@ -386,13 +400,11 @@ const ACTION_KINDS = {
     blast_radius: 'minimal', // gh issues only
     shipped_in: '0.1.0', // Sprint 1.8.11
     acceptance_criteria: [
-      {
-        id: 'no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'pr_review_responder',
+        idOverride: 'no_working_tree_edits',
         description: 'pr_review_responder v1 surfaces via gh issues only; touched files must be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'pr_responder_issues_only_ears',
         kind: 'ears_text',
@@ -572,13 +584,10 @@ const ACTION_KINDS = {
     blast_radius: 'minimal', // gh issue + journal only; no working-tree edits in v1
     shipped_in: '0.3.0', // Sprint 2.5b v1
     acceptance_criteria: [
-      {
-        id: 'workflow_hardener_no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'workflow_hardener',
         description: 'workflow_hardener v1 only writes journal + opens gh issue; touched files MUST be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'workflow_hardener_advisory_only_ears',
         kind: 'ears_text',
@@ -606,13 +615,10 @@ const ACTION_KINDS = {
     blast_radius: 'minimal', // gh issue + journal only; read-only against repo
     shipped_in: '0.3.0', // Sprint 2.6b v1
     acceptance_criteria: [
-      {
-        id: 'secret_sweep_no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'secret_sweep',
         description: 'secret_history_sweep v1 only writes journal + opens gh issue; touched files MUST be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'secret_sweep_read_only_ears',
         kind: 'ears_text',
@@ -651,13 +657,10 @@ const ACTION_KINDS = {
     shipped_in: '0.3.0', // Sprint 2.11 v1
     acceptance_criteria: [
       // Sprint 2.11 R1: action MUST NOT edit source/test files. Audit only.
-      {
-        id: 'senior_tester_no_working_tree_edits',
-        kind: 'file_predicate',
+      noWorkingTreeEditsCriterion({
+        kindName: 'senior_tester',
         description: 'senior_tester_review v1 only writes journal + opens gh issue; touched files MUST be empty.',
-        predicate: 'touchedFiles.length === 0',
-        severity: 'block',
-      },
+      }),
       {
         id: 'senior_tester_review_only_ears',
         kind: 'ears_text',
