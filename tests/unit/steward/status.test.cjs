@@ -197,3 +197,102 @@ describe('status: CLI', () => {
     assert.match(result.stderr, /Usage:/);
   });
 });
+
+// Sprint 2.13 — --self-invocations flag renders chain history.
+describe('status: self-invocations flag (Sprint 2.13)', () => {
+  const selfInvocation = require('../../../bin/steward/_lib/self-invocation.cjs');
+
+  test('opts.selfInvocations=false omits the block', () => {
+    const repoRoot = freshFixture('si-off');
+    const dataHome = path.join(repoRoot, '.cortex-data');
+    try {
+      withDataHome(dataHome, () => {
+        const result = status.getStatus({ slug: SLUG, repoRoot });
+        assert.equal(result.self_invocations, undefined);
+      });
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('opts.selfInvocations=true returns block with empty tree on greenfield', () => {
+    const repoRoot = freshFixture('si-empty');
+    const dataHome = path.join(repoRoot, '.cortex-data');
+    try {
+      withDataHome(dataHome, () => {
+        const result = status.getStatus({ slug: SLUG, repoRoot, selfInvocations: true });
+        assert.ok(result.self_invocations);
+        assert.equal(result.self_invocations.total_events, 0);
+        assert.match(result.self_invocations.tree, /no chains/);
+      });
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('opts.selfInvocations=true surfaces recorded chains', () => {
+    const repoRoot = freshFixture('si-active');
+    const dataHome = path.join(repoRoot, '.cortex-data');
+    try {
+      withDataHome(dataHome, () => {
+        const tracker = selfInvocation.createInvocationTracker({ slug: SLUG });
+        const r1 = tracker.beforeInvoke({ skill: '/loop', args: { interval: '5m' } });
+        tracker.afterInvoke(r1.invocationId, { outcome: 'success' });
+        const r2 = tracker.beforeInvoke({
+          skill: 'subagent', args: { sub: 'general' }, parentId: r1.invocationId,
+        });
+        tracker.afterInvoke(r2.invocationId, { outcome: 'success' });
+
+        const result = status.getStatus({ slug: SLUG, repoRoot, selfInvocations: true });
+        assert.ok(result.self_invocations.total_events >= 4); // 2 started + 2 completed
+        assert.match(result.self_invocations.tree, /\/loop/);
+        assert.match(result.self_invocations.tree, /subagent/);
+      });
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('formatHumanReadable includes self_invocations block when present', () => {
+    const repoRoot = freshFixture('si-fmt');
+    const dataHome = path.join(repoRoot, '.cortex-data');
+    try {
+      withDataHome(dataHome, () => {
+        const tracker = selfInvocation.createInvocationTracker({ slug: SLUG });
+        const r = tracker.beforeInvoke({ skill: '/loop' });
+        tracker.afterInvoke(r.invocationId, { outcome: 'success' });
+
+        const result = status.getStatus({ slug: SLUG, repoRoot, selfInvocations: true });
+        const human = status.formatHumanReadable(result);
+        assert.match(human, /self_invocations \(--self-invocations\)/);
+        assert.match(human, /events_total:/);
+      });
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('CLI --self-invocations flag is forwarded to getStatus', () => {
+    const repoRoot = freshFixture('si-cli');
+    const dataHome = path.join(repoRoot, '.cortex-data');
+    try {
+      const env = { ...process.env, CORTEX_DATA_HOME: dataHome };
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.resolve(__dirname, '..', '..', '..', 'bin', 'steward', 'status.cjs'),
+          `--slug=${SLUG}`,
+          `--repo-root=${repoRoot}`,
+          '--self-invocations',
+          '--json',
+        ],
+        { encoding: 'utf8', env },
+      );
+      assert.equal(result.status, 0);
+      const parsed = JSON.parse(result.stdout);
+      assert.ok(parsed.self_invocations, 'self_invocations block must be present in JSON output');
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+});
