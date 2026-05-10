@@ -846,20 +846,16 @@ function containsShellMetacharacters(s) {
 // Scrub env for spawned child: strip ANTHROPIC_* keys that would silently
 // route claude -p through API billing. Defense layer 1 of 3.
 //
-// Sprint 2.4 R2 fix (edge-case Win): on Windows, env var lookup is
-// case-insensitive at the OS level but Node preserves the case captured at
-// process start. If a user dotfile exported `anthropic_api_key=...` (lower-
-// case), `delete env['ANTHROPIC_API_KEY']` would NOT remove it → child sees
-// `anthropic_api_key` → API billing leak. Scrub case-insensitively on win32.
+// Case-insensitive on all platforms (defense-in-depth): Sprint 2.10.7
+// property test caught a Linux gap where lowercase `anthropic_api_key` slipped
+// through. Original gate assumed Linux env case-sensitivity meant SDK only
+// reads uppercase — but the principle is "anything matching /^anthropic_/i
+// stays out of the spawned child," not "trust SDK lookup semantics."
 function scrubClaudeCliEnv(baseEnv) {
   const env = { ...(baseEnv || process.env) };
-  if (process.platform === 'win32') {
-    const leakSet = new Set(CLAUDE_CLI_LEAK_KEYS.map((k) => k.toLowerCase()));
-    for (const k of Object.keys(env)) {
-      if (leakSet.has(k.toLowerCase())) delete env[k];
-    }
-  } else {
-    for (const k of CLAUDE_CLI_LEAK_KEYS) delete env[k];
+  const leakSet = new Set(CLAUDE_CLI_LEAK_KEYS.map((k) => k.toLowerCase()));
+  for (const k of Object.keys(env)) {
+    if (leakSet.has(k.toLowerCase())) delete env[k];
   }
   return env;
 }
