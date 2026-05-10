@@ -33,19 +33,23 @@ Original task spec preserved for context: This task requires preserving the enti
 Original task spec preserved for context: Open `docs/steward-usage.md` and append a new section at the very end (after the last existing line). The new section MUST start with the exact heading `## Troubleshooting common cron failures` (level-2 markdown header). Below the heading, add a single short paragraph (1-3 sentences) explaining that operators should consult `docs/troubleshooting.md` for cron failure diagnostics, mention `STEWARD_HALT` as the kill-switch, and reference `cortex/journal/` as the audit trail. Do NOT modify any existing content — append-only edit. Keep the new content under 500 characters total. The total file should grow by ~200-500 bytes.
 [audit: spec-verifier no_destructive_rewrite criterion + Sprint 1.6.19 troubleshooting.md merge] [src: docs/steward-usage.md current state + docs/troubleshooting.md exists] [dogfood-2026-05-10: run 25626029120 confirmed task incompatible with Steward LLM full-content rewrite pattern on 14 KB+ files]
 
-### 6. Add JSDoc @description tag to the loadAllowedUserIds export in bin/discord-bridge/auth.cjs
-Open `bin/discord-bridge/auth.cjs` and locate the `loadAllowedUserIds` function (around the top of the file). Above its `function` keyword line, add a 3-line JSDoc block in this exact form:
+### 6. [HUMAN-ONLY] Add JSDoc @description tag to the loadAllowedUserIds export in bin/discord-bridge/auth.cjs
+**Marked [HUMAN-ONLY] 2026-05-10 after Round 6 autoresearch dogfood (run 25626146805) — same incident class as #5. `bin/discord-bridge/auth.cjs` is 6949 bytes; "insert 120 B JSDoc block" task triggers Steward+V4Flash full-content rewrite pattern: 2/3 candidates returned `OPENROUTER_EMPTY_RESPONSE`, 1/3 returned partial content (1284 tokens) shrinking the file 7 KB → ~1 KB → `no_destructive_rewrite` blocked all 3. Defense WORKED, no commit pushed, cost ~$0.0013. Operator does the 3-line insert manually OR Sprint 2.3+ ships `edit.position: 'before_line:N'` primitive that bypasses full-content rewrite.**
+
+Original task spec preserved for context: Open `bin/discord-bridge/auth.cjs` and locate the `loadAllowedUserIds` function (around the top of the file). Above its `function` keyword line, add a 3-line JSDoc block in this exact form:
 ```
 /**
  * @description Parse STEWARD_DISCORD_ALLOWED_USER_IDS env var into a Set of snowflake IDs.
  */
 ```
 Place the block immediately above the `function loadAllowedUserIds(` line, with no blank line between. Do NOT change function logic, signature, or return value. Do NOT add JSDoc to other functions. Do NOT delete or alter existing comments. Pure annotation. The file grows by ~120 bytes; well under any shrink threshold.
-[audit: docs/standards/coding-behavior.md JSDoc convention + Sprint 2.6 Discord bridge auth.cjs current state] [src: bin/discord-bridge/auth.cjs file head]
+[audit: docs/standards/coding-behavior.md JSDoc convention + Sprint 2.6 Discord bridge auth.cjs current state] [src: bin/discord-bridge/auth.cjs file head] [dogfood-2026-05-10: run 25626146805 confirmed task incompatible with Steward LLM action engine on existing >200 B files]
 
-### 7. Add a constant CORTEX_TOOL_SPEC_VERSION to bin/cortex/tools/index.cjs
-Open `bin/cortex/tools/index.cjs` and add ONE new constant export immediately after the `const TOOLS = Object.freeze([...])` declaration: `const CORTEX_TOOL_SPEC_VERSION = 'v0';`. Then add the new line `  CORTEX_TOOL_SPEC_VERSION,` to the `module.exports = { ... }` block, **inserted on a new line directly before the line `  NAME_REGEX,`** (do NOT reorder any other exports — the existing order in the module.exports block must stay byte-for-byte identical except for this one inserted line). Do NOT change any existing TOOLS array entry, validator, or filename map. Do NOT delete any existing exports. Pure addition: ~80 bytes added; spec-verifier shrink threshold is well-clear.
-[audit: Sprint 2.9 R1 memo §7 versioning ("v0", "v0.5", "v1.0", "v1.5" planned) + bin/cortex/tools/_spec.md §7] [src: bin/cortex/tools/index.cjs current exports + spec versioning convention]
+### 7. [HUMAN-ONLY] Add a constant CORTEX_TOOL_SPEC_VERSION to bin/cortex/tools/index.cjs
+**Marked [HUMAN-ONLY] 2026-05-10 — same incident class as #5 + #6 (insert-into-existing-file). `bin/cortex/tools/index.cjs` is a non-trivial existing file; "add constant + add to module.exports block" task triggers the same Steward+V4Flash full-content rewrite pattern that failed #5 (3/3 destructive-rewrite block) and #6 (2 empty + 1 destructive). Same root cause: LLM lacks an append/insert primitive — Sprint 2.3+ ships `edit.position: 'after_pattern:CONST_NAME'` to fix. Operator adds the constant manually (~30 seconds) until then.**
+
+Original task spec preserved for context: Open `bin/cortex/tools/index.cjs` and add ONE new constant export immediately after the `const TOOLS = Object.freeze([...])` declaration: `const CORTEX_TOOL_SPEC_VERSION = 'v0';`. Then add the new line `  CORTEX_TOOL_SPEC_VERSION,` to the `module.exports = { ... }` block, **inserted on a new line directly before the line `  NAME_REGEX,`** (do NOT reorder any other exports — the existing order in the module.exports block must stay byte-for-byte identical except for this one inserted line). Do NOT change any existing TOOLS array entry, validator, or filename map. Do NOT delete any existing exports. Pure addition: ~80 bytes added; spec-verifier shrink threshold is well-clear.
+[audit: Sprint 2.9 R1 memo §7 versioning ("v0", "v0.5", "v1.0", "v1.5" planned) + bin/cortex/tools/_spec.md §7] [src: bin/cortex/tools/index.cjs current exports + spec versioning convention] [dogfood-2026-05-10: same incident class as #5 + #6, deferred until Sprint 2.3 action-engine append primitive]
 
 ## DO this sprint (cited)
 
