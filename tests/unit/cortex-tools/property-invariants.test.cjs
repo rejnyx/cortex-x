@@ -1,8 +1,10 @@
 'use strict';
 
-// Sprint 2.9.7b — hand-rolled property tests for R2-flagged invariant code.
-// Zero-deps (cortex-x convention; same pattern as
-// tests/unit/steward/helpers-property.test.cjs Sprint 1.6.21).
+// Sprint 2.9.7b — property tests for R2-flagged invariant code.
+// Sprint 2.3a migration: glob random sweep migrated to fast-check (shrinks
+// failures + replays via seed). Annotation-routing 16-permutation sweep + bash
+// known-bad / known-safe tables stay deterministic — those are intentional
+// regressions against specific R2 incident classes, not random samples.
 //
 // Invariants covered:
 //   - annotation-routing: 16-permutation exhaustive sweep over 4 boolean
@@ -15,6 +17,7 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const fc = require('fast-check');
 
 const annotationRouting = require('../../../bin/cortex/tools/_lib/annotation-routing.cjs');
 const bash = require('../../../bin/cortex/tools/bash.cjs');
@@ -269,25 +272,24 @@ describe('Sprint 2.9.7b — globToRegex property invariants', () => {
     // throw and converts to TOOL_GLOB_PATTERN_INVALID; see ReDoS-on-charclass
     // test below). This invariant covers the path-shape patterns operators
     // actually write.
-    const SAFE_CHARS = 'abc0-9*?_-./{,}'; // no [ or ]
-    const seed = 0xCAFEBABE;
-    let rng = seed;
-    function rand() { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return rng / 0x7fffffff; }
-    let sampled = 0;
-    for (let trial = 0; trial < 50; trial++) {
-      const len = 1 + Math.floor(rand() * 200);
-      let pattern = '';
-      for (let i = 0; i < len; i++) {
-        pattern += SAFE_CHARS[Math.floor(rand() * SAFE_CHARS.length)];
-      }
-      try {
-        glob._internal.globToRegex(pattern);
-        sampled++;
-      } catch (e) {
-        assert.fail(`globToRegex threw on length-${len} pattern: ${pattern.slice(0, 40)} → ${e.message}`);
-      }
-    }
-    assert.equal(sampled, 50, '50 random patterns compiled successfully');
+    //
+    // Sprint 2.3a migration: hand-rolled LCG → fast-check `fc.stringMatching`
+    // bounded to safe glob alphabet. Shrinking surfaces minimal counterexample
+    // if any pattern in the alphabet trips globToRegex; replay seed 0xCAFEBABE
+    // mirrors the original deterministic behavior.
+    const safeCharGen = fc.constantFrom(...'abc0-9*?_-./{,}');
+    const safePatternGen = fc.array(safeCharGen, { minLength: 1, maxLength: 200 }).map((cs) => cs.join(''));
+    fc.assert(
+      fc.property(safePatternGen, (pattern) => {
+        try {
+          glob._internal.globToRegex(pattern);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }),
+      { numRuns: 50, seed: 0xCAFEBABE },
+    );
   });
 
   test('invariant: malformed char class input is caught at handler boundary (TOOL_GLOB_PATTERN_INVALID)', async () => {

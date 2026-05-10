@@ -1,98 +1,95 @@
 // helpers-property.test.cjs — Sprint 1.6.21 (T2) property tests.
 //
-// Hand-rolled property testing (cortex-x is zero-deps; no fast-check). Pattern:
-//   1. Define an invariant that should hold for ALL valid inputs
-//   2. Generate N random inputs from a constrained domain
-//   3. Assert the invariant for each generated input
+// Sprint 2.3a migration: Math.random() loops replaced with fast-check
+// (`fc.assert(fc.property(...))`) so failures shrink to a minimal counterexample
+// and seeds replay deterministically. Hand-picked edge-case tables stay
+// (NaN, Infinity, -Infinity, null, undefined) — those are intentional regressions
+// against specific incident classes, not random-generated.
 //
 // Coverage targets (per standards/correctness.md § Practice 2):
-//   - stripJsonFences: roundtrip, idempotency, no-fence pass-through
-//   - addCostFields: input mutation safety, conditional add, null handling
+//   - stripJsonFences: roundtrip, idempotency, no-fence pass-through, totality
 //   - extractUsage: shape tolerance, number coercion, NaN/negative rejection
-//   - coerceNonNegFiniteNumber: monotonicity on number input, parse-failure
-//     symmetric for invalid strings
+//   - addCostFields: input mutation safety, conditional add, null handling
 
 'use strict';
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const fc = require('fast-check');
 
 const actionEngine = require('../../../bin/steward/_lib/action-engine.cjs');
 const execute = require('../../../bin/steward/execute.cjs');
 
 // --- generators ------------------------------------------------------------
 
-function randInt(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
-function randString(len) {
-  let s = '';
-  // ASCII printable except backtick to avoid creating accidental fences
-  for (let i = 0; i < len; i++) {
-    const c = randInt(32, 125);
-    s += String.fromCharCode(c === 96 ? 32 : c); // skip backtick
-  }
-  return s;
-}
-function randJsonObject() {
-  // Generate a simple {edits: [{path, content}]} JSON
-  const n = randInt(0, 3);
-  const edits = [];
-  for (let i = 0; i < n; i++) {
-    edits.push({
-      path: `file-${randInt(1, 99)}.txt`,
-      content: randString(randInt(0, 50)),
-    });
-  }
-  return JSON.stringify({ edits });
-}
-function randPositiveNumber() {
-  // Mix of integer + fractional
-  return Math.random() < 0.5 ? randInt(0, 100000) : Math.random() * 100;
-}
+// JSON object resembling the engine's editPlan shape — used to drive
+// stripJsonFences round-trip tests with realistic payloads.
+const editPlanGen = fc.record({
+  edits: fc.array(
+    fc.record({
+      path: fc.string({ minLength: 1, maxLength: 24 }).filter((s) => /^[a-zA-Z0-9./_-]+$/.test(s)),
+      content: fc.string({ maxLength: 80 }),
+    }),
+    { maxLength: 3 },
+  ),
+}).map((obj) => JSON.stringify(obj));
+
+// Non-negative finite number generator — covers integer + fractional + zero.
+const positiveNumber = fc.oneof(
+  fc.nat({ max: 100_000 }),
+  fc.double({ min: 0, max: 100, noNaN: true, noDefaultInfinity: true }),
+);
 
 // --- stripJsonFences -------------------------------------------------------
 
 describe('property: stripJsonFences', () => {
   test('roundtrip: ```json\\n<json>\\n``` → trim(<json>)', () => {
-    for (let i = 0; i < 50; i++) {
-      const inner = randJsonObject();
-      const fenced = '```json\n' + inner + '\n```';
-      const result = actionEngine.stripJsonFences(fenced);
-      assert.equal(result, inner, `roundtrip failed for inner=${inner.slice(0, 40)}`);
-    }
+    fc.assert(
+      fc.property(editPlanGen, (inner) => {
+        const fenced = '```json\n' + inner + '\n```';
+        return actionEngine.stripJsonFences(fenced) === inner;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('roundtrip: ```\\n<json>\\n``` → trim(<json>) (no language tag)', () => {
-    for (let i = 0; i < 50; i++) {
-      const inner = randJsonObject();
-      const fenced = '```\n' + inner + '\n```';
-      const result = actionEngine.stripJsonFences(fenced);
-      assert.equal(result, inner);
-    }
+    fc.assert(
+      fc.property(editPlanGen, (inner) => {
+        const fenced = '```\n' + inner + '\n```';
+        return actionEngine.stripJsonFences(fenced) === inner;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
-  test('no-fence pass-through: bare JSON → trim(input)', () => {
-    for (let i = 0; i < 50; i++) {
-      const inner = randJsonObject();
-      const padded = '   ' + inner + '   ';
-      const result = actionEngine.stripJsonFences(padded);
-      assert.equal(result, inner.trim());
-    }
+  test('no-fence pass-through: bare JSON with whitespace → trim(input)', () => {
+    fc.assert(
+      fc.property(editPlanGen, (inner) => {
+        const padded = '   ' + inner + '   ';
+        return actionEngine.stripJsonFences(padded) === inner.trim();
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('idempotent: stripJsonFences(stripJsonFences(s)) === stripJsonFences(s)', () => {
-    for (let i = 0; i < 50; i++) {
-      const inner = randJsonObject();
-      const fenced = Math.random() < 0.5 ? '```json\n' + inner + '\n```' : inner;
-      const once = actionEngine.stripJsonFences(fenced);
-      const twice = actionEngine.stripJsonFences(once);
-      assert.equal(once, twice);
-    }
+    fc.assert(
+      fc.property(editPlanGen, fc.boolean(), (inner, fenced) => {
+        const input = fenced ? '```json\n' + inner + '\n```' : inner;
+        const once = actionEngine.stripJsonFences(input);
+        const twice = actionEngine.stripJsonFences(once);
+        return once === twice;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
-  test('null/undefined/non-string passthrough: never throws', () => {
+  test('null/undefined/non-string passthrough: never throws (totality)', () => {
+    // Hand-picked table — these are the intentional regressions against
+    // specific OPENROUTER_NO_DATA / OPENROUTER_PLAN_SHAPE_INVALID failure modes.
     for (const v of [null, undefined, 42, [], {}, true, false]) {
       assert.doesNotThrow(() => actionEngine.stripJsonFences(v));
-      // For non-strings: returns the value unchanged
       const result = actionEngine.stripJsonFences(v);
       assert.equal(result, v, `non-string ${typeof v} should pass through unchanged`);
     }
@@ -101,6 +98,21 @@ describe('property: stripJsonFences', () => {
   test('empty string: returns empty string', () => {
     assert.equal(actionEngine.stripJsonFences(''), '');
     assert.equal(actionEngine.stripJsonFences('   '), '');
+  });
+
+  test('totality across arbitrary string input — never throws', () => {
+    fc.assert(
+      fc.property(fc.string({ maxLength: 200 }), (s) => {
+        let r;
+        try {
+          r = actionEngine.stripJsonFences(s);
+        } catch (err) {
+          return false;
+        }
+        return typeof r === 'string';
+      }),
+      { numRuns: 200, seed: 0xc01a },
+    );
   });
 });
 
@@ -115,22 +127,28 @@ describe('property: extractUsage', () => {
   });
 
   test('numeric cost → cost_usd field present', () => {
-    for (let i = 0; i < 30; i++) {
-      const cost = randPositiveNumber();
-      const out = actionEngine.extractUsage({ usage: { cost } });
-      assert.equal(out.cost_usd, cost);
-    }
+    fc.assert(
+      fc.property(positiveNumber, (cost) => {
+        const out = actionEngine.extractUsage({ usage: { cost } });
+        return out.cost_usd === cost;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('string-numeric cost → coerced to number', () => {
-    for (let i = 0; i < 30; i++) {
-      const cost = randPositiveNumber();
-      const out = actionEngine.extractUsage({ usage: { cost: String(cost) } });
-      assert.equal(out.cost_usd, cost, `string "${String(cost)}" should coerce to ${cost}`);
-    }
+    fc.assert(
+      fc.property(positiveNumber, (cost) => {
+        const out = actionEngine.extractUsage({ usage: { cost: String(cost) } });
+        return out.cost_usd === cost;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('NaN/Infinity/-N/non-numeric strings → field omitted', () => {
+    // Hand-picked — these are the intentional regressions against the
+    // Sprint 1.6.16 negative-cost / NaN-cost incident class.
     for (const bad of [NaN, Infinity, -Infinity, -1, -0.001, 'abc', '', null, undefined, {}, []]) {
       const out = actionEngine.extractUsage({ usage: { cost: bad } });
       assert.equal(out.cost_usd, undefined, `bad value ${JSON.stringify(bad)} should be omitted`);
@@ -138,27 +156,31 @@ describe('property: extractUsage', () => {
   });
 
   test('tokens are integer-truncated even for fractional inputs', () => {
-    for (let i = 0; i < 30; i++) {
-      const t = Math.random() * 10000; // fractional
-      const out = actionEngine.extractUsage({ usage: { prompt_tokens: t } });
-      assert.equal(out.tokens_in, Math.trunc(t));
-      assert.ok(Number.isInteger(out.tokens_in));
-    }
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), (t) => {
+        const out = actionEngine.extractUsage({ usage: { prompt_tokens: t } });
+        return out.tokens_in === Math.trunc(t) && Number.isInteger(out.tokens_in);
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('output never contains keys with undefined value', () => {
-    for (let i = 0; i < 30; i++) {
-      // Mix valid + invalid
-      const usage = {
-        cost: Math.random() < 0.5 ? randPositiveNumber() : NaN,
-        prompt_tokens: Math.random() < 0.5 ? randInt(0, 1000) : 'bad',
-        completion_tokens: Math.random() < 0.5 ? randInt(0, 1000) : null,
-      };
-      const out = actionEngine.extractUsage({ usage });
-      for (const k of Object.keys(out)) {
-        assert.notEqual(out[k], undefined, `key ${k} has undefined value`);
-      }
-    }
+    const usageGen = fc.record({
+      cost: fc.option(fc.oneof(positiveNumber, fc.constant(NaN)), { nil: undefined }),
+      prompt_tokens: fc.option(fc.oneof(fc.nat({ max: 1000 }), fc.constant('bad')), { nil: undefined }),
+      completion_tokens: fc.option(fc.oneof(fc.nat({ max: 1000 }), fc.constant(null)), { nil: undefined }),
+    });
+    fc.assert(
+      fc.property(usageGen, (usage) => {
+        const out = actionEngine.extractUsage({ usage });
+        for (const k of Object.keys(out)) {
+          if (out[k] === undefined) return false;
+        }
+        return true;
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 });
 
@@ -166,64 +188,66 @@ describe('property: extractUsage', () => {
 
 describe('property: addCostFields', () => {
   test('null/undefined applyResult → entry returned unchanged', () => {
-    for (let i = 0; i < 20; i++) {
-      const entry = { ts: 'x', event: 'e', cost_usd_pre_existing: 'unchanged' };
-      const before = JSON.stringify(entry);
-      execute.addCostFields(entry, null);
-      assert.equal(JSON.stringify(entry), before);
-      execute.addCostFields(entry, undefined);
-      assert.equal(JSON.stringify(entry), before);
-    }
+    fc.assert(
+      fc.property(fc.constantFrom(null, undefined), (apply) => {
+        const entry = { ts: 'x', event: 'e', cost_usd_pre_existing: 'unchanged' };
+        const before = JSON.stringify(entry);
+        execute.addCostFields(entry, apply);
+        return JSON.stringify(entry) === before;
+      }),
+      { numRuns: 20, seed: 0xc01a },
+    );
   });
 
   test('only number-valued cost_usd/tokens_in/tokens_out get added', () => {
-    for (let i = 0; i < 30; i++) {
-      const entry = { ts: 'x' };
-      const apply = {
-        cost_usd: Math.random() < 0.5 ? randPositiveNumber() : 'bad',
-        tokens_in: Math.random() < 0.5 ? randInt(0, 1000) : null,
-        tokens_out: Math.random() < 0.5 ? randInt(0, 1000) : NaN,
-      };
-      execute.addCostFields(entry, apply);
-      // For each field, it's present iff value was a number
-      assert.equal(
-        'cost_usd' in entry,
-        typeof apply.cost_usd === 'number',
-        `cost_usd presence should match type (was ${typeof apply.cost_usd})`,
-      );
-      assert.equal(
-        'tokens_in' in entry,
-        typeof apply.tokens_in === 'number',
-      );
-      assert.equal(
-        'tokens_out' in entry,
-        typeof apply.tokens_out === 'number',
-      );
-    }
+    const applyGen = fc.record({
+      cost_usd: fc.oneof(positiveNumber, fc.constant('bad')),
+      tokens_in: fc.oneof(fc.nat({ max: 1000 }), fc.constant(null)),
+      tokens_out: fc.oneof(fc.nat({ max: 1000 }), fc.constant(NaN)),
+    });
+    fc.assert(
+      fc.property(applyGen, (apply) => {
+        const entry = { ts: 'x' };
+        execute.addCostFields(entry, apply);
+        return (
+          ('cost_usd' in entry) === (typeof apply.cost_usd === 'number')
+          && ('tokens_in' in entry) === (typeof apply.tokens_in === 'number')
+          && ('tokens_out' in entry) === (typeof apply.tokens_out === 'number')
+        );
+      }),
+      { numRuns: 100, seed: 0xc01a },
+    );
   });
 
   test('other entry fields untouched (no key drift)', () => {
-    for (let i = 0; i < 20; i++) {
-      const entry = {
-        ts: 'x',
-        trigger: 'manual',
-        tier: 'T0',
-        event: 'foo',
-        outcome: 'success',
-        actor: 'steward',
-        custom_field: 'should not be removed',
-      };
-      const before = Object.keys(entry).sort();
-      execute.addCostFields(entry, { cost_usd: 0.01 });
-      const after = Object.keys(entry).sort().filter((k) => k !== 'cost_usd');
-      assert.deepEqual(after, before);
-    }
+    fc.assert(
+      fc.property(positiveNumber, (cost) => {
+        const entry = {
+          ts: 'x',
+          trigger: 'manual',
+          tier: 'T0',
+          event: 'foo',
+          outcome: 'success',
+          actor: 'steward',
+          custom_field: 'should not be removed',
+        };
+        const before = Object.keys(entry).sort();
+        execute.addCostFields(entry, { cost_usd: cost });
+        const after = Object.keys(entry).sort().filter((k) => k !== 'cost_usd');
+        return JSON.stringify(after) === JSON.stringify(before);
+      }),
+      { numRuns: 50, seed: 0xc01a },
+    );
   });
 
   test('mutates input entry (intentional — return value === input)', () => {
-    const entry = { ts: 'x' };
-    const result = execute.addCostFields(entry, { cost_usd: 0.42 });
-    assert.equal(result, entry, 'returned entry must be the same object reference');
-    assert.equal(entry.cost_usd, 0.42);
+    fc.assert(
+      fc.property(positiveNumber, (cost) => {
+        const entry = { ts: 'x' };
+        const result = execute.addCostFields(entry, { cost_usd: cost });
+        return result === entry && entry.cost_usd === cost;
+      }),
+      { numRuns: 30, seed: 0xc01a },
+    );
   });
 });
