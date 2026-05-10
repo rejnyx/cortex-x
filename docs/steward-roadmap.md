@@ -681,6 +681,163 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
+### Sprint 2.5b — `workflow_hardener` action_kind (S effort) — 📋 PROPOSED 2026-05-10
+
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3 + [`sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`](research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md). Awaiting operator approval.
+
+**Why**: GitHub's [Aug 2025 policy](https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/) enforces SHA pinning; the [2026 roadmap](https://github.com/orgs/community/discussions/190621) adds workflow lockfiles. cortex-x's `dep_update_patch` covers version drift, but not workflow security hardening (missing `permissions:`/`concurrency:`/`timeout-minutes:` blocks, branch-protection drift). Direct precedent = [StepSecurity Secure-Repo](https://github.com/step-security/secure-repo); Renovate-Mend explicitly does NOT cover this niche. Pre-public-launch ship gate.
+
+**Scope (deterministic, zero LLM cost)**:
+- Replace `uses: actions/checkout@v4` with `uses: actions/checkout@<sha> # v4` via `gh api repos/:o/:r/git/refs/tags/<v>` resolution.
+- Inject missing `permissions: { contents: read }` at workflow root if absent.
+- Inject missing `concurrency:` and `timeout-minutes:` defaults.
+- Audit `gh api repos/:o/:r/branches/main/protection` against committed SSOT `.github/branch-protection.json`; diff = file gh issue.
+- PR-only output for workflow file edits; gh-issue for branch-protection drift.
+
+**Cadence**: weekly cron `0 03 * * 0` (Sunday 03:00 UTC, before existing dep-patch 04:00).
+
+**Acceptance criteria**:
+- [ ] All workflow `uses:` references SHA-pinned with version comment after Sprint 2.5b first run.
+- [ ] All workflows have `permissions:`, `concurrency:`, `timeout-minutes:`.
+- [ ] Branch-protection drift detected when SSOT file diverges from live config.
+- [ ] Touched files restricted to `.github/workflows/*.yml` + `.github/branch-protection.json` (acceptance criterion).
+- [ ] Zero LLM cost recorded in journal.
+- [ ] ≥ 12 new tests + 1 fixture-based integration test.
+
+**New error codes**:
+- `WORKFLOW_GH_API_FAILED` (SHA resolution failed; fail-open, log warning)
+- `BRANCH_PROTECTION_DRIFT` (advisory, not blocking)
+
+**Stolen from**: StepSecurity Secure-Repo logic, but in zero-dep CJS.
+
+**Out of scope**: SBOM generation (no shipped artifact), license compliance (Dependabot covers), CODEOWNERS sync (single-maintainer repo).
+
+---
+
+### Sprint 2.6b — `secret_history_sweep` action_kind (S effort) — 📋 PROPOSED 2026-05-10
+
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3. Awaiting operator approval.
+
+**Why**: Pre-public-flip MUST. cortex-x has `no-pii.yml` (regex-only at HEAD) + `policy-check.cjs` `NO_SECRET_READ` (Sprint pre-2.0). Neither covers **rotated-but-leaked keys, encoded blobs, deep history**. [TruffleHog](https://github.com/trufflesecurity/trufflehog) full-history with `--only-verified` covers 800+ secret types and verifies them as currently-active. The moment cortex-x flips public, any verified credential in history is exposed; this sweep catches it the week before.
+
+**Scope (deterministic, zero LLM cost)**:
+- `trufflehog git file://. --only-verified --json --since-commit=<last-sweep-sha>`
+- On verified hit: open `gh issue` with severity LABEL.
+- **NO auto-PR** — secret revocation requires human (rotate key, then commit-history rewrite is destructive + governed by R5 human-only).
+- Update journal with last-swept-sha.
+
+**Cadence**: weekly cron `0 02 * * 0` (Sunday 02:00 UTC, before workflow_hardener 03:00).
+
+**Acceptance criteria**:
+- [ ] First sweep produces `journal/secret-sweep-<date>.jsonl` with `last_swept_sha` baseline.
+- [ ] Subsequent sweeps run incrementally `--since-commit=<last_swept_sha>`.
+- [ ] Verified hit opens gh issue; non-verified hit logged but not surfaced.
+- [ ] Read-only against working tree; only writes are journal entries + `gh issue create`.
+- [ ] Zero LLM cost recorded in journal.
+- [ ] Fail-open: missing `trufflehog` installer → kind skipped with single warn line.
+- [ ] ≥ 10 new tests + 1 fixture-based integration test (synthetic dirty-history repo).
+
+**New error codes**:
+- `TRUFFLEHOG_NOT_FOUND` (PATH lookup miss; fail-open)
+- `SECRET_HISTORY_HIT` (advisory, not blocking — issue is the surface)
+
+**Stolen from**: TruffleHog Apache-2.0 CLI direct integration; weekly-verified-history pattern from [appsecsanta.com gitleaks-vs-trufflehog](https://appsecsanta.com/sast-tools/gitleaks-vs-trufflehog).
+
+**Out of scope**: pre-commit hooks (Steward doesn't enforce dev config), SaaS GitGuardian / TruffleHog Enterprise (Apache-2.0 OSS CLI is sufficient).
+
+---
+
+### Sprint 2.5c — `tech_debt_audit` test_count delta extension (XS effort) — 📋 PROPOSED 2026-05-10
+
+**Status**: 📋 Proposed 2026-05-10. ~10 LoC addition to existing `tech_debt_audit` (Sprint 2.5).
+
+**Scope**: Add `test_count` field to `cortex/debt-snapshot.json`; alarm if month-over-month delta < -5 %. No new action_kind; folds into existing nightly cron.
+
+**Why**: Catches regression where tests get deleted or skipped en-masse without operator awareness. Zero new infra; ~10 LoC.
+
+---
+
+### Sprint 2.11 — `senior_tester_review` action_kind (M effort, ⭐ DIFFERENTIATOR) — 📋 PROPOSED 2026-05-10
+
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §2 + [`sprint-2.11-senior-tester-research-2026-05-10.md`](research/sprint-2.11-senior-tester-research-2026-05-10.md). Awaiting operator approval.
+
+**Why**: **Open niche, real research lane (2024Q4-2025Q4)**. UTRefactor (FSE'25, [arxiv:2409.16739](https://arxiv.org/abs/2409.16739)) — 89% smell reduction. Agentic-LMs (IEEE Software, [arxiv:2504.07277](https://arxiv.org/abs/2504.07277)) — Phi-4-14B pass@5 75.3% within 5% of frontier. ESE 2025 ([DOI 10.1007/s10664-025-10718-x](https://link.springer.com/article/10.1007/s10664-025-10718-x)) — 13 new test smells in 4 categories, explicit tsDetect extension for AI-generated tests. **No SaaS or GitHub App ships cron-driven "audit existing tests" mode** — Diffblue Cover (Test Review/Test Asset Insights) generates new tests rather than auditing existing quality. Mabl/Functionize/TestSprite/Applitools/Virtuoso all sit in authoring lane. cortex-x positioning: "AI-augmented tester, not replacement" (already in Sprint 2.10 framing) — this kind makes that real on a cron.
+
+**Distinct from existing kinds** (no overlap):
+- ≠ `flaky_test_repair` (runtime symptom, not static smell)
+- ≠ `test_coverage_gap` (coverage delta, not quality at fixed coverage)
+- ≠ `mutation_score_drift` (oracle strength via mutation, not broader suite-quality)
+- ≠ `tech_debt_audit` (non-test code-quality)
+- ≠ Sprint 2.10 `/test-audit` (one-shot retrofit lens; this is monthly cron with different deliverables)
+
+**Architecture**: 2-stage hybrid (deterministic detector + LLM judge).
+
+```
+PHASE A — DETECT (deterministic, $0)
+  ├─ tsDetect / JNose                     (Java)
+  ├─ PyNose                               (Python)
+  ├─ cortex-x-owned JS/TS pattern grep    (Tier-1 audience)
+  └─ Layer-balance: count tests per layer; flag pyramid skew (target 70/20/10 unit/integration/e2e)
+
+PHASE B — JUDGE (LLM, single call)
+  ├─ Input: ranked smell list (top 20) + 3-5 redacted test files +
+  │         project profile + ISO 25010 + Bach HTSM lens
+  ├─ Output (JSON-mode): {findings[], layer_balance_assessment,
+  │                       top_3_strategic_gaps, est_npm_test_pass_after_fixes}
+  └─ Default model: deepseek-v4-flash (~$0.005/run); escalate to
+       claude-sonnet for ≥10 findings (per Sprint 2.0b routing)
+
+PHASE C — DELIVER (deterministic)
+  ├─ Write journal/senior-tester-YYYY-MM.md
+  ├─ Open ONE GitHub issue with checklist (don't fragment into 20)
+  ├─ Emit OTLP trace span (Sprint 2.0)
+  └─ DO NOT auto-refactor in v1 — refactor = separate v1.5, gated on
+     mutation_score_drift baseline + delta ≥ 0
+```
+
+**Cadence**: monthly cron `0 04 1 * *` (1st of month, 04:00 UTC). Auto-trigger when `tech_debt_audit` flags test-folder hotspot.
+
+**Cost ceiling (R4)**: ~$0.25/month at full cadence × 5 active projects. Well under Sprint 1.9.1 caps.
+
+**Acceptance criteria**:
+- [ ] Phase A deterministic detection runs zero-cost on Java + Python + JS/TS.
+- [ ] Phase B LLM judge produces structured JSON with findings + layer-balance + strategic gaps.
+- [ ] One gh issue opened per run with checklist (not N issues).
+- [ ] OTLP span emitted to Phoenix.
+- [ ] DO NOT auto-edit source/test files (acceptance criterion: `touchedFiles.every((p) => p.startsWith("journal/"))`)
+- [ ] ≥ 18 new tests + 1 fixture-based integration test (5 fixture repos with known-bad test suites).
+
+**Pre-ship gates**:
+1. Encode tsDetect 21 + ESE'25 13 = **34-smell registry** as cortex-x SSOT JSON.
+2. Wire JS/TS pattern detectors first; Java/Python next.
+3. Eval suite entry: 5 fixture repos with expected findings.
+4. R2 review pipeline (acceptance + correctness + security + ssot + edge-case).
+5. Document in `docs/steward-runtime.md` § action_kinds.
+
+**Open question for operator**: v1 = **review-only** OR review + propose-PR-with-refactor? Recommendation: **review-only v1**, refactor in v1.5 gated on mutation_score baseline existing AND delta ≥ 0 post-refactor. Rationale: [arxiv:2506.07594](https://arxiv.org/abs/2506.07594) shows LLM refactors *introduce new smells* in non-trivial fraction of cases; R5 (human-only paths inviolate) reinforces.
+
+**Stolen from**: UTRefactor DSL refactor rules + Agentic-LMs multi-agent loop pattern + tsDetect 21-smell taxonomy + ESE 2025 13-smell extension + cortex-x Sprint 2.10 qa-engineer profile + qa-retrofit prompt (different cadence, same grounding sources).
+
+---
+
+### Sprint LR (Launch Readiness) track — 📋 PROPOSED 2026-05-10
+
+**Status**: 📋 Proposed 2026-05-10 from operator brief audit ([`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §1). Distinct track from Tier 1 engineering — these are publish-readiness items that should never block engineering momentum.
+
+| ID | Item | Effort | Operator-only? |
+|---|---|---|---|
+| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run |
+| LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits |
+| LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now |
+| LR.4 | `docs/launch-checklist.md` | XS | partial |
+| LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic |
+| LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic |
+| LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded |
+
+**Sequencing**: LR.3 + LR.4 + LR.1 + LR.2 (skeleton) ship-able now without operator intervention. LR.5/LR.6/LR.7 wait for explicit operator strategic decision.
+
+---
+
 ## 4. Tier 2 — Compound learners (weeks 7-12, Sprint 3.0 → 3.3)
 
 **Goal**: turn cortex-x into a self-evolving system. After Tier 2, prompts/strategies/skills get measurably better every week without operator intervention.
