@@ -1,0 +1,62 @@
+{
+  "name": "cortex-x",
+  "version": "0.1.0-pre",
+  "description": "Opinionated infrastructure for AI-agentic Claude Code workflows: scaffolds new projects with safety + standards, audits existing ones across 12 dimensions, and ships an autonomous overnight maintenance agent (Steward) with atomic commits + draft PRs.",
+  "author": {
+    "name": "Rejnyx",
+    "url": "https://github.com/Rejnyx"
+  },
+  "homepage": "https://github.com/Rejnyx/cortex-x",
+  "repository": "https://github.com/Rejnyx/cortex-x",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "keywords": [
+    "claude-code",
+    "agentic",
+    "autonomous-agent",
+    "framework",
+    "scaffolding",
+    "audit",
+    "steward",
+    "ralph-pattern"
+  ],
+  "skills": [
+    {
+      "name": "cortex-init",
+      "path": "shared/skills/cortex-init/SKILL.md",
+      "description": "Initialize cortex-x in the current project (New / Existing / Framework-only)."
+    },
+    {
+      "name": "test-audit",
+      "path": "shared/skills/test-audit/SKILL.md",
+      "description": "Senior-QA-grade testing audit via the qa-retrofit prompt pipeline."
+    }
+  ],
+  "hooks": {
+    "SessionStart": "shared/hooks/session-start.cjs",
+    "PreToolUse": "shared/hooks/block-destructive.cjs",
+    "PreCompact": "shared/hooks/pre-compact.cjs",
+    "PostToolUse": "shared/hooks/post-tool-use.cjs"
+  },
+  "agents": [
+    "agents/cortex-thinker.md",
+    "agents/security-auditor.md",
+    "agents/correctness-auditor.md",
+    "agents/blind-hunter.md",
+    "agents/ssot-enforcer.md",
+    "agents/edge-case-hunter.md",
+    "agents/acceptance-auditor.md",
+    "agents/planner.md",
+    "agents/synthesizer.md"
+  ],
+  "commands": {
+    "cortex-steward": "bin/cortex-steward",
+    "cortex-bootstrap": "bin/cortex-bootstrap",
+    "cortex-gap-report": "bin/cortex-gap-report"
+  },
+  "requirements": {
+    "claude_code": ">=2.0.0",
+    "node": ">=22.0.0"
+  },
+  "experimental": true,
+  "stability": "closed-beta"
+}

@@ -262,6 +262,68 @@ body
     assert.equal(picked.num, 3, 'should skip both human-only variants and pick #3');
   });
 
+  test('skips items prefixed with (DONE ...) in the title', () => {
+    const done = `---
+phase: 5-synthesis
+date: 2026-05-10
+slug: test-slug
+based_on:
+  audit: x
+  research: y
+---
+
+# Recommendations
+
+## DO this week (cited)
+
+### 1. (DONE 2026-05-09) Sprint 1.9.0 — already shipped, kept inline for traceability
+~~Original task spec.~~ Shipped end-to-end.
+[audit: §X] [src: file://x]
+
+### 2. Add JSDoc tag to bin/foo.cjs
+Pure annotation.
+[audit: §Y] [src: file://y]
+`;
+    const filePath = tmpFile(done);
+    const parsed = parseRecommendations(filePath);
+    const picked = pickNextAction(parsed, []);
+    assert.ok(picked, 'should skip #1 (DONE) and pick #2');
+    assert.equal(picked.num, 2);
+  });
+
+  test('skips both [HUMAN-ONLY] and (DONE...) markers in sequence', () => {
+    const mixed = `---
+phase: 5-synthesis
+date: 2026-05-10
+slug: test-slug
+based_on:
+  audit: x
+  research: y
+---
+
+# Recommendations
+
+## DO this week (cited)
+
+### 1. [HUMAN-ONLY] destructive rewrite
+body
+[audit: §X] [src: file://x]
+
+### 2. (DONE 2026-05-09) already shipped
+body
+[audit: §X] [src: file://x]
+
+### 5. Real Steward-actionable item (numbering can be non-contiguous)
+body
+[audit: §Y] [src: file://y]
+`;
+    const filePath = tmpFile(mixed);
+    const parsed = parseRecommendations(filePath);
+    const picked = pickNextAction(parsed, []);
+    assert.ok(picked);
+    assert.equal(picked.num, 5);
+  });
+
   test('returns null when ALL DO-this-week items are [HUMAN-ONLY]', () => {
     const allHuman = `---
 phase: 5-synthesis
