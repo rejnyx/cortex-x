@@ -1,0 +1,80 @@
+# steward-workflow-hardener.yml — Sprint 2.5b weekly cron.
+#
+# Advisory-only v1: scans .github/workflows/*.yml for hardening gaps,
+# opens ONE gh issue with proposed patches per cron run. NO auto-apply
+# (workflows are in engine HARD_DENYLIST). Auto-fix in Sprint 2.5b.1.
+
+name: steward workflow-hardener
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'   # Sunday 03:00 UTC, before dep-patch 04:00
+
+concurrency:
+  group: steward-workflow-hardener-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-workflow-hardener:
+    name: steward workflow-hardener
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward workflow-hardener dry-run
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=workflow_hardener \
+            --json > /tmp/steward-wh-plan.json
+          cat /tmp/steward-wh-plan.json
+          if jq -e '.mode == "dry-run"' /tmp/steward-wh-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "No workflows to scan — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Steward workflow-hardener execute
+        if: steps.plan.outputs.has_action == 'true'
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-wh-plan.json
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+          GH_TOKEN:         ${{ github.token }}
+
+      - name: Upload journal artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: steward-workflow-hardener-journal-${{ github.run_id }}
+          path: .cortex-data/journal/
+          retention-days: 30

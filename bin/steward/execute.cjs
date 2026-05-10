@@ -1806,6 +1806,58 @@ async function _runExecuteInner(opts, ctx) {
         code: 'ACTION_KIND_NOT_DISPATCHABLE',
         error: 'pattern_transfer kind is registered but executor not yet implemented. Wait for Sprint 2.7.1 dedicated commit that wires sibling-reader + LLM dispatch + assertEditWithinCwd spec-verifier hook. To prevent silent runs, this branch returns a hard failure so cron operators see the gap explicitly.',
       };
+    } else if (plan.action_kind === 'workflow_hardener') {
+      // Sprint 2.5b — advisory analyzer for .github/workflows/*.yml.
+      // Audit-only in v1: never edits workflow files (in HARD_DENYLIST).
+      const wh = require('./_lib/workflow-hardener-action.cjs');
+      applyResult = await wh.runWorkflowHardener({
+        repoRoot,
+        slug,
+        isoDate: new Date().toISOString().slice(0, 10),
+        dataHome: process.env.CORTEX_DATA_HOME,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+      });
+      if (applyResult.ok) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T0',
+          event: 'workflow_hardener_completed',
+          actor: 'steward',
+          action_kind: 'workflow_hardener',
+          outcome: 'success',
+          findings_count: (applyResult.analysis && applyResult.analysis.findings.length) || 0,
+          files_scanned: (applyResult.analysis && applyResult.analysis.files_scanned) || 0,
+          journal_path: applyResult.journalPath || null,
+          issue_url: (applyResult.issue && applyResult.issue.url) || null,
+        });
+      }
+    } else if (plan.action_kind === 'secret_history_sweep') {
+      // Sprint 2.6b — TruffleHog full-history scan.
+      const ssa = require('./_lib/secret-sweep-action.cjs');
+      applyResult = await ssa.runSecretHistorySweep({
+        repoRoot,
+        slug,
+        isoDate: new Date().toISOString().slice(0, 10),
+        dataHome: process.env.CORTEX_DATA_HOME,
+        skipGh: opts.skipGh,
+        dryRunGh: opts.dryRunGh,
+      });
+      if (applyResult.ok) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T0',
+          event: 'secret_history_sweep_completed',
+          actor: 'steward',
+          action_kind: 'secret_history_sweep',
+          outcome: applyResult.findings_count > 0 ? 'security_alert' : 'clean',
+          findings_count: applyResult.findings_count || 0,
+          since_commit: applyResult.sinceCommit || null,
+          current_sha: applyResult.currentSha || null,
+          journal_path: applyResult.journalPath || null,
+          issue_url: (applyResult.issue && applyResult.issue.url) || null,
+        });
+      }
     } else if (plan.action_kind === 'senior_tester_review') {
       // Sprint 2.11 — hybrid 2-stage test-quality auditor. Deterministic
       // Phase A + optional Phase B LLM judge + deterministic Phase C.
@@ -1956,6 +2008,18 @@ async function _runExecuteInner(opts, ctx) {
       // when the repo has no test files (e.g. greenfield clone before tests
       // are scaffolded).
       'SENIOR_TESTER_NO_TEST_FILES',
+      // Sprint 2.5b — workflow_hardener short-circuits on greenfield repos
+      // with no .github/workflows/.
+      'WORKFLOW_HARDENER_NO_WORKFLOWS',
+      // Sprint 2.6b — secret_history_sweep fail-opens when trufflehog binary
+      // missing OR repo has no git HEAD (initial state) OR trufflehog
+      // hangs/dies (timeout / OOM kill on huge repos) OR repoRoot path has
+      // URL-meta characters that defeat the file:// URI.
+      'TRUFFLEHOG_NOT_FOUND',
+      'TRUFFLEHOG_SPAWN_ERROR',
+      'TRUFFLEHOG_KILLED',
+      'TRUFFLEHOG_UNSAFE_PATH',
+      'SECRET_SWEEP_NO_HEAD',
     ]);
     if (!applyResult.ok && NO_CANDIDATES_CODES.has(applyResult.code)) {
       rollbackToOriginal(repoRoot, originalBranch, plan.branch);
