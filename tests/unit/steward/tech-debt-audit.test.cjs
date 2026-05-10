@@ -103,6 +103,36 @@ describe('snapshot-diff — drift triggers', () => {
     assert.ok(metricNames.includes('max_function_complexity'));
     assert.ok(metricNames.includes('knip_unused_exports'));
     assert.ok(metricNames.includes('test_source_ratio'));
+    // Sprint 2.5c — test_count drift detection
+    assert.ok(metricNames.includes('test_count'));
+  });
+
+  test('Sprint 2.5c — test_count regression triggers drift alarm > 5% drop', () => {
+    const prev = { metrics: { test_count: 100 } };
+    const curr = { metrics: { test_count: 90 } }; // -10%
+    const drift = computeSnapshotDrift(prev, curr, [
+      { metric: 'test_count', kind: 'pct_drop', threshold: 5 },
+    ]);
+    assert.equal(drift.triggered.length, 1);
+    assert.equal(drift.triggered[0].metric, 'test_count');
+  });
+
+  test('Sprint 2.5c — test_count <5% drop does NOT trigger', () => {
+    const prev = { metrics: { test_count: 100 } };
+    const curr = { metrics: { test_count: 96 } }; // -4%, below threshold
+    const drift = computeSnapshotDrift(prev, curr, [
+      { metric: 'test_count', kind: 'pct_drop', threshold: 5 },
+    ]);
+    assert.equal(drift.triggered.length, 0);
+  });
+
+  test('Sprint 2.5c — test_count growth does NOT trigger', () => {
+    const prev = { metrics: { test_count: 100 } };
+    const curr = { metrics: { test_count: 110 } }; // +10%, growth is fine
+    const drift = computeSnapshotDrift(prev, curr, [
+      { metric: 'test_count', kind: 'pct_drop', threshold: 5 },
+    ]);
+    assert.equal(drift.triggered.length, 0);
   });
 });
 
@@ -193,6 +223,18 @@ describe('tech-debt-audit executor — fail-open path', () => {
     assert.ok(result.test_loc >= 3);
     assert.ok(result.source_loc >= 2);
     assert.ok(result.test_source_ratio !== null);
+    // Sprint 2.5c — distinct test-file count
+    assert.equal(result.test_count, 1);
+  });
+
+  test('Sprint 2.5c — fallbackTestSourceRatio counts distinct test files', () => {
+    const repoRoot = tmpRepo('test-count');
+    fs.mkdirSync(path.join(repoRoot, 'tests', 'unit'), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, 'tests', 'unit', 'a.test.cjs'), 'a\n');
+    fs.writeFileSync(path.join(repoRoot, 'tests', 'unit', 'b.test.cjs'), 'b\n');
+    fs.writeFileSync(path.join(repoRoot, 'tests', 'unit', 'c.spec.js'), 'c\n');
+    const result = audit.fallbackTestSourceRatio(repoRoot);
+    assert.equal(result.test_count, 3);
   });
 });
 
