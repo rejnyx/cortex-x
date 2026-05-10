@@ -18,6 +18,9 @@ verified + Hermes' first autonomous PR #5 merged 2026-05-09),
 
 ## DO this week (cited)
 
+- [ ] Investigate recurring steward harvest workflow failures [src: https://github.com/Rejnyx/cortex-x/actions/runs/25625555473]
+- [ ] Investigate recurring steward dep-patch workflow failures [src: https://github.com/Rejnyx/cortex-x/actions/runs/25625554604]
+- [ ] Investigate recurring steward nightly workflow failures [src: https://github.com/Rejnyx/cortex-x/actions/runs/25625554172]
 ### 1. [HUMAN-ONLY] APPEND a Sprint 1.8.12 + 1.8.13 entry at the END of MIGRATIONS.md (preserve all existing content)
 **Marked [HUMAN-ONLY] 2026-05-09 after Day-0 dogfood run (25584616397) — Steward+V4Flash cannot reliably append to a 600+ line file at STEWARD_MAX_TOKENS=16384 without triggering `no_destructive_rewrite` spec-verifier block (defense WORKED; commit not pushed; cost ~$0.001). Operator does this manually, OR Sprint 2.9.5 ships a tool-level append-only primitive that bypasses the rewrite-pattern.**
 
