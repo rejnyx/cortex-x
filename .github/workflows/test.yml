@@ -39,6 +39,21 @@ jobs:
         # a foundation step ahead of Sprint 2.3b mutation-testing tooling
         # (Stryker + fast-check) being added. Fails the lane on high or
         # critical findings; moderate/low are informational only.
+        #
+        # Trade-off note (Sprint 2.3a hardening D):
+        # cortex-x intentionally does NOT commit a lockfile, so npm install
+        # picks the latest matching semver-minor each run. fast-check@^4 + c8
+        # transitive trees together resolve to ~87 packages — any high/
+        # critical CVE in any of them blocks all PRs until upstream patches.
+        # If this becomes noisy, the relief paths are (in order):
+        #   1) Pin the offending dep to an exact patch version that lacks the
+        #      CVE (preferred — narrowest fix).
+        #   2) Bump `--audit-level=critical` temporarily (loses high-severity
+        #      coverage; only acceptable for short windows with a tracking
+        #      issue + rollback date).
+        #   3) Skip the gate via `continue-on-error: true` for ONE PR while
+        #      operator triages (last resort; never on main).
+        # Re-tighten by reverting to `high` once upstream cleanup completes.
         run: npm audit --audit-level=high --omit=optional
 
       - name: Show test inventory
