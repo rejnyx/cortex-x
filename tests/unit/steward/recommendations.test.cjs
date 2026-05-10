@@ -198,6 +198,97 @@ describe('recommendations: action picker', () => {
     const picked = pickNextAction(parsed, ['test-slug#week-1', 'test-slug#week-2']);
     assert.equal(picked, null);
   });
+
+  test('skips items tagged [HUMAN-ONLY] in the title', () => {
+    const human = `---
+phase: 5-synthesis
+date: 2026-05-10
+slug: test-slug
+based_on:
+  audit: x
+  research: y
+---
+
+# Recommendations
+
+## DO this week (cited)
+
+### 1. [HUMAN-ONLY] Force-push history rewrite — destructive, operator-only
+Operator runs this manually.
+[audit: §X] [src: file://x]
+
+### 2. Add a JSDoc tag to bin/foo.cjs
+Pure annotation, ~80 bytes.
+[audit: §Y] [src: file://y]
+`;
+    const filePath = tmpFile(human);
+    const parsed = parseRecommendations(filePath);
+    const picked = pickNextAction(parsed, []);
+    assert.ok(picked, 'should skip #1 and pick #2');
+    assert.equal(picked.num, 2);
+    assert.equal(picked.actionKey, 'test-slug#week-2');
+  });
+
+  test('skips multiple [HUMAN-ONLY] items in sequence (case-insensitive + variants)', () => {
+    const multi = `---
+phase: 5-synthesis
+date: 2026-05-10
+slug: test-slug
+based_on:
+  audit: x
+  research: y
+---
+
+# Recommendations
+
+## DO this week (cited)
+
+### 1. [human-only] lowercase variant
+body
+[audit: §X] [src: file://x]
+
+### 2. [HUMAN ONLY] space variant (no hyphen)
+body
+[audit: §X] [src: file://x]
+
+### 3. Real Steward-actionable item
+body
+[audit: §Y] [src: file://y]
+`;
+    const filePath = tmpFile(multi);
+    const parsed = parseRecommendations(filePath);
+    const picked = pickNextAction(parsed, []);
+    assert.ok(picked);
+    assert.equal(picked.num, 3, 'should skip both human-only variants and pick #3');
+  });
+
+  test('returns null when ALL DO-this-week items are [HUMAN-ONLY]', () => {
+    const allHuman = `---
+phase: 5-synthesis
+date: 2026-05-10
+slug: test-slug
+based_on:
+  audit: x
+  research: y
+---
+
+# Recommendations
+
+## DO this week (cited)
+
+### 1. [HUMAN-ONLY] First operator-only task
+body
+[audit: §X] [src: file://x]
+
+### 2. [HUMAN-ONLY] Second operator-only task
+body
+[audit: §Y] [src: file://y]
+`;
+    const filePath = tmpFile(allHuman);
+    const parsed = parseRecommendations(filePath);
+    const picked = pickNextAction(parsed, []);
+    assert.equal(picked, null);
+  });
 });
 
 describe('recommendations: integration with steward-dryrun fixture', () => {
