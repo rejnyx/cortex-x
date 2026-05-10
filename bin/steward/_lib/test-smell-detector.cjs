@@ -119,7 +119,16 @@ const REGEX_DETECTORS = {
   mystery_guest: {
     block: true,
     detect: (block) => {
-      const m = block.match(/\b(?:fs\.readFileSync|require\s*\(\s*['"`]\.\.?\/(?!fixtures)|fetch\s*\(|axios\.|http\.get|https\.get)\b/);
+      // Per-alternative word boundaries — a single trailing \b after the
+      // group blocks matches on alternatives ending in `(` (non-word) like
+      // `fetch(` because the next char (typically a quote) is also non-word
+      // so no boundary is present. Sprint 2.11.2 eval-suite finding.
+      // Sprint 2.11.2 R2 edge-hunter MEDIUM: leading \b on the `require`
+      // alternative — without it, `myrequire('../foo')` substring-matches
+      // `require('../foo')` and triggers a false positive.
+      const m = block.match(
+        /\bfs\.readFileSync\b|\brequire\s*\(\s*['"`]\.\.?\/(?!fixtures)|\bfetch\s*\(|\baxios\.|\bhttp\.get\b|\bhttps\.get\b/,
+      );
       return m ? { excerpt: m[0] } : null;
     },
   },

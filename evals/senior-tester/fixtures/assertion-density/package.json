@@ -1,0 +1,6 @@
+{
+  "name": "@cortex-x-eval/assertion-density-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Assertion-quality smells fixture: assertion_roulette + empty_test + unknown_test + suboptimal_assert + magic_number_test + comments_only_test."
+}

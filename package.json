@@ -12,8 +12,8 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "test": "node --test --test-reporter=spec",
-    "test:fast": "node --test --test-reporter=dot --test-skip-pattern=\"install\\.sh roundtrip\"",
+    "test": "node --test --test-reporter=spec \"tests/**/*.test.cjs\"",
+    "test:fast": "node --test --test-reporter=dot --test-skip-pattern=\"install\\.sh roundtrip\" \"tests/**/*.test.cjs\"",
     "test:smoke": "node tests/smoke/verify-install.cjs",
     "test:detectors": "node --test --test-reporter=spec tests/unit/detect-profile.test.cjs tests/unit/detect-stage.test.cjs tests/unit/detect-sister-env.test.cjs tests/contract/profile-yaml-schema.test.cjs",
     "test:audit": "node --test --test-reporter=spec tests/unit/audit-validator.test.cjs",

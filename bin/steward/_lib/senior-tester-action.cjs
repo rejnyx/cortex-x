@@ -30,6 +30,10 @@ const registry = require('./test-smell-registry.cjs');
 // network constant; no longer copy-pasted across action_kinds).
 const { redactSecrets } = require('./safety.cjs');
 const { OPENROUTER_ENDPOINT } = require('./action-engine.cjs');
+// Sprint 2.11.2 Correctness H2 fix: deep-type validation for the LLM judge
+// envelope. Prior validation was presence-only — a judge returning
+// `summary: 42` or `ranked_findings: "not an array"` would have passed.
+const { validateJudge } = require('./llm-judge-schema.cjs');
 
 const JUDGE_TIMEOUT_MS = 90 * 1000; // 90s — bounded by openrouter-engine clamp anyway
 const JUDGE_MAX_FILES = 5;
@@ -221,11 +225,23 @@ async function runLlmJudge(phaseA, opts) {
     return { ok: false, code: 'JUDGE_PARSE_FAILED', error: err.message, content: content.slice(0, 500) };
   }
 
-  // Validate shape (loose — fields may be absent if the LLM forgets)
-  const required = ['summary', 'top_3_strategic_gaps', 'ranked_findings', 'layer_balance_assessment'];
-  const missing = required.filter((k) => !(k in judge));
-  if (missing.length > 0) {
-    return { ok: false, code: 'JUDGE_SHAPE_INVALID', error: `missing keys: ${missing.join(', ')}`, partial: judge, tokens_in, tokens_out, cost_usd };
+  // Sprint 2.11.2 Correctness H2: deep-type validation. Prior validation
+  // was presence-only key check; now we type-check every field including
+  // ranked_findings[] entries (with smell_id ∈ registry, severity ∈ enum,
+  // line ≥ 0, rationale/fix_strategy length bounds). First-failure return
+  // gives operator a clear "first wrong field" rather than a list dump.
+  const validation = validateJudge(judge);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      code: validation.code,
+      path: validation.path,
+      error: validation.error,
+      partial: judge,
+      tokens_in,
+      tokens_out,
+      cost_usd,
+    };
   }
 
   return {

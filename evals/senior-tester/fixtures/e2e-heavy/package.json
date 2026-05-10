@@ -1,0 +1,6 @@
+{
+  "name": "@cortex-x-eval/e2e-heavy-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SMURF layer-balance fixture: e2e-heavy distribution triggers ice_cream_cone + no_unit_foundation skew detection."
+}

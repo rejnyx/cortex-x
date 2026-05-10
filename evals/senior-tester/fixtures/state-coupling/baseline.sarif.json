@@ -1,0 +1,139 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "cortex-x-senior-tester",
+          "version": "1",
+          "rules": [
+            {
+              "id": "mystery_guest"
+            },
+            {
+              "id": "no_reproducibility_marker"
+            },
+            {
+              "id": "sleepy_test"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "cortex_x": {
+          "fixture": "state-coupling",
+          "detectorVersion": "1",
+          "fixtureSha": "e1af8f37335bff41f533648df626bdfdbb03807382b8e13cecab85704f25a73d",
+          "layerBalance": {
+            "counts": {
+              "unit": 1,
+              "integration": 0,
+              "e2e": 0
+            },
+            "total": 1,
+            "ratio": {
+              "unit": 100,
+              "integration": 0,
+              "e2e": 0
+            },
+            "target": {
+              "unit": 70,
+              "integration": 20,
+              "e2e": 10
+            },
+            "skew": "unit_only (low)",
+            "anti_patterns": [
+              {
+                "id": "unit_only",
+                "severity": "low",
+                "detail": "100% unit tests — could indicate either pure-library scope (fine) OR classification gap (integration/e2e tests live elsewhere or under non-canonical paths)."
+              }
+            ],
+            "advisory_max_delta_pp": 30,
+            "advisory_skewed_tier": "unit",
+            "pyramid_model_ref": "SMURF (Google 2024-10) — testing.googleblog.com/2024/10/smurf-beyond-test-pyramid.html"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "mystery_guest",
+          "level": "error",
+          "message": {
+            "text": "fs.readFileSync"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 28
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "mystery_guest",
+          "level": "error",
+          "message": {
+            "text": "fetch("
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 41
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sleepy_test",
+          "level": "error",
+          "message": {
+            "text": "setTimeout("
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 34
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "no_reproducibility_marker",
+          "level": "warning",
+          "message": {
+            "text": "random data without seed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 47
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

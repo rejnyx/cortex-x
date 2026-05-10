@@ -1,0 +1,6 @@
+{
+  "name": "@cortex-x-eval/structure-decay-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Structure smells fixture: conditional_test_logic + verbose_test + print_statement + ignored_test + generic_test_name + exception_catching_throwing + sensitive_equality."
+}
