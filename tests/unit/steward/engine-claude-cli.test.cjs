@@ -368,16 +368,14 @@ describe('claude-cli engine — Sprint 2.4', () => {
     }
   });
 
-  test('17. scrubClaudeCliEnv on win32 strips lowercase ANTHROPIC_API_KEY (Sprint 2.4 R2 fix)', () => {
-    const isWin = process.platform === 'win32';
-    if (!isWin) {
-      // POSIX path uses uppercase-only scrub; lowercase passes through.
-      const scrubbed = engine.scrubClaudeCliEnv({ anthropic_api_key: 'leak', PATH: '/usr/bin' });
-      assert.equal(scrubbed.anthropic_api_key, 'leak', 'POSIX preserves lowercase (case-sensitive)');
-      return;
-    }
+  test('17. scrubClaudeCliEnv strips lowercase ANTHROPIC_API_KEY on all platforms (Sprint 2.10.7)', () => {
+    // Defense-in-depth: case-insensitive scrub on all platforms (not just
+    // win32). Property test in action-engine-properties.test.cjs caught a
+    // Linux gap where lowercase variants slipped through. Anything matching
+    // /^anthropic_/i stays out of the spawned child regardless of OS.
     const scrubbed = engine.scrubClaudeCliEnv({ anthropic_api_key: 'leak', PATH: '/usr/bin' });
-    assert.equal(scrubbed.anthropic_api_key, undefined, 'win32 scrub must remove lowercase variant');
+    assert.equal(scrubbed.anthropic_api_key, undefined, 'lowercase variant must be scrubbed everywhere');
+    assert.equal(scrubbed.PATH, '/usr/bin', 'unrelated env vars preserved');
   });
 
   test('18. redactSecrets masks OAuth token in stderr categorization', () => {
