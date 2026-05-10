@@ -1,0 +1,224 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "cortex-x-senior-tester",
+          "version": "1",
+          "rules": [
+            {
+              "id": "conditional_test_logic"
+            },
+            {
+              "id": "exception_catching_throwing"
+            },
+            {
+              "id": "generic_test_name"
+            },
+            {
+              "id": "ignored_test"
+            },
+            {
+              "id": "print_statement"
+            },
+            {
+              "id": "verbose_test"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "cortex_x": {
+          "fixture": "structure-decay",
+          "detectorVersion": "1",
+          "fixtureSha": "9f86f826deb055d23d4a88658b22b183625f3fc3d3fd3ece3e8c4b948b6cf399",
+          "layerBalance": {
+            "counts": {
+              "unit": 1,
+              "integration": 0,
+              "e2e": 0
+            },
+            "total": 1,
+            "ratio": {
+              "unit": 100,
+              "integration": 0,
+              "e2e": 0
+            },
+            "target": {
+              "unit": 70,
+              "integration": 20,
+              "e2e": 10
+            },
+            "skew": "unit_only (low)",
+            "anti_patterns": [
+              {
+                "id": "unit_only",
+                "severity": "low",
+                "detail": "100% unit tests — could indicate either pure-library scope (fine) OR classification gap (integration/e2e tests live elsewhere or under non-canonical paths)."
+              }
+            ],
+            "advisory_max_delta_pp": 30,
+            "advisory_skewed_tier": "unit",
+            "pyramid_model_ref": "SMURF (Google 2024-10) — testing.googleblog.com/2024/10/smurf-beyond-test-pyramid.html"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "conditional_test_logic",
+          "level": "error",
+          "message": {
+            "text": "if (obj.children.length > 0) {"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 45
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "conditional_test_logic",
+          "level": "error",
+          "message": {
+            "text": "try {"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 55
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "exception_catching_throwing",
+          "level": "error",
+          "message": {
+            "text": "try/catch without toThrow"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 55
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "ignored_test",
+          "level": "error",
+          "message": {
+            "text": "test.skip('this one is broken', () => {"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 40
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "generic_test_name",
+          "level": "warning",
+          "message": {
+            "text": "test('test1', () => {"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 23
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "generic_test_name",
+          "level": "warning",
+          "message": {
+            "text": "test('should work', () => {"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 28
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "print_statement",
+          "level": "note",
+          "message": {
+            "text": "console.log('debug obj:', obj);"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 35
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "verbose_test",
+          "level": "note",
+          "message": {
+            "text": "39 lines"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/unit/smells.test.cjs"
+                },
+                "region": {
+                  "startLine": 72
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@cortex-x-eval/clean-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Clean test suite — no smells. Negative control for senior_tester_review false-positive checking.",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

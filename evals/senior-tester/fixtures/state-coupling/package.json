@@ -1,0 +1,6 @@
+{
+  "name": "@cortex-x-eval/state-coupling-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Test-independence smells fixture: mystery_guest + sleepy_test + hidden_io + no_reproducibility_marker."
+}
