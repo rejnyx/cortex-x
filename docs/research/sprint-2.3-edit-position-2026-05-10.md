@@ -232,4 +232,110 @@ Rationale (3-hop traceability):
 
 ---
 
-**R1 status**: ✅ COMPLETE 2026-05-10. Implementation awaiting operator approval (see § Open questions for operator). Estimated effort: M (4-6 h focused work — splice primitive ~50 LOC + verifier extension ~30 LOC + 30 unit + 5 property tests + system prompt update + dogfood loop).
+**R1 status**: ✅ COMPLETE 2026-05-10. R2 review complete (6 parallel reviewers); findings synthesized below. Original effort estimate **revised upward** from M (4-6 h) to **L (10-14 h)** based on review pipeline output.
+
+---
+
+## R2 Review — synthesis & decisions (2026-05-10)
+
+Per Sprint 1.6.18 lesson (review-pipeline-driven hardening surfaces issues pre-implementation), 6 reviewers ran in parallel against the original R1 above. Findings consolidated below; revised ship plan follows.
+
+### Reviewer summary
+
+| Reviewer | Verdict | Key findings |
+|---|---|---|
+| **acceptance-auditor** | ✅ SHIP | All 10 acceptance criteria met (specific root cause / concrete shape / zero-deps / backward-compat / safety gates / 3-hop traceability / ≥10 sources / open questions / honest effort / unblocks) |
+| **blind-hunter** | ❌ 3 BLOCKERS + 5 HIGH + 3 MAJOR | `create` ambiguity vs top-level `content`; `delete_file` zero path validation in spec; `str_replace` v1 substring-vs-full-line contract self-contradicts; Diff-XYZ "95-96 %" citation misread (same number for two opposite claims); `expectedSha256` optional/mandatory mismatch; predicate name `before_line_bounded` doesn't match `after_line` field; effort 2-3× light; OTLP `path` attribute is PII risk |
+| **correctness-auditor** | 🟡 approve-with-conditions | Practice 1 trust-boundary: per-op discriminated-union validator missing; Practice 2: 5 adversarial property invariants (idempotency, commutativity, path-traversal-in-create, UTF-8 surrogate, NUL byte) absent; Practice 3: 5-10 fixture eval below correctness.md §3 minimum 20; Practice 4: mutation-score baseline link to Sprint 2.3 80% gate missing; Practice 5: atomic-rollback claim has no stateful simulation backing |
+| **ssot-enforcer** | 4 MAJOR (reuse-path-clear) | path-safety duplication risk vs `action-engine.cjs:160-167` `isDenylistedPath()`; criteria #2 + #5 overlap with `NO_DESTRUCTIVE_REWRITE_CRITERION`; `prevContent` should mirror `previousSizes` capture loop pattern; error-code namespace mismatch — unify on `EDIT_OP_*` prefix |
+| **edge-case-hunter** | 3 ship-blockers + ~50 edge cases | atomicity asserted but not specified (POSIX has no multi-file FS transaction); multi-op SHA semantics undefined for ops on same path; empty string validation (`old_str === ""`, `text === ""`) missing; UTF-16 surrogate pair split, NFC vs NFD normalization, Windows reserved names (CON/PRN/AUX/NUL/COM1), case-collision on case-insensitive FS, `.git/HEAD` not in denylist, EBUSY/EISDIR/EACCES recovery undefined |
+| **security-auditor** | 🔴 cannot merge as proposed | CRITICAL-1: `delete_file` bypasses every existing defense layer; CRITICAL-2: defer `delete_file` to 2.2.6 (irreversible, no v1 backlog need); CRITICAL-3: symlink TOCTOU on create + delete + str_replace; HIGH-1: SHA→write race window (TOCTOU CWE-367); HIGH-2: substring anchor v1 too permissive — anchor-must-touch-line-boundary v1; HIGH-3: `policy-check.cjs` doesn't see new op shapes; HIGH-4: `create` + auto-mkdir creates new attack surface; HIGH-5: LLM-as-code in `*.cjs`/`*.ts` files needs `EDIT_LLM_CONTENT_DANGEROUS` regex denylist; MEDIUM-1: idempotent missing-file delete is footgun; MEDIUM-2: op-kind enum strictness; MEDIUM-3: `expectedSha256` MUST be mandatory for str_replace + insert; MEDIUM-4: OTLP attribute allow-list to prevent secret leak |
+
+### Revised ship plan — phased (v0 → v1 → v2)
+
+**Sprint 2.2.5 v0 — minimal viable splice** (effort: ~4 h):
+- 2 ops: `append` + `create`
+- Lowest risk: append is monotonic, create errors on existing file. Together cover ~50-70 % of edit.position use cases (per memo).
+- Per-op routing through `isDenylistedPath()` + line 209-252 path-safety stack (reused, NOT reimplemented per ssot-enforcer MAJOR-1).
+- Symlink rejection via `fs.lstatSync()` on all paths (security CRITICAL-3).
+- Snapshot-all-pre-edit-then-write-or-rollback atomicity mechanism: capture every `previousContents[edit.path]` upfront; on any failure, write all snapshots back; if rollback itself fails, write `STEWARD_HALT` (edge-case hunter ship-blocker fix).
+- Per-op discriminated-union validator at JSON-boundary with distinct error codes (correctness Practice 1 fix).
+- Empty string rejection (`text.length === 0` for append, `content === ""` for create) — no auto-coercion (edge-case ship-blocker fix).
+- Unified `EDIT_OP_*` error code namespace (ssot MAJOR-4):
+  - `EDIT_OP_KIND_UNKNOWN`, `EDIT_OP_MISSING_FIELD`, `EDIT_OP_TYPE_MISMATCH`, `EDIT_OP_PATH_INVALID`, `EDIT_OP_PATH_DENYLISTED`, `EDIT_OP_SYMLINK_REFUSED`, `EDIT_OP_TARGET_EXISTS` (create), `EDIT_OP_TARGET_IS_DIR`, `EDIT_OP_EMPTY_PAYLOAD`
+- 5 spec-verifier criteria added as peer constants in `action-kinds.cjs` next to `NO_DESTRUCTIVE_REWRITE_CRITERION` (ssot MAJOR-2).
+- `previousContents` cache extends existing `previousSizes` capture loop in `action-engine.cjs:255-260`, plumbed via `applyResult` shape mirroring (ssot MAJOR-3).
+- Tests:
+  - 12 unit (per-op happy + 4 edge cases per op including symlink, denylist, BOM, EOL)
+  - 4 property invariants (append monotonicity, create-then-rollback atomicity, path-traversal-create, UTF-8 surrogate roundtrip)
+  - 1 stateful command-test (`fc.commands` random sequence) for atomic-rollback claim (correctness Practice 5 fix)
+  - 1 integration: dogfood unmark of recommendation #1 (MIGRATIONS append) — expected to ship via append op
+
+**Sprint 2.2.5 v1 — add positional ops** (effort: ~4 h, can ship in same PR or follow-up):
+- 2 more ops: `str_replace` + `insert` (now 4 total)
+- **Mandatory `expectedSha256`** for these two (security MEDIUM-3 + edge-case ship-blocker fix). Optional for append/create.
+- **Anchor-must-touch-line-boundary v1** (security HIGH-2 fix): `old_str` for str_replace MUST start at column 0 OR end at `\n` boundary. Substring matches inside string literals get `EDIT_OP_ANCHOR_INSIDE_STRING` block (not warn) for self-protecting tier (`bin/steward/**`, `standards/**`, `.github/**`). For other paths: warn + log.
+- `insert.after_line` semantics: explicit 0-indexed BUT documented divergence from Anthropic's 1-indexed `insert_line` (blind-hunter HIGH on misclaimed mirror) — drop "1:1 mirror" framing, document as "0 = beginning, N = after that line, N == fileLineCount = same as append".
+- LLM-as-code defense (security HIGH-5): regex denylist for `require\(['"]child_process['"]\)`, `eval\(`, `new Function\(`, `\$\{process\.env\.` in str_replace.new_str / insert.text / create.content / append.text → `EDIT_OP_LLM_CONTENT_DANGEROUS` block when target file is `*.js|*.cjs|*.mjs|*.ts`.
+- 18 more unit tests + 2 more property invariants (anchor uniqueness, anchor-must-touch-boundary).
+
+**Sprint 2.2.6 — `delete_file` + `replace_all`** (deferred):
+- `delete_file` op with quarantine pattern (rename to `.cortex/trash/<sha>` instead of `fs.unlinkSync` — reversible).
+- Dedicated acceptance criteria: `delete_only_if_referenced_nowhere`, `delete_blast_radius_bounded`.
+- `replace_all: true` opt-in via per-action `acceptance_criteria` authorization (security LOW-1 fix).
+- Default-deny on missing-file delete (security MEDIUM-1 fix) with `allow_missing: true` opt-in flag.
+
+### Updated open questions
+
+The 4 original operator questions resolve as follows:
+
+1. ~~Should `str_replace` v1 require uniqueness?~~ → **YES, required + must touch line boundary** (security HIGH-2). Substring + warn was rejected.
+2. ~~In-house eval before locking schema?~~ → **YES, raise to ≥20 fixtures × 4 ops × 2 models** (correctness Practice 3 fix). Cost still under $1.
+3. ~~Should splice emit OTLP traces?~~ → **YES with attribute allow-list** (security MEDIUM-4): `path`, `op_kind`, `prev_sha`, `next_sha`, `anchor_match_count`, `bytes_changed`. NEVER include `old_str` / `new_str` / `text` / `content`.
+4. ~~Anchor — full-line vs substring?~~ → **boundary-touching v1** (must start at column 0 OR end at `\n`). Stricter than substring, looser than full-line. Empirically catches the worst injection vectors (mid-string-literal mutations) without rejecting valid mid-line anchors that start the line.
+
+**One new operator question** (added by R2):
+5. **OK to bundle v0 + v1 in one PR?** Memo originally said one effort (4-6 h); reviewers say 10-14 h. v0 is reviewable standalone (2 ops, smaller blast radius). Recommendation: ship v0 PR first, dogfood 1 cron run, then v1 PR. This is the shipping rhythm Sprint 1.6.18 codified.
+
+### Updated effort estimate
+
+| Phase | Original | Revised | Driver |
+|---|---|---|---|
+| splice primitive | ~50 LOC | ~120 LOC | atomicity snapshot/rollback + symlink check + LLM-content-dangerous regex |
+| verifier extension | ~30 LOC | ~60 LOC | 5 criteria + prevContent helper + LLM-as-code regex |
+| Validator (Zod-equiv) | not estimated | ~40 LOC | per-op discriminated-union with 9 error codes |
+| Unit tests | 30 | 35 | +5 for edge cases (UTF-16 surrogate, NFC/NFD, Windows reserved, EBUSY mock, .git/** denylist) |
+| Property tests | 5 | 7 | +2 (UTF-8 surrogate, atomic rollback under random op sequence) |
+| Stateful command-test | not specified | 1 file | `fc.commands` per correctness Practice 5 |
+| LLM prompt update | included | included | + boundary-anchor guidance + content-dangerous warning |
+| Eval suite | included | 20 fixtures × 4 ops × 2 models | per correctness Practice 3 |
+| Dogfood loop | included | included | unmark #1 (MIGRATIONS append, v0 path) |
+| **Total** | **M (4-6 h)** | **L (10-14 h)** | |
+
+### Implementation order (revised)
+
+Per ssot MINOR (ship `prevContent` extension as Step 1, criteria as Step 2):
+
+1. Extend `applyEditsToFilesystem` `previousSizes` capture loop to also produce `previousContents[]` keyed by relative path, plumbed via `applyResult` (ssot MAJOR-3). [~45 min]
+2. Extend `buildPredicateContext` in `spec-verifier.cjs` to expose `prevContent(path)` mirroring `prevSize(path)` style (ssot MAJOR-3). [~30 min]
+3. Implement `bin/steward/_lib/splice.cjs` v0 with `append` + `create` ops + atomicity mechanism + symlink check + validator. [~2 h]
+4. Wire splice dispatch in `applyEditsToFilesystem` BEFORE existing `typeof edit.content !== 'string'` guard (ssot MINOR backward-compat order fix). [~30 min]
+5. Add 5 acceptance criteria as peer constants in `action-kinds.cjs` (ssot MAJOR-2). [~30 min]
+6. Unit tests (12 v0). [~1 h]
+7. Property tests (4 v0). [~45 min]
+8. Stateful command-test for atomic rollback. [~30 min]
+9. LLM system prompt update (+ examples + boundary-anchor + content-dangerous warning). [~30 min]
+10. v0 dogfood: unmark recommendation #1 (MIGRATIONS append), retrigger autoresearch. [~10 min]
+11. v0 PR + ship → operator review.
+12. **(deferred)** v1 (str_replace + insert) — add to Sprint 2.2.5 PR or follow-up after v0 dogfood lessons land.
+
+### Verdict on R2
+
+**🟢 Proceed with revised plan.** R2 surfaced 3 ship-blockers + 5 HIGH issues that would have caused either a security incident (CRITICAL-3 symlink TOCTOU) or a credibility hit (Diff-XYZ misread, fabricated `openclaw/openclaw` URL — citation #26 to verify). The phased v0 → v1 → v2 sequence is now the explicit ship plan.
+
+**Pre-implementation checklist (must close before code starts):**
+- [x] R2 synthesis written (this section)
+- [ ] Verify citation #26 `https://github.com/openclaw/openclaw/issues/18132` (blind-hunter MINOR; if fabricated, replace or drop)
+- [ ] Operator OK on (a) phased ship, (b) eval bar ≥20 fixtures, (c) drop `delete_file` from v1, (d) anchor-must-touch-line-boundary
+
+**R2 status**: ✅ COMPLETE 2026-05-10. Implementation kick-off awaiting operator OK on 4 deltas above.
