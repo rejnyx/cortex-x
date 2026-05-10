@@ -20,6 +20,45 @@
 
 ## Current
 
+### Sprint 2.2 — Ralph-inspired hardening (2026-05-10)
+
+Non-breaking. Pure additions inspired by an audit of `snarktank/ralph` (18.8k stars, MIT) and Geoffrey Huntley's Ralph Wiggum pattern. The audit identified 7 candidate steals; Sprint 2.2 lands the 4 lowest-risk highest-value ones. Three more (PRD-as-JSON state machine, completion-signal stdout marker, archive-per-feature-cycle helper) are explicitly deferred — see `## Deferred` below.
+
+#### What landed
+
+1. **`standards/story-sizing.md`** (Rule 3) — codified single-context-window discipline. Concrete right-sized vs too-big examples lifted from Ralph README, plus a 5-item sizing checklist. Referenced from `prompts/existing-project-audit.md` Phase 5 (recommendation generation) and `bin/steward/_lib/recommendations.cjs` (parser context).
+
+2. **`.claude-plugin/plugin.json` + `.claude-plugin/README.md`** — Claude Code marketplace manifest. Forward-compat artefact; the marketplace listing is gated behind v0.1.0 public flip. Curl install remains canonical until then.
+
+3. **`docs/positioning-vs-ralph.md`** — competitive positioning doc. "Ralph teaches you to sit on the loop. cortex-x teaches you to sleep through it." Side-by-side comparison table; explicit list of what cortex-x steals vs rejects from Ralph. Anchor narrative for case studies + pitch decks.
+
+4. **`bin/steward/_lib/project-ledger.cjs`** — success-side append-only ledger. Companion to `lessons.cjs` (failure-side ReasoningBank). Each successful Steward action appends a one-line markdown entry to `projects/<slug>.md` `## Steward activity log` so the in-repo project library tracks autonomous activity over time. Fail-open contract — ledger errors never block the success path. Bounded growth (live section caps at 100 entries; oldest move to archive section). Idempotent on `action_id`.
+
+5. **`bin/steward/execute.cjs` integration** — two new `safeAppendLedger()` calls at the existing success exit paths (`skip_commit` action_completed at L1976 + full execute action_completed at L2301). Both wrap `projectLedger.appendLedgerEntry` in a fail-open helper modeled on existing `safeJournal` pattern.
+
+6. **`tests/unit/steward/project-ledger.test.cjs`** — 15 unit tests across 6 suites: formatting helpers, happy paths, idempotency, fail-open contract, bounded growth (100-entry overflow → archive), exported surface. Full suite green: 1795 / 1795.
+
+#### Deferred (not landed in 2.2 — explicit scope decision)
+
+- **PRD-as-JSON state machine** (Ralph's `prd.json` with `passes:bool` per story). Touches `recommendations.cjs` parser + every consumer; needs migration plan + backward-compat for the existing markdown view. Defer to dedicated sprint (likely 2.3).
+- **`<promise>COMPLETE</promise>` stdout marker** for external loop drivers. Steward already emits `event: 'no_actionable_step', outcome: 'skipped'` to journal (execute.cjs L1906) — functionally equivalent for cron callers. The Ralph-shape marker would only add value for ad-hoc bash loop wrappers, not the production cron path. Skip until a concrete external consumer asks for it.
+- **Archive-per-feature-cycle helper** (Ralph copies `prd.json` + `progress.txt` to `archive/<date>-<feature>/` on branch transitions). cortex-x already journals per-action; per-feature-cycle archive needs a "what is a feature cycle" definition that doesn't yet exist in Steward's vocabulary. Revisit when recommendations.md grows feature-cycle frontmatter.
+
+#### Engage
+
+No opt-in needed — additive. Existing Steward runs (cron + manual) automatically populate `projects/<slug>.md` on success. If a project doesn't have `projects/<slug>.md` yet, ledger writes return `{ ok: false, reason: 'project_file_missing' }` and the success path proceeds unchanged. To create a project entry, run the project-scan prompt or paste `~/.claude/shared/prompts/project-scan.md` at project root.
+
+#### Rollback
+
+The two `safeAppendLedger` call sites in execute.cjs and the require line at top can be reverted without affecting any other code path. The standards / docs / plugin manifest files are pure additions; deletion has zero blast radius.
+
+#### Reference
+
+- `docs/positioning-vs-ralph.md` — full competitive write-up + reference list.
+- snarktank/ralph audit — captured in conversation transcript (2026-05-10), not repo'd.
+
+---
+
 ### Sprint 2.1 — Steward autoresearch / overnight burst (2026-05-08, commit `b3e6656`)
 
 ⭐ TRANSFORMATIVE — non-breaking. Autoresearch is opt-in; default flow stays single-shot. Existing nightly cron (`steward.yml`) runs unchanged. Operators opt in by:

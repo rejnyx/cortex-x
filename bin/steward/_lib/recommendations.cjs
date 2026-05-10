@@ -151,6 +151,15 @@ function isHumanOnly(item) {
   return /\[HUMAN[\s-]?ONLY\]/i.test(item.title || '');
 }
 
+// Items prefixed `(DONE...)` in the title are skipped — operator marks these
+// as already-shipped but kept in-section for traceability (instead of moving
+// them to the trailing `## DONE — moved out` section). Picking a DONE item
+// causes the LLM to return OPENROUTER_NO_EDITS and burns ~$0.0015 of
+// autoresearch budget for nothing.
+function isMarkedDone(item) {
+  return /^\s*\(DONE\b/i.test(item.title || '');
+}
+
 function pickNextAction(parsed, processedActionIds) {
   const doThisWeek = parsed.sections['DO this week'] || [];
   const processed = new Set(processedActionIds || []);
@@ -159,6 +168,7 @@ function pickNextAction(parsed, processedActionIds) {
     const actionKey = `${parsed.frontmatter.slug}#week-${item.num}`;
     if (processed.has(actionKey)) continue;
     if (isHumanOnly(item)) continue;
+    if (isMarkedDone(item)) continue;
     return { ...item, actionKey, sectionTitle: 'DO this week' };
   }
   return null;
@@ -171,4 +181,5 @@ module.exports = {
   extractCitations,
   pickNextAction,
   isHumanOnly,
+  isMarkedDone,
 };

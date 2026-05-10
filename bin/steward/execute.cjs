@@ -101,6 +101,11 @@ const prResponder = require('../../detectors/pr-review-responder.cjs');
 // (root cause + hint) so the next run can recall + avoid repeating the same
 // mistake. Append-only JSONL at $CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl.
 const lessons = require('./_lib/lessons.cjs');
+// Sprint 2.2 (Ralph-inspired) — success-side append-only ledger. Companion to
+// lessons.cjs (failure-side). Each successful action appends a one-line
+// markdown entry to projects/<slug>.md `## Steward activity log` so the
+// in-repo project library reflects autonomous activity over time.
+const projectLedger = require('./_lib/project-ledger.cjs');
 
 const EX_USAGE = 64;
 const EX_TEMPFAIL = 75;
@@ -190,6 +195,17 @@ function safeJournal(slug, entry) {
     return journal.appendJournal(slug, entry);
   } catch {
     // Journal write failure must not bubble up — observability is best-effort
+    return null;
+  }
+}
+
+// Sprint 2.2 — fail-open wrapper around project-ledger.appendLedgerEntry.
+// Mirrors the safeJournal pattern: ledger writes must NEVER block the
+// success path. Returns the result object on success, null on any throw.
+function safeAppendLedger(repoRoot, slug, entry) {
+  try {
+    return projectLedger.appendLedgerEntry({ repoRoot, slug, entry });
+  } catch {
     return null;
   }
 }
@@ -1980,6 +1996,17 @@ async function _runExecuteInner(opts, ctx) {
         action_id: plan.action_id,
         skip_commit: true,
       }, applyResult));
+      // Sprint 2.2 — Ralph-inspired success-side ledger. Append a one-line
+      // human-readable entry to projects/<slug>.md so the in-repo project
+      // library tracks autonomous activity. Fail-open: ledger errors never
+      // block the success return.
+      safeAppendLedger(repoRoot, slug, {
+        ts: new Date().toISOString(),
+        action_kind: plan.action_kind,
+        action_key: plan.action.action_key,
+        action_id: plan.action_id,
+        summary: `${plan.action_kind} skip-commit (${applyResult.opened_issues?.length || applyResult.triaged_count || 0} side effects)`,
+      });
       return {
         ok: true,
         action_kind: plan.action_kind,
@@ -2306,6 +2333,19 @@ async function _runExecuteInner(opts, ctx) {
       pr_url: prResult.url,
       pr_status: prResult.status,
     }, applyResult));
+
+    // Sprint 2.2 — Ralph-inspired success-side ledger. Append a one-line
+    // entry to projects/<slug>.md so the in-repo project library reflects
+    // autonomous activity. Fail-open — ledger errors never block the return.
+    safeAppendLedger(repoRoot, slug, {
+      ts: new Date().toISOString(),
+      action_kind: plan.action_kind,
+      action_key: plan.action.action_key,
+      action_id: plan.action_id,
+      summary: `${plan.action_kind} on ${plan.branch} (${(applyResult.touchedFiles || []).length} files)`,
+      pr_url: prResult.url,
+      pr_number: prResult.number,
+    });
 
     return {
       ok: true,
