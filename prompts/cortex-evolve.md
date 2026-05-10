@@ -211,7 +211,25 @@ For tasks scoring <80%:
   ```
 - Write proposal as PR, do NOT auto-apply
 
-### C.5 3-month audit reminder
+### C.5 Cross-model transfer gate (Sprint LR.7)
+
+> **Spec:** [`docs/eval-cross-model-protocol.md`](docs/eval-cross-model-protocol.md). Read it before invoking — protocol is normative, this section is the integration hook only.
+
+For each refinement proposal from C.4 that touches `prompts/**`, `standards/**`, `profiles/**`, `agents/**`, `bin/steward/_lib/action-kinds.cjs`, or `bin/steward/_lib/llm-judge-schema.cjs`:
+
+1. Run eval suite on model A (`deepseek/deepseek-v4-flash`) against merge base AND proposal branch.
+2. Run eval suite on model B (`anthropic/claude-sonnet-4-6`; fallback `openai/gpt-5-mini`) against merge base AND proposal branch.
+3. Compute `transfer_ratio = score_with_proposal / score_baseline` per model.
+4. Write `evals/results/<YYYY-MM-DD>-<commit>-cross-model.json` per the schema in the protocol doc.
+5. If `min(transfer_ratios) ≥ 1.0` → annotate proposal `cross_model_gate: passed`. Reviewer decides whether to merge (C.4 still says "do NOT auto-apply").
+6. If `min(transfer_ratios) < 1.0` → annotate `cross_model_gate: blocked` + keep proposal in `insights/proposals/`, do NOT open merge PR. The proposal is overfit, not an improvement.
+7. If a required model run is missing or partial → `cross_model_gate: blocked_missing_run` (fail-closed). Do NOT extrapolate.
+
+**Cost discipline:** Use DGM tiered approach for weekly Phase B proposals — run a 3-task subset first; expand to full 10-task suite only if subset `transfer_ratio ≥ 1.0`. Monthly Phase C runs are full-suite by default.
+
+**Waivers:** Allowed only for security hot-fixes, trivial typos, and schema migrations (see protocol § "GATE-WAIVED"). Every waiver MUST include `eval_waiver:` block with rationale in the PR description.
+
+### C.6 3-month audit reminder
 
 If `today >= config.audit.first_audit_date` AND last audit > 90 days ago:
 - Remind the user to run `$CORTEX_HOME/docs/3-month-audit.md` checklist
