@@ -43,7 +43,7 @@ These items MUST close before the GitHub repo goes from private → public. Each
 ### Eval baseline
 
 - [ ] **LR.1 — Real-run eval baseline** — run 5 executions × 3 canonical tasks from `evals/eval-001` to `evals/eval-009` against default model `deepseek/deepseek-v4-flash`. Capture pass/fail, token cost, wall clock, retry count. Output: `evals/results/2026-MM-DD-real-baseline.json`. Cost ~$0.05 total. **This unblocks Phase 5 statistical claims.**
-- [ ] **LR.1.1 — Aider-Polyglot lift discipline** — per Refact.ai 76 % → 92.9 % insight: bump step limit 15 → 30 + enforce test execution before scoring. Verify cortex-x's `evals/run.cjs` honors this.
+- [x] **LR.1.1 — Aider-Polyglot lift discipline** — ✅ shipped 2026-05-10 as [`evals/runner.md`](../evals/runner.md) § "Aider-Polyglot lift discipline (Sprint LR.1.1)". Discipline encoded as Phase 2 runner spec (`MIN_STEPS=30` + `test_executed:true` before score write). Verified Steward action_kinds already enforce test-execution-before-scoring via spec-verifier (Phase 6 gate) + runNpmTest (Phase 7 gate) + atomic rollback in [`bin/steward/execute.cjs`](../bin/steward/execute.cjs). Step-limit equivalent enforced via cost-safety multi-window caps + intra-run StuckLoopDetection + cross-session loop detector. Note: `evals/run.cjs` itself does not exist (Phase 2 future); discipline shipped as the spec for when it gets built.
 - [ ] **Cross-model transfer protocol** — for each Steward improvement proposal, eval on min 2 models (deepseek-v4-flash + claude-sonnet-4 OR gpt-5-mini). Transfer ratio ≥ 1.0 required for merge. Output: `docs/eval-cross-model-protocol.md` + integration into `prompts/cortex-evolve.md`.
 
 ### Visibility

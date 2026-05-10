@@ -82,6 +82,37 @@ Until this exists, manual execution is the contract.
 }
 ```
 
+## Aider-Polyglot lift discipline (Sprint LR.1.1)
+
+> **Source:** Refact.ai 2025 blog post — Aider Polyglot 76 % → 92.9 % via two harness changes alone. Cited in [`docs/research/cortex-x-sprint-brief-10-5.md`](../docs/research/cortex-x-sprint-brief-10-5.md) §"Aider Polyglot — co tě reálně zajímá pro evals".
+
+The Refact.ai lift came from two protocol invariants, not from a smarter model:
+
+1. **Step limit ≥ 30** — agent gets enough iterations to converge on multi-file fixes (default 15 truncated convergence on ~17 % of tasks).
+2. **Test execution before scoring** — agent cannot claim pass without test suite actually green; "I ran the tests in my head" is a non-result.
+
+Both are ENCODED into the runner harness, not asked of the model. They are the spec, not the suggestion.
+
+### Where this applies in cortex-x
+
+| Surface | Status | Mechanism |
+|---|---|---|
+| **Phase 2 automated runner** (Mode 3 above) | spec only | When built, MUST default `step_limit=30` + reject scoring without `test_executed=true` flag. |
+| **Steward action_kinds** (production) | ✅ enforced | `bin/steward/_lib/spec-verifier.cjs` (Phase 6 gate) + `bin/steward/_lib/verifier.cjs::runNpmTest` (Phase 7 gate) — see [`bin/steward/execute.cjs:2315-2342`](../bin/steward/execute.cjs). Atomic rollback if either fails; commit only if both pass. |
+| **Steward step-limit equivalent** | ✅ enforced | Multi-window cost caps (`bin/steward/_lib/cost-safety.cjs`) + intra-run StuckLoopDetection (`bin/steward/_lib/loop-detector.cjs`) + cross-session loop detector (Sprint 1.9.1). Bounds iteration count via cost + repetition, not raw step count, but achieves the same convergence-vs-thrash discrimination. |
+| **Manual real-execution mode** (above) | ✅ procedural | Step 5 of the protocol requires reading the test outputs in the eval's expected properties before assigning the score. Reviewer is the harness. |
+| **Paper baseline mode** (above) | N/A | Predictive only; no agent loop to bound. |
+
+### Implication for the future automated runner
+
+When implementing Mode 3 § "Automated runner (future)", the runner MUST:
+
+- Configure `step_limit` per task with a `MIN_STEPS = 30` floor.
+- Refuse to write a `score` to the result file unless the run record contains `test_executed: true` AND `test_exit_code: <number>`.
+- Surface `step_count_exceeded` as a distinct outcome from `score_below_threshold` — confusing the two is what Refact.ai's pre-fix harness did.
+
+These are non-negotiable defaults. Operators can opt OUT per task with an explicit `harness_override:` block + rationale, but never silently.
+
 ## Cadence
 
 Per `prompts/cortex-evolve.md` § Phase C (Monthly Refinement):
