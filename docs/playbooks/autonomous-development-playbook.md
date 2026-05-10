@@ -139,12 +139,20 @@ Wrong: spawning a `general-purpose` subagent to read a single file you could `Re
 
 ---
 
-## 8. Open items (will update this playbook when they ship)
+## 8. Status — what is code-enforced vs behavioral
 
-- Sprint 2.12 — intra-run StuckLoopDetection primitive lands the dedup window in code (currently behavioral)
-- Sprint 2.13 — `cortex-steward status --self-invocations` renders the chain
-- Sprint 2.14 — research-trigger rule lands as YAML in `~/.claude/CLAUDE.md` plus detector hooks
-- Sprint 3.x — multi-action checkpoint primitive (prerequisite to 4h+ sessions)
-- Sprint 4.x — plan-mode-nudge primitive (prerequisite to 10h sessions)
+| Guardrail | Status | Reference |
+|---|---|---|
+| Max recursion depth: 3 | ✅ code-enforced (Sprint 2.13) | `bin/steward/_lib/self-invocation.cjs` `MAX_DEPTH_EXCEEDED` |
+| Wall-clock cap per chain: 30 minutes | ✅ code-enforced (Sprint 2.13) | `WALL_CLOCK_EXCEEDED` |
+| Dedup window: identical (skill, args) blocked within 3 turns | ✅ code-enforced (Sprint 2.13) | `DEDUP_BLOCKED` |
+| Intra-run loop detection (3 patterns) | ✅ code-enforced (Sprint 2.12) | `bin/steward/_lib/loop-detector.cjs` |
+| Cost gate (daily $10 / weekly $25 / monthly $80) | ✅ code-enforced (Sprint 1.6.19 + 1.9.1) | `bin/steward/_lib/cost-safety.cjs` |
+| `cortex-steward status --self-invocations` chain tree | ✅ shipped (Sprint 2.13) | `bin/steward/status.cjs` |
+| Research-when-uncertain trigger rule (§4) | ⏳ Sprint 2.14 | drop-in YAML proposal in deep-dive memo |
+| Multi-action checkpoint primitive | ⏳ Sprint 3.x | prerequisite to 4h+ sessions |
+| Plan-mode-nudge primitive (`STEWARD_PAUSE`) | ⏳ Sprint 4.x | prerequisite to 10h sessions |
 
-Until those land, the rules above are **operator-supervised behavioral policy**, not code-enforced contract.
+**Sprint 2.13 makes the §3 rules code-enforced contract**, not just behavioral policy. Code-enforcement gates fire even if the operator forgets the playbook; behavioral policy still applies for items not yet in the table (research trigger, plan-mode-nudge).
+
+Persistence: each invocation event lands in `$CORTEX_DATA_HOME/self-invocations/<slug>.jsonl` (cross-session readable). Inspect via `cortex-steward status --slug=<slug> --self-invocations`.

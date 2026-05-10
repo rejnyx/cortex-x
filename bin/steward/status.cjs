@@ -27,6 +27,8 @@ const recommendations = require('./_lib/recommendations.cjs');
 // operator can see "we're at 60% of monthly cap by day 12, projected $96 by
 // month-end" without grepping the journal.
 const costSafety = require('./_lib/cost-safety.cjs');
+// Sprint 2.13 — render self-invocation chain history under --self-invocations.
+const selfInvocation = require('./_lib/self-invocation.cjs');
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
@@ -158,6 +160,18 @@ function getStatus(opts = {}) {
   if (includeForecast) {
     status.cost_forecast = costSafety.spendForecast(slug);
   }
+  // Sprint 2.13 — self-invocation chain history. Opt-in via
+  // --self-invocations flag (or opts.selfInvocations=true). Reads
+  // append-only JSONL at $CORTEX_DATA_HOME/self-invocations/<slug>.jsonl
+  // and renders chain tree.
+  if (opts.selfInvocations === true) {
+    const events = selfInvocation.readEvents(slug);
+    status.self_invocations = {
+      total_events: events.length,
+      tree: selfInvocation.renderChainTree(events, { limit: opts.selfInvocationLimit || 10 }),
+      events_path: selfInvocation.eventLogPath(slug),
+    };
+  }
   return status;
 }
 
@@ -223,6 +237,21 @@ function formatHumanReadable(status) {
     }
   }
 
+  // Sprint 2.13 — render self-invocation chain tree (only when --self-invocations passed).
+  if (status.self_invocations) {
+    const si = status.self_invocations;
+    lines.push('  self_invocations (--self-invocations):');
+    lines.push(`    events_total: ${si.total_events}`);
+    lines.push(`    log: ${si.events_path}`);
+    if (si.total_events === 0) {
+      lines.push('    (no chains recorded)');
+    } else {
+      // Indent the rendered tree by 4 spaces for readability under the header.
+      const indented = si.tree.split('\n').map((l) => `    ${l}`).join('\n');
+      lines.push(indented);
+    }
+  }
+
   // Sprint 1.9.0 — render spec-violation rollup. AC line 204: "spec_failures: [...]
   // block in JSON + human modes." JSON mode passes through `j.spec_violations`
   // unchanged (it's already in the `journal` substruct).
@@ -282,6 +311,7 @@ if (require.main === module) {
     repoRoot: flagValue('repo-root'),
     daysBack,
     forecast: args.includes('--forecast'),
+    selfInvocations: args.includes('--self-invocations'),
   });
 
   if (!status.ok) {
