@@ -64,6 +64,14 @@ Ralph (and Huntley's writing around it) has done the market education for free. 
 
 cortex-x's pitch is now one sentence: *"It's the production-grade descendant of the Ralph pattern, with the safety guarantees Ralph deliberately skips."*
 
+## Sprint 2.3 — mutation testing as autonomous-agent fitness gate
+
+The 2025–2026 published landscape (Meta ACH FSE 2025, MutGen, MuTAP, GitHub Next llmorpheus, testdouble.com prompt-then-verify) covers two intersections heavily — **LLMs generating tests guided by mutants** and **mutation-augmented test generation** — and one intersection **sparsely**: gating *agent-authored patches* on mutation score as a fitness signal. cortex-x's Sprint 2.3 (research memo: [`docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md`](./research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md)) sits in that gap deliberately.
+
+The fitness gate matters because LLM-written tests average ~40 % mutation score versus ~79 % line coverage ([arXiv 2406.09843](https://arxiv.org/html/2406.09843v4)) — meaning roughly half of agent patches that pass `npm test` would survive a mutation run. The *production* difference between Ralph and Steward becomes: Ralph trusts the AI's verification, Steward gates that verification on whether the tests actually distinguish correct from broken code. Sprint 2.3a (foundation, this sprint) lands the policy SSOT (`standards/correctness.md` § Practice 4 three-tier scores), the dispatcher contract (`mutation_score_drift` action_kind stub), the safety perimeter (`reports/` ownership in `standards/steward-policy.md`), and the toolchain readiness (`fast-check@^4.x` devDep, npm audit gate). Sprint 2.3b will land the runner integration once the test runner migration completes (Stryker JS 9.6 doesn't ship a `node:test` runner; vitest migration is the prerequisite).
+
+Differentiating note for the launch essay: this is one of the few documented production-grade implementations of mutation-as-fitness *outside* the LLM-test-generation flow — the closest published precedent is Fowler's "harness engineering" anecdotal note. Sparse prior art is the differentiation; the architecture is grounded in the 2025–2026 corpus, not hypothesis.
+
 ## References
 
 - Geoffrey Huntley — [Ralph Wiggum as a software engineer](https://ghuntley.com/ralph/)

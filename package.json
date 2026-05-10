@@ -30,6 +30,7 @@
     "verify:standards": "node tools/verify-standards.cjs"
   },
   "devDependencies": {
-    "c8": "^10.1.3"
+    "c8": "^10.1.3",
+    "fast-check": "^4.7.0"
   }
 }

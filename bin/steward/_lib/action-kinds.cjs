@@ -402,6 +402,68 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.3b: mutation score drift (deterministic, snapshot-only v1) ─
+  // Sprint 2.3a (this entry, shipped_in: null) reserves the dispatcher
+  // contract so downstream consumers can prepare matchers + journal
+  // schemas before the runner lands. Sprint 2.3b will:
+  //   1. migrate npm test from `node --test` to vitest (Phase -1) so
+  //      Stryker's `coverageAnalysis: "perTest"` works (CommandRunner
+  //      fallback breaks coverage filtering → 8-20h wall-clock per run)
+  //   2. baseline mutation score on splice.cjs in a throwaway clone
+  //      (Phase 0) before wiring CI gates
+  //   3. wire `npx stryker run --incremental` to write reports/mutation.json
+  //      with {tier, score, mutants_killed, mutants_survived, baseline_diff}
+  //      (Phase 1) — see docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md
+  //
+  // Mutation tier targets (SSOT in standards/correctness.md § Practice 4):
+  //   - tier: critical → 90% (splice.cjs atomic-rollback, policy-check, path-safety)
+  //   - tier: orchestrator → 80% (action-engine, spec-verifier, recommendations parser)
+  //   - tier: advisory → 70% (everything else; informational only)
+  mutation_score_drift: {
+    description:
+      'Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the executor + detector once vitest migration completes.',
+    requires_llm: false,
+    source: 'npx stryker run --incremental + reports/mutation.json (prior baseline)',
+    detector: 'detectors/mutation-score-drift.cjs', // Sprint 2.3b
+    cost_envelope: 'free', // no LLM call; CI-minute cost tracked separately via $0.10/run ceiling
+    blast_radius: 'minimal', // snapshot file write only — no source edits
+    shipped_in: null, // Sprint 2.3b
+    acceptance_criteria: [
+      // Sprint 2.3b R1 (refresh memo §3): action MUST produce a fresh snapshot.
+      // The runner is read-only against source (mutation testing happens in
+      // Stryker's sandbox, not on disk).
+      {
+        id: 'mutation_snapshot_written',
+        kind: 'file_predicate',
+        description: 'Action MUST produce reports/mutation.json non-empty.',
+        predicate:
+          'touchedFiles.includes("reports/mutation.json") && fileSize("reports/mutation.json") > 50',
+        severity: 'block',
+      },
+      {
+        id: 'mutation_snapshot_schema_valid',
+        kind: 'regex',
+        description: 'Snapshot MUST contain canonical top-level keys: schema_version, tier, score, mutants_killed, mutants_survived.',
+        file: 'reports/mutation.json',
+        pattern: '"schema_version"\\s*:\\s*1.*"tier".*"score".*"mutants_killed".*"mutants_survived"',
+        severity: 'block',
+      },
+      {
+        id: 'mutation_audit_only_writes_snapshot',
+        kind: 'file_predicate',
+        description: 'mutation_score_drift is read-only against source — only reports/mutation.json may change.',
+        predicate: 'touchedFiles.every((p) => p === "reports/mutation.json")',
+        severity: 'block',
+      },
+      {
+        id: 'mutation_score_drift_readonly_ears',
+        kind: 'ears_text',
+        ears: 'WHEN mutation_score_drift runs THE SYSTEM SHALL only modify reports/mutation.json',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── Sprint 2.5: 10th capability — tech debt audit (deterministic) ─────
   tech_debt_audit: {
     description:

@@ -121,6 +121,8 @@ Steward layers three independent denylists. They cover different attack surfaces
 ### Layer 1 — Engine file-write denylist (`bin/steward/_lib/action-engine.cjs`)
 Enforced inside `applyEditsToFilesystem` over `edit.path`. Blocks **file-WRITE** to: `.env*`, `*.pem`, `*.key`, `secrets/`, `package(-lock).json`, `bin/steward/**`, `bin/cortex-steward*`, `.github/workflows/**`, `standards/hermes-*`, `.git/`, `.ssh/`, `.gnupg/`. Source: `HERMES_HARD_DENYLIST` constant.
 
+> **Sprint 2.3a — mutation testing artifact policy.** `reports/` is owned by the `mutation_score_drift` action_kind. Only `reports/mutation.json` is commit-tracked (drift baseline across PRs); everything else under `reports/` is gitignored per-run scratch. The dispatcher enforces ownership via the kind's `mutation_audit_only_writes_snapshot` acceptance criterion (`touchedFiles.every((p) => p === "reports/mutation.json")`); other action_kinds attempting to land edits in `reports/` will trip `SPEC_VIOLATION`.
+
 ### Layer 2 — Policy-check subprocess denylist (`bin/steward/_lib/policy-check.cjs`)
 Enforced before any tool call. Pattern-matches over flattened args. Blocks **subprocess READ + EXFIL + production mutation**:
 - Sentinel preservation (Steward cannot delete its own kill switch)

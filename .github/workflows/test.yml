@@ -33,6 +33,14 @@ jobs:
         # an npm package). `npm install` resolves devDeps from package.json.
         run: npm install --no-fund --no-audit --no-progress
 
+      - name: npm audit (devDeps only — high+critical gate)
+        # Sprint 2.3a foundation: surface high/critical CVEs in the dev
+        # dependency tree on every PR. cortex-x has no runtime deps; this is
+        # a foundation step ahead of Sprint 2.3b mutation-testing tooling
+        # (Stryker + fast-check) being added. Fails the lane on high or
+        # critical findings; moderate/low are informational only.
+        run: npm audit --audit-level=high --omit=optional
+
       - name: Show test inventory
         run: |
           echo "::group::Test files"

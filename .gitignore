@@ -19,6 +19,15 @@ coverage/
 .tap/
 tmp/
 .test-tmp/
+# Sprint 2.3a foundation: mutation testing artifacts. Stryker writes to
+# reports/ (mutation HTML dashboard, .stryker-tmp/ sandbox). Sprint 2.3b's
+# `mutation_score_drift` action_kind only commits reports/mutation.json
+# (the snapshot used for drift detection across PRs); everything else in
+# reports/ is per-run scratch and must not land in commits.
+reports/
+!reports/mutation.json
+.stryker-tmp/
+stryker-incremental.json
 
 # Hermes runtime data when CORTEX_DATA_HOME points inside the workspace.
 # GitHub Actions workflows set CORTEX_DATA_HOME=$GITHUB_WORKSPACE/.cortex-data

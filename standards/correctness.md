@@ -116,10 +116,22 @@ tests:
 
 **Adoption discipline:**
 - Mutation testing is SLOW — Sentry's suite takes 25-45 min. Run **weekly/nightly**, not per-PR.
-- Target **>70% mutation score on critical modules**, not everywhere.
 - Surviving mutants in UI glue code are noise; focus on the dangerous paths.
+- Per-file thresholds are not natively supported by Stryker JS — the score-tier table below requires N invocations with different `mutate` globs + per-tier `thresholds.break` configs (one stryker config per tier).
 
-**Real adoption:** Sentry (JS SDKs, 62% mutation score on core, weekly), Meta (LLM-augmented mutation testing for compliance), Microsoft .NET ecosystem.
+**Three-tier mutation score policy (SSOT — referenced by `mutation_score_drift` action_kind):**
+
+| Tier | Target score | Files (cortex-x baseline) | Drift gate |
+|---|---|---|---|
+| **critical** | ≥ 90 % | `bin/steward/_lib/splice.cjs` (atomic snapshot+rollback), `bin/steward/_lib/policy-check.cjs` (denylist), `bin/steward/_lib/path-safety.cjs`, `shared/hooks/block-destructive.cjs` | hard-fail PR if score drops > 2 pp below baseline |
+| **orchestrator** | ≥ 80 % | `bin/steward/_lib/action-engine.cjs`, `bin/steward/_lib/spec-verifier.cjs`, `bin/steward/_lib/recommendations.cjs`, `bin/steward/execute.cjs` | hard-fail PR if score drops > 5 pp below baseline |
+| **advisory** | ≥ 70 % | everything else under `bin/`, `detectors/`, `shared/` | informational only — write to `reports/mutation.json`, never block PR |
+
+**Tier rationale:** *critical* is "silent bug = corrupts operator's repo or bypasses kill-switch" — auth-tier reasoning. *orchestrator* is "silent bug = wrong action lands or rollback misfires" — payment-tier reasoning. *advisory* is "silent bug = quality drift over weeks, surfaces in journal." See [Codecov mutation rule-of-thumb](https://about.codecov.io/blog/mutation-testing-how-to-ensure-code-coverage-isnt-a-vanity-metric/) for industry-norm 80 % on error-handling; cortex-x splice.cjs is auth-tier (corrupts operator's repo if it fails) → 90 %.
+
+**Adoption ratchet (Sprint 2.3b first-week pattern):** Stryker docs explicitly recommend `incremental on every PR, full nightly`. cortex-x ships `break: null` (measure-only) for weeks 1-2, then sets `break = baseline - 2 pp` for week 3, then ratchets quarterly toward tier targets. Day-1 90 % guarantees red CI; day-90 90 % is the goal.
+
+**Real adoption:** Sentry (JS SDKs, 62 % mutation score on core, weekly), Meta ACH ([FSE 2025](https://dl.acm.org/doi/10.1145/3696630.3728544), LLM-augmented mutation testing for compliance hardening), Microsoft .NET ecosystem.
 
 ### 5. Stateful / simulation testing for workflows
 
@@ -193,7 +205,7 @@ fc.assert(fc.property(fc.commands([
 - [ ] Every trust boundary has runtime schema validation (Zod/Pydantic)
 - [ ] Any pure calculation or state machine has at least one property-based test
 - [ ] Every LLM endpoint has a versioned eval suite of ≥20 golden cases in CI
-- [ ] Critical modules (money, auth) have weekly mutation testing with >70% score
+- [ ] Critical modules (money, auth) have weekly mutation testing with score ≥ tier target (critical 90 %, orchestrator 80 %, advisory 70 %)
 - [ ] Retry/dedup/ledger logic has a stateful simulation test
 - [ ] Golden sets updated whenever a real-world regression is caught
 

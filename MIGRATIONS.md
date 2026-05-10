@@ -1155,3 +1155,51 @@ Each of the four fixes is independently revertible (commit-by-commit). Reverting
 - Commits: `0deb71c` … `182c310` (4 commits in Sprint 1.8.12 + 1.8.13 block).
 - Generalized in Sprint 1.9.0 (commit `82140c5` family): hardcoded `EDIT_DESTRUCTIVE_REWRITE` removed from `action-engine.cjs`, replaced by per-kind `no_destructive_rewrite` criterion in `bin/steward/_lib/action-kinds.cjs`. Single source of truth lives in the criterion's `predicate`.
 - Sprint 2.10.7 above adds the cross-platform scrub fix + `[HUMAN-ONLY]` / `(DONE)` parser skip predicates; together with this Sprint 1.8.12 + 1.8.13 hardening they form the "defense-by-design" layer that the Sprint 2.2.5 v0 `edit_ops[]` primitive builds on top of.
+
+---
+
+## Sprint 2.3a — Mutation testing as fitness gate, foundation drop (2026-05-10)
+
+Non-breaking — pure foundation. R1 refresh + R2 review pipeline (memos at [`docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md`](./docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md)) re-scoped Sprint 2.3 into 2.3a (foundation, this entry) + 2.3b (vitest migration + Stryker integration, deferred). Tests: 1863 → 1866 (+3 fast-check smoke).
+
+#### Why split
+
+R2 surfaced a load-bearing blocker: `testRunner: "node-test"` is fictional — Stryker JS 9.6 doesn't ship a `node:test` runner, and cortex-x's `npm test` uses `node --test`. CommandRunner fallback breaks `coverageAnalysis: "perTest"` → 8-20h wall-clock per Stryker run → exceeds GHA 6-hour timeout. Sprint 2.3b's runner migration (vitest recommended) is a 25-35h piece deferred to a discrete sprint with explicit operator sign-off; foundation items below are independently shippable today.
+
+#### What landed (Sprint 2.3a)
+
+1. **`mutation_score_drift` action_kind stub** ([`bin/steward/_lib/action-kinds.cjs`](./bin/steward/_lib/action-kinds.cjs)) — `shipped_in: null` placeholder reserves the dispatcher contract so downstream consumers can prepare matchers + journal schemas before Sprint 2.3b's runner lands. Acceptance criteria already declared (snapshot-written, schema-valid, audit-only-writes-snapshot, EARS clause); spec-verifier validates them today even though no executor branch dispatches yet.
+2. **Three-tier mutation policy SSOT** ([`standards/correctness.md`](./standards/correctness.md) § Practice 4) — *critical* ≥ 90 % (atomic-rollback, denylist, path-safety, block-destructive), *orchestrator* ≥ 80 % (action-engine, spec-verifier, recommendations, execute), *advisory* ≥ 70 % (everything else, informational only). Tier rationale anchored to auth-tier vs. payment-tier vs. quality-drift reasoning.
+3. **`reports/` ownership documented** ([`standards/steward-policy.md`](./standards/steward-policy.md) § 3 Layer 1) — `reports/` is owned by `mutation_score_drift`; only `reports/mutation.json` is commit-tracked (drift baseline across PRs); everything else is gitignored per-run scratch. Other action_kinds attempting to write into `reports/` trip `SPEC_VIOLATION`.
+4. **`fast-check@^4.7.0` devDep + integration smoke test** ([`tests/unit/steward/splice-fc.test.cjs`](./tests/unit/steward/splice-fc.test.cjs)) — three properties exercising splice's append-monotonicity, `validateOp` totality, and atomic-rollback-on-failure with shrinking + replay seeds. Hand-rolled property tests in `splice-properties.test.cjs` continue to be SoT for the v0+v1 ops contract; `splice-fc.test.cjs` is the shrinking-aware companion. Migration of the remaining hand-rolled property files (`helpers-property.test.cjs`, `routing-table.test.cjs`, `cortex-tools/property-invariants.test.cjs`) is incremental — every new invariant lands here using fc; existing tables stay until they flake.
+5. **`npm audit --audit-level=high` gate** ([`.github/workflows/test.yml`](./.github/workflows/test.yml)) — surfaces high/critical CVEs in the dev tree on every PR. cortex-x has no runtime deps; foundation step ahead of Sprint 2.3b mutation tooling. Fails on high or critical; moderate/low informational only.
+6. **`.gitignore` mutation artifacts** — `reports/` (with `!reports/mutation.json` exception so the snapshot tracks drift across PRs), `.stryker-tmp/`, `stryker-incremental.json`. Runtime-scratch never lands in commits.
+7. **Positioning paragraph** ([`docs/positioning-vs-ralph.md`](./docs/positioning-vs-ralph.md)) — frames Sprint 2.3 as one of the few documented production-grade implementations of mutation-as-fitness *outside* the LLM-test-generation flow. Sparse prior art = differentiation.
+
+#### Engage
+
+No opt-in needed for the foundation. The new fast-check tests run automatically under `node --test`. The npm audit gate kicks in on next PR/push. The `mutation_score_drift` action_kind is dormant (`shipped_in: null`) and will not be picked by the dispatcher until Sprint 2.3b implements its detector + executor branch.
+
+To preview the policy:
+
+```bash
+# Verify mutation tier targets in the SSOT
+grep -A 10 'Three-tier mutation' standards/correctness.md
+
+# Verify the dispatcher contract is reserved
+node -e "console.log(require('./bin/steward/_lib/action-kinds.cjs').getActionKind('mutation_score_drift'))"
+
+# Run the new fast-check smoke standalone
+node --test tests/unit/steward/splice-fc.test.cjs
+```
+
+#### Rollback
+
+Each item is independently revertible. Reverting the action_kind stub re-opens the dispatcher contract; reverting the SSOT loses the three-tier rationale; reverting fast-check loses the shrinking-aware companion (hand-rolled tables continue to pass). The npm audit gate may need a temporary `--audit-level=critical` if a transitive dep ships a high CVE before the Sprint 2.3b runner clean-up — operator-judgment.
+
+#### Reference
+
+- R1 refresh memo: [`docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md`](./docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md)
+- 6-agent R2 review committed in `a737c6d` re-scoped Sprint 2.3 into 2.3a (foundation, this entry) + 2.3b (runner+Stryker, deferred).
+- Sprint 2.3b prerequisites: vitest migration (Phase -1), throwaway-clone baseline (Phase 0), full Stryker integration with R2 amendments (Phase 1). Estimated 25-35 h.
+- `mutation_score_drift` will land under `0.3.0` once 2.3b ships.
