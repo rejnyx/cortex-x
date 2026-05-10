@@ -32,6 +32,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { readEnv } = require('./env.cjs');
+// Sprint 2.11.1 SSOT M2 fix: redactSecrets centralized in safety.cjs
+// (previously duplicated here at line ~1218 with narrower coverage and
+// at senior-tester-action.cjs:138 with a different replacement format).
+const { redactSecrets } = require('./safety.cjs');
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 // Sprint 1.6.18: default model aligned with steward-usage.md § Model selection
@@ -1207,20 +1211,17 @@ function resolveClaudeCliPath(opts = {}) {
 // Reset the cache. Test-only — production code never invalidates.
 function _resetClaudeCliPathCache() { _cachedClaudeCliPath = null; }
 
-// Sprint 2.4 R2 fix (security HIGH-1, CWE-532): redact OAuth-shaped tokens
-// from any stderr/stdout text that flows back into error / raw_preview /
-// halt-file content. Defense-in-depth — env scrub already prevents the
-// token from reaching the child env, but the child could theoretically
-// echo it back via debug output. This regex masks anything matching
-// Anthropic OAuth token shape OR generic Bearer header values.
-const _OAUTH_TOKEN_REGEX = /sk-ant-oat\d{2}-[A-Za-z0-9_-]+/g;
-const _BEARER_HEADER_REGEX = /Bearer\s+[A-Za-z0-9._\-+/=]+/gi;
-function redactSecrets(s) {
-  if (typeof s !== 'string') return s;
-  return s
-    .replace(_OAUTH_TOKEN_REGEX, '[REDACTED-OAUTH-TOKEN]')
-    .replace(_BEARER_HEADER_REGEX, 'Bearer [REDACTED]');
-}
+// Sprint 2.4 R2 fix (security HIGH-1, CWE-532): redact secrets from any
+// stderr/stdout text that flows back into error / raw_preview / halt-file
+// content. Defense-in-depth — env scrub already prevents the token from
+// reaching the child env, but the child could theoretically echo it back
+// via debug output.
+//
+// Sprint 2.11.1 SSOT M2: implementation moved to safety.cjs and imported
+// at the top of this file. Coverage expanded to 11 patterns (OAuth-Anthropic,
+// JWT, Bearer-with-base64, sk- prefix, GitHub classic/fine, AWS, Google,
+// Slack, Stripe-live, plus env-style fallback). Local definition kept
+// removed; this comment block preserves the audit trail.
 
 // Parse the `claude -p --output-format json` envelope. Returns either
 // { ok: true, parsed } or { ok: false, code, error }. Strict on shape;

@@ -137,6 +137,10 @@ describe('Sprint 2.11 — judge prompt scaffolding', () => {
     assert.match(action.JUDGE_SYSTEM_PROMPT, /ranked_findings/);
   });
 
+  // Sprint 2.11.1: replacement format unified to `[REDACTED-...]`
+  // (square-bracket sentinels survive sanitizeForMarkdown unchanged; the
+  // earlier `<redacted>` form would HTML-escape to `&lt;redacted&gt;`
+  // when re-rendered in issue bodies).
   test('redactSecrets strips Bearer tokens + sk- keys', () => {
     const input = `
 const headers = { Authorization: 'Bearer sk-abcdefghijklmnopqrst1234' };
@@ -144,7 +148,7 @@ const apiKey = 'sk-abcdefghijklmnopqrst1234';
 `;
     const out = action.redactSecrets(input);
     assert.ok(!out.includes('sk-abcdefghijklmnopqrst1234'));
-    assert.ok(out.includes('Bearer <redacted>'));
+    assert.ok(out.includes('Bearer [REDACTED]'));
   });
 
   // Sprint 2.11 R2 fixes — explicit regression coverage for blind-hunter
@@ -155,7 +159,7 @@ const apiKey = 'sk-abcdefghijklmnopqrst1234';
     assert.ok(!out.includes('real-secret-value-12345'), `failed to redact apiKey value: ${out}`);
     assert.ok(!out.includes('another-secret-67890'), `failed to redact password value: ${out}`);
     assert.ok(!out.includes('bearer-style-secret'), `failed to redact token value: ${out}`);
-    assert.ok(out.includes("'<redacted>'"));
+    assert.ok(out.includes("'<REDACTED>'"));
   });
 
   test('redactSecrets covers 2026 provider patterns (HIGH-2 fix)', () => {

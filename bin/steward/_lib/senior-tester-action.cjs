@@ -25,12 +25,20 @@ const path = require('node:path');
 const child_process = require('node:child_process');
 
 const registry = require('./test-smell-registry.cjs');
+// Sprint 2.11.1 SSOT M2 fix: redactSecrets moved to safety.cjs.
+// SSOT M1 fix: OPENROUTER_ENDPOINT imported from action-engine (single
+// network constant; no longer copy-pasted across action_kinds).
+const { redactSecrets } = require('./safety.cjs');
+const { OPENROUTER_ENDPOINT } = require('./action-engine.cjs');
 
 const JUDGE_TIMEOUT_MS = 90 * 1000; // 90s — bounded by openrouter-engine clamp anyway
 const JUDGE_MAX_FILES = 5;
 const JUDGE_FILE_BYTES_CAP = 16 * 1024; // 16 KiB per file in prompt
 const JUDGE_FINDINGS_CAP = 20;
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+// DEFAULT_JUDGE_MODEL stays local: senior-tester has its own
+// STEWARD_SENIOR_TESTER_MODEL env override and may legitimately diverge
+// from action-engine's DEFAULT_MODEL (edit model vs judge model are
+// semantically distinct categories per Sprint 2.0b routing-table).
 const DEFAULT_JUDGE_MODEL = 'deepseek/deepseek-v4-flash';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,39 +126,12 @@ function selectSampleFiles(phaseA, repoRoot) {
   return samples;
 }
 
-// Sprint 2.11 R2 (security-auditor HIGH-2): provider-pattern catalog covering
-// the 2026 production secret surface. Each entry: { name, pattern, replacement }.
-// Each pattern uses /g for full-content sweep. Order matters only for the
-// env-style fallback which catches generic key-value assignments not matched
-// by provider patterns.
-const SECRET_PATTERNS = [
-  { name: 'bearer', re: /Bearer\s+[A-Za-z0-9._\-]{16,}/g, repl: 'Bearer <redacted>' },
-  { name: 'sk-prefix', re: /sk-(?:proj-|ant-)?[A-Za-z0-9_\-]{20,}/g, repl: 'sk-<redacted>' },
-  { name: 'github-pat', re: /gh[pousr]_[A-Za-z0-9]{20,}/g, repl: 'ghX-<redacted>' },
-  { name: 'github-fine-grained', re: /github_pat_[A-Za-z0-9_]{30,}/g, repl: 'github_pat_<redacted>' },
-  { name: 'aws-access', re: /AKIA[0-9A-Z]{16}/g, repl: 'AKIA<redacted>' },
-  { name: 'google-api', re: /AIza[0-9A-Za-z\-_]{35}/g, repl: 'AIza<redacted>' },
-  { name: 'slack', re: /xox[baprs]-[A-Za-z0-9-]{10,}/g, repl: 'xox<redacted>' },
-  { name: 'stripe-live', re: /(?:sk|rk)_live_[A-Za-z0-9]{16,}/g, repl: 'live_<redacted>' },
-  { name: 'jwt', re: /eyJ[A-Za-z0-9_\-]{8,}\.eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}/g, repl: 'jwt.<redacted>' },
-];
-
-function redactSecrets(content) {
-  // Sprint 2.11 R2 HIGH-1+HIGH-2 fix: provider-aware redaction with proper
-  // per-match callback semantics. Previously `'$&'.replace(...)` evaluated AT
-  // MODULE LOAD against the literal string '$&' — net effect: NO redaction.
-  let out = String(content || '');
-  for (const p of SECRET_PATTERNS) {
-    out = out.replace(p.re, p.repl);
-  }
-  // Generic env-style fallback for assignments that don't match a known
-  // provider pattern. Per-match callback ensures correct replacement.
-  out = out.replace(
-    /(?:api[_-]?key|secret|password|token|credential)\s*[:=]\s*['"`][^'"`]+['"`]/gi,
-    (match) => match.replace(/['"`][^'"`]+['"`]$/, "'<redacted>'"),
-  );
-  return out;
-}
+// Sprint 2.11.1 SSOT M2 fix: redactSecrets + SECRET_PATTERNS extracted to
+// safety.cjs (imported above). Coverage expanded vs the previous local
+// catalog: added Anthropic OAuth shape (`sk-ant-oat##-…`) with distinct
+// `[REDACTED-OAUTH-TOKEN]` replacement, broadened Bearer character class
+// to include base64 chars (`+/=`), unified replacement format to
+// `[REDACTED-…]` (square brackets, sanitizeForMarkdown-safe).
 
 async function runLlmJudge(phaseA, opts) {
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
