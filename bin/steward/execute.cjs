@@ -1339,6 +1339,7 @@ async function runAutoresearchAction(plan, ctx) {
     touchedFiles: reapplyResult.touchedFiles || winner.touchedFiles,
     edits: reapplyResult.edits || sanitizedEdits,
     previousSizes: reapplyResult.previousSizes,
+    previousContents: reapplyResult.previousContents,
     summary: reapplyResult.summary,
     cost_usd: arResult.budget && arResult.budget.spent_usd,
     tokens_in: winner.tokens_in,

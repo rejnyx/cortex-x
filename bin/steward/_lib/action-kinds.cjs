@@ -54,6 +54,63 @@ const NO_DESTRUCTIVE_REWRITE_EARS = {
   severity: 'block',
 };
 
+// Sprint 2.2.5 v0 — edit_ops[] primitive criteria. Layered ON TOP of
+// NO_DESTRUCTIVE_REWRITE_CRITERION (which remains the universal backstop
+// for all edits). The criteria below fire only when an edit declares
+// `ops`-shape (as opposed to legacy `{path, content, replace_all}`).
+
+// EDIT_POSITION_APPEND_GROWS — when an op of kind=append runs against a
+// path, post-edit fileSize MUST exceed prevSize. Catches stealth-replace
+// (memo R2 §security HIGH-2 + edge-case ship-blocker: an LLM that emits
+// kind=append but text replaces existing content reduction).
+const EDIT_POSITION_APPEND_GROWS = {
+  id: 'edit_position_append_grows',
+  kind: 'file_predicate',
+  description:
+    'For each edit declaring ops with kind=append on path P, fileSize(P) MUST exceed prevSize(P). Detects stealth-replace masquerading as append.',
+  predicate:
+    'edits.every((e) => !e || !Array.isArray(e.ops) || !e.ops.some((o) => o && o.kind === "append") || fileSize(e.path) > prevSize(e.path))',
+  severity: 'block',
+};
+
+// EDIT_POSITION_CREATE_MAKES_FILE — when an op of kind=create runs against
+// a path, the path MUST exist post-edit AND be non-empty (catches LLM
+// emitting kind=create with valid shape but empty text — already blocked
+// by splice.cjs validateOp, but a defense-in-depth peer criterion lets
+// PR-body / lessons-learned see specific failure id).
+const EDIT_POSITION_CREATE_MAKES_FILE = {
+  id: 'edit_position_create_makes_file',
+  kind: 'file_predicate',
+  description:
+    'For each edit declaring ops with kind=create on path P, fileExists(P) MUST be true AND fileSize(P) MUST be > 0 post-edit.',
+  predicate:
+    'edits.every((e) => !e || !Array.isArray(e.ops) || !e.ops.some((o) => o && o.kind === "create") || (fileExists(e.path) && fileSize(e.path) > 0))',
+  severity: 'block',
+};
+
+// EDIT_POSITION_GROWTH_BOUNDED — across all touched paths, file MUST NOT
+// grow by more than 4× its prior size OR by more than +4 KiB, whichever
+// is larger. Catches over-edit + stealth replace-as-append confusion
+// (security MEDIUM — bounded growth invariant).
+const EDIT_POSITION_GROWTH_BOUNDED = {
+  id: 'edit_position_growth_bounded',
+  kind: 'file_predicate',
+  description:
+    'Touched paths must not grow more than 4× prevSize OR +4 KiB (whichever is larger). Catches stealth replace-as-append + over-edit.',
+  predicate:
+    'touchedFiles.every((p) => prevSize(p) === 0 || fileSize(p) <= Math.max(prevSize(p) * 4, prevSize(p) + 4096))',
+  severity: 'block',
+};
+
+// Documentation companion (ears_text — runtime no-op).
+const EDIT_POSITION_EARS = {
+  id: 'edit_position_ears',
+  kind: 'ears_text',
+  description: 'Human-readable EARS clause for the edit_ops[] primitive contract.',
+  ears: 'WHEN an edit declares ops with kind=append THE SYSTEM SHALL ensure the post-edit file size exceeds the pre-edit size; WHEN an edit declares ops with kind=create THE SYSTEM SHALL ensure the target file exists and is non-empty post-edit; WHEN any path is touched THE SYSTEM SHALL bound growth to 4 times prior size or 4 kibibytes additional, whichever is larger',
+  severity: 'block',
+};
+
 const ACTION_KINDS = {
   // ── Currently shipped (Sprint 1.6.13 → 1.7.7) ─────────────────────────
   recommendation: {
@@ -68,6 +125,10 @@ const ACTION_KINDS = {
     acceptance_criteria: [
       NO_DESTRUCTIVE_REWRITE_CRITERION,
       NO_DESTRUCTIVE_REWRITE_EARS,
+      EDIT_POSITION_APPEND_GROWS,
+      EDIT_POSITION_CREATE_MAKES_FILE,
+      EDIT_POSITION_GROWTH_BOUNDED,
+      EDIT_POSITION_EARS,
     ],
   },
 

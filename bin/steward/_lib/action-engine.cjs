@@ -185,12 +185,113 @@ function applyEditsToFilesystem(edits, opts = {}) {
   // criterion in action-kinds.cjs, evaluated by spec-verifier.cjs after
   // edits are applied. Single source of truth, per kind.
   const previousSizes = {};
+  // Sprint 2.2.5: capture pre-edit content for spec-verifier's prevContent(p)
+  // helper, used by the new edit_position_anchor_unique +
+  // edit_position_after_pattern_preserved criteria. 1 MiB cap per file —
+  // anything larger, prevContent returns '' and predicates that need real
+  // content fail closed. Mirrors previousSizes plumbing (ssot review reuse path).
+  const previousContents = {};
+  const PREV_CONTENT_MAX_BYTES = 1024 * 1024;
   // Sprint 1.9.0: also forward edits[] so spec-verifier predicates can read
   // edit.replace_all flag. Kept on the result so all engines (mock, openrouter)
   // surface the same shape.
   const appliedEdits = [];
 
   for (const edit of edits) {
+    // Sprint 2.2.5: dispatch ops-shape edits to splice primitive BEFORE the
+    // legacy content-required guard. Edits with `ops` array bypass the
+    // {path, content, replace_all} contract; splice.cjs handles its own
+    // shape validation + atomic application + symlink refusal.
+    // Path-safety + denylist still apply per ssot review reuse path.
+    if (edit && Array.isArray(edit.ops)) {
+      // Run the same path-safety + denylist gates the legacy path runs.
+      if (!edit.path || typeof edit.path !== 'string') {
+        return {
+          ok: false,
+          code: opts.invalidCode || 'EDIT_INVALID',
+          error: `edit missing path field: ${JSON.stringify(edit)}`,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      if (edit.path.includes('\0')) {
+        return {
+          ok: false,
+          code: opts.unsafeCode || 'EDIT_UNSAFE',
+          error: `edit path contains NUL byte: ${JSON.stringify(edit.path)}`,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      if (path.isAbsolute(edit.path) || edit.path.startsWith('-')) {
+        return {
+          ok: false,
+          code: opts.unsafeCode || 'EDIT_UNSAFE',
+          error: `edit path must be relative + non-flag: ${edit.path}`,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      const fullPathOps = path.resolve(repoRoot, edit.path);
+      const relCheckOps = path.relative(repoRoot, fullPathOps);
+      if (relCheckOps.startsWith('..') || path.isAbsolute(relCheckOps)) {
+        return {
+          ok: false,
+          code: opts.unsafeCode || 'EDIT_UNSAFE',
+          error: `edit path escapes repoRoot via traversal: ${edit.path}`,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      if (isDenylistedPath(edit.path)) {
+        return {
+          ok: false,
+          code: opts.deniedCode || 'EDIT_DENYLISTED',
+          error: `edit path is on Hermes hard denylist: ${edit.path}`,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      // Delegate to splice. It handles symlink refusal, validation per op,
+      // atomic apply with rollback, and previousContents capture.
+      const splice = require('./splice.cjs');
+      const sresult = splice.applyOps({ repoRoot, edits: [edit] });
+      if (!sresult.ok) {
+        return {
+          ok: false,
+          code: sresult.code,
+          error: sresult.error,
+          haltRecommended: sresult.haltRecommended === true,
+          touchedFiles: touched,
+          previousSizes,
+          previousContents,
+          edits: appliedEdits,
+        };
+      }
+      if (!touched.includes(edit.path)) touched.push(edit.path);
+      // Merge splice's previousContents into ours so spec-verifier sees
+      // pre-edit content for ops-shape edits too.
+      if (sresult.previousContents && sresult.previousContents[edit.path] !== undefined) {
+        previousContents[edit.path] = sresult.previousContents[edit.path];
+        // Track previousSizes for parity with the legacy path.
+        previousSizes[edit.path] = Buffer.byteLength(sresult.previousContents[edit.path], 'utf8');
+      }
+      appliedEdits.push({
+        path: edit.path,
+        ops: edit.ops.map((op) => ({ kind: op.kind })),
+      });
+      continue;
+    }
     if (!edit || !edit.path || typeof edit.content !== 'string') {
       return {
         ok: false,
@@ -198,6 +299,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
         error: `edit missing required fields: ${JSON.stringify(edit)}`,
         touchedFiles: touched,
         previousSizes,
+        previousContents,
         edits: appliedEdits,
       };
     }
@@ -213,6 +315,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
         error: `edit path contains NUL byte: ${JSON.stringify(edit.path)}`,
         touchedFiles: touched,
         previousSizes,
+        previousContents,
         edits: appliedEdits,
       };
     }
@@ -223,6 +326,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
         error: `edit path must be relative + non-flag: ${edit.path}`,
         touchedFiles: touched,
         previousSizes,
+        previousContents,
         edits: appliedEdits,
       };
     }
@@ -235,6 +339,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
         error: `edit path escapes repoRoot via traversal: ${edit.path}`,
         touchedFiles: touched,
         previousSizes,
+        previousContents,
         edits: appliedEdits,
       };
     }
@@ -247,15 +352,25 @@ function applyEditsToFilesystem(edits, opts = {}) {
         error: `edit path is on Hermes hard denylist (secrets/package/self/CI/keys): ${edit.path}`,
         touchedFiles: touched,
         previousSizes,
+        previousContents,
         edits: appliedEdits,
       };
     }
     // Sprint 1.9.0: capture pre-edit size BEFORE writing. spec-verifier reads
     // this via prevSize(p) inside file_predicate criteria.
+    // Sprint 2.2.5: also capture pre-edit content (capped at 1 MiB) for
+    // prevContent(p) helper used by edit_position_* criteria.
     if (fs.existsSync(fullPath)) {
       try {
         const stat = fs.statSync(fullPath);
-        if (stat.isFile()) previousSizes[edit.path] = stat.size;
+        if (stat.isFile()) {
+          previousSizes[edit.path] = stat.size;
+          if (stat.size <= PREV_CONTENT_MAX_BYTES) {
+            try {
+              previousContents[edit.path] = fs.readFileSync(fullPath, 'utf8');
+            } catch { /* perm / race; predicate sees '' = fail closed */ }
+          }
+        }
       } catch { /* race / perm; treat as 0 (= no previous file) */ }
     }
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
@@ -271,6 +386,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
     ok: true,
     touchedFiles: touched,
     previousSizes,
+    previousContents,
     edits: appliedEdits,
     summary: opts.summary || `applied ${touched.length} edit(s) to ${touched.join(', ')}`,
   };
@@ -332,13 +448,35 @@ const STEWARD_SYSTEM_PROMPT = [
   'You are Steward, an autonomous code-editing agent for cortex-x projects.',
   '',
   'You receive a single action item from cortex/recommendations.md. Your job',
-  'is to produce a JSON edit-plan in this EXACT shape:',
+  'is to produce a JSON edit-plan. Two edit shapes are accepted:',
   '',
-  '  {"edits": [{"path": "<relative-to-repo-root>", "content": "<full file content>"}, ...]}',
+  '  Legacy: {"edits": [{"path": "<rel>", "content": "<full file content>", "replace_all": false}, ...]}',
+  '  Ops:    {"edits": [{"path": "<rel>", "ops": [{"kind": "...", ...}, ...]}, ...]}',
+  '',
+  'PREFER the ops shape for "append to existing file" or "create new file" tasks',
+  '— it is dramatically more reliable than emitting full-file content. Use the',
+  'legacy shape only when you genuinely need to replace the entire file content.',
+  '',
+  'Sprint 2.2.5 v0 ops (2 kinds shipped; str_replace + insert + delete_file are FUTURE):',
+  '',
+  '  {"kind": "append", "text": "<chunk to append>"}',
+  '    — Use when the action says "append", "add a section at the end", "add an entry to".',
+  '    — File MUST already exist. Engine appends `text` byte-for-byte; preserves all',
+  '      prior content. Empty `text` is rejected with EDIT_OP_EMPTY_PAYLOAD.',
+  '',
+  '  {"kind": "create", "content": "<full file content>"}',
+  '    — Use when the action says "create", "add a new file at <path>".',
+  '    — File MUST NOT already exist. Empty `content` is rejected.',
+  '',
+  'Engine guarantees on ops:',
+  '  • Atomic: if any op in `edits[]` fails, ALL successful ops are rolled back to',
+  '    pre-edit state. You will not leave a half-applied state.',
+  '  • Symlinks are refused (EDIT_OP_SYMLINK_REFUSED).',
+  '  • Path-safety + denylist still apply per the legacy path.',
   '',
   'Rules:',
   '- Output ONLY the JSON object. No markdown fences, no commentary.',
-  '- Each edit.content MUST contain the COMPLETE post-edit file content. No partial diffs, no patch syntax.',
+  '- For legacy shape: each edit.content MUST contain the COMPLETE post-edit file content. No partial diffs, no patch syntax.',
   '- Paths MUST be relative to repo root. No absolute paths, no ".." traversal.',
   '- Do NOT touch files under standards/, prompts/, profiles/, agents/, or top-level',
   '  CLAUDE.md / README.md / module.yaml — these are human_only per config/evolve.yaml.',

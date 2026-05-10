@@ -288,6 +288,12 @@ function runShell(c, ctx) {
 function buildPredicateContext(ctx) {
   const repoRoot = ctx.repoRoot;
   const previousSizes = ctx.previousSizes || {};
+  // Sprint 2.2.5: pre-edit content snapshot keyed by relative path. Captured
+  // by applyEditsToFilesystem before any write, plumbed via applyResult.
+  // Mirrors previousSizes plumbing. Used by edit_position_anchor_unique +
+  // edit_position_after_pattern_preserved criteria. Files >1 MiB return ''
+  // (predicates fail closed for safety).
+  const previousContents = ctx.previousContents || {};
   const edits = Array.isArray(ctx.edits) ? ctx.edits : [];
 
   const cache = new Map();
@@ -316,6 +322,7 @@ function buildPredicateContext(ctx) {
     fileExists: (rel) => read(String(rel)).exists,
     fileContent: (rel) => read(String(rel)).content,
     prevSize: (rel) => previousSizes[String(rel)] || 0,
+    prevContent: (rel) => previousContents[String(rel)] || '',
     edits,
     plan: ctx.plan || {},
   };
@@ -549,6 +556,7 @@ function runChecks(plan, applyResult, opts = {}) {
     edits: (applyResult && applyResult.edits) || (plan && plan.applied_edits) || [],
     plan: plan || {},
     previousSizes: (applyResult && applyResult.previousSizes) || {},
+    previousContents: (applyResult && applyResult.previousContents) || {},
   };
 
   const blockFailures = [];
