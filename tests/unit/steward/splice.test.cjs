@@ -32,7 +32,7 @@ test.describe('splice.validateOp — per-kind discriminated-union', () => {
   test('rejects unknown kind', () => {
     const r = splice.validateOp({ kind: 'shell_exec', text: 'rm -rf /' });
     assert.equal(r.code, 'EDIT_OP_KIND_UNKNOWN');
-    assert.match(r.error, /v0 supports/);
+    assert.match(r.error, /supports/);
   });
 
   test('append requires text string', () => {
@@ -49,8 +49,8 @@ test.describe('splice.validateOp — per-kind discriminated-union', () => {
     assert.equal(splice.validateOp({ kind: 'create', content: 'hi' }).ok, true);
   });
 
-  test('SPLICE_KINDS exports v0 set only (append + create)', () => {
-    assert.deepEqual([...splice.SPLICE_KINDS], ['append', 'create']);
+  test('SPLICE_KINDS exports v0+v1 set (append + create + str_replace + insert)', () => {
+    assert.deepEqual([...splice.SPLICE_KINDS], ['append', 'create', 'str_replace', 'insert']);
   });
 });
 
