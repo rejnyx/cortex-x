@@ -49,7 +49,7 @@ These items MUST close before the GitHub repo goes from private → public. Each
 ### Visibility
 
 - [ ] **Demo asset** — 60-sec asciinema cast OR MP4: `cd ~/empty` → `cortex-bootstrap` → answer 3 questions → `claude` → working `/start` flow → final project tree. Embed at top of README. Bonus: 30-sec Steward dry-run cast (recommendations.md → draft PR diff preview).
-- [ ] **Competitive positioning page expansion** — `docs/positioning-vs-ralph.md` covers Ralph; add Devin / Copilot Coding Agent / Replit Agent / OpenClaw / DGM matrix as `docs/positioning.md`.
+- [x] **Competitive positioning page expansion** — `docs/positioning-vs-ralph.md` covers Ralph; ✅ shipped 2026-05-10 as [`docs/positioning.md`](./positioning.md) — 7-tool comparison matrix (Devin / GitHub Copilot Coding Agent / Replit Agent / Cursor BG Agent / Sakana DGM / OpenClaw / Aider) + per-competitor profiles + honest weaknesses + differentiator that survives scrutiny. Grounded in 25 cited URLs from May 2026 research sweep.
 - [ ] **`docs/positioning-vs-ralph.md` § Sprint 2.3 mutation hook** — already shipped 2026-05-10; verify at flip-time that mutation-as-fitness positioning reads naturally for new audience.
 
 ### Operator dogfood evidence
@@ -63,7 +63,7 @@ These items MUST close before the GitHub repo goes from private → public. Each
 - [ ] **Reddit `r/ClaudeAI` announcement** — same content adapted to subreddit norms.
 - [ ] **LinkedIn post** — operator-narrated version of the launch, anchored to "designer who shipped 14 cortex-x capabilities in 15 months by treating AI as senior teammate, not as autocomplete."
 - [ ] **First external PR / contributor onboarding** — `CONTRIBUTING.md` already exists; verify `good-first-issue` label has 3-5 entries before public flip.
-- [ ] **`docs/positioning.md`** — full competitive landscape table.
+- [x] **`docs/positioning.md`** — full competitive landscape table. ✅ shipped 2026-05-10. (Same item as P1 above; documenting close in both places for traceability.)
 - [ ] **GitHub Discussions enabled** — categories: Q&A, Show & Tell, Ideas.
 
 ## P3 — operational hygiene (continuous)
