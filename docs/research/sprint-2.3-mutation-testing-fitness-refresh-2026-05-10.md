@@ -204,3 +204,87 @@ Phase 2 (mutation_score_drift action_kind + per-directory matrix + property/Meta
 **Proceed with Phase 0 (baseline) + Phase 1 (v0 ship).** R1 refresh confirms the prior memo's direction was right; today's findings sharpen the implementation. Splice.cjs is the natural anchor: it's safety-critical, it just shipped, it has 13 distinct error branches that Stryker will surface as survivors, and it's the smallest module to start with. Cost is a non-issue post-public-flip. Frame in launch essay as first-mover on autonomous-agent mutation gating.
 
 **R1 refresh status**: ✅ COMPLETE 2026-05-10. Ready for R2 6-agent review pipeline → amendment → implementation.
+
+---
+
+## R2 Review — synthesis & re-scope decision (2026-05-10 evening)
+
+6 reviewers ran in parallel against the R1 refresh memo above. Findings consolidated — original R1 refresh **cannot ship as written**. Re-scope below.
+
+### Reviewer summary
+
+| Reviewer | Verdict | Key findings |
+|---|---|---|
+| **acceptance-auditor** | ✅ SHIP (11/11 met) | All R1-refresh criteria fully met with concrete evidence; surgical corrections, novelty hook, honest effort revision |
+| **blind-hunter** | ❌ 3 BLOCKERS + 4 HIGH + 4 MAJOR + 3 MINOR | (a) `mutate` scope contradicts TLD (8 files in config vs 3 in §2.2); (b) `mutation_score` criterion shape underspec (`threshold: -2` no schema/enum); (c) **`testRunner: "node-test"` is fictional** (Stryker 9.6 ships command/jest/mocha/karma/cucumber/vitest/tap, NO node-test runner). Plus: fast-check NOT zero-runtime-deps (transitive `pure-rand`); `tempDirName: '.cortex-data/.stryker-tmp'` lifecycle ambiguous; ratchet math broken (65→90% / +5pp/q = 18 months not Q4); Round 11 lesson conflated; smuggled decisions in "open questions"; arXiv 2406.09843 citation misread |
+| **correctness-auditor** | 🟡 amendments-needed | Trust boundary: `mutation.json` parsed without schema validator (Zod-equiv missing); eval gap N=1 vs §3-minimum 20 fixtures; new criterion lacks property tests (monotonicity, idempotence, threshold safety); stateful test budget tied to surviving-mutant list missing; cross-cutting action_kind inheritance ambiguous |
+| **ssot-enforcer** | 3 MAJOR + 3 MINOR + 1 INFO | Threshold values duplicated across stryker.conf + prose + criterion `threshold: -2` → SSOT must live in `standards/correctness.md` § Practice 4 with single threshold table; `mutation_score` criterion registration sites at `spec-verifier.cjs:50` (VALID_KINDS) + `:110` (validateCriterion switch) + `:443` (RUNNERS map) + `:502` (FAIL_CLOSED_CODES); standards/correctness.md ownership of mutation policy mandatory or memo + standard drift; `reports/` not in .gitignore; GHA composite action 4th-consumer = Rule of Three trigger; fast-check migration single-PR; mutation_score_drift stub now (`shipped_in: null`) mirrors release_notes_drafter pattern |
+| **edge-case-hunter** | 2 BLOCKERS + 6 HIGH + 6 MAJOR + 3 MINOR | **Confirmed `testRunner: "node-test"` fictional** (independent reviewer #2). `coverageAnalysis: "perTest"` incompatible with `command` runner fallback → mutants run full suite per mutant → 400-700 mutants × 45s = **8-20 h wall-clock** → GHA 6 h job timeout exceeded → **nightly fails permanently**. Plus: equivalent-mutant FP (15% on splice with 13 error branches); `STEWARD_*` env stripped in Stryker child processes (tests fail unrelated to mutation, score artificially inflated); `fs.mkdtempSync` collisions under `concurrency: '50%'`; `timeoutMS: 60000` collides with cortex-x integration suite (legit >60 s tests); GHA cache miss on first feature-branch push; cross-action score sharing unspecified; **splice.cjs 90% target unreachable** without filesystem-fault-injection layer (proxyquire/memfs); fast-check shrinking exceeds Stryker timeout; fast-check default seed time-based vs hand-rolled fixed-seed reproducibility; bootstrap of `mutation_score` criterion when no baseline exists undefined |
+| **security-auditor** | 🔴 CANNOT MERGE — 2 CRITICAL + 5 HIGH | CRITICAL: supply chain risk unaddressed (Stryker + 50+ transitives, no `npm audit` gate, no SHA pin, no Dependabot lane); CRITICAL: Stryker mutates splice.cjs which has `fs.writeFileSync` + `fs.unlinkSync` → mutation that flips path-safety → ESCAPES temp sandbox via real fs (Stryker isolation is process-level, not filesystem-level) → Phase 0 must run in throwaway clone, not working repo. HIGH: `mutation.json` no integrity proof + `reports/` not in policy denylist (LLM-authored str_replace can game the gate); LLM adversarial test-additions to game mutation score (5 tautological tests kill mutants without exercising real behavior); `dashboard` reporter must be HARD-disabled (egress to `dashboard.stryker-mutator.io`); `commandRunner` fallback = shell injection surface; GHA workflow security defaults missing (`permissions: contents: read`, SHA-pinned actions, `pull_request` not `pull_request_target`, scoped cache); no STEWARD_HALT / circuit-breaker integration on Stryker timeout/failure |
+
+### The load-bearing blocker
+
+**`testRunner: "node-test"` is fictional.** Confirmed independently by 2 reviewers. Stryker JS 9.6 does not ship a `node:test` runner. cortex-x's `npm test` script uses `node --test` (Node's built-in test runner) with 1858 tests across `tests/unit/`, `tests/contract/`, `tests/integration/`. The closest fallback is `commandRunner` (`npm test` per mutant), but that breaks `coverageAnalysis: "perTest"` → ~400-700 mutants × 45 s full-suite per mutant = **8-20 hours wall-clock per Stryker run** = exceeds GHA's 6-hour job timeout.
+
+**This means Sprint 2.3 as scoped requires solving the test runner problem FIRST.** Options:
+
+A. **Migrate cortex-x test suite to vitest** (closest to node:test syntactically, has first-party Stryker runner). Multi-day migration; ~150 test files to update; risk of regressions in 1858 tests.
+
+B. **Migrate to mocha** (more battle-tested with Stryker; mature first-party runner). Larger syntax delta from node:test; same multi-day cost.
+
+C. **Use commandRunner with single-file mutate scope** (only mutate one file at a time, accept multi-hour nightly). Doesn't scale; works only for splice.cjs baseline; not viable for Sprint 2.3 v0 acceptance.
+
+D. **Write/contribute community Stryker runner for node:test**. Multi-week project; not in this sprint.
+
+E. **Pivot Sprint 2.3 away from Stryker**, use property-based testing alone as fitness signal until D matures.
+
+### Re-scoped Sprint 2.3 plan
+
+Splitting Sprint 2.3 into 2 sub-sprints to honor R2 findings + ship incrementally:
+
+#### Sprint 2.3a — fitness-signal foundation (M effort, ~6-8 h, ship-able now)
+
+Lands the **non-Stryker** parts of the R1 refresh that don't depend on the runner question:
+
+1. `fast-check@^4.x` as devDep + migrate all 5 hand-rolled property test files in one PR (ssot review #6 — Rule of Three already met). Preserve fixed seeds for reproducibility (edge-case #12). Disclose `pure-rand` transitive devDep in MIGRATIONS (blind #2).
+2. `standards/correctness.md` § Practice 4 expanded into the SSOT for cortex-x mutation policy (ssot MAJOR #5): Stryker version pin, threshold target table (per-module: splice = 90% / action-engine = 85% / spec-verifier = 85% / orchestrators = 70% / advisory = measure-only), ratchet schedule (realistic: +5pp/quarter from observed baseline; flag that 90% target requires expanded fs-mock test layer = Sprint 2.3.x test-design work, not just measurement), opt-in matrix per action_kind (recommendation = required, dep_update_patch = n/a, lint_fix = advisory, etc.).
+3. `bin/steward/_lib/action-kinds.cjs` declares `mutation_score_drift` stub with `shipped_in: null` mirroring `release_notes_drafter` (ssot #7 + correctness #4).
+4. `npm audit --audit-level=high` gate added to `.github/workflows/test.yml` (security CRITICAL #1 partial fix).
+5. `reports/` and `mutation.json` paths added to `.gitignore` + policy denylist preemptively (security HIGH #3, ssot #4).
+6. Frame Sprint 2.3a as launch-essay differentiator material (acceptance #11 + agent #3 novelty finding) — write a paragraph in `docs/positioning-vs-ralph.md` § "What cortex-x deliberately steals from Ralph" referencing testdouble.com prompt-then-verify pattern as confirmed precedent + Meta ACH FSE 2025 + GitHub Next llmorpheus as nearest neighbors.
+
+**Effort: 6-8 h. Risk: low (devDep additions, doc updates, gate additions).** Ships `git push` ready by tomorrow.
+
+#### Sprint 2.3b — runner decision + Stryker integration (L effort, deferred)
+
+Awaits operator sign-off on test-runner strategy:
+
+- **Phase -1 (precursor)**: choose runner — vitest migration (Option A) vs commandRunner-with-single-file-scope (Option C, splice.cjs only). Recommend Option A: vitest is the most compatible target, has Stryker first-party support, is the de-facto Node modern test runner in 2026. Migration cost: ~10-15 h (148 test files × ~5-10 min each, mostly mechanical). High blast radius (1858 tests must stay green) but mechanical.
+- **Phase 0** (post Phase -1): in-house mutation baseline on splice.cjs in a **throwaway clone** (security CRITICAL #2 — never on working repo). Outputs surviving-mutant list which seeds Phase 1 stateful test budget (correctness #4).
+- **Phase 1**: Stryker config (with real `testRunner: "vitest"` not fictional `"node-test"`); `mutation_score` criterion in spec-verifier with full registration at `:50` + `:110` + `:443` + `:502` (ssot #2); Zod-equivalent schema validator for `mutation.json` (correctness #1, security HIGH #2); GHA workflow with `permissions: contents: read` + SHA-pinned actions + `on: pull_request` only (security HIGH #6); `mutation.json` HMAC integrity check (security HIGH #2); STEWARD_HALT + circuit-breaker integration on Stryker timeout/failure (security HIGH #7); adversarial-test-addition guard via R2 correctness-reviewer (security HIGH #4); hard-disable dashboard reporter via stryker-config-validator primitive (security HIGH #5); fs-sandbox layer for splice.cjs tests so error-branches are reachable without real filesystem (edge-case #14).
+- **Phase 2** (Sprint 2.5+ defer): mutation_score_drift action_kind implementation; per-directory threshold matrix; Property-Generated Solver / Meta ACH integration.
+
+**Effort: L (Phase -1 = 10-15 h vitest migration; Phase 0 = 2-3 h baseline; Phase 1 = 12-16 h with all R2 amendments). Total ~25-35 h.**
+
+### Decision matrix for operator
+
+| Path | What ships | When | Effort |
+|---|---|---|---|
+| **Sprint 2.3a only** (recommended near-term) | fast-check + standards/correctness.md SSOT + npm audit gate + denylist updates + launch-essay framing | This week | 6-8 h |
+| Sprint 2.3a + Sprint 2.3b Phase -1 (vitest migration) | + cortex-x test suite migrated to vitest | 1-2 weeks | 16-23 h |
+| Full Sprint 2.3 (all phases) | + Stryker integration shipped | 2-3 weeks | 25-35 h |
+
+### Recommended path
+
+**Ship 2.3a this week.** It captures the highest-ROI parts of the R1 refresh (correctness.md SSOT, fast-check standardization, supply chain gate, denylist hardening) without touching the test-runner blocker. Operator decides Sprint 2.3b cadence after Sprint 2.2.5 v1.5 (prompt-content injection) and Sprint 2.10.x QA-retrofit work cool. Vitest migration is high-value-but-large-scope; better to commit to it as an explicit sprint than smuggle it under "Sprint 2.3 mutation testing."
+
+**Frame for launch essay**: "cortex-x is the first autonomous coding agent runtime designed to gate LLM patches on mutation score. The first ship (Sprint 2.3a, 2026-05-10) lays the SSOT + supply-chain + denylist foundation; the runner-migration + Stryker integration (Sprint 2.3b) is the operationalization. The 6-agent R2 review on the original R1 refresh caught 3 BLOCKERS and 8 HIGH-severity issues before any code shipped — exactly the value the review pipeline is designed to capture."
+
+### Pre-implementation checklist
+
+- [x] R2 synthesis written (this section)
+- [ ] Operator OK on phased re-scope (2.3a now / 2.3b deferred)
+- [ ] Operator decision on test runner: vitest (recommended) / mocha / commandRunner-only
+- [ ] Sprint 2.3a implementation can start immediately on operator OK
+
+**R2 status**: ✅ COMPLETE 2026-05-10. Memo NOT shippable as originally scoped; re-scope above is the load-bearing decision for operator.
