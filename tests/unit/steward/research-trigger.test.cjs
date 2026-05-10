@@ -11,8 +11,18 @@ const fc = require('fast-check');
 
 const trig = require('../../../bin/steward/_lib/research-trigger.cjs');
 
+// Sprint 2.14 R2 fix (CI failure on commit 6b47188): cacheDir() validates
+// the env override against HOME containment. os.tmpdir() (e.g. /tmp on
+// Linux) is NOT under HOME, so the override gets rejected and tests fall
+// through to the shared default cache dir, leaking state across tests.
+// Use a HOME-based tmp dir for test isolation.
+function tmpHomeDir(label) {
+  const dir = fs.mkdtempSync(path.join(os.homedir(), `.cortex-research-test-${label}-`));
+  return dir;
+}
+
 function withCacheDir(fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'research-trig-'));
+  const dir = tmpHomeDir('cache');
   const before = process.env.STEWARD_RESEARCH_CACHE_DIR;
   process.env.STEWARD_RESEARCH_CACHE_DIR = dir;
   try {
@@ -20,7 +30,9 @@ function withCacheDir(fn) {
   } finally {
     if (before === undefined) delete process.env.STEWARD_RESEARCH_CACHE_DIR;
     else process.env.STEWARD_RESEARCH_CACHE_DIR = before;
-    fs.rmSync(dir, { recursive: true, force: true });
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch (_) { /* best-effort */ }
   }
 }
 
