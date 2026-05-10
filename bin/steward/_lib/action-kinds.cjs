@@ -111,6 +111,47 @@ const EDIT_POSITION_EARS = {
   severity: 'block',
 };
 
+// Sprint 2.2.5 v1 — str_replace + insert criteria. These are runtime-evaluated
+// against ops that declare kind=str_replace / kind=insert. Engine-side splice.cjs
+// already enforces these at apply time (failures = EDIT_OP_ANCHOR_NOT_FOUND /
+// EDIT_OP_ANCHOR_AMBIGUOUS / EDIT_OP_LINE_OUT_OF_RANGE) — the criteria below
+// are belt-and-braces post-edit verification surfaced through SPEC_VIOLATION
+// for crisper PR-body / lessons-learned signal.
+
+// EDIT_POSITION_STR_REPLACE_PRESERVED — for any str_replace op, the post-edit
+// file MUST contain the new_str. (Catches the case where the engine apply
+// path silently drops the replacement.)
+const EDIT_POSITION_STR_REPLACE_PRESERVED = {
+  id: 'edit_position_str_replace_preserved',
+  kind: 'file_predicate',
+  description:
+    'For each str_replace op on path P with new_str N, fileContent(P) MUST contain N post-edit. Detects silent drop / mis-apply of replacement.',
+  predicate:
+    'edits.every((e) => !e || !Array.isArray(e.ops) || e.ops.every((o) => !o || o.kind !== "str_replace" || fileContent(e.path).indexOf(o.new_str) >= 0))',
+  severity: 'block',
+};
+
+// EDIT_POSITION_INSERT_GROWS — for any insert op, post-edit fileSize MUST
+// exceed prevSize (insert is monotonic by definition).
+const EDIT_POSITION_INSERT_GROWS = {
+  id: 'edit_position_insert_grows',
+  kind: 'file_predicate',
+  description:
+    'For each edit with ops including kind=insert on path P, fileSize(P) MUST exceed prevSize(P). Insert never shrinks.',
+  predicate:
+    'edits.every((e) => !e || !Array.isArray(e.ops) || !e.ops.some((o) => o && o.kind === "insert") || fileSize(e.path) > prevSize(e.path))',
+  severity: 'block',
+};
+
+// EDIT_POSITION_V1_EARS — companion ears_text.
+const EDIT_POSITION_V1_EARS = {
+  id: 'edit_position_v1_ears',
+  kind: 'ears_text',
+  description: 'Human-readable EARS clause for v1 ops (str_replace + insert).',
+  ears: 'WHEN an edit declares ops with kind=str_replace THE SYSTEM SHALL ensure the post-edit file contains the new_str; WHEN an edit declares ops with kind=insert THE SYSTEM SHALL ensure the post-edit file size exceeds the pre-edit size',
+  severity: 'block',
+};
+
 const ACTION_KINDS = {
   // ── Currently shipped (Sprint 1.6.13 → 1.7.7) ─────────────────────────
   recommendation: {
@@ -129,6 +170,9 @@ const ACTION_KINDS = {
       EDIT_POSITION_CREATE_MAKES_FILE,
       EDIT_POSITION_GROWTH_BOUNDED,
       EDIT_POSITION_EARS,
+      EDIT_POSITION_STR_REPLACE_PRESERVED,
+      EDIT_POSITION_INSERT_GROWS,
+      EDIT_POSITION_V1_EARS,
     ],
   },
 
