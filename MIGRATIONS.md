@@ -20,6 +20,42 @@
 
 ## Current
 
+### Sprint 2.10.7 — security regrese fix + parser hygiene + dogfood lessons (2026-05-10)
+
+Non-breaking. Three concrete fixes shipped + 3 recommendations re-marked, surfaced by overnight cron diagnostic loop (7 rounds, ~$0.008 LLM cost). All fixes have property/contract test coverage; full suite `1779 → 1798` (+19 net).
+
+#### What landed
+
+1. **`bin/steward/_lib/action-engine.cjs` — `scrubClaudeCliEnv` cross-platform** (commit `7bf02f7`). Pre-fix: case-insensitive scrub gated on `process.platform === 'win32'`. Linux runner passed lowercase `anthropic_api_key` through to spawned child → potential API billing leak (Rule 2 Security regrese). Property test from Sprint 2.9.7c (`tests/unit/steward/action-engine-properties.test.cjs:141`) caught it. Fix: drop platform gate; case-insensitive scrub on all platforms (defense-in-depth).
+
+2. **`tests/unit/steward/engine-claude-cli.test.cjs:371` — test alignment** (commit `043c9c1`). Older Sprint 2.4 R2 test asserted "POSIX preserves lowercase (case-sensitive)" — i.e., the over-narrow behavior the property test caught as a defense gap. Updated to assert the corrected cross-platform invariant.
+
+3. **`bin/steward/_lib/recommendations.cjs` — `pickNextAction` skip markers** (commits `87ae751` + `480cc9f`). Added two new skip predicates so Steward respects operator markers in the recommendations queue:
+   - `isHumanOnly(item)` — title matches `/\[HUMAN[\s-]?ONLY\]/i`. Matches `[HUMAN-ONLY]`, `[human-only]`, `[HUMAN ONLY]`.
+   - `isMarkedDone(item)` — title matches `/^\s*\(DONE\b/i`. Matches `(DONE 2026-05-09) Sprint 1.9.0 — ...` style inline-DONE entries kept for traceability.
+   - +5 new tests covering both predicates (single-marker skip, sequence skip, all-marked → null).
+
+4. **`cortex/recommendations.md` — operator markup expansion** (commits `12f6e2b` + `62994ac`). Marked recommendations #5 / #6 / #7 as `[HUMAN-ONLY]` after dogfood proved each is incompatible with current Steward+V4Flash on "insert N bytes into existing >200B file" tasks (LLM lacks append/insert primitive — full-content rewrite triggers `no_destructive_rewrite`). Each entry preserves the original task spec for context + cites the dogfood run ID. Sprint 2.3 unblocks these by shipping `edit.position` primitive (see Sprint 2.3 R1 memo, dispatched 2026-05-10).
+
+#### Lessons learned (drives Sprint 2.3 priority)
+
+- **LLM action engine has no append/insert primitive.** Current edit shape is `{ path, content, replace_all? }`. LLMs (DeepSeek V4 Flash + likely all current production models) cannot reliably return full-file content for "insert small chunk into large file" tasks — they return either empty responses (treat task as already-done) or partial content shrinking the file. Spec-verifier `no_destructive_rewrite` correctly blocks 100 % of these attempts. **Defense-by-design works end-to-end.**
+- **Property-based testing earned its keep.** The Sprint 2.9.7c property invariant chase a real cross-platform Rule 2 Security regrese before it could ship in a Steward auto-PR.
+- **`[HUMAN-ONLY]` + `(DONE)` markers are load-bearing.** Operator markup is now a first-class skip condition in the parser; before this sprint, picker would silently retry HUMAN-ONLY items every cron run, burning LLM budget on impossible tasks.
+- **`no_actionable_step` is a legitimate cron success state.** When all DO-this-week items are skipped, cron exits 0 with `event: no_actionable_step, outcome: skipped`. Honest signal: "this week's queue all needs human, no Steward work." Not a failure.
+
+#### Rollback
+
+Each fix is independently revertable; commits are atomic. Reverting `7bf02f7` re-introduces the Linux scrub gap (security regrese) — do NOT revert without same-day re-apply. Parser skip predicates (`87ae751` + `480cc9f`) are pure additions; reverting causes Steward to retry HUMAN-ONLY items and fail clearly, no data corruption.
+
+#### Reference
+
+- `tests/unit/steward/action-engine-properties.test.cjs:141` — property test that surfaced the scrub regrese.
+- `docs/research/sprint-2.3-edit-position-2026-05-10.md` — R1 memo (dispatched same day, addresses the "no append primitive" limit).
+- Cron diagnostic loop transcript: 7 rounds (R1 scrub → R7 [HUMAN-ONLY] expansion), all 8 GitHub Actions workflows green at SHA `62994ac`.
+
+---
+
 ### Sprint 2.2 — Ralph-inspired hardening (2026-05-10)
 
 Non-breaking. Pure additions inspired by an audit of `snarktank/ralph` (18.8k stars, MIT) and Geoffrey Huntley's Ralph Wiggum pattern. The audit identified 7 candidate steals; Sprint 2.2 lands the 4 lowest-risk highest-value ones. Three more (PRD-as-JSON state machine, completion-signal stdout marker, archive-per-feature-cycle helper) are explicitly deferred — see `## Deferred` below.

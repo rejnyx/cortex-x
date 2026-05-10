@@ -232,6 +232,29 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
+### Sprint 2.2.5 — `edit.position` primitive in action-engine (M effort) — R1 ⏳ in flight 2026-05-10
+
+**Status**: 🔬 R1 research dispatched 2026-05-10 (3 parallel agents: edit-primitives in 2026 tools / splice patterns / safety + verifier alignment). R1 memo target: [`docs/research/sprint-2.3-edit-position-2026-05-10.md`](research/sprint-2.3-edit-position-2026-05-10.md) (note: filename intentionally uses `2.3` for chronological order, supersedes; sprint number is 2.2.5).
+
+**Why before mutation testing**: 2026-05-10 dogfood proved that current LLMs (DeepSeek V4 Flash + likely all current production models) cannot reliably return full-file content for "insert N bytes into existing >200 B file" tasks. Today's edit shape is `{ path, content, replace_all? }`. LLM either returns empty response or partial-content rewrite — `no_destructive_rewrite` correctly blocks 100 % of these. **Result**: 3 of 7 cortex-x recommendations had to be marked `[HUMAN-ONLY]` as same-incident-class. Most production cortex-x recommendations will hit the same wall until we ship a richer edit primitive.
+
+**Without 2.2.5, autoresearch + nightly produce zero LLM-driven value on edit-existing-file tasks**, regardless of model quality. With 2.2.5, the same recommendations become Steward-actionable.
+
+**Scope (pending R1 finalization)**:
+- Extend edit shape: `{ path, content, position?: 'append' | 'before_line:N' | 'after_pattern:X' | 'replace_all' }`. Default stays `replace_all: false` for backward-compat with existing edits.
+- `applyEditsToFilesystem` honors `position`; for `append` uses `fs.appendFile`; for `before_line`/`after_line` does line-array splice; for `after_pattern` does single-occurrence regex match (uniqueness validated).
+- Update LLM system prompt: "PŘI insert tasks, vrať `position` + chunk, NE celý file."
+- Spec-verifier alignment: `no_destructive_rewrite` fires only when `position === 'replace_all'` or unset (backstop preserved). New criteria added per R1 safety memo: anchor uniqueness, line-bound check, post-edit-grows-when-append.
+- Property tests: `position: 'append'` MUST grow file size; `before_line:N` MUST preserve all pre-edit lines; anchor with N matches MUST throw rather than randomly pick.
+
+**Stolen from**: Aider search-replace blocks, Claude Code Edit tool's `old_string` uniqueness, GitHub apply_patch unified-diff format. R1 will rank.
+
+**Unblocks**: re-trigger autoresearch / nightly on currently `[HUMAN-ONLY]`-marked recommendations (#5 docs append, #6 JSDoc insert, #7 constant insert) without operator intervention. Sprint 2.3 mutation testing benefits indirectly (mutation scoring on *edited* code requires reliable edits).
+
+**Risk**: low. Backward-compat: missing `position` = current behavior. Deletion of feature = revert single commit + spec-verifier criterion → no data corruption.
+
+---
+
 ### Sprint 2.3 — Mutation testing as fitness signal (S-M effort) — R1 ✅ DONE 2026-05-09
 
 **Status**: 📋 R1 research complete 2026-05-09 (autonomous evening session). Implementation awaiting operator approval. R1 memo: [`docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md`](research/sprint-2.3-mutation-testing-fitness-2026-05-09.md) — 10 sources cited.
