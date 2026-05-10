@@ -261,3 +261,263 @@ test('foo', () => { expect(1).toBe(1); });
     assert.equal(r.total_findings, 0);
   });
 });
+
+// Sprint 2.11.3 — tokenizer-aware brace counter regression tests.
+// R2 review of Sprint 2.11 flagged this as MEDIUM correctness; deferred
+// to 2.11.3. extractTestBlocks previously walked characters naïvely,
+// mis-counting `{` / `}` inside strings/template-literals/regex/comments.
+describe('Sprint 2.11.3 — tokenizer-aware extractTestBlocks', () => {
+  test('string with } does not close body early', () => {
+    const src = `
+test('with brace in string', () => {
+  const s = "} fine }";
+  expect(s.length).toBeGreaterThan(0);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(s\.length/);
+  });
+
+  test('single-quote string with } does not close body early', () => {
+    const src = `
+test('sq', () => {
+  const s = '} also fine';
+  expect(s).toBeTruthy();
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(s\)/);
+  });
+
+  test('template literal with ${expr} interpolation handled', () => {
+    const src = "test('tl', () => {\n  const v = `hi ${name + 1} world}`;\n  expect(v).toBeTruthy();\n});";
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(v\)/);
+  });
+
+  test('regex with brace does not close body early', () => {
+    const src = `
+test('regex', () => {
+  const r = /[{}]/;
+  expect(r.test('}')).toBe(true);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(r\.test/);
+  });
+
+  test('single-line comment with } skipped', () => {
+    const src = `
+test('cmt', () => {
+  // closing brace } here is fine
+  expect(true).toBe(true);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(true\)/);
+  });
+
+  test('block comment with } skipped', () => {
+    const src = `
+test('blk', () => {
+  /* multi-line }} comment */
+  expect(1).toBe(1);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(1\)/);
+  });
+
+  test('escaped quote in string handled', () => {
+    const src = `
+test('esc', () => {
+  const s = "he said \\"} hi\\"";
+  expect(s.length).toBe(11);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(s\.length/);
+  });
+
+  test('parenthesis in string title does not break args walker', () => {
+    const src = `
+test('hello (world)', () => {
+  expect(1).toBe(1);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].title, 'hello (world)');
+  });
+
+  test('nested test blocks (it inside describe-like fn) tracked', () => {
+    const src = `
+describe('outer', () => {
+  test('inner1', () => {
+    expect(1).toBe(1);
+  });
+  test('inner2', () => {
+    const s = "} not a closer";
+    expect(s).toBeTruthy();
+  });
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0].title, 'inner1');
+    assert.equal(blocks[1].title, 'inner2');
+    // Critical: inner2 body must include both lines
+    assert.match(blocks[1].body, /expect\(s\)/);
+  });
+
+  test('division operator (NOT regex) does not consume body content', () => {
+    // After identifier, `/` is division, not regex
+    const src = `
+test('div', () => {
+  const x = 10;
+  const y = x / 2;
+  expect(y).toBe(5);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(y\)/);
+  });
+
+  test('isRegexContext returns true after operator/punctuation', () => {
+    assert.equal(det.isRegexContext('('), true);
+    assert.equal(det.isRegexContext(','), true);
+    assert.equal(det.isRegexContext('='), true);
+    assert.equal(det.isRegexContext('!'), true);
+    assert.equal(det.isRegexContext('{'), true);
+  });
+
+  test('isRegexContext returns false after identifier-ish char', () => {
+    assert.equal(det.isRegexContext('a'), false);
+    assert.equal(det.isRegexContext('z'), false);
+    assert.equal(det.isRegexContext(')'), false);
+    assert.equal(det.isRegexContext(']'), false);
+  });
+
+  test('skipString handles escape sequences', () => {
+    const src = `"he said \\"hi\\""`;
+    // openIdx is index of opening quote (0). skipString returns index just past closing quote.
+    const result = det.skipString(src, 0, '"');
+    assert.equal(result, src.length);
+  });
+
+  test('skipTemplateLiteral handles ${expr} interpolation', () => {
+    const src = "`hi ${1+2} world`";
+    const result = det.skipTemplateLiteral(src, 0);
+    assert.equal(result, src.length);
+  });
+
+  test('skipRegex handles flags', () => {
+    const src = `/abc/gi`;
+    const result = det.skipRegex(src, 0);
+    assert.equal(result, src.length);
+  });
+
+  test('skipRegex handles character class with /', () => {
+    const src = `/[a-z/A-Z]/g`;
+    const result = det.skipRegex(src, 0);
+    assert.equal(result, src.length);
+  });
+
+  test('findMatchingClose handles balanced parens with strings inside', () => {
+    const src = `(hello ")"  more)`;
+    // 1 = char after the opening (
+    const closeIdx = det.findMatchingClose(src, 1, '(', ')');
+    assert.equal(closeIdx, src.length - 1);
+  });
+
+  // R2 edge-hunter HIGH (Sprint 2.11.3): keyword regex context — without
+  // this the body `return /\}/` inside a test would mis-classify `/` as
+  // division, then consume `}` as a real close-brace and sever the body.
+  test('keyword regex context: return /\\}/ does not sever body', () => {
+    const src = `
+test('keyword regex', () => {
+  if (true) return /\\}/;
+  expect(true).toBe(true);
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(true\)/);
+  });
+
+  test('keyword regex context: throw /\\}/ does not sever body', () => {
+    const src = `
+test('throw regex', () => {
+  try {
+    throw /\\}/;
+  } catch (e) {
+    expect(e).toBeTruthy();
+  }
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(e\)/);
+  });
+
+  test('keyword regex context: typeof /\\}/ === "object"', () => {
+    const src = `
+test('typeof regex', () => {
+  const t = typeof /\\}/;
+  expect(t).toBe('object');
+});
+`;
+    const blocks = det.extractTestBlocks(src);
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0].body, /expect\(t\)/);
+  });
+
+  test('isKeywordRegexContext detects return + throw + typeof keywords', () => {
+    assert.equal(det.isKeywordRegexContext('return ', 7), true);   // i = position after `return `
+    assert.equal(det.isKeywordRegexContext('throw  ', 7), true);
+    assert.equal(det.isKeywordRegexContext('typeof ', 7), true);
+    assert.equal(det.isKeywordRegexContext('void ', 5), true);
+    assert.equal(det.isKeywordRegexContext('new ', 4), true);
+  });
+
+  test('isKeywordRegexContext returns false for division-like context', () => {
+    // `x` is identifier, not keyword
+    assert.equal(det.isKeywordRegexContext('var x ', 6), false);
+    // Number followed by `/` is division
+    assert.equal(det.isKeywordRegexContext('100', 3), false);
+    // Function call result
+    assert.equal(det.isKeywordRegexContext('foo() ', 6), false);
+  });
+
+  test('isKeywordRegexContext does NOT match prefix-of-keyword (returnFoo)', () => {
+    // `returnFoo` is identifier, not keyword `return`
+    assert.equal(det.isKeywordRegexContext('returnFoo ', 10), false);
+    assert.equal(det.isKeywordRegexContext('throwSomething ', 15), false);
+  });
+
+  test('REGEX_KEYWORDS catalog covers expected keywords', () => {
+    assert.ok(det.REGEX_KEYWORDS.includes('return'));
+    assert.ok(det.REGEX_KEYWORDS.includes('throw'));
+    assert.ok(det.REGEX_KEYWORDS.includes('typeof'));
+    assert.ok(det.REGEX_KEYWORDS.includes('instanceof'));
+  });
+
+  test('MAX_TOKEN_RECURSION_DEPTH defined', () => {
+    assert.ok(Number.isInteger(det.MAX_TOKEN_RECURSION_DEPTH));
+    assert.ok(det.MAX_TOKEN_RECURSION_DEPTH >= 64);
+  });
+
+  test('findMatchingClose returns -1 at recursion cap', () => {
+    // Construct a depth-blow scenario via direct deep call
+    const r = det.findMatchingClose('xxx}', 0, '{', '}', det.MAX_TOKEN_RECURSION_DEPTH + 1);
+    assert.equal(r, -1);
+  });
+});

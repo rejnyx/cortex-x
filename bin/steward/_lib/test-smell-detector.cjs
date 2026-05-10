@@ -270,10 +270,181 @@ function walkDir(dirPath, repoRoot, accum, skipped, depth) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test-block extraction. Find each test()/it() block + its body. Uses a simple
-// brace-matching state machine — not a full JS parser, but adequate for the
-// regex-heuristic discipline.
+// Test-block extraction. Find each test()/it() block + its body.
+//
+// Sprint 2.11.3 — tokenizer-aware brace counter. Previously the brace
+// counter naïvely walked characters, mis-counting `{` / `}` / `(` / `)`
+// inside string literals, template literals, regex literals, and
+// comments. Specifically a body like:
+//
+//   test('x', () => { const s = "}"; expect(s).toBe('}'); });
+//
+// would close at the first `}` inside the string, severing the body
+// after one statement. R2 review of Sprint 2.11 flagged this as
+// MEDIUM correctness; deferred to Sprint 2.11.3. This module now skips
+// strings (`'`, `"`, `` ` `` with `${…}` interpolation), comments (line
+// + block), and regex literals using a deterministic state machine. No
+// AST parser dependency.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// findMatchingClose: starting at position `i` (one past the opening
+// character), advance until the matching close char is found, treating
+// string / comment / regex regions as opaque. Returns index of the
+// matching close char, or -1 if unbalanced.
+//
+// R2 edge-hunter HIGH (Sprint 2.11.3): defense-in-depth recursion cap.
+// Mutual recursion findMatchingClose ↔ skipTemplateLiteral can blow V8
+// stack on adversarial nested template input (~10K frames). Real test
+// files never reach this; the cap exists to fail closed at -1 rather
+// than throw RangeError.
+const MAX_TOKEN_RECURSION_DEPTH = 256;
+function findMatchingClose(content, startIdx, openChar, closeChar, recursionDepth = 0) {
+  if (recursionDepth > MAX_TOKEN_RECURSION_DEPTH) return -1;
+  let depth = 1;
+  let i = startIdx;
+  // prevSig tracks the last significant (non-whitespace) char so we can
+  // disambiguate `/` between regex literal and division. `null` is
+  // treated as "start of expression" → regex.
+  let prevSig = openChar; // we just opened; treat as expression-start
+  while (i < content.length && depth > 0) {
+    const ch = content[i];
+
+    // String literals (single, double).
+    if (ch === '"' || ch === "'") {
+      i = skipString(content, i, ch);
+      prevSig = ch;
+      continue;
+    }
+    // Template literal (with `${…}` interpolation).
+    if (ch === '`') {
+      i = skipTemplateLiteral(content, i, recursionDepth);
+      prevSig = '`';
+      continue;
+    }
+    // Comments
+    if (ch === '/' && content[i + 1] === '/') {
+      while (i < content.length && content[i] !== '\n') i += 1;
+      continue;
+    }
+    if (ch === '/' && content[i + 1] === '*') {
+      i += 2;
+      while (i < content.length - 1 && !(content[i] === '*' && content[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    // Regex literal — operator/punctuation context OR keyword-after
+    // context (return /foo/, throw /foo/, typeof /foo/, etc.).
+    if (ch === '/' && (isRegexContext(prevSig) || isKeywordRegexContext(content, i))) {
+      i = skipRegex(content, i);
+      prevSig = '/';
+      continue;
+    }
+    // Brace / paren counting (real tokens only, not string content).
+    if (ch === openChar) depth += 1;
+    else if (ch === closeChar) depth -= 1;
+
+    if (!isWhitespace(ch)) prevSig = ch;
+    i += 1;
+  }
+  return depth === 0 ? i - 1 : -1;
+}
+
+function isWhitespace(ch) {
+  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+}
+
+// isRegexContext: heuristic for whether `/` at this position starts a
+// regex literal vs a division operator. Operator/punctuation context →
+// regex; identifier/number/closing-paren context → division. Imperfect
+// but covers the common test-file shapes (`expect(/.../).toThrow(...)`,
+// `assert.match(s, /.../i)`, `const r = /.../;`).
+function isRegexContext(prevSig) {
+  if (prevSig == null) return true;
+  // Strong-yes operators / punctuation.
+  if ('([{,;:?=&|!+-*~^%<>'.includes(prevSig)) return true;
+  return false;
+}
+
+// R2 HIGH fix (Sprint 2.11.3): keyword-aware regex context. Without this,
+// `return /\}/`, `throw /\}/`, `typeof /\}/` etc. would mis-classify the
+// `/` as division — the `}` inside the regex would then decrement brace
+// depth and sever the test body early. This is exactly the bug class
+// Sprint 2.11.3 was chartered to fix; the operator-supplied
+// `isRegexContext` table only covered punctuation-after.
+//
+// Lookback strategy: peek backward from the `/` position for a
+// word-boundary keyword token. Whitespace between keyword and `/` is
+// allowed (`return /x/` and `return  /x/` both legal).
+const REGEX_KEYWORDS = ['return', 'throw', 'typeof', 'instanceof', 'in', 'of', 'delete', 'void', 'new', 'yield', 'await', 'do', 'else'];
+function isKeywordRegexContext(content, slashIdx) {
+  // Walk back over whitespace.
+  let i = slashIdx - 1;
+  while (i >= 0 && (content[i] === ' ' || content[i] === '\t')) i -= 1;
+  // Now at the last non-whitespace char before `/`. Walk back until a
+  // non-identifier char (or start of string) to extract the trailing
+  // identifier token.
+  if (i < 0) return false;
+  if (!/[A-Za-z_$]/.test(content[i])) return false;
+  let end = i + 1;
+  while (i >= 0 && /[A-Za-z0-9_$]/.test(content[i])) i -= 1;
+  const tokenStart = i + 1;
+  // Ensure word boundary on the left (start of string or non-identifier).
+  if (tokenStart > 0 && /[A-Za-z0-9_$]/.test(content[tokenStart - 1])) return false;
+  const token = content.slice(tokenStart, end);
+  return REGEX_KEYWORDS.includes(token);
+}
+
+function skipString(content, openIdx, quote) {
+  let i = openIdx + 1;
+  while (i < content.length) {
+    const ch = content[i];
+    if (ch === '\\') { i += 2; continue; } // escape
+    if (ch === quote) return i + 1;        // past closing quote
+    if (ch === '\n') return i + 1;         // unterminated string — recover by advancing past LF
+    i += 1;
+  }
+  return content.length; // unterminated to EOF
+}
+
+function skipTemplateLiteral(content, openIdx, recursionDepth = 0) {
+  let i = openIdx + 1;
+  while (i < content.length) {
+    const ch = content[i];
+    if (ch === '\\') { i += 2; continue; }
+    if (ch === '`') return i + 1;
+    if (ch === '$' && content[i + 1] === '{') {
+      // Recursively skip the interpolated expression. Treat the `${`
+      // as an opening token; find matching `}`. Pass recursionDepth+1
+      // for defense-in-depth against adversarial nested templates.
+      const closeIdx = findMatchingClose(content, i + 2, '{', '}', recursionDepth + 1);
+      if (closeIdx < 0) return content.length;
+      i = closeIdx + 1;
+      continue;
+    }
+    i += 1;
+  }
+  return content.length;
+}
+
+function skipRegex(content, openIdx) {
+  let i = openIdx + 1;
+  let inCharClass = false;
+  while (i < content.length) {
+    const ch = content[i];
+    if (ch === '\\') { i += 2; continue; }
+    if (ch === '[') { inCharClass = true; i += 1; continue; }
+    if (ch === ']') { inCharClass = false; i += 1; continue; }
+    if (ch === '/' && !inCharClass) {
+      // Skip flags
+      i += 1;
+      while (i < content.length && /[a-z]/i.test(content[i])) i += 1;
+      return i;
+    }
+    if (ch === '\n') return i; // bail on unterminated regex
+    i += 1;
+  }
+  return content.length;
+}
 
 function extractTestBlocks(content) {
   // Find each `test(` / `it(` open-call, then walk braces to find the body.
@@ -283,34 +454,22 @@ function extractTestBlocks(content) {
   while ((m = opener.exec(content)) !== null) {
     if (blocks.length >= 1000) break; // sanity
     const start = m.index;
-    // walk forward to find the `=>` or `function` then the opening `{`
-    let i = m.index + m[0].length;
-    let parenDepth = 1;
-    while (i < content.length && parenDepth > 0) {
-      const ch = content[i];
-      if (ch === '(') parenDepth++;
-      else if (ch === ')') parenDepth--;
-      i++;
-    }
-    if (parenDepth !== 0) continue;
-    // Now scan back from `i` to find the `{` that opens the body.
-    // Go forward from start of args looking for `{` at depth 0 of our search.
-    // Simpler: rescan args region for the body fn.
-    const argsRegion = content.slice(m.index + m[0].length, i - 1);
+    // Walk forward from one past the opening `(` to find its matching `)`.
+    // The token-aware walker skips strings/comments/regex inside the args
+    // (e.g. test('hello (world)', () => {…}) had a paren in the title).
+    const argsCloseIdx = findMatchingClose(content, m.index + m[0].length, '(', ')');
+    if (argsCloseIdx < 0) continue;
+    // The args region: from one past `(` up to (but not including) `)`.
+    const argsRegion = content.slice(m.index + m[0].length, argsCloseIdx);
     const bodyStartRel = argsRegion.search(/=>\s*\{|function\s*[^)]*\)\s*\{/);
     if (bodyStartRel === -1) continue;
     const braceStart = m.index + m[0].length + argsRegion.indexOf('{', bodyStartRel);
     if (braceStart < 0) continue;
-    let braceDepth = 1;
-    let j = braceStart + 1;
-    while (j < content.length && braceDepth > 0) {
-      const ch = content[j];
-      if (ch === '{') braceDepth++;
-      else if (ch === '}') braceDepth--;
-      j++;
-    }
-    if (braceDepth !== 0) continue;
-    const body = content.slice(braceStart + 1, j - 1);
+    // Walk forward from one past the body `{` to find its matching `}`,
+    // skipping strings/comments/regex inside the body.
+    const bodyCloseIdx = findMatchingClose(content, braceStart + 1, '{', '}');
+    if (bodyCloseIdx < 0) continue;
+    const body = content.slice(braceStart + 1, bodyCloseIdx);
     const lineStart = content.slice(0, start).split('\n').length;
     const nameMatch = m[0].match(/(test|it)\s*(?:\.([a-z]+))?\s*\(/);
     const blockKind = nameMatch ? nameMatch[1] : 'test';
@@ -325,7 +484,7 @@ function extractTestBlocks(content) {
       line: lineStart,
       body,
       bodyStart: braceStart + 1,
-      bodyEnd: j - 1,
+      bodyEnd: bodyCloseIdx,
     });
   }
   return blocks;
@@ -559,6 +718,15 @@ module.exports = {
   detectAll,
   scanFile,
   extractTestBlocks,
+  // Sprint 2.11.3 — tokenizer helpers exported for testing
+  findMatchingClose,
+  skipString,
+  skipTemplateLiteral,
+  skipRegex,
+  isRegexContext,
+  isKeywordRegexContext,
+  MAX_TOKEN_RECURSION_DEPTH,
+  REGEX_KEYWORDS,
   walkTestFiles,
   computeLayerBalance,
   classifyLayer,
