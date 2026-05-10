@@ -109,11 +109,15 @@ function computeSnapshotDrift(prev, current, triggers = []) {
 }
 
 // Default trigger set per Sprint 2.5 R1 §2.2.
+// Sprint 2.5c — added test_count regression trigger: any month-over-month
+// drop > 5% in distinct test-file count is suspicious (mass deletion or
+// .skip-bombing without operator awareness).
 const DEFAULT_TRIGGERS = Object.freeze([
   { metric: 'duplication_pct', kind: 'increase_pp', threshold: 2 },
   { metric: 'max_function_complexity', kind: 'absolute', threshold: 15 },
   { metric: 'knip_unused_exports', kind: 'increase_count', threshold: 3 },
   { metric: 'test_source_ratio', kind: 'pct_drop', threshold: 20 },
+  { metric: 'test_count', kind: 'pct_drop', threshold: 5 },
 ]);
 
 module.exports = { computeSnapshotDrift, DEFAULT_TRIGGERS };

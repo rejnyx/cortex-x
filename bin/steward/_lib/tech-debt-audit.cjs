@@ -274,6 +274,7 @@ function fallbackTestSourceRatio(repoRoot) {
   try {
     let testLoc = 0;
     let sourceLoc = 0;
+    let testCount = 0; // Sprint 2.5c: distinct test files for delta alarm
     let fileCount = 0;
     const visited = new Set();
     function walk(dir, isTest, depth) {
@@ -305,8 +306,12 @@ function fallbackTestSourceRatio(repoRoot) {
           fileCount += 1;
           const lines = content.split('\n').length;
           const fileIsTest = isTest || TEST_FILE_REGEX.test(e.name);
-          if (fileIsTest) testLoc += lines;
-          else sourceLoc += lines;
+          if (fileIsTest) {
+            testLoc += lines;
+            testCount += 1;
+          } else {
+            sourceLoc += lines;
+          }
         }
       }
     }
@@ -314,10 +319,11 @@ function fallbackTestSourceRatio(repoRoot) {
     return {
       test_loc: testLoc,
       source_loc: sourceLoc,
+      test_count: testCount, // Sprint 2.5c
       test_source_ratio: sourceLoc > 0 ? testLoc / sourceLoc : null,
     };
   } catch {
-    return { test_loc: null, source_loc: null, test_source_ratio: null };
+    return { test_loc: null, source_loc: null, test_count: null, test_source_ratio: null };
   }
 }
 
@@ -379,6 +385,7 @@ async function runTechDebtAudit(opts = {}) {
     total_loc: qltyMetrics.total_loc,
     test_loc: ratio.test_loc,
     source_loc: ratio.source_loc,
+    test_count: ratio.test_count, // Sprint 2.5c — month-over-month delta alarm
     test_source_ratio: ratio.test_source_ratio,
     files_count: qltyMetrics.files_count,
     max_file_complexity: qltyMetrics.max_file_complexity,
