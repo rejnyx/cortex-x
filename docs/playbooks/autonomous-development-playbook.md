@@ -63,7 +63,7 @@ Claude Code has built-in mechanisms for an agent to schedule its own continuatio
 
 ---
 
-## 4. Research-when-uncertain rule (proposed Sprint 2.14)
+## 4. Research-when-uncertain rule (Sprint 2.14 — code-enforced)
 
 The cortex-x R1 principle ("research-before-implement is mandatory") covers sprint-kickoff scale. The **mid-session uncertainty trigger** is the gap. Conservative rule:
 
@@ -149,7 +149,7 @@ Wrong: spawning a `general-purpose` subagent to read a single file you could `Re
 | Intra-run loop detection (3 patterns) | ✅ code-enforced (Sprint 2.12) | `bin/steward/_lib/loop-detector.cjs` |
 | Cost gate (daily $10 / weekly $25 / monthly $80) | ✅ code-enforced (Sprint 1.6.19 + 1.9.1) | `bin/steward/_lib/cost-safety.cjs` |
 | `cortex-steward status --self-invocations` chain tree | ✅ shipped (Sprint 2.13) | `bin/steward/status.cjs` |
-| Research-when-uncertain trigger rule (§4) | ⏳ Sprint 2.14 | drop-in YAML proposal in deep-dive memo |
+| Research-when-uncertain trigger rule (§4) | ✅ code-enforced (Sprint 2.14) | `bin/steward/_lib/research-trigger.cjs` `shouldResearch()` |
 | Multi-action checkpoint primitive | ⏳ Sprint 3.x | prerequisite to 4h+ sessions |
 | Plan-mode-nudge primitive (`STEWARD_PAUSE`) | ⏳ Sprint 4.x | prerequisite to 10h sessions |
 
