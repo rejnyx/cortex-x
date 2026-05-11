@@ -19,6 +19,9 @@ const crypto = require('node:crypto');
 function _readTrimmedEnv(name) {
   const v = process.env[name];
   return typeof v === 'string' ? v.trim() : '';
+/**
+ * @description Parse STEWARD_DISCORD_ALLOWED_USER_IDS env var into a Set of snowflake IDs.
+ */
 }
 
 // Parse the comma-separated allowlist from env. Empty list = nobody allowed
