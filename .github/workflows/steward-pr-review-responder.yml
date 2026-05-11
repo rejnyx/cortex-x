@@ -11,6 +11,10 @@
 
 name: steward pr-review-responder
 
+# Permissions: workflow_hardener Sprint 2.5b — least-privilege baseline + per-job elevation.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   schedule:

@@ -26,6 +26,10 @@
 
 name: steward nightly
 
+# Permissions: workflow_hardener Sprint 2.5b — least-privilege baseline + per-job elevation.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:        # manual run via GH UI / `gh workflow run steward.yml`
   schedule:

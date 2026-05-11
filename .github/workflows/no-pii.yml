@@ -26,10 +26,16 @@ on:
 permissions:
   contents: read
 
+# Concurrency: workflow_hardener Sprint 2.5b — cancel stale PR runs, queue main pushes.
+concurrency:
+  group: no-pii-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   pii-guard:
     name: PII guard
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
