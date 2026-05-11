@@ -1,0 +1,882 @@
+{
+  "generated_at": "2026-05-11T14:32:27.299Z",
+  "generator": "bin/cortex-capabilities.cjs",
+  "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
+  "action_kinds": [
+    {
+      "name": "recommendation",
+      "description": "Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR."
+    },
+    {
+      "name": "recommendation_harvest",
+      "description": "Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code."
+    },
+    {
+      "name": "dep_update_patch",
+      "description": "npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call."
+    },
+    {
+      "name": "flaky_test_repair",
+      "description": "Marker-based quarantine: scan source for "
+    },
+    {
+      "name": "doc_drift",
+      "description": "Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call."
+    },
+    {
+      "name": "todo_triage",
+      "description": "Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call."
+    },
+    {
+      "name": "test_coverage_gap",
+      "description": "Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6."
+    },
+    {
+      "name": "lint_fix_shipper",
+      "description": "Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8."
+    },
+    {
+      "name": "pr_review_responder",
+      "description": "Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9."
+    },
+    {
+      "name": "mutation_score_drift",
+      "description": "Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the exe"
+    },
+    {
+      "name": "tech_debt_audit",
+      "description": "Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call."
+    },
+    {
+      "name": "pattern_transfer",
+      "description": "Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project\\"
+    },
+    {
+      "name": "workflow_hardener",
+      "description": "Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag."
+    },
+    {
+      "name": "secret_history_sweep",
+      "description": "TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing."
+    },
+    {
+      "name": "senior_tester_review",
+      "description": "2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue "
+    },
+    {
+      "name": "release_notes_drafter",
+      "description": "After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation."
+    }
+  ],
+  "steward_primitives": [
+    {
+      "name": "action-engine",
+      "path": "bin/steward/_lib/action-engine.cjs",
+      "sprint": null,
+      "description": "pluggable interface for \"apply this action's edits\""
+    },
+    {
+      "name": "action-kinds",
+      "path": "bin/steward/_lib/action-kinds.cjs",
+      "sprint": "Sprint 1.8.1",
+      "description": "Sprint 1.8.1 typed action_kind registry"
+    },
+    {
+      "name": "autoresearch",
+      "path": "bin/steward/_lib/autoresearch.cjs",
+      "sprint": "Sprint 2.1",
+      "description": "Sprint 2.1 N-strategy serial autoresearch loop"
+    },
+    {
+      "name": "cost-safety",
+      "path": "bin/steward/_lib/cost-safety.cjs",
+      "sprint": "Sprint 1.9.1",
+      "description": "Sprint 1.9.1 multi-window cost safety + loop detector"
+    },
+    {
+      "name": "env",
+      "path": "bin/steward/_lib/env.cjs",
+      "sprint": null,
+      "description": null
+    },
+    {
+      "name": "gh-ops",
+      "path": "bin/steward/_lib/gh-ops.cjs",
+      "sprint": "Sprint 1.6.19",
+      "description": "GitHub CLI wrapper for Hermes draft-PR creation (Sprint 1.6.19)"
+    },
+    {
+      "name": "git-ops",
+      "path": "bin/steward/_lib/git-ops.cjs",
+      "sprint": null,
+      "description": "atomic git operations for Hermes's commit-per-action contract"
+    },
+    {
+      "name": "git-trailers",
+      "path": "bin/steward/_lib/git-trailers.cjs",
+      "sprint": null,
+      "description": "build commit messages with parseable Git trailers (MUST-H3)"
+    },
+    {
+      "name": "halt-check",
+      "path": "bin/steward/_lib/halt-check.cjs",
+      "sprint": null,
+      "description": "file-based kill-switch detection (MUST-H5)"
+    },
+    {
+      "name": "journal",
+      "path": "bin/steward/_lib/journal.cjs",
+      "sprint": null,
+      "description": "append-only structured journal writer (MUST-H4)"
+    },
+    {
+      "name": "lessons",
+      "path": "bin/steward/_lib/lessons.cjs",
+      "sprint": "Sprint 1.8.3",
+      "description": "Sprint 1.8.3 ReasoningBank-lite memory module"
+    },
+    {
+      "name": "llm-judge-schema",
+      "path": "bin/steward/_lib/llm-judge-schema.cjs",
+      "sprint": "Sprint 2.11.2",
+      "description": "Sprint 2.11.2 Correctness H2 fix"
+    },
+    {
+      "name": "lock",
+      "path": "bin/steward/_lib/lock.cjs",
+      "sprint": null,
+      "description": "per-project mutex for Hermes runs (MUST-H2)"
+    },
+    {
+      "name": "loop-detector",
+      "path": "bin/steward/_lib/loop-detector.cjs",
+      "sprint": "Sprint 2.12",
+      "description": "Sprint 2.12 intra-run tool-call loop detector"
+    },
+    {
+      "name": "memory-decay",
+      "path": "bin/steward/_lib/memory-decay.cjs",
+      "sprint": "Sprint 2.8",
+      "description": "Sprint 2.8 — importance-weighted memory decay primitive."
+    },
+    {
+      "name": "otel-emitter",
+      "path": "bin/steward/_lib/otel-emitter.cjs",
+      "sprint": "Sprint 2.0",
+      "description": "Sprint 2.0 zero-deps OTLP HTTP emitter for Steward"
+    },
+    {
+      "name": "otel-protobuf",
+      "path": "bin/steward/_lib/otel-protobuf.cjs",
+      "sprint": "Sprint 2.0.1",
+      "description": "Sprint 2.0.1 zero-deps OTLP protobuf encoder"
+    },
+    {
+      "name": "policy-check",
+      "path": "bin/steward/_lib/policy-check.cjs",
+      "sprint": null,
+      "description": "Steward Ring 1 denylist (over block-destructive Ring 2)"
+    },
+    {
+      "name": "project-ledger",
+      "path": "bin/steward/_lib/project-ledger.cjs",
+      "sprint": "Sprint 2.2",
+      "description": "Sprint 2.2 (Ralph-inspired): append-only success-side"
+    },
+    {
+      "name": "recommendations",
+      "path": "bin/steward/_lib/recommendations.cjs",
+      "sprint": null,
+      "description": "parser for cortex/recommendations.md"
+    },
+    {
+      "name": "research-trigger",
+      "path": "bin/steward/_lib/research-trigger.cjs",
+      "sprint": "Sprint 2.14",
+      "description": "Sprint 2.14 research-when-uncertain rule mechanics"
+    },
+    {
+      "name": "routing-policy",
+      "path": "bin/steward/_lib/routing-policy.cjs",
+      "sprint": "Sprint 2.0b",
+      "description": "Sprint 2.0b per-action USD cap + journal scan"
+    },
+    {
+      "name": "routing-table",
+      "path": "bin/steward/_lib/routing-table.cjs",
+      "sprint": "Sprint 2.0b",
+      "description": "Sprint 2.0b action-kind-based model routing"
+    },
+    {
+      "name": "safety",
+      "path": "bin/steward/_lib/safety.cjs",
+      "sprint": "Sprint 2.5b",
+      "description": "Shared SSOT for slug/date guards + markdown sanitization +"
+    },
+    {
+      "name": "secret-sweep-action",
+      "path": "bin/steward/_lib/secret-sweep-action.cjs",
+      "sprint": "Sprint 2.6b",
+      "description": "Sprint 2.6b TruffleHog wrapper"
+    },
+    {
+      "name": "self-invocation",
+      "path": "bin/steward/_lib/self-invocation.cjs",
+      "sprint": "Sprint 2.13",
+      "description": "Sprint 2.13 self-invocation tracker + 4 hard guardrails"
+    },
+    {
+      "name": "senior-tester-action",
+      "path": "bin/steward/_lib/senior-tester-action.cjs",
+      "sprint": "Sprint 2.11",
+      "description": "Sprint 2.11 senior_tester_review Phase B + C"
+    },
+    {
+      "name": "sibling-manifest",
+      "path": "bin/steward/_lib/sibling-manifest.cjs",
+      "sprint": "Sprint 2.7",
+      "description": "Sprint 2.7 — sibling-projects manifest validator."
+    },
+    {
+      "name": "sibling-reader",
+      "path": "bin/steward/_lib/sibling-reader.cjs",
+      "sprint": "Sprint 2.7",
+      "description": "Sprint 2.7 — sibling-projects read-only file access helper."
+    },
+    {
+      "name": "snapshot-diff",
+      "path": "bin/steward/_lib/snapshot-diff.cjs",
+      "sprint": "Sprint 2.5",
+      "description": "Sprint 2.5 — zero-deps JSON snapshot diff helper."
+    },
+    {
+      "name": "spec-verifier",
+      "path": "bin/steward/_lib/spec-verifier.cjs",
+      "sprint": "Sprint 1.9.0",
+      "description": "Sprint 1.9.0 spec-driven verification runner"
+    },
+    {
+      "name": "splice",
+      "path": "bin/steward/_lib/splice.cjs",
+      "sprint": "Sprint 2.2.5",
+      "description": "Sprint 2.2.5 v0+v1: position-aware file edit primitive"
+    },
+    {
+      "name": "tech-debt-audit",
+      "path": "bin/steward/_lib/tech-debt-audit.cjs",
+      "sprint": "Sprint 2.5",
+      "description": "Sprint 2.5 — tech_debt_audit executor."
+    },
+    {
+      "name": "test-smell-detector",
+      "path": "bin/steward/_lib/test-smell-detector.cjs",
+      "sprint": "Sprint 2.11",
+      "description": "Sprint 2.11 senior_tester_review Phase A"
+    },
+    {
+      "name": "test-smell-registry",
+      "path": "bin/steward/_lib/test-smell-registry.cjs",
+      "sprint": "Sprint 2.11",
+      "description": "Sprint 2.11 senior_tester_review smell taxonomy"
+    },
+    {
+      "name": "verifier",
+      "path": "bin/steward/_lib/verifier.cjs",
+      "sprint": null,
+      "description": "runs the project's verification commands (`npm test` and"
+    },
+    {
+      "name": "workflow-hardener-action",
+      "path": "bin/steward/_lib/workflow-hardener-action.cjs",
+      "sprint": "Sprint 2.5b",
+      "description": "Sprint 2.5b advisory analyzer"
+    }
+  ],
+  "hooks": [
+    {
+      "name": "auto-orchestrate",
+      "path": "shared/hooks/auto-orchestrate.cjs",
+      "description": "cortex-x UserPromptSubmit hook — auto-orchestration soft-gate."
+    },
+    {
+      "name": "block-destructive",
+      "path": "shared/hooks/block-destructive.cjs",
+      "description": "// Filesystem destruction"
+    },
+    {
+      "name": "post-tool-use",
+      "path": "shared/hooks/post-tool-use.cjs",
+      "description": "---- Silent error log (observability for catch-swallowed failures) ----"
+    },
+    {
+      "name": "pre-compact",
+      "path": "shared/hooks/pre-compact.cjs",
+      "description": "Build recovery file"
+    },
+    {
+      "name": "pre-tool-use",
+      "path": "shared/hooks/pre-tool-use.cjs",
+      "description": "---- Silent error log (mirrors post-tool-use.cjs, shares redact lib) ----"
+    },
+    {
+      "name": "session-start",
+      "path": "shared/hooks/session-start.cjs",
+      "description": "// Detect active sprint/phase (### or ####, NOT marked done)"
+    },
+    {
+      "name": "tirith-scan",
+      "path": "shared/hooks/tirith-scan.cjs",
+      "description": "cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper)."
+    }
+  ],
+  "standards": [
+    {
+      "name": "accessibility",
+      "path": "standards/accessibility.md",
+      "title": "Accessibility — Usable by Everyone",
+      "description": "1. **Perceivable** — content is presented in ways users can perceive (text alternatives, captions, color contrast)"
+    },
+    {
+      "name": "ai-patterns",
+      "path": "standards/ai-patterns.md",
+      "title": "AI Patterns — Agentic Architecture Standards",
+      "description": "**Agentic-ready by default, agentic-heavy by intent.**"
+    },
+    {
+      "name": "ai-sdks",
+      "path": "standards/ai-sdks.md",
+      "title": "AI SDKs — Selection Standard",
+      "description": "| SDK | Vendor | Lang | Model lock-in | Best at |"
+    },
+    {
+      "name": "auto-optimization",
+      "path": "standards/auto-optimization.md",
+      "title": "Auto-Optimization — Wizard Philosophy",
+      "description": "**Rule 1.5 extension.** Not inviolable (Rule 1), but a contract on how cortex-x behaves. Violations degrade UX; don't break projects."
+    },
+    {
+      "name": "auto-orchestration",
+      "path": "standards/auto-orchestration.md",
+      "title": "Standard — Auto-Orchestration (3-fronta rule)",
+      "description": "| Front | Parallelize? | Default count | Evidence |"
+    },
+    {
+      "name": "coding-behavior",
+      "path": "standards/coding-behavior.md",
+      "title": "Coding Behavior — Meta-Rules for LLM Code Generation",
+      "description": "2026-04-17 retrospective: the cortex-x scaffold work itself committed two behavioral anti-patterns caught only after the 5-agent review pipeline ran. Mass find-replace of a maintainer's name (drive-by refactor) and over-engineered 200-line "
+    },
+    {
+      "name": "coding-behavior-examples",
+      "path": "standards/coding-behavior-examples.md",
+      "title": "Coding Behavior — Concrete Examples",
+      "description": "**Task:** \"Add user export.\""
+    },
+    {
+      "name": "correctness",
+      "path": "standards/correctness.md",
+      "title": "Correctness — Verification Beyond Structure",
+      "description": "**Rule 2 (Critical)** — alongside Security, Testing, Observability. Must-have for any project moving beyond prototype. Review-pipeline flag = blocker."
+    },
+    {
+      "name": "documentation",
+      "path": "standards/documentation.md",
+      "title": "Documentation — Knowledge That Outlives Your Memory",
+      "description": "**Document decisions, not code.** Code explains itself (with good naming). Comments explain why."
+    },
+    {
+      "name": "error-handling",
+      "path": "standards/error-handling.md",
+      "title": "Error Handling — Fail Gracefully, Recover Automatically",
+      "description": "1. **Fail fast at boundaries, fail gracefully inside.** Validate at API entry, crash early. Within the app, catch and recover."
+    },
+    {
+      "name": "git-workflow",
+      "path": "standards/git-workflow.md",
+      "title": "Git Workflow — Commit Like a Pro",
+      "description": "```"
+    },
+    {
+      "name": "modular",
+      "path": "standards/modular.md",
+      "title": "Modular — Isolated Subsystems",
+      "description": "Tightly coupled code is where bugs hide and velocity dies. When changing X requires touching A, B, C, you don't change X — you avoid it. Modularity buys you the ability to refactor, replace, and scale individual pieces without cascading rew"
+    },
+    {
+      "name": "observability",
+      "path": "standards/observability.md",
+      "title": "Observability — See What's Happening in Production",
+      "description": "1. **Logs** — what happened"
+    },
+    {
+      "name": "performance",
+      "path": "standards/performance.md",
+      "title": "Performance — Fast by Default",
+      "description": "- **Core Web Vitals targets (2026):**"
+    },
+    {
+      "name": "RULE-1",
+      "path": "standards/RULE-1.md",
+      "title": "RULE 1 — Inviolable Architectural Invariants",
+      "description": "Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift."
+    },
+    {
+      "name": "scalable",
+      "path": "standards/scalable.md",
+      "title": "Scalable — Patterns That Survive 10x Growth",
+      "description": "You won't know in advance which project succeeds. The ones that take off punish you for shortcuts taken early. Scalable-by-default means growth is exciting, not a crisis."
+    },
+    {
+      "name": "security",
+      "path": "standards/security.md",
+      "title": "Security — Layered Defense from Day One",
+      "description": "1. **No secrets in git.** `.env` in `.gitignore` from first commit. Pre-commit hook blocks accidental commits."
+    },
+    {
+      "name": "self-correction",
+      "path": "standards/self-correction.md",
+      "title": "Self-Correction — What Actually Works in 2026",
+      "description": "**Rule 2 (Critical).** Alongside Correctness — this standard prevents adopting patterns that measurably degrade agent quality."
+    },
+    {
+      "name": "ship-ready",
+      "path": "standards/ship-ready.md",
+      "title": "Ship-Ready — Governance Invariants for Distribution",
+      "description": "Anything a stranger would never need to know about the maintainer must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes:"
+    },
+    {
+      "name": "skills",
+      "path": "standards/skills.md",
+      "title": "Skills — Portable, Progressive-Disclosure Agent Instructions",
+      "description": "**Rule 3 (Process)** — should-have convention. Skills are optional for trivial projects but deliver large leverage when you have repeatable procedures."
+    },
+    {
+      "name": "ssot",
+      "path": "standards/ssot.md",
+      "title": "SSOT — Single Source of Truth",
+      "description": "Duplicated knowledge drifts. Labels in 3 files become 3 slightly different labels. Constants in 5 places become 5 different values after one hasty edit. Bug fixes get applied to 4 of 5 copies. Entropy wins."
+    },
+    {
+      "name": "steward-policy",
+      "path": "standards/steward-policy.md",
+      "title": "Steward Policy — Refusal List, Denylist, MUST patterns",
+      "description": "Steward refuses the following at the tool-wrapper layer, **not via system prompt**. Promptword-only enforcement fails under prompt injection (Replit Agent prod-DB wipe, July 2025, is the canonical incident). All seven refusals are encoded i"
+    },
+    {
+      "name": "story-sizing",
+      "path": "standards/story-sizing.md",
+      "title": "Story Sizing — Rule 3",
+      "description": "Cortex-x scaffolds projects whose recommendation backlogs are consumed by autonomous agents (Steward, manual `/audit`, Ralph-style loops). Action items must be sized so an LLM can complete one in a single context window without losing track"
+    },
+    {
+      "name": "test-types-catalog",
+      "path": "standards/test-types-catalog.md",
+      "title": "Test Types — Exhaustive 2026 Catalog (SSOT)",
+      "description": "**For the audit (Phase 5 selection oracle):**"
+    },
+    {
+      "name": "testing",
+      "path": "standards/testing.md",
+      "title": "Testing — Confidence Through Layered Coverage",
+      "description": "Without tests:"
+    }
+  ],
+  "profiles": [
+    {
+      "name": "ai-agent",
+      "path": "profiles/ai-agent.yaml",
+      "description": "Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration",
+      "agentic_ready": false,
+      "ai_sdk": "claude-agent    # autonomy tier: filesystem/shell, Skills, MCP, subagents"
+    },
+    {
+      "name": "astro-static",
+      "path": "profiles/astro-static.yaml",
+      "description": "Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default",
+      "agentic_ready": false,
+      "ai_sdk": "none"
+    },
+    {
+      "name": "browser-agent",
+      "path": "profiles/browser-agent.yaml",
+      "description": "Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling.",
+      "agentic_ready": false,
+      "ai_sdk": null
+    },
+    {
+      "name": "cli-tool",
+      "path": "profiles/cli-tool.yaml",
+      "description": "Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform",
+      "agentic_ready": false,
+      "ai_sdk": "none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs."
+    },
+    {
+      "name": "chatbot-platform",
+      "path": "profiles/chatbot-platform.yaml",
+      "description": "Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator",
+      "agentic_ready": false,
+      "ai_sdk": "vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility"
+    },
+    {
+      "name": "kiosek",
+      "path": "profiles/kiosek.yaml",
+      "description": "Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout",
+      "agentic_ready": false,
+      "ai_sdk": "none"
+    },
+    {
+      "name": "minimal",
+      "path": "profiles/minimal.yaml",
+      "description": "Minimal scaffold for quick prototypes and experiments — no heavy architecture",
+      "agentic_ready": false,
+      "ai_sdk": "none"
+    },
+    {
+      "name": "nextjs-saas",
+      "path": "profiles/nextjs-saas.yaml",
+      "description": "Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor.",
+      "agentic_ready": true,
+      "ai_sdk": "vercel          # web tier: streaming UI, provider-agnostic, Next.js-native"
+    },
+    {
+      "name": "qa-engineer",
+      "path": "profiles/qa-engineer.yaml",
+      "description": "QA-focused profile — for projects where the audit + retrofit goal is testing strategy specifically (existing repo, AI-augmented tester, ISO 25010 + ASVS 5.0 alignment). Pairs with /test-audit prompt.",
+      "agentic_ready": true,
+      "ai_sdk": "vercel       # web tier; AI-aug agents like Claude Code MCP slot in here"
+    },
+    {
+      "name": "tauri-desktop",
+      "path": "profiles/tauri-desktop.yaml",
+      "description": "Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets",
+      "agentic_ready": false,
+      "ai_sdk": "vercel          # webview frontend; works well for embedded chat UIs"
+    },
+    {
+      "name": "waas-template",
+      "path": "profiles/waas-template.yaml",
+      "description": "Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization",
+      "agentic_ready": false,
+      "ai_sdk": "vercel          # ready for per-tenant AI features (chatbots, copy gen)"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "auto-review",
+      "path": "prompts/auto-review.md",
+      "title": "Auto-Review — post-implementation parallel pipeline",
+      "purpose": ""
+    },
+    {
+      "name": "code-review",
+      "path": "prompts/code-review.md",
+      "title": "Code Review — Parallel Adversarial Pipeline",
+      "purpose": ""
+    },
+    {
+      "name": "cortex-doctor",
+      "path": "prompts/cortex-doctor.md",
+      "title": "Cortex Doctor — Self-Healthcheck + Drift Detection",
+      "purpose": ""
+    },
+    {
+      "name": "cortex-evolve",
+      "path": "prompts/cortex-evolve.md",
+      "title": "Cortex Evolve — Self-Improvement Loop",
+      "purpose": "Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč uživatelovými projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, uživatel reviewuje."
+    },
+    {
+      "name": "cortex-load",
+      "path": "prompts/cortex-load.md",
+      "title": "Cortex Load — The Mental Model",
+      "purpose": ""
+    },
+    {
+      "name": "cortex-reflect",
+      "path": "prompts/cortex-reflect.md",
+      "title": "Cortex Reflect Prompt — Manual Deep Reflection",
+      "purpose": ""
+    },
+    {
+      "name": "cortex-sync",
+      "path": "prompts/cortex-sync.md",
+      "title": "Cortex Sync Prompt",
+      "purpose": ""
+    },
+    {
+      "name": "existing-project-audit",
+      "path": "prompts/existing-project-audit.md",
+      "title": "Existing Project Audit — Deep 12-Dimension Analysis + Auto-Research + Retrofit",
+      "purpose": ""
+    },
+    {
+      "name": "new-project",
+      "path": "prompts/new-project.md",
+      "title": "New Project — Discovery + Auto-Research + Architect + Scaffold + Adapt",
+      "purpose": ""
+    },
+    {
+      "name": "project-scan",
+      "path": "prompts/project-scan.md",
+      "title": "Universal Project Scan Prompt (SLIM)",
+      "purpose": ""
+    },
+    {
+      "name": "qa-retrofit",
+      "path": "prompts/qa-retrofit.md",
+      "title": "QA Retrofit — Deep Test-Strategy Audit + Risk Worm-Through + Cited Gap Backlog",
+      "purpose": ""
+    },
+    {
+      "name": "retrofit",
+      "path": "prompts/retrofit.md",
+      "title": "Retrofit — apply cortex-x structure to an existing (messy) project",
+      "purpose": ""
+    },
+    {
+      "name": "retrospective",
+      "path": "prompts/retrospective.md",
+      "title": "Retrospective — Post-Sprint Reflection → cortex library",
+      "purpose": ""
+    },
+    {
+      "name": "sprint-status",
+      "path": "prompts/sprint-status.md",
+      "title": "Sprint Status — Parse PROGRESS.md and Report",
+      "purpose": ""
+    },
+    {
+      "name": "steward-setup",
+      "path": "prompts/steward-setup.md",
+      "title": "Steward setup — guided activation flow",
+      "purpose": ""
+    }
+  ],
+  "agents": [
+    {
+      "name": "acceptance-auditor",
+      "path": "agents/acceptance-auditor.md",
+      "description": "Reviews diff against acceptance criteria (story/spec/PROGRESS.md). Checks that the implementation actually does what was asked, no more, no less. Has read access to PROGRESS.md, CLAUDE.md, and specs.",
+      "tools": "- Read"
+    },
+    {
+      "name": "blind-hunter",
+      "path": "agents/blind-hunter.md",
+      "description": "Reviews code diff WITHOUT project context. Catches bugs that contextual reviewers rationalize away. Input: git diff only. No project access, no history, no specs. Surfaces: obvious bugs, typos, logic errors, missing error handling, security",
+      "tools": "- Read"
+    },
+    {
+      "name": "correctness-auditor",
+      "path": "agents/correctness-auditor.md",
+      "description": "Correctness-focused code review against cortex-x/standards/correctness.md. Checks: trust-boundary validation (Zod/Pydantic), property-based test coverage on invariant code, eval suite for LLM endpoints, mutation score on critical modules, s",
+      "tools": "- Read"
+    },
+    {
+      "name": "cortex-thinker",
+      "path": "agents/cortex-thinker.md",
+      "description": "Meta-agent that reflects on cortex-x state, detects cross-project patterns, and surfaces proactive suggestions. Invoked at SessionStart, Stop events, or manually via /cortex-reflect. Reads cortex-x/projects/ library and proposes insights gr",
+      "tools": "- Read"
+    },
+    {
+      "name": "edge-case-hunter",
+      "path": "agents/edge-case-hunter.md",
+      "description": "Walks every branching path and boundary condition in changed code. Reports ONLY unhandled edge cases. Has project read access for context, but focuses on what inputs would break the code. Orthogonal to adversarial review — method-driven, no",
+      "tools": "- Read"
+    },
+    {
+      "name": "planner",
+      "path": "agents/planner.md",
+      "description": "Reads detected stack + project context, picks 3-5 most relevant research topics from the {profile} × {concern} matrix. Used by Phase 5 Adapt (new-project) and Phase 4 Research (existing-project-audit). Returns a prioritized JSON list of top",
+      "tools": ""
+    },
+    {
+      "name": "security-auditor",
+      "path": "agents/security-auditor.md",
+      "description": "Security-focused code review against cortex-x/standards/security.md 8-layer model. Checks: secrets leakage, RLS violations, injection vectors, auth bypass, missing rate limits, insecure defaults. Flags findings with severity + CWE reference",
+      "tools": "- Read"
+    },
+    {
+      "name": "ssot-enforcer",
+      "path": "agents/ssot-enforcer.md",
+      "description": "Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam",
+      "tools": "- Read"
+    },
+    {
+      "name": "synthesizer",
+      "path": "agents/synthesizer.md",
+      "description": "Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL)",
+      "tools": ""
+    }
+  ],
+  "workflows": [
+    {
+      "name": "install-smoke",
+      "path": ".github/workflows/install-smoke.yml",
+      "triggers": [
+        "cron(17 3 * * *)",
+        "manual",
+        "push",
+        "pull_request"
+      ],
+      "description": "5-lane matrix: linux/macOS bash + Windows (Git Bash, pwsh 7, Windows PowerShell 5.1)."
+    },
+    {
+      "name": "no-pii",
+      "path": ".github/workflows/no-pii.yml",
+      "triggers": [
+        "push",
+        "pull_request"
+      ],
+      "description": "Two-mode CI gate."
+    },
+    {
+      "name": "steward autoresearch (weekly Sunday)",
+      "path": ".github/workflows/steward-autoresearch.yml",
+      "triggers": [
+        "cron(0 2 * * 0)",
+        "manual"
+      ],
+      "description": "steward-autoresearch.example.yml — Sprint 2.1 weekly autoresearch overnight"
+    },
+    {
+      "name": "steward dep-patch",
+      "path": ".github/workflows/steward-dep-patch.yml",
+      "triggers": [
+        "cron(0 4 * * 0)",
+        "manual"
+      ],
+      "description": "steward-dep-patch.yml — autonomous Steward patch-only dep updater workflow."
+    },
+    {
+      "name": "steward doc-drift",
+      "path": ".github/workflows/steward-doc-drift.yml",
+      "triggers": [
+        "cron(0 5 1 * *)",
+        "manual"
+      ],
+      "description": "steward-doc-drift.yml — autonomous Steward documentation-drift detector."
+    },
+    {
+      "name": "steward flaky-test-repair",
+      "path": ".github/workflows/steward-flaky-test-repair.yml",
+      "triggers": [
+        "cron(0 7 * * 2)",
+        "manual"
+      ],
+      "description": "steward-flaky-test-repair.yml — autonomous Steward flaky-test quarantiner."
+    },
+    {
+      "name": "steward harvest",
+      "path": ".github/workflows/steward-harvest.yml",
+      "triggers": [
+        "cron(0 3 * * *)",
+        "manual"
+      ],
+      "description": "steward-harvest.yml — autonomous Steward recommendation harvester workflow."
+    },
+    {
+      "name": "steward lint-fix",
+      "path": ".github/workflows/steward-lint-fix.yml",
+      "triggers": [
+        "cron(0 8 * * 3)",
+        "manual"
+      ],
+      "description": "steward-lint-fix.yml — autonomous Steward eslint --fix shipper."
+    },
+    {
+      "name": "steward nightly",
+      "path": ".github/workflows/steward.yml",
+      "triggers": [
+        "cron(0 4 * * *)",
+        "manual"
+      ],
+      "description": "steward.yml — autonomous Steward runtime workflow (renamed from hermes.yml"
+    },
+    {
+      "name": "steward pr-review-responder",
+      "path": ".github/workflows/steward-pr-review-responder.yml",
+      "triggers": [
+        "cron(0 */4 * * *)",
+        "manual"
+      ],
+      "description": "steward-pr-review-responder.yml — autonomous Steward PR comment responder."
+    },
+    {
+      "name": "steward secret-history-sweep",
+      "path": ".github/workflows/steward-secret-history-sweep.yml",
+      "triggers": [
+        "cron(0 2 * * 0)",
+        "manual"
+      ],
+      "description": "steward-secret-history-sweep.yml — Sprint 2.6b weekly cron."
+    },
+    {
+      "name": "steward senior-tester-review",
+      "path": ".github/workflows/steward-senior-tester-review.yml",
+      "triggers": [
+        "cron(0 4 1 * *)",
+        "manual"
+      ],
+      "description": "steward-senior-tester-review.yml — Sprint 2.11 monthly cron."
+    },
+    {
+      "name": "steward tech-debt-audit",
+      "path": ".github/workflows/steward-tech-debt-audit.yml",
+      "triggers": [
+        "cron(0 9 * * 4)",
+        "manual"
+      ],
+      "description": "steward-tech-debt-audit.yml — autonomous Steward qlty + knip snapshot."
+    },
+    {
+      "name": "steward test-coverage-gap",
+      "path": ".github/workflows/steward-test-coverage-gap.yml",
+      "triggers": [
+        "cron(0 6 * * 1)",
+        "manual"
+      ],
+      "description": "steward-test-coverage-gap.yml — autonomous Steward coverage-gap detector."
+    },
+    {
+      "name": "steward todo-triage",
+      "path": ".github/workflows/steward-todo-triage.yml",
+      "triggers": [
+        "cron(0 4 1 * *)",
+        "manual"
+      ],
+      "description": "steward-todo-triage.yml — autonomous Steward TODO/FIXME triage workflow."
+    },
+    {
+      "name": "steward workflow-hardener",
+      "path": ".github/workflows/steward-workflow-hardener.yml",
+      "triggers": [
+        "cron(0 3 * * 0)",
+        "manual"
+      ],
+      "description": "steward-workflow-hardener.yml — Sprint 2.5b weekly cron."
+    },
+    {
+      "name": "test",
+      "path": ".github/workflows/test.yml",
+      "triggers": [
+        "manual",
+        "push",
+        "pull_request"
+      ],
+      "description": "Fast lane — Linux only, runs the full test suite on every PR + push."
+    }
+  ],
+  "tests": {
+    "counts": {
+      "unit": 86,
+      "contract": 12,
+      "integration": 8,
+      "smoke": 0
+    },
+    "total": 106
+  },
+  "code_volume": {
+    "steward_runtime_loc": 21899,
+    "test_code_loc": 27840
+  }
+}
