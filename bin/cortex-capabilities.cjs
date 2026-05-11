@@ -207,26 +207,38 @@ function inventoryWorkflows() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Parse bin/steward/_lib/action-kinds.cjs for top-level kinds + descriptions.
+// Inventory action_kinds by REQUIRING the module — single source of truth.
+// Sprint 2.15.1 R2 fix: previous regex-parsing approach silently corrupted
+// descriptions containing apostrophes (e.g. `pattern_transfer` description
+// truncated mid-word at "CURRENT project's"), was brittle to Prettier
+// indent changes (4-space tabWidth would empty the inventory), and had
+// boundary-leak risk (2000-char lookahead could steal next kind's
+// description). 5 of 6 R2 review agents flagged this as HIGH. Fix: load
+// the module directly via require — it IS already a CJS module exporting
+// ACTION_KINDS — and read structured fields. No regex.
 function inventoryActionKinds() {
-  const txt = safeRead(path.join(REPO_ROOT, 'bin/steward/_lib/action-kinds.cjs')) || '';
-  // Find ACTION_KINDS object start, scan top-level keys at indent === 2.
-  const idx = txt.indexOf('const ACTION_KINDS = {');
-  if (idx < 0) return [];
-  const body = txt.slice(idx);
-  const kinds = [];
-  // Match `  kindname: {` at exact 2-space indent.
-  const re = /^ {2}([a-z_]+):\s*\{$/gm;
-  let m;
-  while ((m = re.exec(body)) !== null) {
-    const name = m[1];
-    // Find first `description: '...'` or `description: \n` block after match within ~30 lines.
-    const after = body.slice(m.index, m.index + 2000);
-    const descMatch = after.match(/description:\s*\n?\s*['"`]([^'"`]+)['"`]/);
-    const description = descMatch ? descMatch[1].slice(0, 240) : null;
-    kinds.push({ name, description });
+  try {
+    const mod = require(path.join(REPO_ROOT, 'bin', 'steward', '_lib', 'action-kinds.cjs'));
+    const kinds = mod && mod.ACTION_KINDS;
+    if (!kinds || typeof kinds !== 'object') return [];
+    return Object.entries(kinds)
+      // Defense-in-depth against prototype-pollution lookups
+      .filter(([name]) => Object.prototype.hasOwnProperty.call(kinds, name))
+      .map(([name, def]) => ({
+        name,
+        description: (def && typeof def.description === 'string') ? def.description.slice(0, 320) : null,
+        requires_llm: def ? !!def.requires_llm : false,
+        shipped_in: (def && typeof def.shipped_in === 'string') ? def.shipped_in : null,
+        effort: (def && typeof def.effort === 'string') ? def.effort : null,
+        blast_radius: (def && typeof def.blast_radius === 'string') ? def.blast_radius : null,
+        cost_envelope: (def && typeof def.cost_envelope === 'string') ? def.cost_envelope : null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    // action-kinds.cjs missing or syntax-broken — fail-open with empty list.
+    // Contract test `action_kinds inventory non-empty` will catch this.
+    return [];
   }
-  return kinds;
 }
 
 function inventoryTests() {
@@ -238,9 +250,21 @@ function inventoryTests() {
     if (!fs.existsSync(dir)) { counts[b] = 0; continue; }
     let n = 0;
     const stack = [dir];
+    // Sprint 2.15.1 R2 fix (security CWE-59 + CWE-400): symlink + cycle
+    // protection. Dirent.isDirectory() follows symlinks, so a malicious
+    // tests/loop → ../ would infinite-recurse. Track realpaths + skip
+    // symlinks.
+    const seen = new Set();
     while (stack.length) {
       const d = stack.pop();
-      for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+      let real;
+      try { real = fs.realpathSync(d); } catch { continue; }
+      if (seen.has(real)) continue;
+      seen.add(real);
+      let entries;
+      try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
+      for (const ent of entries) {
+        if (ent.isSymbolicLink()) continue;
         const full = path.join(d, ent.name);
         if (ent.isDirectory()) stack.push(full);
         else if (ent.name.endsWith('.test.cjs')) n++;
@@ -261,17 +285,35 @@ function inventoryCounts() {
   };
 }
 
+// Sprint 2.15.1 R2 fix (security CWE-59 + CWE-400, blind hunter HIGH):
+// symlink protection + cycle guard + expanded exclusion list. Previously
+// Dirent.isDirectory() followed symlinks → loop risk; exclusion list was
+// only ['node_modules', '.git'] → bundler / coverage / build artifacts
+// would inflate counts.
+const COUNT_LINES_EXCLUDED_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'coverage', 'build', 'target',
+  '.next', 'out', '.cache', 'tmp', '.turbo', '.parcel-cache',
+]);
+
 function countLines(rel) {
   const root = path.join(REPO_ROOT, rel);
   if (!fs.existsSync(root)) return 0;
   let n = 0;
   const stack = [root];
+  const seen = new Set();
   while (stack.length) {
     const d = stack.pop();
-    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+    let real;
+    try { real = fs.realpathSync(d); } catch { continue; }
+    if (seen.has(real)) continue;
+    seen.add(real);
+    let entries;
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    for (const ent of entries) {
+      if (ent.isSymbolicLink()) continue;
       const full = path.join(d, ent.name);
       if (ent.isDirectory()) {
-        if (ent.name === 'node_modules' || ent.name === '.git') continue;
+        if (COUNT_LINES_EXCLUDED_DIRS.has(ent.name)) continue;
         stack.push(full);
       } else if (ent.name.endsWith('.cjs') || ent.name.endsWith('.js')) {
         const txt = safeRead(full) || '';
@@ -302,6 +344,25 @@ function buildRegistry() {
     tests: inventoryTests(),
     code_volume: inventoryCounts(),
   };
+}
+
+// Sprint 2.15.1 R2 fix (correctness + security MEDIUM): markdown table cell
+// escaping. Previously only pipes were escaped; embedded newlines, control
+// chars, or backticks could corrupt table rendering AND open prompt-
+// injection surface when (future Sprint 3.X) the registry is fed into
+// Steward's system prompt. Strip control chars, collapse whitespace, escape
+// pipes. Cap length defensively.
+function mdCell(text, maxLen = 280) {
+  if (text == null) return '';
+  let s = String(text);
+  // Strip ASCII control chars (0x00-0x1F except space) + DEL (0x7F)
+  s = s.replace(/[ -]/g, ' ');
+  // Collapse all whitespace runs (incl. former newlines/tabs) to single space
+  s = s.replace(/\s+/g, ' ').trim();
+  // Escape table delimiter
+  s = s.replace(/\|/g, '\\|');
+  if (s.length > maxLen) s = s.slice(0, maxLen - 1) + '…';
+  return s;
 }
 
 function renderMarkdown(r) {
@@ -337,7 +398,7 @@ function renderMarkdown(r) {
   lines.push('| Action kind | Description |');
   lines.push('|---|---|');
   for (const k of r.action_kinds) {
-    lines.push(`| \`${k.name}\` | ${(k.description || '_(see action-kinds.cjs)_').replace(/\|/g, '\\|')} |`);
+    lines.push(`| \`${mdCell(k.name)}\` | ${mdCell(k.description) || '_(see action-kinds.cjs)_'} |`);
   }
   lines.push('');
 
@@ -349,7 +410,7 @@ function renderMarkdown(r) {
   lines.push('| Module | Sprint | Description |');
   lines.push('|---|---|---|');
   for (const p of r.steward_primitives) {
-    lines.push(`| [\`${p.name}\`](../${p.path}) | ${p.sprint || '—'} | ${(p.description || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(p.name)}\`](../${p.path}) | ${mdCell(p.sprint) || '—'} | ${mdCell(p.description)} |`);
   }
   lines.push('');
 
@@ -361,7 +422,7 @@ function renderMarkdown(r) {
   lines.push('| Hook | Description |');
   lines.push('|---|---|');
   for (const h of r.hooks) {
-    lines.push(`| [\`${h.name}\`](../${h.path}) | ${(h.description || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(h.name)}\`](../${h.path}) | ${mdCell(h.description)} |`);
   }
   lines.push('');
 
@@ -373,7 +434,7 @@ function renderMarkdown(r) {
   lines.push('| Standard | Title | Snippet |');
   lines.push('|---|---|---|');
   for (const s of r.standards) {
-    lines.push(`| [\`${s.name}\`](../${s.path}) | ${s.title.replace(/\|/g, '\\|')} | ${(s.description || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(s.name)}\`](../${s.path}) | ${mdCell(s.title)} | ${mdCell(s.description)} |`);
   }
   lines.push('');
 
@@ -385,7 +446,7 @@ function renderMarkdown(r) {
   lines.push('| Profile | Agentic-ready | AI SDK | Description |');
   lines.push('|---|---|---|---|');
   for (const p of r.profiles) {
-    lines.push(`| [\`${p.name}\`](../${p.path}) | ${p.agentic_ready ? '✅' : '—'} | ${p.ai_sdk || '—'} | ${(p.description || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(p.name)}\`](../${p.path}) | ${p.agentic_ready ? '✅' : '—'} | ${mdCell(p.ai_sdk) || '—'} | ${mdCell(p.description)} |`);
   }
   lines.push('');
 
@@ -397,7 +458,7 @@ function renderMarkdown(r) {
   lines.push('| Prompt | Title | Purpose |');
   lines.push('|---|---|---|');
   for (const p of r.prompts) {
-    lines.push(`| [\`${p.name}\`](../${p.path}) | ${p.title.replace(/\|/g, '\\|')} | ${(p.purpose || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(p.name)}\`](../${p.path}) | ${mdCell(p.title)} | ${mdCell(p.purpose)} |`);
   }
   lines.push('');
 
@@ -409,7 +470,7 @@ function renderMarkdown(r) {
   lines.push('| Agent | Tools | Description |');
   lines.push('|---|---|---|');
   for (const a of r.agents) {
-    lines.push(`| [\`${a.name}\`](../${a.path}) | ${a.tools || '—'} | ${(a.description || '').replace(/\|/g, '\\|')} |`);
+    lines.push(`| [\`${mdCell(a.name)}\`](../${a.path}) | ${mdCell(a.tools) || '—'} | ${mdCell(a.description)} |`);
   }
   lines.push('');
 
@@ -421,7 +482,8 @@ function renderMarkdown(r) {
   lines.push('| Workflow | Triggers | Description |');
   lines.push('|---|---|---|');
   for (const w of r.workflows) {
-    lines.push(`| [\`${w.name}\`](../${w.path}) | ${w.triggers.join(' · ') || '—'} | ${(w.description || '').replace(/\|/g, '\\|')} |`);
+    const triggers = (w.triggers || []).map(t => mdCell(t)).join(' · ') || '—';
+    lines.push(`| [\`${mdCell(w.name)}\`](../${w.path}) | ${triggers} | ${mdCell(w.description)} |`);
   }
   lines.push('');
 
@@ -451,19 +513,39 @@ function main(argv) {
   const isJson = args.includes('--json');
   const doWrite = args.includes('--write');
   const r = buildRegistry();
-  const output = isJson ? JSON.stringify(r, null, 2) : renderMarkdown(r);
 
   if (doWrite) {
+    // Sprint 2.15.1 R2 fix: try/catch + isDirectory() guard + reuse rendered
+    // output instead of double-rendering. Surfaces ENOTDIR / EACCES with
+    // non-zero exit instead of crashing with raw uncaught error.
     const cortexDir = path.join(REPO_ROOT, 'cortex');
-    if (!fs.existsSync(cortexDir)) fs.mkdirSync(cortexDir, { recursive: true });
-    fs.writeFileSync(path.join(cortexDir, 'capabilities.md'), renderMarkdown(r));
-    fs.writeFileSync(path.join(cortexDir, 'capabilities.json'), JSON.stringify(r, null, 2));
-    process.stderr.write(`Wrote cortex/capabilities.md + cortex/capabilities.json\n`);
+    try {
+      if (fs.existsSync(cortexDir)) {
+        const st = fs.statSync(cortexDir);
+        if (!st.isDirectory()) {
+          process.stderr.write(`Error: ${cortexDir} exists but is not a directory.\n`);
+          process.exitCode = 2;
+          return;
+        }
+      } else {
+        fs.mkdirSync(cortexDir, { recursive: true });
+      }
+      const md = renderMarkdown(r);
+      const json = JSON.stringify(r, null, 2);
+      fs.writeFileSync(path.join(cortexDir, 'capabilities.md'), md);
+      fs.writeFileSync(path.join(cortexDir, 'capabilities.json'), json);
+      process.stderr.write(`Wrote cortex/capabilities.md + cortex/capabilities.json\n`);
+    } catch (err) {
+      process.stderr.write(`Error writing cortex/capabilities: ${err && err.message}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
+
+  const output = isJson ? JSON.stringify(r, null, 2) : renderMarkdown(r);
   process.stdout.write(output + '\n');
 }
 
 if (require.main === module) main(process.argv);
 
-module.exports = { buildRegistry, renderMarkdown };
+module.exports = { buildRegistry, renderMarkdown, mdCell };

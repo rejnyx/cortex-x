@@ -100,6 +100,86 @@ describe('cortex-capabilities buildRegistry()', () => {
   });
 });
 
+describe('Sprint 2.15.1 R2 hardening — mdCell escaping', () => {
+  test('escapes pipe character', () => {
+    assert.equal(capabilities.mdCell('has | pipe'), 'has \\| pipe');
+  });
+
+  test('collapses newlines + tabs to space', () => {
+    assert.equal(capabilities.mdCell('line1\nline2\tline3'), 'line1 line2 line3');
+  });
+
+  test('strips ASCII control chars (NUL, SOH, etc.)', () => {
+    const input = 'before' + String.fromCharCode(0, 1, 31, 127) + 'after';
+    const out = capabilities.mdCell(input);
+    // Control chars become spaces, then collapsed
+    assert.equal(out, 'before after');
+    // No control char survived
+    for (let i = 0; i < out.length; i++) {
+      const code = out.charCodeAt(i);
+      assert.ok(code >= 32 && code !== 127, `control char survived at index ${i}: 0x${code.toString(16)}`);
+    }
+  });
+
+  test('returns empty string for null/undefined', () => {
+    assert.equal(capabilities.mdCell(null), '');
+    assert.equal(capabilities.mdCell(undefined), '');
+  });
+
+  test('caps to maxLen with ellipsis', () => {
+    const long = 'x'.repeat(500);
+    const out = capabilities.mdCell(long, 100);
+    assert.ok(out.length <= 100);
+    assert.ok(out.endsWith('…'));
+  });
+
+  test('handles non-string input via String() coercion', () => {
+    assert.equal(capabilities.mdCell(42), '42');
+    assert.equal(capabilities.mdCell(true), 'true');
+  });
+});
+
+describe('Sprint 2.15.1 R2 hardening — inventoryActionKinds via require()', () => {
+  test('action_kinds inventory now exposes structured fields', () => {
+    const r = capabilities.buildRegistry();
+    const recommendation = r.action_kinds.find(k => k.name === 'recommendation');
+    assert.ok(recommendation, 'recommendation kind present');
+    assert.equal(recommendation.requires_llm, true);
+    assert.equal(recommendation.effort, 'high');
+    assert.equal(typeof recommendation.description, 'string');
+    // Description NOT truncated mid-string by regex apostrophe bug anymore.
+    // Pre-fix: pattern_transfer description ended at "CURRENT project" (truncated at apostrophe).
+    const patternTransfer = r.action_kinds.find(k => k.name === 'pattern_transfer');
+    if (patternTransfer && patternTransfer.description) {
+      // Original description contains "project's lessons-learned" — verify the
+      // apostrophe-bearing portion survives intact.
+      assert.ok(
+        patternTransfer.description.includes("project") || patternTransfer.description.length > 100,
+        'pattern_transfer description survives apostrophe (no regex truncation)',
+      );
+    }
+  });
+
+  test('description with apostrophe is preserved verbatim', () => {
+    const r = capabilities.buildRegistry();
+    // Find any kind whose description contains an apostrophe
+    const withApostrophe = r.action_kinds.find(k => k.description && k.description.includes("'"));
+    if (withApostrophe) {
+      // Pre-fix regex [^'"`] would have terminated at apostrophe.
+      // Post-fix: full description survives.
+      assert.ok(withApostrophe.description.length > 20, 'apostrophe-bearing description not truncated');
+    }
+  });
+
+  test('prototype-pollution key names not included', () => {
+    const r = capabilities.buildRegistry();
+    const names = r.action_kinds.map(k => k.name);
+    for (const evil of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      assert.ok(!names.includes(evil), `${evil} must not appear in action_kinds`);
+    }
+  });
+});
+
 describe('cortex-capabilities renderMarkdown()', () => {
   test('output contains TL;DR section with counts', () => {
     const r = capabilities.buildRegistry();

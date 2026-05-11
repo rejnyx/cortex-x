@@ -49,12 +49,22 @@ function safeExec(cmd, opts = {}) {
 
 // Read coverage/coverage-summary.json (c8 / istanbul / jest format).
 // Returns parsed object or null if missing.
-// DI sentinel: `mockSummary === undefined` (omitted) falls through to disk;
-// `mockSummary === null` is explicit "force missing" used by unit tests that
-// must isolate from a real coverage/ dir created by a prior `npm run
-// test:coverage`. Passing an object short-circuits both branches.
+// DI sentinel (Sprint 2.15.1 R2 hardening — edge-case HIGH):
+//   - mockSummary === undefined (omitted) → disk fallback (production path)
+//   - mockSummary === null → "force missing" (test isolation)
+//   - mockSummary is a plain object → use it directly
+//   - ANY OTHER type (array, number, string, bool, function) → treated as
+//     "force missing" with null result. Previously these silently became
+//     "clean coverage" signal (coverage_available: true, 0 candidates),
+//     indistinguishable from a real clean run. Tightening contract to
+//     reject ambiguous types prevents downstream false-positives.
 function readCoverageSummary({ cwd, mockSummary }) {
-  if (mockSummary !== undefined) return mockSummary;
+  if (mockSummary !== undefined) {
+    if (mockSummary === null) return null;
+    // Only plain objects accepted as DI mock; arrays / primitives → null.
+    if (typeof mockSummary !== 'object' || Array.isArray(mockSummary)) return null;
+    return mockSummary;
+  }
   const candidates = [
     path.join(cwd, 'coverage', 'coverage-summary.json'),
     path.join(cwd, 'coverage-summary.json'),

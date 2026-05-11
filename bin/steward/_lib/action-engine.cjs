@@ -1121,27 +1121,54 @@ const CLAUDE_CLI_FORBIDDEN_FLAGS = Object.freeze(['--bare']);
 const VALID_EFFORT_LEVELS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 
 function resolveEffortLevel(plan, opts = {}, env = process.env) {
-  // 1. env override (highest precedence)
-  const rawEnv = (env.CLAUDE_CODE_EFFORT_LEVEL || '').trim().toLowerCase();
+  // Sprint 2.4.2 R2 fix (edge-case HIGH): explicit env=null guard — default
+  // param only triggers on undefined, so `env: null` would throw TypeError
+  // at `env.CLAUDE_CODE_EFFORT_LEVEL`.
+  if (env === null || typeof env !== 'object') env = process.env;
+  if (opts === null || typeof opts !== 'object') opts = {};
+
+  // 1. env override (highest precedence). Trim + lowercase + allowlist guards
+  // against whitespace padding, mixed case, and garbage values. The allowlist
+  // is the security boundary — trim alone would NOT strip control chars or
+  // null bytes, but only allowlisted ASCII tokens reach argv at line 545.
+  const rawEnvVal = env.CLAUDE_CODE_EFFORT_LEVEL;
+  const rawEnv = (typeof rawEnvVal === 'string' ? rawEnvVal : '').trim().toLowerCase();
   if (rawEnv && VALID_EFFORT_LEVELS.includes(rawEnv)) {
     return { level: rawEnv, source: 'env' };
   }
 
-  // 2. caller / test override via opts
-  if (opts && opts.effort && VALID_EFFORT_LEVELS.includes(opts.effort)) {
-    return { level: opts.effort, source: 'opts' };
+  // 2. caller / test override via opts. Sprint 2.4.2 R2 fix (edge-case MEDIUM):
+  // normalize same way as env (trim + lowercase) for surface symmetry.
+  // Previously env was case-insensitive but opts was not.
+  if (opts.effort != null) {
+    const rawOpts = (typeof opts.effort === 'string' ? opts.effort : '').trim().toLowerCase();
+    if (rawOpts && VALID_EFFORT_LEVELS.includes(rawOpts)) {
+      return { level: rawOpts, source: 'opts' };
+    }
   }
 
-  // 3. per-action_kind config (lazy require — no circular dep)
-  const kindName = plan && plan.action_kind;
+  // 3. per-action_kind config (lazy require — no circular dep). Sprint 2.4.2
+  // R2 fix (blind hunter MEDIUM): narrow catch to MODULE_NOT_FOUND; rethrow
+  // any other module-init error so syntax bugs don't silently downgrade
+  // every action to 'medium'.
+  const kindName = (plan && typeof plan.action_kind === 'string') ? plan.action_kind : null;
   if (kindName) {
+    let actionKinds;
     try {
-      const actionKinds = require('./action-kinds.cjs');
-      const kindDef = actionKinds.ACTION_KINDS && actionKinds.ACTION_KINDS[kindName];
-      if (kindDef && kindDef.effort && VALID_EFFORT_LEVELS.includes(kindDef.effort)) {
+      actionKinds = require('./action-kinds.cjs');
+    } catch (err) {
+      if (err && err.code !== 'MODULE_NOT_FOUND') throw err;
+    }
+    // Defense-in-depth: own-property check to defeat prototype-pollution
+    // lookups like action_kind="constructor" / "__proto__" / "toString".
+    if (actionKinds && actionKinds.ACTION_KINDS
+        && Object.prototype.hasOwnProperty.call(actionKinds.ACTION_KINDS, kindName)) {
+      const kindDef = actionKinds.ACTION_KINDS[kindName];
+      if (kindDef && typeof kindDef.effort === 'string'
+          && VALID_EFFORT_LEVELS.includes(kindDef.effort)) {
         return { level: kindDef.effort, source: 'action_kind' };
       }
-    } catch { /* graceful degrade — fall through to default */ }
+    }
   }
 
   // 4. safe default

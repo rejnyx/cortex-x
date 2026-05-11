@@ -144,3 +144,48 @@ describe('formatIssueTitle / formatIssueBody', () => {
     assert.doesNotMatch(body, /\| branches/);
   });
 });
+
+describe('Sprint 2.15.1 R2 hardening — mockSummary DI contract', () => {
+  test('mockSummary=null returns "no coverage available" (force-missing)', () => {
+    const r = detector.detectCoverageGaps({ mockSummary: null });
+    assert.equal(r.coverage_available, false);
+    assert.equal(r.candidates.length, 0);
+  });
+
+  test('mockSummary=[] (array) does NOT silently signal "clean coverage"', () => {
+    // Pre-fix: arrays were truthy → coverage_available:true, 0 candidates →
+    // indistinguishable from a real clean run. Post-fix: rejected as
+    // ambiguous type → force-missing.
+    const r = detector.detectCoverageGaps({ mockSummary: [] });
+    assert.equal(r.coverage_available, false);
+  });
+
+  test('mockSummary=42 (number) rejected', () => {
+    const r = detector.detectCoverageGaps({ mockSummary: 42 });
+    assert.equal(r.coverage_available, false);
+  });
+
+  test('mockSummary="oops" (string) rejected', () => {
+    const r = detector.detectCoverageGaps({ mockSummary: 'oops' });
+    assert.equal(r.coverage_available, false);
+  });
+
+  test('mockSummary=true (bool) rejected', () => {
+    const r = detector.detectCoverageGaps({ mockSummary: true });
+    assert.equal(r.coverage_available, false);
+  });
+
+  test('mockSummary=function rejected', () => {
+    const r = detector.detectCoverageGaps({ mockSummary: () => ({}) });
+    assert.equal(r.coverage_available, false);
+  });
+
+  test('mockSummary=plain object accepted (existing contract)', () => {
+    const r = detector.detectCoverageGaps({
+      mockSummary: { total: { statements: { pct: 50 } }, 'x.js': { statements: { pct: 10 } } },
+      mockRecentFiles: ['x.js'],
+      threshold: 70,
+    });
+    assert.equal(r.coverage_available, true);
+  });
+});

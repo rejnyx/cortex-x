@@ -1,71 +1,151 @@
 {
-  "generated_at": "2026-05-11T14:43:14.060Z",
+  "generated_at": "2026-05-11T15:47:52.251Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
     {
-      "name": "recommendation",
-      "description": "Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR."
-    },
-    {
-      "name": "recommendation_harvest",
-      "description": "Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code."
-    },
-    {
       "name": "dep_update_patch",
-      "description": "npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call."
-    },
-    {
-      "name": "flaky_test_repair",
-      "description": "Marker-based quarantine: scan source for "
+      "description": "npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "medium",
+      "cost_envelope": "free"
     },
     {
       "name": "doc_drift",
-      "description": "Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call."
+      "description": "Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
     },
     {
-      "name": "todo_triage",
-      "description": "Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call."
-    },
-    {
-      "name": "test_coverage_gap",
-      "description": "Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6."
+      "name": "flaky_test_repair",
+      "description": "Marker-based quarantine: scan source for `// HERMES-FLAKY: <reason>` markers above test/it/describe declarations, replace with .skip + remove marker + open gh issue. Deterministic, no LLM call.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "low",
+      "cost_envelope": "free"
     },
     {
       "name": "lint_fix_shipper",
-      "description": "Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8."
-    },
-    {
-      "name": "pr_review_responder",
-      "description": "Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9."
+      "description": "Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "medium",
+      "cost_envelope": "free"
     },
     {
       "name": "mutation_score_drift",
-      "description": "Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the exe"
-    },
-    {
-      "name": "tech_debt_audit",
-      "description": "Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call."
+      "description": "Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the executor + detector once vitest migration completes.",
+      "requires_llm": false,
+      "shipped_in": null,
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
     },
     {
       "name": "pattern_transfer",
-      "description": "Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project\\"
+      "description": "Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project's lessons-learned.jsonl. v1: journal-only — never opens PRs, never edits sibling repos. LLM-driven. Capability #11.",
+      "requires_llm": true,
+      "shipped_in": "0.3.0",
+      "effort": "high",
+      "blast_radius": "minimal",
+      "cost_envelope": "normal"
     },
     {
-      "name": "workflow_hardener",
-      "description": "Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag."
+      "name": "pr_review_responder",
+      "description": "Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
     },
     {
-      "name": "secret_history_sweep",
-      "description": "TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing."
+      "name": "recommendation",
+      "description": "Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR.",
+      "requires_llm": true,
+      "shipped_in": "1.6.13",
+      "effort": "high",
+      "blast_radius": "medium",
+      "cost_envelope": "normal"
     },
     {
-      "name": "senior_tester_review",
-      "description": "2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue "
+      "name": "recommendation_harvest",
+      "description": "Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
     },
     {
       "name": "release_notes_drafter",
-      "description": "After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation."
+      "description": "After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation.",
+      "requires_llm": true,
+      "shipped_in": null,
+      "effort": "medium",
+      "blast_radius": "low",
+      "cost_envelope": "normal"
+    },
+    {
+      "name": "secret_history_sweep",
+      "description": "TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing.",
+      "requires_llm": false,
+      "shipped_in": "0.3.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "senior_tester_review",
+      "description": "2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files in v1.",
+      "requires_llm": false,
+      "shipped_in": "0.3.0",
+      "effort": "medium",
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "tech_debt_audit",
+      "description": "Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call.",
+      "requires_llm": false,
+      "shipped_in": "0.3.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "test_coverage_gap",
+      "description": "Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "todo_triage",
+      "description": "Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call.",
+      "requires_llm": false,
+      "shipped_in": "0.1.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "workflow_hardener",
+      "description": "Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag.",
+      "requires_llm": false,
+      "shipped_in": "0.3.0",
+      "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
     }
   ],
   "steward_primitives": [
@@ -876,7 +956,7 @@
     "total": 108
   },
   "code_volume": {
-    "steward_runtime_loc": 21976,
-    "test_code_loc": 28163
+    "steward_runtime_loc": 22085,
+    "test_code_loc": 28373
   }
 }

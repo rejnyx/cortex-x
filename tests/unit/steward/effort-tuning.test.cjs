@@ -121,6 +121,91 @@ describe('Sprint 2.4.1 resolveEffortLevel() precedence', () => {
   });
 });
 
+describe('Sprint 2.4.2 R2 hardening — env/opts robustness', () => {
+  test('env=null does not throw (parameter default only covers undefined)', () => {
+    // Pre-fix: env=null → env.CLAUDE_CODE_EFFORT_LEVEL → TypeError
+    const r = actionEngine.resolveEffortLevel(
+      { action_kind: 'recommendation' },
+      {},
+      null,
+    );
+    assert.equal(r.level, 'high'); // falls through to action_kind
+    assert.equal(r.source, 'action_kind');
+  });
+
+  test('env=undefined uses process.env (default param)', () => {
+    // Make sure removing process.env.CLAUDE_CODE_EFFORT_LEVEL temporarily
+    // doesn't break (most envs won't have it set).
+    const prev = process.env.CLAUDE_CODE_EFFORT_LEVEL;
+    delete process.env.CLAUDE_CODE_EFFORT_LEVEL;
+    try {
+      const r = actionEngine.resolveEffortLevel(
+        { action_kind: 'recommendation' },
+        {},
+      );
+      assert.equal(r.level, 'high');
+      assert.equal(r.source, 'action_kind');
+    } finally {
+      if (prev !== undefined) process.env.CLAUDE_CODE_EFFORT_LEVEL = prev;
+    }
+  });
+
+  test('env CLAUDE_CODE_EFFORT_LEVEL as non-string (theoretical) does not crash', () => {
+    const r = actionEngine.resolveEffortLevel(
+      { action_kind: 'recommendation' },
+      {},
+      { CLAUDE_CODE_EFFORT_LEVEL: 5 }, // non-string — process.env never gives this, but test seam should not crash
+    );
+    assert.equal(r.level, 'high');
+    assert.equal(r.source, 'action_kind');
+  });
+
+  test('opts.effort is now case-insensitive (Sprint 2.4.2 symmetry fix)', () => {
+    // Pre-fix: env was case-insensitive, opts was case-sensitive — surprise.
+    const r = actionEngine.resolveEffortLevel(
+      { action_kind: 'recommendation' },
+      { effort: 'LOW' },
+      {},
+    );
+    assert.equal(r.level, 'low');
+    assert.equal(r.source, 'opts');
+  });
+
+  test('opts.effort trims whitespace (Sprint 2.4.2 symmetry fix)', () => {
+    const r = actionEngine.resolveEffortLevel(
+      { action_kind: 'recommendation' },
+      { effort: '  high  ' },
+      {},
+    );
+    assert.equal(r.level, 'high');
+    assert.equal(r.source, 'opts');
+  });
+
+  test('prototype-pollution-style action_kind names ignored', () => {
+    // action_kind="constructor" / "__proto__" / "toString" must not match
+    // because we use hasOwnProperty.call() now.
+    for (const evil of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      const r = actionEngine.resolveEffortLevel(
+        { action_kind: evil },
+        {},
+        {},
+      );
+      assert.equal(r.level, 'medium');
+      assert.equal(r.source, 'default');
+    }
+  });
+
+  test('opts=null defaults gracefully', () => {
+    const r = actionEngine.resolveEffortLevel(
+      { action_kind: 'recommendation' },
+      null,
+      {},
+    );
+    assert.equal(r.level, 'high'); // falls through to action_kind
+    assert.equal(r.source, 'action_kind');
+  });
+});
+
 describe('Sprint 2.4.1 VALID_EFFORT_LEVELS allowlist', () => {
   test('exports the 5 documented effort tiers', () => {
     assert.deepEqual(

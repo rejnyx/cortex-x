@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-11T14:43:14.060Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-11T15:47:52.251Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -17,8 +17,8 @@
 | Review-pipeline agents (`agents/`) | 9 |
 | GitHub workflows | 17 |
 | Tests total | 108 (unit 88 · contract 12 · integration 8 · smoke 0) |
-| Runtime LoC (`bin/`) | 21 976 |
-| Test LoC (`tests/`) | 28 163 |
+| Runtime LoC (`bin/`) | 22 085 |
+| Test LoC (`tests/`) | 28 373 |
 
 ## 1. Steward action_kinds (16)
 
@@ -26,22 +26,22 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 
 | Action kind | Description |
 |---|---|
+| `dep_update_patch` | npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call. |
+| `doc_drift` | Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call. |
+| `flaky_test_repair` | Marker-based quarantine: scan source for `// HERMES-FLAKY: <reason>` markers above test/it/describe declarations, replace with .skip + remove marker + open gh issue. Deterministic, no LLM call. |
+| `lint_fix_shipper` | Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8. |
+| `mutation_score_drift` | Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the executor + detector once vitest migration … |
+| `pattern_transfer` | Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project's lessons-learned.jsonl. v1: journal-only — never opens PRs, never edits sibling repos. LLM-driven. Capability #11. |
+| `pr_review_responder` | Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9. |
 | `recommendation` | Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR. |
 | `recommendation_harvest` | Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code. |
-| `dep_update_patch` | npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call. |
-| `flaky_test_repair` | Marker-based quarantine: scan source for  |
-| `doc_drift` | Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call. |
-| `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
-| `test_coverage_gap` | Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6. |
-| `lint_fix_shipper` | Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8. |
-| `pr_review_responder` | Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9. |
-| `mutation_score_drift` | Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the exe |
-| `tech_debt_audit` | Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call. |
-| `pattern_transfer` | Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project\ |
-| `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
-| `secret_history_sweep` | TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing. |
-| `senior_tester_review` | 2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue  |
 | `release_notes_drafter` | After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation. |
+| `secret_history_sweep` | TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing. |
+| `senior_tester_review` | 2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files … |
+| `tech_debt_audit` | Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call. |
+| `test_coverage_gap` | Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6. |
+| `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
+| `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
 ## 2. Steward primitives (37)
 
@@ -112,7 +112,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`ai-sdks`](../standards/ai-sdks.md) | AI SDKs — Selection Standard | \| SDK \| Vendor \| Lang \| Model lock-in \| Best at \| |
 | [`auto-optimization`](../standards/auto-optimization.md) | Auto-Optimization — Wizard Philosophy | **Rule 1.5 extension.** Not inviolable (Rule 1), but a contract on how cortex-x behaves. Violations degrade UX; don't break projects. |
 | [`auto-orchestration`](../standards/auto-orchestration.md) | Standard — Auto-Orchestration (3-fronta rule) | \| Front \| Parallelize? \| Default count \| Evidence \| |
-| [`coding-behavior`](../standards/coding-behavior.md) | Coding Behavior — Meta-Rules for LLM Code Generation | 2026-04-17 retrospective: the cortex-x scaffold work itself committed two behavioral anti-patterns caught only after the 5-agent review pipeline ran. Mass find-replace of a maintainer's name (drive-by refactor) and over-engineered 200-line  |
+| [`coding-behavior`](../standards/coding-behavior.md) | Coding Behavior — Meta-Rules for LLM Code Generation | 2026-04-17 retrospective: the cortex-x scaffold work itself committed two behavioral anti-patterns caught only after the 5-agent review pipeline ran. Mass find-replace of a maintainer's name (drive-by refactor) and over-engineered 200-line |
 | [`coding-behavior-examples`](../standards/coding-behavior-examples.md) | Coding Behavior — Concrete Examples | **Task:** "Add user export." |
 | [`correctness`](../standards/correctness.md) | Correctness — Verification Beyond Structure | **Rule 2 (Critical)** — alongside Security, Testing, Observability. Must-have for any project moving beyond prototype. Review-pipeline flag = blocker. |
 | [`documentation`](../standards/documentation.md) | Documentation — Knowledge That Outlives Your Memory | **Document decisions, not code.** Code explains itself (with good naming). Comments explain why. |
@@ -139,17 +139,17 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 
 | Profile | Agentic-ready | AI SDK | Description |
 |---|---|---|---|
-| [`ai-agent`](../profiles/ai-agent.yaml) | — | claude-agent    # autonomy tier: filesystem/shell, Skills, MCP, subagents | Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration |
+| [`ai-agent`](../profiles/ai-agent.yaml) | — | claude-agent # autonomy tier: filesystem/shell, Skills, MCP, subagents | Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration |
 | [`astro-static`](../profiles/astro-static.yaml) | — | none | Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default |
 | [`browser-agent`](../profiles/browser-agent.yaml) | — | — | Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling. |
-| [`cli-tool`](../profiles/cli-tool.yaml) | — | none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
-| [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
+| [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
+| [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
 | [`kiosek`](../profiles/kiosek.yaml) | — | none | Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout |
 | [`minimal`](../profiles/minimal.yaml) | — | none | Minimal scaffold for quick prototypes and experiments — no heavy architecture |
-| [`nextjs-saas`](../profiles/nextjs-saas.yaml) | ✅ | vercel          # web tier: streaming UI, provider-agnostic, Next.js-native | Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor. |
-| [`qa-engineer`](../profiles/qa-engineer.yaml) | ✅ | vercel       # web tier; AI-aug agents like Claude Code MCP slot in here | QA-focused profile — for projects where the audit + retrofit goal is testing strategy specifically (existing repo, AI-augmented tester, ISO 25010 + ASVS 5.0 alignment). Pairs with /test-audit prompt. |
-| [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel          # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
-| [`waas-template`](../profiles/waas-template.yaml) | — | vercel          # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
+| [`nextjs-saas`](../profiles/nextjs-saas.yaml) | ✅ | vercel # web tier: streaming UI, provider-agnostic, Next.js-native | Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor. |
+| [`qa-engineer`](../profiles/qa-engineer.yaml) | ✅ | vercel # web tier; AI-aug agents like Claude Code MCP slot in here | QA-focused profile — for projects where the audit + retrofit goal is testing strategy specifically (existing repo, AI-augmented tester, ISO 25010 + ASVS 5.0 alignment). Pairs with /test-audit prompt. |
+| [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
+| [`waas-template`](../profiles/waas-template.yaml) | — | vercel # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
 
 ## 6. Prompts (15)
 
