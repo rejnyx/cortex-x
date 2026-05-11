@@ -49,8 +49,12 @@ function safeExec(cmd, opts = {}) {
 
 // Read coverage/coverage-summary.json (c8 / istanbul / jest format).
 // Returns parsed object or null if missing.
+// DI sentinel: `mockSummary === undefined` (omitted) falls through to disk;
+// `mockSummary === null` is explicit "force missing" used by unit tests that
+// must isolate from a real coverage/ dir created by a prior `npm run
+// test:coverage`. Passing an object short-circuits both branches.
 function readCoverageSummary({ cwd, mockSummary }) {
-  if (mockSummary != null) return mockSummary;
+  if (mockSummary !== undefined) return mockSummary;
   const candidates = [
     path.join(cwd, 'coverage', 'coverage-summary.json'),
     path.join(cwd, 'coverage-summary.json'),
