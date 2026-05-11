@@ -1103,6 +1103,51 @@ const CLAUDE_CLI_LEAK_KEYS = Object.freeze([
 // `--bare ` (Windows shell tokenization defense).
 const CLAUDE_CLI_FORBIDDEN_FLAGS = Object.freeze(['--bare']);
 
+// Sprint 2.4.1 — effort tuning per action_kind.
+// Grounded in: Anthropic effort docs (https://platform.claude.com/docs/en/build-with-claude/effort)
+// + community regression analyses (novaknown.com 2026-04-12, dev.to shuicici Feb-Mar 2026 deep-dive)
+// + resolve.ai production benchmarks.
+//
+// Resolution precedence (highest wins):
+//   1. CLAUDE_CODE_EFFORT_LEVEL env var (operator escape hatch — overrides everything)
+//   2. opts.effort (caller / test override)
+//   3. ACTION_KINDS[plan.action_kind].effort (per-kind default; lazy-required to avoid circular dep)
+//   4. 'medium' (safe default matching Anthropic Sonnet 4.6 docs)
+//
+// `max` is INTENTIONALLY allowed but flagged in journal as a risk surface —
+// community reports max-effort looping behaviour that the Sprint 1.9.1
+// cross-session loop detector would catch but at extra cost. Operators
+// should opt in deliberately via env var, never via per-kind default.
+const VALID_EFFORT_LEVELS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+
+function resolveEffortLevel(plan, opts = {}, env = process.env) {
+  // 1. env override (highest precedence)
+  const rawEnv = (env.CLAUDE_CODE_EFFORT_LEVEL || '').trim().toLowerCase();
+  if (rawEnv && VALID_EFFORT_LEVELS.includes(rawEnv)) {
+    return { level: rawEnv, source: 'env' };
+  }
+
+  // 2. caller / test override via opts
+  if (opts && opts.effort && VALID_EFFORT_LEVELS.includes(opts.effort)) {
+    return { level: opts.effort, source: 'opts' };
+  }
+
+  // 3. per-action_kind config (lazy require — no circular dep)
+  const kindName = plan && plan.action_kind;
+  if (kindName) {
+    try {
+      const actionKinds = require('./action-kinds.cjs');
+      const kindDef = actionKinds.ACTION_KINDS && actionKinds.ACTION_KINDS[kindName];
+      if (kindDef && kindDef.effort && VALID_EFFORT_LEVELS.includes(kindDef.effort)) {
+        return { level: kindDef.effort, source: 'action_kind' };
+      }
+    } catch { /* graceful degrade — fall through to default */ }
+  }
+
+  // 4. safe default
+  return { level: 'medium', source: 'default' };
+}
+
 // Match a forbidden flag with permissive boundary semantics: trim whitespace,
 // case-insensitive prefix match against the freeze-list. Returns the matched
 // flag for error messages, or null if safe.
@@ -1407,10 +1452,16 @@ async function _claudeCliEngineInner(plan, opts = {}) {
   const combinedPrompt = `${STEWARD_SYSTEM_PROMPT}\n\n---\n\n${userPrompt}\n\nRespond with ONLY the JSON edit-plan object. No markdown fences.`;
 
   // CLI args. NEVER include --bare (that flag forces API-key billing).
+  // Sprint 2.4.1 — inject --effort <level> per action_kind. Default is
+  // 'medium'; recommendation/pattern_transfer kinds use 'high'; trivial
+  // kinds (deterministic, no LLM) never reach this engine. Operator can
+  // override via CLAUDE_CODE_EFFORT_LEVEL env var.
+  const effortResolution = resolveEffortLevel(plan, opts);
   const argv = [
     '-p',
     '--output-format', 'json',
     '--permission-mode', 'dontAsk',
+    '--effort', effortResolution.level,
   ];
   if (opts.extraArgs && Array.isArray(opts.extraArgs)) {
     for (const a of opts.extraArgs) {
@@ -1655,9 +1706,17 @@ async function _claudeCliEngineInner(plan, opts = {}) {
       ...(tokensOut !== undefined && { tokens_out: tokensOut }),
     };
 
-    if (!applyResult.ok) return { ...applyResult, model: env.model, ...usageFields };
+    // Sprint 2.4.1 — surface effort_level + effort_source for journal
+    // capture. Lets `cortex-steward status` + retro analysis identify
+    // patterns ("did spec_failures correlate with effort tier?").
+    const effortFields = {
+      effort_level: effortResolution.level,
+      effort_source: effortResolution.source,
+    };
 
-    return { ...applyResult, model: env.model, ...usageFields };
+    if (!applyResult.ok) return { ...applyResult, model: env.model, ...usageFields, ...effortFields };
+
+    return { ...applyResult, model: env.model, ...usageFields, ...effortFields };
   } finally {
     clearTimeout(timer);
     _releaseClaudeCliSlot();
@@ -1727,6 +1786,9 @@ module.exports = {
   CLAUDE_CLI_LEAK_KEYS,
   CLAUDE_CLI_FORBIDDEN_FLAGS,
   CLAUDE_CLI_DEFAULT_TIMEOUT_MS,
+  // Sprint 2.4.1 — effort tuning helpers exported for tests
+  resolveEffortLevel,
+  VALID_EFFORT_LEVELS,
   STEWARD_SYSTEM_PROMPT,
   OPENROUTER_ENDPOINT,
   DEFAULT_MODEL,

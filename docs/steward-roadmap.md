@@ -284,6 +284,10 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 **Status**: ✅ Shipped 2026-05-09. New `claudeCliEngine` inline in `bin/steward/_lib/action-engine.cjs` (~470 LoC including helpers). Three-layer billing-leak defense: env scrub + `total_cost_usd === 0` assert + fleet `STEWARD_HALT` write. Auth via `CLAUDE_CODE_OAUTH_TOKEN` only; `--bare` hard-prohibited via `CLAUDE_CLI_FORBIDDEN_FLAGS` freeze-list. R2 review pipeline (6 agents in parallel) found 1 BLOCKER + 3 HIGH + 11 MAJOR + 14 MINOR; 13 must-fix items applied pre-commit. R1 memo: [`docs/research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md`](research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md). 1158 → 1164 tests (29 new).
 
+### Sprint 2.4.1 — Per-action_kind effort tuning ✅ SHIPPED 2026-05-11
+
+Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.md`](./research/sprint-2.4.1-extended-thinking-research-2026-05-11.md). Anthropic effort parameter (`low`/`medium`/`high`/`xhigh`/`max`) bifurcated from legacy `budget_tokens` in Opus 4.7. Claude Code v2.1.117+ defaults to `xhigh` — every cortex-x action was silently paying for xhigh-tier thinking before this fix. Sprint 2.4.1 adds `effort` field per LLM-requiring action_kind (recommendation/pattern_transfer → `high`; senior_tester_review/release_notes_drafter → `medium`) + `resolveEffortLevel()` precedence (env > opts > action_kind > default `medium`) + `--effort <level>` arg injection into claudeCliEngine + journal capture for retro analysis. Test enforces NO default `xhigh`/`max` (anti-overthinking; community reports max-effort looping behavior). ~80 LoC, 16 tests. Operator escape hatch: `CLAUDE_CODE_EFFORT_LEVEL` env var.
+
 **(Original sprint memo retained below for design context.)**
 
 
@@ -817,6 +821,46 @@ PHASE C — DELIVER (deterministic)
 **Open question for operator**: v1 = **review-only** OR review + propose-PR-with-refactor? Recommendation: **review-only v1**, refactor in v1.5 gated on mutation_score baseline existing AND delta ≥ 0 post-refactor. Rationale: [arxiv:2506.07594](https://arxiv.org/abs/2506.07594) shows LLM refactors *introduce new smells* in non-trivial fraction of cases; R5 (human-only paths inviolate) reinforces.
 
 **Stolen from**: UTRefactor DSL refactor rules + Agentic-LMs multi-agent loop pattern + tsDetect 21-smell taxonomy + ESE 2025 13-smell extension + cortex-x Sprint 2.10 qa-engineer profile + qa-retrofit prompt (different cadence, same grounding sources).
+
+---
+
+### Sprint 2.15 — cortex-capabilities auto-generated registry ✅ SHIPPED 2026-05-11
+
+**Status**: ✅ Shipped 2026-05-11 (commit `59a91a8`). Operator-facing answer to *"I do not even know what we have anymore."* `bin/cortex-capabilities.cjs` walks the repo filesystem and produces SSOT `cortex/capabilities.md` + `cortex/capabilities.json` listing every action_kind (16), Steward primitive (37), universal hook (7), standard (25), profile (11), prompt (15), review-pipeline agent (9), GitHub workflow (17), and test count (106 files). Header comments are SSOT — each module owns its description; script aggregates. Zero-deps, fail-open, side-effect-free without `--write`. npm script `npm run capabilities`. 10 contract tests covering shape, idempotency, markdown validity.
+
+**Future**: Sprint 3.X may inject capability summary into Steward system prompt so the autonomous runtime knows its own toolset (currently the registry is operator-facing only).
+
+---
+
+### Sprint 2.8.1 — lessons.jsonl → MEMORY.md exporter (S effort) — 📋 PROPOSED 2026-05-11
+
+**Status**: 📋 Proposed 2026-05-11 as smaller-bite alternative to full Anthropic Memory Tool integration (Sprint 3.X). Decision deferred from autonomous-ship to operator review because schema design needs review.
+
+**Why**: Sprint 2.4 claude-cli engine doesn't expose Anthropic's native Memory Tool (`memory_20250818`) — that's API-only and would re-introduce API-key billing that Sprint 2.4 deliberately killed. ALE Claude Code has its own auto-memory pipeline at `~/.claude/projects/<project>/memory/`. cortex-x's `lessons.jsonl` (Sprint 1.8.3 ReasoningBank-lite) already captures durable failure-distilled lessons — exposing them as topic files under auto-memory's directory makes them visible to claude-cli sessions automatically.
+
+**Scope**: ~80 LoC, zero API-key dependency. Periodically writes lessons.jsonl entries as topic files. Open design questions:
+- Per-topic file (e.g. `lessons-recommendation.md`, `lessons-pattern_transfer.md`) vs single MEMORY.md?
+- Decay-aware write — only top-K by importance score?
+- Bidirectional sync — does claude-cli's auto-memory write back? (Probably not — but verify.)
+
+**Defer reason**: operator may want to design the write-format before this lands; the auto-memory pipeline interaction needs investigation.
+
+**R1 memo**: [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md) (covers full Anthropic Memory Tool research + why this smaller bite is the right shape).
+
+---
+
+### Sprint 3.X — Anthropic-native context plane (Memory Tool + context-editing) — 📋 ROADMAP 2026-05-11
+
+**Status**: 📋 Roadmap-add 2026-05-11. Deferred from autonomous-ship after R1 research dispatch identified three blockers. Gated on Sprint 2.8 Memory Foundation schema work.
+
+**Why deferred** (3 blockers from [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md)):
+1. **claude-cli engine collision** — Memory Tool requires direct `/v1/messages` HTTP with `betas: ["context-management-2025-06-27"]`. claude-cli bills against Max subscription via OAuth — using Memory Tool would re-introduce API-key cost line, reversing Sprint 2.4's cost pivot.
+2. **Sprint 2.8 Memory Foundation schema gate** — adding Anthropic Memory Tool before deciding durable schema risks design drift.
+3. **Value/ceremony ratio** — the 84% token / +39% perf wins come from Memory Tool + `clear_tool_uses_20250919` context-editing **combined**, not Memory Tool alone. Doing both at once (Sprint 3.X) gets full upside.
+
+**Scope when prioritized**: `bin/steward/_lib/memory-tool.cjs` (~180 LoC, 6-command dispatcher, path-traversal hardened) + `bin/steward/_lib/memory-store-fs.cjs` (~120 LoC) + engine seam in OpenRouter engine (~80 LoC) + context-editing pairing (~40 LoC). Total ~420 LoC, ~19 tests, 1-2 working days. Memory Tool becomes "ephemeral within-action working memory" while `lessons.jsonl` remains "durable cross-action long-term memory." Coexistence pattern documented in research memo.
+
+**Engine constraint**: Memory Tool enabled ONLY on OpenRouter / Anthropic-API engines, NEVER on claude-cli engine (would re-introduce API billing). Test enforces this.
 
 ---
 

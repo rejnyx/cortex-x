@@ -178,6 +178,11 @@ const ACTION_KINDS = {
     description:
       'Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR.',
     requires_llm: true,
+    // Sprint 2.4.1 — per-kind effort tuning. COMPLEX: LLM-driven multi-file
+    // edits with spec_failures + retries. `high` matches Anthropic's
+    // "recommended for coding and agentic work" guidance (effort docs);
+    // `xhigh` reserved for genuinely frontier problems only (max overthinks).
+    effort: 'high',
     source: 'cortex/recommendations.md',
     detector: null, // recommendations.md is parsed directly by dry-run.cjs
     cost_envelope: 'normal', // ~$0.0008/run via deepseek-v4-flash
@@ -526,6 +531,9 @@ const ACTION_KINDS = {
     description:
       'Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project\'s lessons-learned.jsonl. v1: journal-only — never opens PRs, never edits sibling repos. LLM-driven. Capability #11.',
     requires_llm: true,
+    // Sprint 2.4.1 — COMPLEX: cross-project synthesis with multi-source
+    // reasoning. `high` matches the COMPLEX tier guidance.
+    effort: 'high',
     source: 'cortex/sibling-projects.json + sibling repos read-only via sibling-reader.cjs',
     detector: 'detectors/pattern-transfer.cjs', // Sprint 2.7
     cost_envelope: 'normal', // ~$0.0008/run via deepseek-v4-flash, $0 under claude-cli engine (Sprint 2.4)
@@ -650,6 +658,10 @@ const ACTION_KINDS = {
     description:
       '2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files in v1.',
     requires_llm: false, // judge is opt-in via STEWARD_SENIOR_TESTER_JUDGE=1
+    // Sprint 2.4.1 — MEDIUM tier. Deterministic detector dominates; LLM
+    // judge (opt-in) does strategic synthesis. `medium` matches Anthropic
+    // Sonnet 4.6 default + resolve.ai production benchmarks.
+    effort: 'medium',
     source: 'fs walk of tests/ + test smell registry + (optional) LLM judge call',
     detector: 'detectors/senior-tester-review.cjs',
     cost_envelope: 'free', // default; opt-in judge runs $0.005/run via deepseek-v4-flash
@@ -675,6 +687,9 @@ const ACTION_KINDS = {
     description:
       'After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation.',
     requires_llm: true,
+    // Sprint 2.4.1 — MEDIUM: well-scoped narrative generation from
+    // structured input (PR list + commits). `medium` is the right tier.
+    effort: 'medium',
     source: 'gh pr list --state merged + git tag --list',
     detector: null,
     cost_envelope: 'normal',
