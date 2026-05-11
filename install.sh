@@ -373,6 +373,16 @@ if [ -f "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" ]; then
   cp "$CORTEX_ROOT/shared/skills/cortex-init/SKILL.md" "$CLAUDE_HOME/skills/cortex-init/SKILL.md"
 fi
 
+# Sprint 2.17 — install /cortex-help at user-level so it's discoverable as a
+# slash command. Namespaced as cortex-help (not /help) because /help is
+# Claude Code's built-in help command — a custom skill named "help" collides
+# and gets rejected. The skill prints a one-screen menu of what's available
+# plus a project-state-aware "default next" nudge.
+mkdir -p "$CLAUDE_HOME/skills/cortex-help"
+if [ -f "$CORTEX_ROOT/shared/skills/cortex-help/SKILL.md" ]; then
+  cp "$CORTEX_ROOT/shared/skills/cortex-help/SKILL.md" "$CLAUDE_HOME/skills/cortex-help/SKILL.md"
+fi
+
 # Sprint 2.10.2 — profile-specific slash-skill priming. For qa-tester, also
 # install /test-audit at user-level so it's the prominent entry point. The
 # skill content stays in shared/ canonical location; this is just a top-level

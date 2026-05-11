@@ -450,6 +450,16 @@ if (Test-Path $CortexInitSkillSrc) {
     Copy-Item -Path $CortexInitSkillSrc -Destination (Join-Path $UserSkillsDir "SKILL.md") -Force
 }
 
+# Sprint 2.17 — install /cortex-help at user-level so it's discoverable as a
+# slash command. Namespaced as cortex-help (not /help) because /help is
+# Claude Code's built-in help command — a custom skill named "help" collides.
+$CortexHelpSkillDir = Join-Path $ClaudeHome "skills/cortex-help"
+New-Item -ItemType Directory -Force -Path $CortexHelpSkillDir | Out-Null
+$CortexHelpSkillSrc = Join-Path $CortexRoot "shared/skills/cortex-help/SKILL.md"
+if (Test-Path $CortexHelpSkillSrc) {
+    Copy-Item -Path $CortexHelpSkillSrc -Destination (Join-Path $CortexHelpSkillDir "SKILL.md") -Force
+}
+
 # Sprint 2.10.2 — profile-specific slash-skill priming. For qa-tester also
 # install /test-audit at user-level so it's the prominent entry point.
 if ($Profile -eq "qa-tester") {

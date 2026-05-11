@@ -1,10 +1,10 @@
 ---
-name: help
-description: One-screen menu of what cortex-x can do right now — list of invokable slash commands (cortex-init, audit, start, test-audit, designer, sync, evolve, doctor), a 1-line summary of what each does, and a count of underlying capabilities (action_kinds, profiles, standards). Auto-discovered after install.{sh,ps1} sync. Invoke as "/help", "what can cortex do?", "/cortex-help", or when the user asks "co umíš?" / "jaké jsou skills?" / "ukaž mi capabilities". Defers full machine-readable registry to cortex/capabilities.md.
+name: cortex-help
+description: One-screen menu of what cortex-x can do right now — list of invokable slash commands (cortex-init, audit, start, test-audit, designer, sync, evolve, doctor), a 1-line summary of what each does, and a count of underlying capabilities (action_kinds, profiles, standards). Auto-discovered after install.{sh,ps1} sync. Invoke as "/cortex-help", "what can cortex do?", or when the user asks "co umíš?" / "jaké jsou skills?" / "ukaž mi capabilities". NOTE: namespaced as cortex-help because /help is reserved as a Claude Code built-in slash command. Defers full machine-readable registry to cortex/capabilities.md.
 disable-model-invocation: false
 ---
 
-# /help — what can cortex-x do right now
+# /cortex-help — what can cortex-x do right now
 
 You are running the cortex-x help menu. The user wants a one-screen answer to *"what can I type next?"* — NOT a wall of documentation. Print the menu, suggest a sensible default action based on detected project state, stop.
 
@@ -41,7 +41,7 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 | **`/sync`** | End-of-session knowledge capture — decisions + lessons → cortex library | After a sprint or notable work session |
 | **`/doctor`** | Healthcheck — cortex install integrity + drift detection | Weekly, or after migration / new machine |
 | **`/cortex-reflect`** | Deep reflection — surfaces grounded cross-project insights | When something feels off, or after big refactor |
-| **`/help`** | This menu | Anytime you forget what's available |
+| **`/cortex-help`** | This menu | Anytime you forget what's available |
 
 ### What's under the hood (read-only summary)
 

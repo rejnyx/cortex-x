@@ -832,11 +832,11 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 2.17 — `/help` skill (one-screen capability menu) ✅ SHIPPED 2026-05-11
+### Sprint 2.17 — `/cortex-help` skill (one-screen capability menu) ✅ SHIPPED 2026-05-11
 
-**Status**: ✅ Shipped 2026-05-11. `shared/skills/help/SKILL.md` — auto-discovered after `install.{sh,ps1}` sync, invokable as `/help` or via natural language ("co umíš?", "what can cortex do?"). Lightweight user-facing menu of invokable slash commands, complementing the machine-readable `cortex/capabilities.md` registry from Sprint 2.15.
+**Status**: ✅ Shipped 2026-05-11. `shared/skills/cortex-help/SKILL.md` — auto-discovered after `install.{sh,ps1}` sync, invokable as `/cortex-help` or via natural language ("co umíš?", "what can cortex do?"). Lightweight user-facing menu of invokable slash commands, complementing the machine-readable `cortex/capabilities.md` registry from Sprint 2.15. **Namespaced as `/cortex-help` because `/help` is a Claude Code built-in slash command** — initial Sprint 2.17 shipped as `/help` and collided with the built-in (Claude Code rejected loading the custom skill); same-day fix renames to `/cortex-help` matching the existing `cortex-*` prefix convention (`cortex-init`, `cortex-doctor`, `cortex-reflect`, `cortex-sync`).
 
-**Why**: the capability registry (Sprint 2.15) answers *"what IS in cortex-x?"* exhaustively. But after install, a new user doesn't want a wall of categories — they want a 60-second answer to *"what can I type next?"* The `/help` skill is that menu: 10 invokable slash commands, one line each, plus a project-state-aware "default next" nudge (`.cortex-bootstrap-pending` → resume; `cortex/AUDIT.md` → `/retrofit`; empty folder → `/cortex-init`).
+**Why**: the capability registry (Sprint 2.15) answers *"what IS in cortex-x?"* exhaustively. But after install, a new user doesn't want a wall of categories — they want a 60-second answer to *"what can I type next?"* The `/cortex-help` skill is that menu: 10 invokable slash commands, one line each, plus a project-state-aware "default next" nudge (`.cortex-bootstrap-pending` → resume; `cortex/AUDIT.md` → `/retrofit`; empty folder → `/cortex-init`).
 
 **Composition**:
 - Reads existing capability metadata via the published `cortex/capabilities.md` link; never duplicates the registry. Counts stay SSOT in the auto-generated file.

@@ -156,7 +156,7 @@ cortex-bootstrap      # interactive: [N]ew / [E]xisting / [F]ramework
 claude                # auto-primes /start (new) or /audit (existing)
 ```
 
-> **Forgot what's available?** Type `/help` inside Claude Code — one-screen menu of every invokable slash command (`/cortex-init`, `/start`, `/audit`, `/designer`, `/test-audit`, `/sync`, `/doctor`, `/cortex-reflect`, etc.) with a project-state-aware "default next" nudge.
+> **Forgot what's available?** Type `/cortex-help` inside Claude Code — one-screen menu of every invokable slash command (`/cortex-init`, `/start`, `/audit`, `/designer`, `/test-audit`, `/sync`, `/doctor`, `/cortex-reflect`, etc.) with a project-state-aware "default next" nudge. (Namespaced as `/cortex-help` because `/help` is Claude Code's built-in help command.)
 
 ### After install (qa-tester profile) — one command per repo
 
