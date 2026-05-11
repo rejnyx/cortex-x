@@ -48,7 +48,7 @@ The diff must contain only lines that directly serve the stated task. Reformatti
 
 **In cortex-x:** [`prompts/code-review.md`](../prompts/code-review.md) `acceptance-auditor` already checks "Out-of-scope additions." Extend its prompt to quote this principle directly.
 
-**Anti-pattern (evidenced):** 2026-04-17 commit `b3397a1` replaced "Dave" → "the user" in 72 positions across 20 files when the stated task was "ship-ready for beta testing." The maintainer's name was never a ship-ready violation. Mass replace also broke Czech sentences. Rework cost a follow-up commit.
+**Anti-pattern (evidenced):** 2026-04-17 commit `b3397a1` replaced "maintainer" → "the user" in 72 positions across 20 files when the stated task was "ship-ready for beta testing." The maintainer's name was never a ship-ready violation. Mass replace also broke Czech sentences. Rework cost a follow-up commit.
 
 ---
 

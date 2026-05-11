@@ -23,13 +23,13 @@ cortex-x auto-detects who you are at install time so scaffolded files address yo
 
 ```yaml
 # cortex-x user identity (gitignored — written by install.{sh,ps1}).
-name: David Rajnoha
-email: REDACTED@redacted.invalid
-username: david
-platform: win32
-locale: cs-CZ
-gh_login: Rejnyx
-language: cs
+name: Jane Developer
+email: jane@example.com
+username: jane
+platform: linux
+locale: en-US
+gh_login: jane-dev
+language: en
 confirmed: true
 detected_at: 2026-05-07T18:30:42Z
 ```
@@ -40,10 +40,10 @@ After the language picker, install.{sh,ps1} runs `detectors/detect-user-identity
 
 ```
 Detected user identity:
-  name:    David Rajnoha
-  email:   REDACTED@redacted.invalid
-  locale:  cs-CZ
-  gh:      Rejnyx
+  name:    Jane Developer
+  email:   jane@example.com
+  locale:  en-US
+  gh:      jane-dev
 Use this identity? [Y/n]:
 ```
 
@@ -76,7 +76,7 @@ The `--shell` mode emits `CORTEX_USER_*='value'` lines safe for `eval`. Single-q
 
 ## Why this exists
 
-Pre-1.7.4, cortex-x scaffolded `CLAUDE.md` and `MEMORY.md` with hardcoded Czech text and the framework author's name. Users who weren't Dave saw a wall of "Konvence", "Pojď si to rozmyslet", and references to "Dave" — a textbook localization anti-pattern and a Ship-Ready Rule 0 violation.
+Pre-1.7.4, cortex-x scaffolded `CLAUDE.md` and `MEMORY.md` with hardcoded Czech text and the framework author's name. Users who weren't the framework author saw a wall of "Konvence", "Pojď si to rozmyslet", and a hardcoded personal name — a textbook localization anti-pattern and a Ship-Ready Rule 0 violation.
 
 Sprint 1.7.4 captures identity once at install. Subsequent sprints (1.7.4b — templates i18n; 1.7.6 — session-start personalization) consume `~/.claude/cortex/user.yaml` to render personalized output without re-asking.
 

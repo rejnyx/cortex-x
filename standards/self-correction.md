@@ -55,7 +55,7 @@
 
 **cortex-x rule:** scaffolded code MUST NOT include intrinsic self-critique without an external verifier. Agent loops always terminate on `stopWhen`, never on "model thinks it's done."
 
-**Offline exception:** **GEPA-style eval-driven prompt evolution** is endorsed for Phase 5 `evals/` — run quarterly against golden set, propose prompt changes, Dave reviews, merges. Offline + eval-gated + HITL = safe. Not the same as runtime reflection.
+**Offline exception:** **GEPA-style eval-driven prompt evolution** is endorsed for Phase 5 `evals/` — run quarterly against golden set, propose prompt changes, the operator reviews, merges. Offline + eval-gated + HITL = safe. Not the same as runtime reflection.
 
 ## Pattern #3 — Autonomous skill auto-creation (REJECTED as default)
 
@@ -81,7 +81,7 @@
 **cortex-x plan (Phase 6):**
 - Nightly cron (3:00 UTC) runs 6-signal scoring (relevance 30% + frequency 24% + diversity 15% + recency 15% + consolidation 10% + richness 6%)
 - Promotes high-score memories from Layer 3 (activity log) → Layer 2 (pgvector semantic) → Layer 1 (core index, always-in-context)
-- **Layer 1 promotions require HITL approval.** Surfaced in `DREAMS.md` as human-readable diff. Dave signs off before promotion.
+- **Layer 1 promotions require HITL approval.** Surfaced in `DREAMS.md` as human-readable diff. the operator signs off before promotion.
 - Layer 2 dedup + Layer 3 pruning can proceed autonomously (low blast radius, reversible).
 
 **Why HITL on Layer 1:** Layer 1 is "always-in-context" — corrupting it = corrupting every future agent decision. Blast radius too large for silent mutation.

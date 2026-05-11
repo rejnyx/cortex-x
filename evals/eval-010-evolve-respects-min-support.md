@@ -17,7 +17,7 @@ Setup: simulate weekly evolve run. Inject pattern-mining state with intentionall
 {"ts":"2026-04-25T10:13Z","tool":"Bash","ok":false,"summary":"npm test","error":"timeout 60s","project":"relo"}
 ```
 
-A pattern candidate would be: "npm test timeouts in RELO — increase timeout".
+A pattern candidate would be: "npm test timeouts in a Next.js SaaS project — increase timeout".
 
 But this fails the evidence gate per `~/.claude/shared/prompts/cortex-evolve.md` § B.2:
 - Events: 2 (need ≥3)

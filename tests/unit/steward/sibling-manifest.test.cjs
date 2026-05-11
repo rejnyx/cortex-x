@@ -21,8 +21,8 @@ function writeManifest(repoRoot, content) {
 }
 
 const VALID_SIBLING = {
-  id: 'amd-hackathon',
-  root: '/tmp/amd-hackathon-2026',
+  id: 'sibling-app',
+  root: '/tmp/sibling-app',
   read_only: true,
   purpose: 'pattern-transfer',
   paths_allowed: ['src/', 'docs/'],
@@ -65,7 +65,7 @@ describe('validateSibling', () => {
   test('accepts a well-formed sibling', () => {
     const r = manifest.validateSibling(VALID_SIBLING, 0);
     assert.equal(r.ok, true);
-    assert.equal(r.sibling.id, 'amd-hackathon');
+    assert.equal(r.sibling.id, 'sibling-app');
     assert.equal(r.sibling.read_only, true);
   });
 
@@ -175,7 +175,7 @@ describe('loadManifest', () => {
     const r = manifest.loadManifest(repoRoot);
     assert.equal(r.ok, true);
     assert.equal(r.manifest.siblings.length, 1);
-    assert.equal(r.manifest.siblings[0].id, 'amd-hackathon');
+    assert.equal(r.manifest.siblings[0].id, 'sibling-app');
   });
 });
 

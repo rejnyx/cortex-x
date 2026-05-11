@@ -56,7 +56,7 @@ The `<slug>` is the cortex projects-library key for this project. It feeds `$COR
 1. Folder basename of the project root (e.g. `masterbarbertemplatt`, `relo`, `pix-prep`)
 2. `package.json:name` only IF it doesn't match a template-default regex `^(my-app|next-app|nextjs-temp|nextjs-template|astro-template|app|template|template-.*|.*-template|repo|hello-world|test|scaffold|starter|.*-starter)$` (case-insensitive)
 
-Why folder-name first: most field tests have shown `package.json:name` is a template fossil from `npx create-next-app` and never updated, while folder names track the actual project identity Dave uses in his head.
+Why folder-name first: most field tests have shown `package.json:name` is a template fossil from `npx create-next-app` and never updated, while folder names track the actual project identity the operator uses in his head.
 
 Sanitize the chosen string silently: lowercase, replace runs of non-`[a-z0-9]` with `-`, trim leading/trailing `-`, collapse runs of `-`. No need to surface this transform to the user.
 
@@ -68,7 +68,7 @@ Sanitize the chosen string silently: lowercase, replace runs of non-`[a-z0-9]` w
 
 If the user provides a custom name, sanitize it the same way and proceed. If they hit Enter / approve, use the default. Save the final value as `<slug>` for all downstream phases.
 
-> **Auto-mode caveat:** if Dave invoked the prompt with "pokračuj sám / vše schvaluji / auto", you MAY skip this prompt and use the derived default — but log the choice loudly in the Phase 7 closing summary so he can rename via `mv` if it landed wrong.
+> **Auto-mode caveat:** if the operator invoked the prompt with "pokračuj sám / vše schvaluji / auto", you MAY skip this prompt and use the derived default — but log the choice loudly in the Phase 7 closing summary so he can rename via `mv` if it landed wrong.
 
 ### Writing audit-context.md
 
@@ -259,11 +259,11 @@ After P2, ask the user the 5 questions no amount of code reading can derive. Upd
 
 > "Audit je hotov v `cortex/AUDIT.md` — projdi si ho. 5 otázek, co kód neumí říct:"
 
-### Auto-mode behavior (when Dave said "pokračuj sám / vše schvaluji")
+### Auto-mode behavior (when the operator said "pokračuj sám / vše schvaluji")
 
 **Q1 is NEVER auto-filled.** It is the single input that re-prioritizes Phase 5's `## DO this week` ordering — guessing it on a project where the audit's "biggest signal" doesn't actually match the user's business priority will produce a recommendations file that *looks* senior but points at the wrong thing first. So even in full auto-mode, **stop and ask Q1 live** (one short prompt, English-or-Czech to taste, summarize the audit's top-3 candidates as defaults the user can pick by number).
 
-**Q2-Q5 may be auto-filled** by reasonable-assumption from the audit + Dave's global `CLAUDE.md` profile + this project's existing `CLAUDE.md` (if any). When auto-filled, mark each answer with `_(reasonable-assumption — override in cortex/AUDIT.md § "Phase 3 — Human input" to re-steer)_` so it's visible the value is a guess.
+**Q2-Q5 may be auto-filled** by reasonable-assumption from the audit + the operator's global `CLAUDE.md` profile + this project's existing `CLAUDE.md` (if any). When auto-filled, mark each answer with `_(reasonable-assumption — override in cortex/AUDIT.md § "Phase 3 — Human input" to re-steer)_` so it's visible the value is a guess.
 
 Rationale (don't strip this — it's load-bearing): Q1 changes the *order* of Phase 5; Q2-Q5 change the *content* of supporting sections. Wrong Q1 = wrong sprint plan. Wrong Q4 (social map) is recoverable later because the audit findings are still surfaced as FYI.
 
@@ -378,7 +378,7 @@ Same `§4.3` synthesis pattern as `new-project.md`: per gap identified in audit,
 
 ### 5d) Projects library entry — `$CORTEX_DATA_HOME/projects/<slug>.md`
 
-The cortex projects library (`$CORTEX_DATA_HOME/projects/`) is the cross-session memory of *every* project Dave has touched with cortex-x. Greenfield runs (`new-project.md`) write to it; existing-project audits MUST do the same, otherwise `cortex-load` shows a blank when Dave returns to this repo six weeks later.
+The cortex projects library (`$CORTEX_DATA_HOME/projects/`) is the cross-session memory of *every* project the operator has touched with cortex-x. Greenfield runs (`new-project.md`) write to it; existing-project audits MUST do the same, otherwise `cortex-load` shows a blank when the operator returns to this repo six weeks later.
 
 Resolve the destination path:
 

@@ -195,7 +195,7 @@ Rationale (3-hop traceability):
 
 - **Sprint 2.3 mutation testing** — once edits are reliable, mutation scoring on edited code becomes a meaningful fitness signal (today, mutation scoring on rolled-back changes is noise).
 - **Autoresearch ROI** — recommendations #5 / #6 / #7 (and the 4-of-7 currently `[HUMAN-ONLY]`) become Steward-actionable on the next cron run.
-- **Tier 1 RELO expansion** — RELO has hundreds of edit-existing-file tasks (test additions, doc updates, lint fixes). Without 2.2.5, Steward can't usefully run on RELO; with it, Tier 1 becomes a live deployment, not a planned one.
+- **Tier 1 a Next.js SaaS project expansion** — a Next.js SaaS project has hundreds of edit-existing-file tasks (test additions, doc updates, lint fixes). Without 2.2.5, Steward can't usefully run on a Next.js SaaS project; with it, Tier 1 becomes a live deployment, not a planned one.
 
 ## Citations (consolidated)
 

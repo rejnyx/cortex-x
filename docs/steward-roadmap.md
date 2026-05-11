@@ -423,7 +423,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 
 
-**Why**: research dispatch 2026-05-08 (R5) confirmed cross-project pattern transfer is a **known 2026 pattern** (repowise, meta-repo pattern, Karpathy LLM-wiki). Operator-pitched: cortex-x reads from `c:\Users\david\Desktop\APPs\amd-hackathon-2026`, `back-office-bot`, `kiosek-main`, `portfolio` for pattern inspiration without write access. **R5 strong recommendation: don't build full repowise; build narrow allowlist + read-only + new LLM action_kind.**
+**Why**: research dispatch 2026-05-08 (R5) confirmed cross-project pattern transfer is a **known 2026 pattern** (repowise, meta-repo pattern, Karpathy LLM-wiki). Pitched: cortex-x reads from a maintainer-curated allowlist of sibling project paths (e.g. `${HOME}/dev/<project-slug>`) for pattern inspiration without write access. **R5 strong recommendation: don't build full repowise; build narrow allowlist + read-only + new LLM action_kind.**
 
 **Scope**:
 - New config `cortex/sibling-projects.yaml` — explicit allowlist with per-repo `read_only: true`, `purpose: pattern-transfer`, `paths_allowed: [src/, docs/]`, `paths_denied: [.env*, secrets/, node_modules/]`.
@@ -431,7 +431,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 - New action_kind `pattern_transfer` (LLM, premium tier — needs deep code understanding): reads sibling project, writes recommendation into *current* project's `lessons-learned.jsonl`. **Never edits sibling.**
 - Acceptance criteria for the kind: output entry has `source_repo` field with absolute path; no `applyEdits` call paths to non-current-repo locations; spec-verifier rejects if any edit would land outside `process.cwd()`.
 - Hardening per CVE-2025-55130 (Node.js fs permission symlink bypass): every read goes through `realpath`-then-validate, never raw path.
-- Initial allowlist seed (operator-confirmed 2026-05-08): `amd-hackathon-2026`, `back-office-bot`, `kiosek-main`, `portfolio`.
+- Initial allowlist seed: maintainer-curated per-machine in gitignored `cortex/sibling-projects.json`; example with placeholder slugs ships in `cortex/sibling-projects.example.json`.
 
 **New error codes**:
 - `SIBLING_NOT_ALLOWLISTED` (path outside `sibling-projects.yaml` roots)
@@ -557,7 +557,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 - `docs/research/sprint-2.7.1-pattern-transfer-llm-dispatch-2026-05-09.md` — design for closing pattern_transfer ACTION_KIND_NOT_DISPATCHABLE gap.
 - `docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md` — web-research-backed (10 sources) Stryker integration design.
 
-**Final cron verification BLOCKED by GHA billing** (NOT a code regression). All 11 manually-triggered workflows died at job-start with GitHub error: *"recent account payments have failed or your spending limit needs to be increased."* Operator handover: `OPERATOR_HANDOVER.md`.
+**Final cron verification BLOCKED by GHA billing** (NOT a code regression). All 11 manually-triggered workflows died at job-start with GitHub error: *"recent account payments have failed or your spending limit needs to be increased."* (Maintainer handover notes captured under gitignored `docs/dogfood/`.)
 
 ---
 
@@ -900,7 +900,7 @@ PHASE C — DELIVER (deterministic)
 **Nobody glues both halves under one operator-grade autonomous-agent shell.** That's the cortex-x white space — and Sprint 2.16 (designer) + 3.4 (Hyperframes adapter) + existing `waas-template` profile + `pattern_transfer` already cover all four quadrants individually. Sprint 3.5 = compose them under one entry point.
 
 **Scope (composition, not new runtime)**:
-- New prompt `prompts/saas-unit.md` — multi-phase flow: `/start` (app scaffold) → `/designer` (web hero + landing) → `external-adapter:remotion` (promo video) → optional `external-adapter:hyperframes` (avatar pitch) → `pattern_transfer` from previously-shipped Dave projects (RELO patterns into new project).
+- New prompt `prompts/saas-unit.md` — multi-phase flow: `/start` (app scaffold) → `/designer` (web hero + landing) → `external-adapter:remotion` (promo video) → optional `external-adapter:hyperframes` (avatar pitch) → `pattern_transfer` from previously-shipped the operator projects (a Next.js SaaS project patterns into new project).
 - Updated `waas-template` profile — declares `composes_with: [designer, external-adapters, pattern_transfer]`.
 - Positioning update in `README.md` + landing copy: cortex-x as "the agentic-first **SaaS-unit builder** — one entry point produces production-grade app, marketing site, design variations, and promo media, all as real shippable code."
 
@@ -956,7 +956,7 @@ PHASE C — DELIVER (deterministic)
 | LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run |
 | LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits |
 | LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now |
-| LR.4 | `docs/launch-checklist.md` | XS | partial |
+| LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial |
 | LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic |
 | LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic |
 | LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded |
@@ -1022,7 +1022,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 3.3 — GraphRAG codebase context (M effort)
 
-**Why**: single LLM call sees ~5 files of context. GitNexus reports 6.8× fewer tokens / 49× more capability with Tree-sitter knowledge graph. Critical for client projects (RELO has thousands of files).
+**Why**: single LLM call sees ~5 files of context. GitNexus reports 6.8× fewer tokens / 49× more capability with Tree-sitter knowledge graph. Critical for client projects (a Next.js SaaS project has thousands of files).
 
 **Scope**:
 - Tree-sitter parse on `npm install` + on-demand refresh.
@@ -1039,7 +1039,7 @@ PHASE C — DELIVER (deterministic)
 
 ## 5. Tier 3 — Productization + enterprise-adjacent (weeks 13-20)
 
-**Goal**: cortex-x stops being "Dave's personal tool" and becomes "distributable senior-engineer-as-a-service." Each Tier 3 sprint is an independent revenue/positioning lever.
+**Goal**: cortex-x stops being "the operator's personal tool" and becomes "distributable senior-engineer-as-a-service." Each Tier 3 sprint is an independent revenue/positioning lever.
 
 ### Sprint 4.0 — Capability marketplace (S-M effort)
 
@@ -1057,7 +1057,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 4.1 — WaaS angle for clients (M-L effort, $$$ lever)
 
-**Why**: Champions Barber, Amici, Objedname — Dave's existing clients. Each gets own Steward instance. $50/month per client = recurring revenue + tangible AI value-add.
+**Why**: a barbershop WaaS client, an e-commerce chatbot client, a booking-platform client — the operator's existing clients. Each gets own Steward instance. $50/month per client = recurring revenue + tangible AI value-add.
 
 **Scope**:
 - Per-client cortex-x deployment template.
@@ -1084,7 +1084,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 4.3 — Voice → recommendation (S effort, fun)
 
-**Why**: Dave dictates while driving / walking. Telegram bot → voice → Whisper → recommendations.md.
+**Why**: the operator dictates while driving / walking. Telegram bot → voice → Whisper → recommendations.md.
 
 **Scope**:
 - Telegram bot endpoint, voice-message receiver, Whisper transcription.
@@ -1095,11 +1095,11 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 4.4 — Coding identity transfer / LoRA (XL effort, ambitious)
 
-**Why**: extract Dave's style from his git history (RELO + Chatbot Platform + WaaS + cortex-x), train lightweight LoRA, Steward adopts. Other Dave projects inherit your voice.
+**Why**: extract the operator's style from his git history (a Next.js SaaS project + Chatbot Platform + WaaS + cortex-x), train lightweight LoRA, Steward adopts. Other the operator projects inherit your voice.
 
 **Scope**:
 - Git history → diff samples → instruction-tuning dataset.
-- LoRA training (small model, fine-tune on Dave-PR pairs).
+- LoRA training (small model, fine-tune on the operator-PR pairs).
 - Inference seam in action-engine (LoRA-adapted model as routing option).
 
 **Stolen from**: standard LoRA + RLHF-from-PRs research.
@@ -1108,7 +1108,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 4.5 — Cross-repo federated lesson bank (S-M effort)
 
-**Why**: complement to Sprint 3.2. RELO Steward learns from Kiosek Steward failures.
+**Why**: complement to Sprint 3.2. a Next.js SaaS project Steward learns from Kiosek Steward failures.
 
 **Scope**:
 - Shared `~/.cortex/lessons.federated.jsonl` synced via private Supabase row or signed Gist.
@@ -1119,7 +1119,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 4.6 — Playwright-MCP UI verification (M effort, client-project unlock)
 
-**Why**: relevant for RELO/Kiosek/portfolio runs where Steward touches React components.
+**Why**: relevant for a Next.js SaaS project/Kiosek/portfolio runs where Steward touches React components.
 
 **Scope**:
 - Playwright MCP server in CI.
@@ -1163,7 +1163,7 @@ PHASE C — DELIVER (deterministic)
 
 **Acceptance criteria for the rebrand sprint itself**:
 - [ ] All NEW project scaffolds (via `prompts/new-project.md` flow) emit `Steward`, not `Steward`.
-- [ ] Existing user installations (operator + future RELO) continue to work with `HERMES_*` env vars + `bin/cortex-steward` shim, with deprecation warning.
+- [ ] Existing user installations (operator + future a Next.js SaaS project) continue to work with `HERMES_*` env vars + `bin/cortex-steward` shim, with deprecation warning.
 - [ ] Full suite green at ≥900 tests.
 - [ ] No `bin/steward/` / `bin/cortex-steward.cjs` paths in any active runtime code path; only deprecation shim points back.
 - [ ] CHANGELOG.md `## [Unreleased]` documents the rename + v0.2.0 removal target.
@@ -1205,9 +1205,9 @@ PHASE C — DELIVER (deterministic)
 
 ## 5b. Tier 4 — Personal AI entity / Living cortex-x (weeks 21+, ⭐ VISION)
 
-**Status**: vision tier, not commitment. Surfaced 2026-05-09 by Dave (operator) after seeing a "Personal AI Wiki System" diagram (UGREEN NAS + Obsidian Vault + Steward + multi-agent worker stack). The diagram resonated because cortex-x already has 80% of the components — just running in GHA cron context, not on a home always-on host.
+**Status**: vision tier, not commitment. Surfaced 2026-05-09 by the operator (operator) after seeing a "Personal AI Wiki System" diagram (UGREEN NAS + Obsidian Vault + Steward + multi-agent worker stack). The diagram resonated because cortex-x already has 80% of the components — just running in GHA cron context, not on a home always-on host.
 
-**Goal**: cortex-x stops being "code maintenance tool" and becomes "personal AI entity that lives on Dave's home NAS, curates knowledge across all life domains (code + meetings + notes + health + LinkedIn), responds to ambient events, persists identity across years."
+**Goal**: cortex-x stops being "code maintenance tool" and becomes "personal AI entity that lives on the operator's home NAS, curates knowledge across all life domains (code + meetings + notes + health + LinkedIn), responds to ambient events, persists identity across years."
 
 **This is post-v1.0 territory.** Tier 1+2+3 must ship before this is even proposed. But tracking it here so it's on the radar.
 
@@ -1258,7 +1258,7 @@ PHASE C — DELIVER (deterministic)
 
 **PIVOT (2026-05-09 web research)**: Khoj has native Obsidian plugin + Obsidian sync. Sprint 5.0 adopts Khoj as the knowledge layer; Sprint 5.2 becomes "configure Khoj to bridge Obsidian ↔ cortex/recommendations.md ↔ Steward harvester." Effort dropped from M to S — most of the integration work is Khoj configuration, not custom code.
 
-**Why**: Dave's life knowledge isn't in `cortex/recommendations.md` — it's in Obsidian (notes, meetings, ideas). Khoj indexes Obsidian content; Steward's recommendation_harvest detector reads Khoj's curated topic pages as additional signal alongside gh PR/issue/CI signals.
+**Why**: the operator's life knowledge isn't in `cortex/recommendations.md` — it's in Obsidian (notes, meetings, ideas). Khoj indexes Obsidian content; Steward's recommendation_harvest detector reads Khoj's curated topic pages as additional signal alongside gh PR/issue/CI signals.
 
 **Scope**:
 - Configure Khoj's Obsidian plugin for the operator's vault (read-only access by default).
@@ -1282,9 +1282,9 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 5.4 — "Live entity" UX (XL effort, vision)
 
-**Why**: cortex-x as something Dave can talk to, not just CLI invocation. Voice interface, ambient memory, conversational recall.
+**Why**: cortex-x as something the operator can talk to, not just CLI invocation. Voice interface, ambient memory, conversational recall.
 
-**Scope**: Telegram + Whisper + local Steward inference. "Hej cortex, co jsme řešili minulý týden o RELO?" → Steward recall + response in operator's voice/style (post Sprint 4.4 LoRA).
+**Scope**: Telegram + Whisper + local Steward inference. "Hej cortex, co jsme řešili minulý týden o a Next.js SaaS project?" → Steward recall + response in operator's voice/style (post Sprint 4.4 LoRA).
 
 **Deferred until**: Tier 1+2+3 fully shipped, Sprint 5.0+5.1+5.2+5.3 stable. This is the moonshot of moonshots.
 
@@ -1385,7 +1385,7 @@ Once home hardware arrives, Sprint 5.0 is a **migration sprint**, not a build sp
 2. Install Ollama + pick local model (Qwen 3 32B as default starting point).
 3. Package cortex-x as `systemd` service (Linux) or `launchd` agent (Mac).
 4. Migrate `~/.cortex/` data dir to NAS, sync from operator's dev machines.
-5. Switch one project (cortex-x dogfood first, then RELO) from GHA-cron to home-daemon.
+5. Switch one project (cortex-x dogfood first, then a Next.js SaaS project) from GHA-cron to home-daemon.
 6. **Hybrid routing**: sensitive paths → local Ollama. Premium paths → OpenRouter. Configured per action_kind in `cortex/souls/<agent>.md`.
 7. Verify: 1 week of home-daemon Steward runs, no regressions vs GHA-cron equivalent week.
 
@@ -1403,7 +1403,7 @@ After that single sprint, the entity is "alive" — and every Tier 2/3 sprint al
 - **Week 4** (after Sprint 1.9 + 2.0 + 2.0b): observability dashboards live, spec-driven verification operational. Question: is the verification gap measurably closed?
 - **Week 8** (after Sprint 2.1 + 2.2 + 2.3): multi-agent overnight burst running. Question: are we shipping ≥3 PRs/night reliably?
 - **Week 12** (after Sprint 3.0 + 3.1 + 3.2 + 3.3): self-evolution operational. Question: are agent-authored prompts/skills measurably better than hand-tuned?
-- **Week 20** (after Tier 3): client revenue + capability marketplace live. Question: is this distributable beyond Dave?
+- **Week 20** (after Tier 3): client revenue + capability marketplace live. Question: is this distributable beyond the operator?
 
 Miss a milestone? **Pause new sprints, do a retro, fix the ritual** before continuing.
 

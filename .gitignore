@@ -106,6 +106,9 @@ config/ship-ready-denylist.local.txt
 /scripts/sanitize-rules.*.json
 !/scripts/sanitize-rules.example.json
 /scripts/*-private.json
+# Regression-target list (real local project paths) — gitignored. Example
+# scaffold (regression-targets.example.json) ships; the .local.json doesn't.
+/scripts/regression-targets.local.json
 
 # Temp review artifacts (diff files, lock files from prior sessions)
 *.diff

@@ -4,7 +4,7 @@
 > exists only to anchor the discussion and define the entrance criteria.
 >
 > **Date:** 2026-05-07
-> **Author:** Dave Rajnoha (with Claude assistance)
+> **Author:** the maintainer (with Claude assistance)
 > **Pre-Steward gates:** Tier 4 ✓ (commits 2766fce, 7a067e1) — hook contract
 > tests · Tier 5 ✓ (commit a70bdd8) — prompt + SKILL.md regression. Both
 > are HARD GATES per the 8-tier QA architecture in [tests/README.md](../tests/README.md).
@@ -71,7 +71,7 @@ Hardcoded Steward refusals — non-negotiable:
 - Cost ceiling per project (Steward is metered — Claude API USD).
 - Self-improvement scope — can Steward edit cortex-x prompts? Standards?
   (Probably no for v0; opt-in flag for v1.)
-- Failure escalation — at what point does Steward ping Dave (Slack? Email?
+- Failure escalation — at what point does Steward ping the operator (Slack? Email?
   silent log?) vs. retry vs. give up?
 
 ## Pre-Steward verification checklist
@@ -119,7 +119,7 @@ Key decisions:
 - **Draft PR by default**, promote-to-ready on CI green +
   atomic-commit-contract verified. Humans always merge.
 - **v0 dogfood target:** cortex-x itself, weekly cron only, 3 weeks proven
-  before expanding to RELO / Kiosek / Chatbot Platform.
+  before expanding to a Next.js SaaS project / Kiosek / Chatbot Platform.
 
 Five of the original nine open questions are answered in the synthesis;
 the remaining four (default ping channel detail, hosting credential split,
@@ -127,7 +127,7 @@ multi-action-per-run, PR body templating) defer to first implementation PR.
 
 ## Next steps
 
-When Dave returns to this RFC:
+When the operator returns to this RFC:
 
 1. ~~Read this stub.~~ ✅
 2. ~~Decide topology (single-agent vs subagent).~~ ✅ single-agent
@@ -150,7 +150,7 @@ When Dave returns to this RFC:
      `@anthropic-ai/claude-agent-sdk` remains a possible alternative if
      OpenRouter ever stops being suitable.
 10. **v1 milestone:** wire cron / on-incident / on-PR-merged triggers; expand
-    from cortex-x dogfood to RELO + Kiosek.
+    from cortex-x dogfood to a Next.js SaaS project + Kiosek.
 
 Estimated remaining: 4-8h Claude Agent SDK integration (v0.5) + 4-8h
 trigger wiring (v1) across 2 sessions.

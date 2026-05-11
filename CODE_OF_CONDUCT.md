@@ -37,7 +37,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at REDACTED@redacted.invalid. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement via [GitHub Issues](https://github.com/Rejnyx/cortex-x/issues) (for non-sensitive matters) or via [GitHub's Private Vulnerability Reporting](https://github.com/Rejnyx/cortex-x/security/advisories/new) (for sensitive or confidential reports). All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

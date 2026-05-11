@@ -96,7 +96,7 @@ jobs:
             #  - .github/workflows — workflow files contain meta-mentions of patterns
             #  - sanitize-rules*.json — rules data contains literal find-patterns by design
             #  - ship-ready-denylist*.txt — pattern source files
-            found=$(grep -rEIn \
+            found=$(grep -rEIin \
               --exclude-dir=.git \
               --exclude-dir=node_modules \
               --exclude-dir=projects \
@@ -104,10 +104,12 @@ jobs:
               --exclude-dir=journal \
               --exclude-dir=research \
               --exclude-dir=workflows \
+              --exclude-dir=dogfood \
               --exclude=ship-ready-denylist.txt \
               --exclude=ship-ready-denylist.local.txt \
               --exclude=ship-ready-denylist.local.txt.example \
               --exclude='sanitize-rules*.json' \
+              --exclude='regression-targets.local.json' \
               -e "$pattern" "$SCAN_TARGET" || true)
             if [ -n "$found" ]; then
               echo "DENYLIST HIT for pattern: $pattern"

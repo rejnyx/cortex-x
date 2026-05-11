@@ -36,7 +36,7 @@ queries: [...]
 - `prompts/new-project.md` Phase 2 (after discovery, before proposal)
 
 **Manually on demand:**
-- Dave: "Research the current state of X" → spawn single-query agent
+- User: "Research the current state of X" → spawn single-query agent
 
 ## Cache invalidation
 
@@ -48,7 +48,7 @@ Research rots faster than institutional wisdom. Rules:
 ## Why cache
 
 Web research costs tokens + latency. Per-project cache:
-- Lets Dave re-read "what was found" when adding features 3 months later
+- Lets the operator re-read "what was found" when adding features 3 months later
 - Avoids re-querying for same project
 - Provides audit trail: "why did we pick X?" → point to research file
 

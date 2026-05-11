@@ -10,7 +10,7 @@
 //   <repoRoot>/projects/<slug>.md  (in-repo, committed alongside Steward PRs)
 //
 //   The file is the per-project entry in cortex-x's projects library
-//   (curated `## Wikipedia` of Dave's projects). The ledger appends a new
+//   (curated `## Wikipedia` of the operator's projects). The ledger appends a new
 //   line under a `## Steward activity log` section, creating the section
 //   if missing. The rest of the file (overview, stack, MVP, success signal)
 //   is human-curated and never touched.

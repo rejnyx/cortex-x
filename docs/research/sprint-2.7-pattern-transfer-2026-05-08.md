@@ -44,8 +44,8 @@ status: research-complete
   "version": 1,
   "siblings": [
     {
-      "id": "amd-hackathon",
-      "root": "${USERPROFILE}/Desktop/APPs/amd-hackathon-2026",
+      "id": "sibling-app",
+      "root": "${USERPROFILE}/dev/sibling-app",
       "read_only": true,
       "purpose": "pattern-transfer",
       "paths_allowed": ["src/", "docs/", "lessons-learned.jsonl"],
@@ -89,7 +89,7 @@ References: [OWASP Path Traversal 2026 update](https://owasp.org/www-community/a
 ```json
 {
   "kind": "pattern_recommendation",
-  "source_repo": "amd-hackathon",
+  "source_repo": "sibling-app",
   "source_files": ["src/agents/orchestrator.ts:42-78"],
   "pattern_name": "Bounded retry with exponential backoff on 429",
   "applicability": "current project's OpenRouter client at bin/steward/_lib/openrouter.cjs",
@@ -103,7 +103,7 @@ References: [OWASP Path Traversal 2026 update](https://owasp.org/www-community/a
 **Hard constraints in prompt:**
 
 - "`applies_to` MUST contain only paths inside the current project; any sibling-project paths in this field will cause a hard-halt rejection."
-- Wrap sibling content in `<untrusted_source repo="amd-hackathon">…</untrusted_source>` delimiters (per Sprint 1.6.20 backlog item — promoted to mandatory here).
+- Wrap sibling content in `<untrusted_source repo="sibling-app">…</untrusted_source>` delimiters (per Sprint 1.6.20 backlog item — promoted to mandatory here).
 
 ---
 

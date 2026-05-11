@@ -1,7 +1,7 @@
 # RFC — Auto-Orchestration Layer
 
 **Status:** Accepted · MVP implemented 2026-04-19
-**Owner:** Dave
+**Owner:** the operator
 **Standard:** [`standards/auto-orchestration.md`](../standards/auto-orchestration.md)
 
 ## Problem
@@ -132,7 +132,7 @@ Separate prompt invoked after implementation. Differs from `code-review.md` in:
 ## What's deferred (post-MVP)
 
 - **Hard pre-flight budget enforcement** — requires wrapper CLI, not just hooks
-- **Config YAML for trigger patterns** — MVP inlines in hook; YAML when Dave wants per-project overrides
+- **Config YAML for trigger patterns** — MVP inlines in hook; YAML when the operator wants per-project overrides
 - **Budget dashboard** — `cortex spend` command reading `.budget.jsonl` (out of scope for MVP)
 - **Skill-based invocation of auto-review** — currently paste-the-prompt; could become a Claude Code skill with `/auto-review` slash
 - **Test suite for budget.cjs** — `redact.test.cjs` pattern exists; add when a regression happens
@@ -152,7 +152,7 @@ Field-test on the next 2 queued projects:
 ## Open questions
 
 1. **Should `auto-orchestrate.cjs` write to `journal/` too**, or just read budget? Decision: read-only for now. Writes happen in `post-tool-use.cjs` (single writer = no race).
-2. **Should trigger patterns be configurable per project?** Yes eventually, inline for MVP. Add `config/auto-orchestrate.yaml` when Dave hits a false-positive he wants to silence project-side.
+2. **Should trigger patterns be configurable per project?** Yes eventually, inline for MVP. Add `config/auto-orchestrate.yaml` when the operator hits a false-positive he wants to silence project-side.
 3. **Model pricing drift?** Budget estimator uses a static table. Acceptable drift: ±20% for observability purposes. Refresh on every cortex-x major-tag.
 
 ## Rollback plan

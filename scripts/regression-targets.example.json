@@ -1,0 +1,18 @@
+[
+  {
+    "name": "example: Next.js SaaS",
+    "dir": "${HOME}/dev/example-nextjs-saas"
+  },
+  {
+    "name": "example: portfolio (Astro)",
+    "dir": "${HOME}/dev/example-portfolio"
+  },
+  {
+    "name": "example: CLI tool",
+    "dir": "${HOME}/dev/example-cli"
+  },
+  {
+    "name": "cortex-x itself (dogfood target)",
+    "dir": "${HOME}/cortex-x"
+  }
+]

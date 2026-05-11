@@ -1,22 +1,56 @@
 #!/usr/bin/env node
-// Comprehensive regression test — runs both detectors on all Dave's known projects.
+// Comprehensive regression test — runs both detectors against a maintainer-
+// configured list of real projects on disk.
+//
+// Target list is sourced from (in priority order):
+//   1. $CORTEX_REGRESSION_TARGETS  — JSON env var (CI / scripts)
+//   2. scripts/regression-targets.local.json  — gitignored, maintainer-owned
+//   3. scripts/regression-targets.example.json  — committed scaffold, edit yours
+//
+// Each target is { name: string, dir: string } where `dir` may contain
+// `${HOME}` (resolves to os.homedir()) for portability.
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { detect: detectProfile } = require(path.join(os.homedir(), '.claude', 'shared', 'detectors', 'detect-profile.cjs'));
 const { detect: detectStage } = require(path.join(os.homedir(), '.claude', 'shared', 'detectors', 'detect-stage.cjs'));
 
-const projects = [
-  ['RELO (back-office-bot)', path.join(os.homedir(), 'Desktop', 'APPs', 'back-office-bot')],
-  ['custom-chatbot', path.join(os.homedir(), 'Desktop', 'APPs', 'custom-chatbot')],
-  ['WaaS (hustle-masterbarbertemplate)', path.join(os.homedir(), 'Desktop', 'APPs', 'hustle-masterbarbertemplate')],
-  ['kiosek-main', path.join(os.homedir(), 'Desktop', 'APPs', 'kiosek-main')],
-  ['AMD ReplayAgent', path.join(os.homedir(), 'Desktop', 'APPs', 'amd-hackathon-2026')],
-  ['cortex-x itself', path.join(os.homedir(), 'Desktop', 'APPs', 'cortex-x')],
-  ['OrderMage admin-main', path.join(os.homedir(), 'Downloads', 'admin-main', 'admin-main')],
-];
+const SCRIPT_DIR = __dirname;
+const LOCAL_TARGETS = path.join(SCRIPT_DIR, 'regression-targets.local.json');
+const EXAMPLE_TARGETS = path.join(SCRIPT_DIR, 'regression-targets.example.json');
 
-for (const [name, dir] of projects) {
+function loadTargets() {
+  if (process.env.CORTEX_REGRESSION_TARGETS) {
+    try {
+      return JSON.parse(process.env.CORTEX_REGRESSION_TARGETS);
+    } catch (err) {
+      console.error(`ERROR: CORTEX_REGRESSION_TARGETS is not valid JSON: ${err.message}`);
+      process.exit(2);
+    }
+  }
+  const file = fs.existsSync(LOCAL_TARGETS) ? LOCAL_TARGETS : EXAMPLE_TARGETS;
+  if (!fs.existsSync(file)) {
+    console.error(`ERROR: no regression-targets config found.`);
+    console.error(`  Expected one of:`);
+    console.error(`    ${LOCAL_TARGETS} (gitignored, maintainer-owned)`);
+    console.error(`    ${EXAMPLE_TARGETS} (committed scaffold)`);
+    console.error(`  Or set $CORTEX_REGRESSION_TARGETS to a JSON array.`);
+    process.exit(2);
+  }
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function resolveDir(dir) {
+  return dir.replace(/\$\{HOME\}|\$HOME/g, os.homedir());
+}
+
+const targets = loadTargets();
+
+for (const t of targets) {
+  const name = t.name || t.dir;
+  const dir = resolveDir(t.dir);
   console.log(`\n=== ${name} ===`);
+  console.log(`  path:       ${dir}`);
   const pr = detectProfile(dir);
   const st = detectStage(dir);
   const top = pr.top;

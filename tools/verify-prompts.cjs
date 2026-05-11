@@ -14,7 +14,7 @@
 //   4. Internal markdown links [text](relative/path) resolve to existing files
 //   5. References to ~/.claude/shared/agents/<name>.md match actual agents/
 //   6. References to ~/.claude/shared/standards/<name>.md match actual standards/
-//   7. No PII / Dave-specific paths leak (/c/Users/david/, davidrajnoha@, ...)
+//   7. No PII / maintainer-specific paths leak (/c/Users/david/, davidrajnoha@, ...)
 //   8. No Czech-specific path placeholders that should be parameterized
 //   9. Anchors and on_complete sections match expected schemas
 //  10. Code-block fences are balanced
@@ -69,7 +69,7 @@ CHECKS
   4. Internal links resolve (paths relative to repo root)
   5. Agent references match agents/<name>.md
   6. Standards references match standards/<name>.md
-  7. No PII / Dave-specific paths
+  7. No PII / maintainer-specific paths
   8. Code-block fence balance
 `);
 }
@@ -230,7 +230,7 @@ class Validator {
       this.pass(`${rel}.standard-refs`, `${rel}: standards references all resolve`);
     }
 
-    // 7. PII / Dave-path leak
+    // 7. PII / the operator-path leak
     // Lines marked `<!-- denylist-example -->` are excluded from the scan
     // (see tools/lib/denylist-examples.cjs for the rationale).
     const mdForPii = stripDenylistExamples(md);
@@ -240,7 +240,7 @@ class Validator {
       if (matches) piiHits.push(matches[0]);
     }
     if (piiHits.length > 0) {
-      this.fail(`${rel}.pii`, 'blocker', `${rel}: PII / Dave-specific path leak: ${[...new Set(piiHits)].join(', ')}`);
+      this.fail(`${rel}.pii`, 'blocker', `${rel}: PII / maintainer-specific path leak: ${[...new Set(piiHits)].join(', ')}`);
     } else {
       this.pass(`${rel}.pii`, `${rel}: no PII leak detected`);
     }

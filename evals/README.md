@@ -19,7 +19,7 @@ version: 1.0
 ---
 
 ## Input
-<exact prompt Dave would paste>
+<exact prompt the operator would paste>
 
 ## Expected properties
 - Scaffolded directory contains: CLAUDE.md, PROGRESS.md, MEMORY.md, .claude/

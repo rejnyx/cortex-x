@@ -336,7 +336,7 @@ function collectSignals(cwd) {
   // Workspace-aware: if monorepo, aggregate deps from all sub-packages.
   // This is the fix for the 2026-04-20 field-test bug: Nx/Turbo/pnpm monorepos keep
   // runtime deps in apps/*/package.json, not root. Without this, detect-profile
-  // scored 0.00 on OrderMage and similar mature projects.
+  // scored 0.00 on an admin-platform client and similar mature projects.
   const { packages: wsPkgs, monorepoType } = findWorkspacePackages(cwd);
   if (wsPkgs.length > 0) {
     signals.monorepo = monorepoType;

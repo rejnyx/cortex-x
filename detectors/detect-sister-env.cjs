@@ -5,7 +5,7 @@
 // blocks. Surfaces flags present in ≥2 siblings but missing from target —
 // these are candidates for retrofit to add. Prevents the failure mode found
 // on portfolio retrofit (2026-04-21): CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-// was set in 3 of Dave's projects, missed on retrofit because detector only
+// was set in 3 of the operator's projects, missed on retrofit because detector only
 // looked at target project.
 //
 // Contract (per standards/auto-optimization.md):

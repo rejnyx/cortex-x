@@ -16,12 +16,12 @@
 //
 // Returns JSON:
 //   {
-//     "name": "David Rajnoha",
-//     "email": "REDACTED@redacted.invalid",
-//     "username": "david",
-//     "platform": "win32",
-//     "locale": "cs-CZ",
-//     "gh_login": "rejnyx" | null,
+//     "name": "Jane Developer",
+//     "email": "jane@example.com",
+//     "username": "jane",
+//     "platform": "linux",
+//     "locale": "en-US",
+//     "gh_login": "jane-dev" | null,
 //     "confirmed": false,
 //     "source_signals": {...}            // per-field provenance, for debug
 //   }

@@ -111,7 +111,7 @@ Z Q1 odvoď 2-3 kandidáty (lowercase, slova spojená pomlčkou, max 30 znaků, 
 - `vyber sám` / `default` / prázdná odpověď → vezmi candidate-1 a tiše pokračuj
 - nečitelný input → re-ask jednou; pak fallback candidate-1
 
-**Skryj formát.** Nepiš uživateli "slug", "kebab-case", "ASCII", "frontmatter". Tyhle pojmy patří do agent-internal reasoning, ne do conversation. *Field test 2026-05-06: Dave nepochopil otázku napsanou původně programátorsky a musel mě požádat ať vyberu sám.*
+**Skryj formát.** Nepiš uživateli "slug", "kebab-case", "ASCII", "frontmatter". Tyhle pojmy patří do agent-internal reasoning, ne do conversation. *Field test 2026-05-06: the operator nepochopil otázku napsanou původně programátorsky a musel mě požádat ať vyberu sám.*
 
 ### Phase 1 hand-off — save `cortex/discovery.md`
 
@@ -286,7 +286,7 @@ After the last research agent completes (and HEAD-verifier passes), print a one-
 Phase 2 done — 4 agents · ~Xk in/out tokens · ~$Y est. · cache: $CORTEX_DATA_HOME/research/<slug>-<date>.md
 ```
 
-Estimate using `$3/M input + $15/M output` (Sonnet rate, conservative). If `$CORTEX_BUDGET_DISABLED=1` is set in env, suppress the cost line entirely (Dave's Max-x20 case — flat subscription, cost is noise).
+Estimate using `$3/M input + $15/M output` (Sonnet rate, conservative). If `$CORTEX_BUDGET_DISABLED=1` is set in env, suppress the cost line entirely (the operator's Max-x20 case — flat subscription, cost is noise).
 
 ---
 
@@ -421,7 +421,7 @@ Templates reference two kinds of paths:
 2. `~/.claude/shared/cortex-source.yaml` (written by `install.sh`/`install.ps1`)
 3. The directory where this `new-project.md` currently lives (the `prompts/` sibling's parent)
 
-Bake the absolute resolved path into scaffolded output. If Dave later moves cortex-x source, the user re-runs `cortex-doctor` to detect and re-anchor.
+Bake the absolute resolved path into scaffolded output. If the operator later moves cortex-x source, the user re-runs `cortex-doctor` to detect and re-anchor.
 
 ### 4.1 Render scaffold
 
@@ -497,8 +497,8 @@ When the LLM produces personalized output it cross-references user profile secti
 
 | External topic mentions … | Cite from user profile … |
 |---|---|
-| <stack tech 1, e.g. TypeScript> | <relevant projects bullets, e.g. RELO + WaaS + Chatbot Platform> |
-| <stack tech 2, e.g. AI/agents> | <Anthropic SDK depth, cortex-x, RELO 27-tool architecture> |
+| <stack tech 1, e.g. TypeScript> | <relevant projects bullets, e.g. a Next.js SaaS project + WaaS + Chatbot Platform> |
+| <stack tech 2, e.g. AI/agents> | <Anthropic SDK depth, cortex-x, a Next.js SaaS project 27-tool architecture> |
 | <domain area, e.g. multi-tenant SaaS> | <relevant scale evidence, e.g. Chatbot Platform 5 adapters + 5669 testů> |
 | <design / UX> | <17 let grafiky, portfolio link> |
 | <autonomy / IC role> | <solo delivery + production live evidence> |

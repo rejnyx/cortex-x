@@ -128,7 +128,7 @@ Replace the `ACTION_KIND_NOT_DISPATCHABLE` stub in `bin/steward/execute.cjs` wit
 **Awaiting operator approval.** Proposed sequencing if green-lit:
 1. R2 review on this memo (security + correctness focus)
 2. Implementation: dry-run dispatch first → execute runner → spec-verifier hook → tests
-3. Manual smoke test against a real sibling (e.g. RELO repo)
+3. Manual smoke test against a real sibling (e.g. a Next.js SaaS project repo)
 4. R2 review pipeline (6 agents)
 5. Hardening pass
 6. Push + CI verify

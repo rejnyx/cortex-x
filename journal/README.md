@@ -62,6 +62,6 @@ Per-tool summary captures only high-signal metadata:
 
 - ❌ Log every keystroke (too noisy)
 - ❌ Log file contents (privacy + size)
-- ❌ Log Dave's prompts (privacy)
+- ❌ Log the operator's prompts (privacy)
 - ❌ Log LLM responses (cost + noise)
 - ❌ Infinite retention (prune aggressively)

@@ -9,8 +9,8 @@
 //     "version": 1,
 //     "siblings": [
 //       {
-//         "id": "amd-hackathon",                        // kebab-case slug
-//         "root": "${USERPROFILE}/Desktop/APPs/amd-hackathon-2026",
+//         "id": "sibling-app",                          // kebab-case slug
+//         "root": "${HOME}/dev/sibling-app",            // or ${USERPROFILE}/...
 //         "read_only": true,                            // v1: must be true
 //         "purpose": "pattern-transfer",
 //         "paths_allowed": ["src/", "docs/"],           // prefix list

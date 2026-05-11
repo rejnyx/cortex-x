@@ -1,21 +1,21 @@
-# Rejected Proposals — Learning Material
+# Rejected proposals — learning material
 
-> **Neshromažďuj zamítnuté návrhy do koše — shromažďuj je do archivu.** Rejected proposals jsou training data pro meta-review (vidíme co filter pustil vs neměl).
+> **Don't dump rejected proposals into a trash bin — collect them into an archive.** Rejected proposals are training data for meta-review (we see what the filter let through vs. what it shouldn't have).
 
-## Proč tento folder existuje
+## Why this folder exists
 
-Research (Anthropic constitutional AI): self-improvement bez retrospekce na failures → konverguje k "add more tests" genericitě. Držení rejected proposals se třemi důvody:
+Research (Anthropic constitutional AI): self-improvement without retrospection on failures converges to "add more tests" genericity. We keep rejected proposals for three reasons:
 
-1. **Audit trail** — proč jsme něco odmítli
-2. **Pattern learning** — když stejný typ návrhu přichází 10× a vždy se odmítne, je to bug v mining promptu
-3. **Meta-review input** — každých 30 insights cortex-thinker čte rejected/ aby tuning evidence gates
+1. **Audit trail** — why we rejected something
+2. **Pattern learning** — when the same kind of proposal arrives 10× and is always rejected, that's a bug in the mining prompt
+3. **Meta-review input** — every 30 insights, `cortex-thinker` reads `rejected/` to tune the evidence gates
 
-## Kdy se sem ukládá
+## When proposals land here
 
-- cortex-evolve Phase B.2 discards kandidáta (min_support/projects/citations fail)
-- cortex-evolve Phase B.3 LLM verdict = noise
-- Dave closes PR s reason
-- Proposal prošel 7d SLA bez review → auto-close
+- `cortex-evolve` Phase B.2 discards a candidate (min_support / projects / citations fail)
+- `cortex-evolve` Phase B.3 LLM verdict = noise
+- Operator closes PR with a reason
+- Proposal exceeds the 7-day SLA without review → auto-close
 
 ## Format
 
@@ -23,7 +23,7 @@ Research (Anthropic constitutional AI): self-improvement bez retrospekce na fail
 ---
 original_date: 2026-04-20
 rejected_date: 2026-04-20
-rejection_reason: min_support_fail | bonferroni_fail | no_citations | llm_noise | dave_dismissed | stale_sla
+rejection_reason: min_support_fail | bonferroni_fail | no_citations | llm_noise | operator_dismissed | stale_sla
 rejection_detail: "Only 2 events, threshold is 3"
 ---
 
@@ -35,7 +35,7 @@ rejection_detail: "Only 2 events, threshold is 3"
 
 ## Meta-review trigger
 
-Když folder má ≥10 rejected proposals, cortex-thinker čte je a píše `insights/META-rejections-<date>.md`:
+When this folder holds ≥10 rejected proposals, `cortex-thinker` reads them and writes `insights/META-rejections-<date>.md`:
 - Top 3 rejection reasons
-- Patterns v tom co se odmítá (často = bug v mining promptu)
+- Patterns in what gets rejected (often a bug in the mining prompt)
 - Suggested tuning for `config/evolve.yaml`

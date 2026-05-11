@@ -35,7 +35,7 @@ Confirm `y` at proposal stage.
 
 ### Must NOT have
 - [ ] No generic placeholders like "TODO: add description" or "your project name"
-- [ ] No references to "Dave" or "RELO" hardcoded in template outputs
+- [ ] No references to "maintainer" or "a Next.js SaaS project" hardcoded in template outputs
 - [ ] No absolute paths (should use `~/` or relative)
 
 ### Should have

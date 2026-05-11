@@ -2,7 +2,7 @@
 
 > **Status:** Pre-implementation design (v0). Implementation 2-3 sessions ahead.
 >
-> **Date:** 2026-05-07 · **Author:** Dave Rajnoha (with Claude assistance) · **Reviewers:** TBD before first Steward code merge.
+> **Date:** 2026-05-07 · **Author:** the maintainer (with Claude assistance) · **Reviewers:** TBD before first Steward code merge.
 >
 > **Companions:**
 > - [`docs/steward-rfc.md`](./steward-rfc.md) — motivation + open questions
@@ -16,9 +16,9 @@ Single-project, single-trigger, single-action-per-run. Everything beyond is **v1
 | Concern | v0 | v1+ |
 |---|---|---|
 | Trigger sources | cron only | + on-incident, + on-PR-merged, + manual CLI |
-| Target projects | cortex-x itself (dogfood) | RELO, Kiosek, Chatbot Platform, WaaS, Portfolio |
+| Target projects | cortex-x itself (dogfood) | a Next.js SaaS project, Kiosek, Chatbot Platform, WaaS, Portfolio |
 | Subagent escape hatch | none | opt-in read-only `investigate` |
-| Cross-project pattern transfer | none | RELO pattern → propose in Chatbot Platform |
+| Cross-project pattern transfer | none | a Next.js SaaS project pattern → propose in Chatbot Platform |
 | `auto_improves:` PR pipeline (full self-improvement loop) | partial — runs `cortex-evolve` mining + drafts proposal PR | full multi-cadence pipeline |
 | Conflict-on-pull resolution | halt + ping | opt-in side-branch LLM-drafted resolution |
 
@@ -89,7 +89,7 @@ async function runStewardIteration(opts: StewardRunOpts): Promise<StewardRunResu
 
 #### v0a — Local crontab (cortex-x dogfood only)
 
-Installed during `cortex init` on Dave's machine, for the cortex-x self-dogfood phase:
+Installed during `cortex init` on the operator's machine, for the cortex-x self-dogfood phase:
 
 ```cron
 # ~/.cortex/cron.d/hermes-cortex-x
@@ -98,11 +98,11 @@ Installed during `cortex init` on Dave's machine, for the cortex-x self-dogfood 
 
 Sunday 04:00 UTC matches `config/evolve.yaml` `cadence.weekly.cron` so Steward mining stays aligned with the manual cadence.
 
-**Constraints:** local-only, requires Dave's machine to be on, no isolation, no audit trail beyond `~/.cortex/journal/`. Acceptable for cortex-x dogfood (3-week proving window per `docs/steward-research-synthesis.md` v0 assumption #4) but **not for production projects**.
+**Constraints:** local-only, requires the operator's machine to be on, no isolation, no audit trail beyond `~/.cortex/journal/`. Acceptable for cortex-x dogfood (3-week proving window per `docs/steward-research-synthesis.md` v0 assumption #4) but **not for production projects**.
 
 #### v0b — GitHub Actions cron (production projects, default after dogfood)
 
-For RELO / Kiosek / Chatbot Platform / WaaS and any Steward-enabled project beyond cortex-x:
+For a Next.js SaaS project / Kiosek / Chatbot Platform / WaaS and any Steward-enabled project beyond cortex-x:
 
 ```yaml
 # .github/workflows/steward.yml
@@ -155,7 +155,7 @@ jobs:
 - **on-PR-merged** — GHA `pull_request` event with `types: [closed]` filter + `merged == true` check
 - **manual** — `cortex hermes run --action <id> [--dry-run]` CLI subcommand for local development; GHA `workflow_dispatch` for triggered-by-human runs in production
 
-A reference workflow template lives at [`.github/workflows/steward.example.yml`](../.github/workflows/steward.example.yml) — disabled (renamed to `.example.yml`) pending Dave's first dogfood window with real cron triggers. Copy + rename to `hermes.yml` + add `OPENROUTER_API_KEY` secret to enable. v0.5b LLM seam shipped Sprint 1.6.13.
+A reference workflow template lives at [`.github/workflows/steward.example.yml`](../.github/workflows/steward.example.yml) — disabled (renamed to `.example.yml`) pending the operator's first dogfood window with real cron triggers. Copy + rename to `hermes.yml` + add `OPENROUTER_API_KEY` secret to enable. v0.5b LLM seam shipped Sprint 1.6.13.
 
 ### 1.3 Memory model
 
@@ -504,4 +504,4 @@ The mock engine is sync today. OpenRouter requires `await fetch(...)`. So
 
 ---
 
-*Drafted 2026-05-07 alongside [`standards/steward-policy.md`](../standards/steward-policy.md) and [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md). Reviewed by Dave Rajnoha before first Steward runtime PR.*
+*Drafted 2026-05-07 alongside [`standards/steward-policy.md`](../standards/steward-policy.md) and [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md). Reviewed by the maintainer before first Steward runtime PR.*

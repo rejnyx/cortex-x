@@ -246,7 +246,7 @@ ONLY after explicit user approval. Apply each item one at a time, show diff, ask
 - `PROGRESS.md` / `MEMORY.md` — create at root if missing, never overwrite.
 - Any cortex-x agents the project uses go to `.claude/agents/` (additive; dedup by filename).
 
-**Option 3 (rich existing AI context — OrderMage-class):**
+**Option 3 (rich existing AI context — an admin-platform client-class):**
 - `CLAUDE.md` — **DO NOT TOUCH** existing `.claude/CLAUDE.md`. Create `.claude/cortex-x/CLAUDE.md` instead with cortex-x-specific context. Add a 1-line reference in project-root `AGENTS.md` under appended section (see 3.4).
 - `PROGRESS.md` / `MEMORY.md` — create at root if missing (these are cortex-x-owned, distinct from framework-specific agent docs).
 - All cortex-x agents go to `.claude/cortex-x/agents/` — never mix with existing `.claude/agents/*` that belong to another framework.
@@ -406,7 +406,7 @@ Next step: `~/.claude/shared/prompts/project-scan.md` to register this project i
 
 ## When to use
 
-- **Client project you didn't bootstrap with cortex-x** — RELO, custom-chatbot, Amici/Objednáme, Kiosek (legacy branches), WaaS
+- **Client project you didn't bootstrap with cortex-x** — a Next.js SaaS project, custom-chatbot, an e-commerce chatbot client/a booking-platform client, Kiosek (legacy branches), WaaS
 - **Your own old project** that predates cortex-x discipline
 - **Project a teammate made** that you're now maintaining
 - **Pre-refactor** — run retrofit first, then do the refactor under cortex-x governance

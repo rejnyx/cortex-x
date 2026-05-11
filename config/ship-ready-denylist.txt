@@ -26,3 +26,9 @@ C:\\Users\\[^\\]+\\Documents\\APPs
 
 # Temp review artifacts (should never ship regardless of .gitignore)
 \.tmp-review
+
+# Personal email leak surface — any committed mailto-style email is suspect.
+# Workflow runs grep -i so case variants are caught. Use placeholders like
+# jane@example.com in docs/JSDoc; route real contact through GitHub Issues
+# or GitHub Private Vulnerability Reporting.
+[a-zA-Z0-9_.+-]+@(gmail|googlemail|outlook|hotmail|protonmail|icloud|yahoo|live|me|fastmail)\.com

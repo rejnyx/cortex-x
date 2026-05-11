@@ -258,4 +258,4 @@ explicit operator escape hatch (logged via `steward.routing.source = "cli"`).
 
 ---
 
-*Drafted 2026-05-07 alongside [`docs/steward-research-synthesis.md`](../docs/steward-research-synthesis.md). Aligned with the seven MUST agentic-security patterns in [`standards/security.md`](./security.md). Reviewed by Dave Rajnoha before first Steward runtime code merges.*
+*Drafted 2026-05-07 alongside [`docs/steward-research-synthesis.md`](../docs/steward-research-synthesis.md). Aligned with the seven MUST agentic-security patterns in [`standards/security.md`](./security.md). Reviewed by the maintainer before first Steward runtime code merges.*

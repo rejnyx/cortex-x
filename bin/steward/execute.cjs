@@ -1724,7 +1724,7 @@ async function _runExecuteInner(opts, ctx) {
   // HEAD) and execute proceeds, the rollback paths skip branch-checkout and
   // user is left on `plan.branch` with edits applied but not on original
   // ref. Refuse early so cron drivers see clean BAD_HEAD_STATE + retry next
-  // run after Dave fixes the working state.
+  // run after the operator fixes the working state.
   const currentBranch = gitOps.getCurrentBranch(repoRoot);
   if (!currentBranch || currentBranch === 'HEAD') {
     safeJournal(slug, {

@@ -40,7 +40,7 @@ cortex-x runs on **two AI surfaces** that share the same project memory.
 
 **Claude Code (interactive).** Your IDE-side AI partner — drives feature work, code review, refactors. Reads cortex-x hooks · skills · agents · standards from `~/.claude/`. Use it dev-time.
 
-**Steward (autonomous nightly).** Your AI nightly autopilot. Drop a `cortex/recommendations.md` in your repo. Steward reads it overnight, runs the LLM (~$0.0008/run), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject. (Steward shipped under the codename **Hermes** through Sprint 1.9.1; renamed in Sprint 4.7 to clear the 139k-star NousResearch/hermes-agent collision before public launch.)
+**Steward (autonomous nightly).** AI nightly autopilot — designed. Drop a `cortex/recommendations.md` in your repo. Steward reads it overnight, runs the LLM (~$0.0008/run via OpenRouter, or $0 marginal via Anthropic Max sub on `claude-cli` engine), applies edits, gates on `npm test`, opens a draft PR. You wake up, review the diff, merge or reject. **Today, Steward runs as manual dogfood on cortex-x itself; v1 cron wiring (`OPENROUTER_API_KEY` repo secret + workflow enablement) is pending — see Status section.** (Steward shipped under the codename **Hermes** through Sprint 1.9.1; renamed in Sprint 4.7 to clear the 139k-star NousResearch/hermes-agent collision before public launch.)
 
 > **Safety primitives baked in.** Every Steward run: ① always opens **draft PR**, never pushes to main · ② **halt switch** `touch ~/.cortex/STEWARD_HALT` stops it immediately · ③ **$5/day spend cap** + 3-failure-per-action circuit breaker · ④ atomic rollback on any phase failure.
 
@@ -99,11 +99,11 @@ cortex-x/
 └── install.sh        One-command install to ~/.claude/
 ```
 
-> **XDG separation (Sprint 1.6, 2026-04).** The repo holds **framework code only**. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`). The empty-looking `projects/` in the repo is intentional: it documents the contract; data is per-machine. See [docs/SSOT-architecture.md](./docs/SSOT-architecture.md) if it exists, or `cortex-source.yaml` after install.
+> **XDG separation (Sprint 1.6, 2026-04).** The repo holds **framework code only**. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`). The empty-looking `projects/` in the repo is intentional: it documents the contract; data is per-machine.
 
 ## Installation
 
-### Public install (after v0.1.0 — when this repo is public)
+> **Status: pre-alpha, public preview.** The repo is public. The framework code, install pipeline, and ~2200 tests are real. Steward (the autonomous nightly runtime) currently runs as **manual dogfood on this repo only** — nightly cron auto-deployment to your own projects is **v1 (not yet wired)**. Read the Status section below before relying on Steward in production.
 
 **Linux / macOS / WSL / Git Bash:**
 
@@ -119,33 +119,8 @@ iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex
 
 The installer self-clones to `~/cortex-x` (override with `CORTEX_HOME=...`),
 copies framework assets to `~/.claude/shared/`, prints the final PATH-add
-line for your shell.
-
-### Closed-beta install (current — repo is private)
-
-Public `raw.githubusercontent.com` URLs return 404 for private repos. Beta
-testers should use either of these:
-
-**Option 1 — `gh` CLI (recommended; you're probably already authed):**
-
-```bash
-gh repo clone Rejnyx/cortex-x ~/cortex-x
-~/cortex-x/install.sh        # or ~/cortex-x/install.ps1 on Windows
-```
-
-The installer's stream-detection block also tries `gh repo clone` and
-`GITHUB_TOKEN`-authenticated HTTPS as fallbacks if anonymous clone 404s,
-so the curl|bash one-liner *does* work for closed-beta testers who have
-`gh` authenticated — but starting from a manual `gh repo clone` is simpler.
-
-**Option 2 — `GITHUB_TOKEN` env var:**
-
-```bash
-export GITHUB_TOKEN=ghp_yourtoken
-curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash
-```
-
-(Token needs `repo` read scope on `Rejnyx/cortex-x`.)
+line for your shell. Run with `--dry-run` (when added) or read the script
+before executing if you want to see what it touches.
 
 ### Profile selection at install time (Sprint 2.10.2)
 
@@ -339,6 +314,8 @@ Every scaffolded project picks ONE profile that defines its stack + conventions:
 | **astro-static** | Portfolio, blog, docs (zero-JS) | personal portfolio, changelog site |
 | **cli-tool** | Node.js CLI published to npm | dev tooling, scripts-as-a-CLI |
 | **kiosek** | Restaurant / retail touch kiosk PWA | self-service ordering screen |
+| **browser-agent** | Browser-automation agent (Playwright / browser-use) | scraping + form-filling agent |
+| **qa-engineer** | QA-tester-oriented project setup | repo-audit + test-strategy generation |
 | **minimal** | Quick prototype, no ceremony | experiments, spikes |
 
 Pick via `cortex init` → interactive selector → scaffolds everything.
@@ -388,8 +365,8 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 - ✅ **First real OpenRouter call validated end-to-end** (Sprint 1.6.13 dogfood): LLM → JSON → edits → test gate → atomic rollback proven safe by reality.
 - ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `STEWARD_MAX_TOKENS` (legacy `STEWARD_MAX_TOKENS` honored), cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
 - ✅ **489 tests** across `tests/unit/steward/` + `tests/integration/steward-dryrun.test.cjs`. All 3 CI workflows green.
-- ⏳ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`STEWARD_DAILY_USD_CAP`) + consecutive-failure circuit breaker.
-- ⏳ **v1:** uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → RELO + Kiosek.
+- ✅ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`STEWARD_DAILY_USD_CAP`) + consecutive-failure circuit breaker — all shipped.
+- ⏳ **v1 enablement (your repo):** the workflow files in `.github/workflows/steward-*.yml` exist as templates. Set `OPENROUTER_API_KEY` (or Anthropic Max sub via `claude-cli` engine) + the appropriate per-workflow secrets, then enable the workflows on your fork. Manual `cortex-steward dry-run` works today without cron.
 - ⏳ **v1.5+ hardening:** hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, `<untrusted>` delimiters, denylist expansion, eval suite + property tests + stateful simulation.
 
 See [docs/steward-rfc.md](./docs/steward-rfc.md), [docs/steward-runtime.md](./docs/steward-runtime.md), [standards/steward-policy.md](./standards/steward-policy.md).

@@ -46,7 +46,7 @@ The nine open questions on [`docs/steward-rfc.md`](./steward-rfc.md):
    → Mutex-by-project-slug. P0 incident may set `interrupt-at-checkpoint` flag; running session journals state and yields after current tool-call atom, never killed mid-flight. Modeled on Temporal mutex workflows.
 
 3. **Cost ceiling per project?**
-   → $3 soft / $5 hard daily per project; $10 / $15 daily fleet-wide. **v0 caveat:** Steward runs on Dave's MAX subscription (CORTEX_BUDGET_DISABLED=1 already in env per memory) — these are loop-prevention guards, not bill-bomb protection. If Steward ever moves to API key, ceilings become hard-meaningful.
+   → $3 soft / $5 hard daily per project; $10 / $15 daily fleet-wide. **v0 caveat:** Steward runs on the operator's MAX subscription (CORTEX_BUDGET_DISABLED=1 already in env per memory) — these are loop-prevention guards, not bill-bomb protection. If Steward ever moves to API key, ceilings become hard-meaningful.
 
 4. **Self-improvement scope — can Steward edit cortex-x prompts? Standards?**
    → No. `config/evolve.yaml` already encodes `human_only:` for standards/, prompts/, profiles/, agents/, module.yaml, CLAUDE.md, README.md. Steward inherits this list as its denylist. v1+ opt-in flag deferred until v0 proves stable in cortex-x dogfood.
@@ -65,7 +65,7 @@ The nine open questions on [`docs/steward-rfc.md`](./steward-rfc.md):
    → Slack DM with email fallback after 10 min (ESCALATE.md spec defaults). Silent log = T0 only.
 
 8. **First v0 target — which project gets Steward first?**
-   → cortex-x itself (eat-your-own-dogfood). Single use case: weekly `cortex-evolve` mining → 0-3 PR proposals to `insights/proposals/`. 3 weeks proven, then expand to RELO + Kiosek.
+   → cortex-x itself (eat-your-own-dogfood). Single use case: weekly `cortex-evolve` mining → 0-3 PR proposals to `insights/proposals/`. 3 weeks proven, then expand to a Next.js SaaS project + Kiosek.
 
 9. **What counts as "Steward shipped" (v0 MVP)?**
    → Steward runs cron-triggered on cortex-x once per week, opens at most 1 draft PR with at most 3 mining proposals, journals the run, halts cleanly. No incident triage, no on-PR-merged, no manual-trigger CLI for v0.
@@ -112,7 +112,7 @@ To prevent scope creep, the v0 spec defers:
 - **On-incident triage** (Sentry/PagerDuty webhook → Steward pulls trace → drafts fix PR). Requires a webhook receiver, signature validation, and incident-context loading. Defer to v1.
 - **On-PR-merged consolidation** (after merge, run regression suite, journal outcome). Requires GitHub webhook receiver. Defer to v1.
 - **Manual CLI trigger** (`cortex hermes run --action <id>`). Requires bin/ wiring. Defer to v1.
-- **Cross-project pattern transfer** (RELO bug-fix pattern → propose in Chatbot Platform). Requires multi-project context; v0 is single-project.
+- **Cross-project pattern transfer** (a Next.js SaaS project bug-fix pattern → propose in Chatbot Platform). Requires multi-project context; v0 is single-project.
 - **Investigate subagent** activation. v0 stays purely main-loop; subagent escape hatch added in v1 when the first concrete need surfaces.
 - **`config/evolve.yaml` `auto_improves:` propose_diff PR pipeline.** v0 just reads recommendations.md and runs one mining pass; PR drafting is the deliverable, not the auto-merge contract.
 
@@ -149,4 +149,4 @@ What is **not** reversible: starting multi-agent first. Multi-writer commits and
 
 ---
 
-*Drafted 2026-05-07 by cortex-x assistant pre-Steward design pass. Reviewed by Dave Rajnoha. Each pivot grounded in at least 2 cited precedents from the three research briefs.*
+*Drafted 2026-05-07 by cortex-x assistant pre-Steward design pass. Reviewed by the maintainer. Each pivot grounded in at least 2 cited precedents from the three research briefs.*

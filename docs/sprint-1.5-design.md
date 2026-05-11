@@ -1,10 +1,10 @@
 # Sprint 1.5 — Onboarding upgrade + retrofit audit + auto-bootstrap + auto-research
 
 > **Status:** ✅ Implemented (commit `c66b1ec`, 2026-05-06). Stamped 2026-05-09 during pre-Sprint-2.0 audit cleanup.
-> **Owner:** David Rajnoha (Rejnyx)
+> **Owner:** cortex-x maintainer (Rejnyx)
 > **Note:** This document is preserved as historical design context referenced from `shared/skills/*/SKILL.md`, `shared/hooks/session-start.cjs`, `prompts/cortex-doctor.md`, and `agents/synthesizer.md`. Current runtime behaviour is the source of truth; treat the sections below as "what we planned" — differences from the shipped code are intentional refinements made during implementation.
 > **Branch this lives on:** `main`
-> **Source-of-truth for blockers:** [`MIGRATIONS.md`](../MIGRATIONS.md) + [`docs/public-launch-plan.md`](./public-launch-plan.md) §4 Sprint 1
+> **Source-of-truth for blockers:** [`MIGRATIONS.md`](../MIGRATIONS.md) (launch plan now tracked under gitignored `docs/dogfood/`)
 
 This doc captures the **architecture** for Sprint 1.5 — the gap between "Sprint 1 ships a public-installable v0.1.0" and "cortex-x is a category-defining onboarding/retrofit framework." Sprint 1.5 is what the maintainer means by **"fakt origo"**.
 
@@ -322,12 +322,12 @@ standards/security.md, testing.md, observability.md, correctness.md  ← Rule 2,
 | M1 | Install-mode question + Claude-CLI auto-launch | 3 | — | manual on Win/Mac/Linux |
 | M2 | `prompts/new-project.md` 5-phase restructure with `_cortex/proposal.md` review gate | 6 | — | eval-001 re-run, baseline delta |
 | M3 | `detectors/repo-map.cjs` (tree-sitter + PageRank) | 8 | — | dogfood on cortex-x repo itself |
-| M4 | `detectors/hotspots.cjs` (churn × complexity) | 4 | — | dogfood on RELO repo |
-| M5 | `prompts/existing-project-audit.md` (P0–P5, ADR backfill optional) | 8 | M3, M4 | dogfood on portfolio + RELO |
+| M4 | `detectors/hotspots.cjs` (churn × complexity) | 4 | — | dogfood on a Next.js SaaS project repo |
+| M5 | `prompts/existing-project-audit.md` (P0–P5, ADR backfill optional) | 8 | M3, M4 | dogfood on portfolio + a Next.js SaaS project |
 | M6 | `agents/planner.md` + `agents/synthesizer.md` (auto-research engine) | 8 | M2 | unit test against frozen `nextjs-saas` topic_matrix |
 | M7 | `shared/hooks/post-scaffold.cjs` async trigger | 4 | M6 | end-to-end: install → scaffold → auto-research → CLAUDE.md patched |
 | M8 | `cortex-doctor` three-hop citation drift check | 2 | M7 | unit test |
-| M9 | Field-test on real project (RELO retrofit + new portfolio scaffold) | 6 | M1–M8 | written field-test report |
+| M9 | Field-test on real project (a Next.js SaaS project retrofit + new portfolio scaffold) | 6 | M1–M8 | written field-test report |
 
 **Critical path:** M1 ‖ (M3 → M5) ‖ (M2 → M6 → M7 → M8) → M9.
 

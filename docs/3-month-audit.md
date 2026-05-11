@@ -13,7 +13,7 @@ For each file/directory below: **was it read, edited, or referenced in the past 
 - ✅ **Yes, 2+ times** → keep
 - 🤔 **Yes, exactly once** → keep but mark for 6-month review
 - ❌ **Never touched** → DELETE
-- 📌 **Touched but by Claude, not by Dave** → review if it added real value
+- 📌 **Touched but by Claude, not by the operator** → review if it added real value
 
 ## Audit checklist
 
@@ -57,7 +57,7 @@ For each file/directory below: **was it read, edited, or referenced in the past 
 ### Agents (1 file)
 - [ ] `agents/cortex-thinker.md` — invoked how many times? surfaced how many actionable insights?
 
-**Keep criterion:** at least 3 insights Dave acted on. Otherwise = AI setup porn, delete.
+**Keep criterion:** at least 3 insights the operator acted on. Otherwise = AI setup porn, delete.
 
 ### Insights + Journal (2 directories)
 - [ ] `insights/` — how many entries? Which acted on vs dismissed?
@@ -81,7 +81,7 @@ For each file/directory below: **was it read, edited, or referenced in the past 
 
 ## Decision rules
 
-1. **If used ≥2x by Dave → keep**
+1. **If used ≥2x by the operator → keep**
 2. **If used 1x → keep, re-audit at 6 months**
 3. **If never used → delete**
 4. **If only Claude used it → check if it added value. If not, delete.**

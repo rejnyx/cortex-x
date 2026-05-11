@@ -54,7 +54,7 @@ Until this exists, manual execution is the contract.
   "commit": "<sha>",
   "type": "paper-baseline" | "real-execution" | "automated",
   "model": "claude-opus-4-7" | "claude-sonnet-4-6" | etc.,
-  "evaluator": "Dave" | "Claude (paper-baseline mode)" | "automated-runner",
+  "evaluator": "maintainer" | "Claude (paper-baseline mode)" | "automated-runner",
   "tasks": {
     "eval-001": {
       "score": 0.0,

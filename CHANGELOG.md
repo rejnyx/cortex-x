@@ -606,11 +606,11 @@ Pre-rebrand commit history (`Hermes-*` trailers, `actor: 'hermes'` journal entri
 - Note: there is no `PostScaffold` event in Claude Code — Phase 5 dispatch happens in-prompt; recovery if the session is interrupted is handled by the existing `SessionStart` hook reading `cortex/.adapt-pending`.
 
 ### Added (2026-05-06 — Sprint 1 install-readiness checkpoint)
-- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1 (canonical text via curl, contact `REDACTED@redacted.invalid`)
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1 (canonical text; CoC contact via GitHub Issues / Private Vulnerability Reporting per Sprint LR.A 2026-05-11 PII strip)
 - `.github/workflows/no-pii.yml` — CI gate that runs `scripts/sync-to-public.mjs` + `validate-no-pii.mjs` + ship-ready denylist scan on every PR/push to `main`
 - `scripts/fix-d4-paths.mjs` — one-shot rewriter that resolved D-4 (path convention `~/.claude/shared/` for installed assets, `$CORTEX_HOME` for live source)
 - `scripts/sync-to-public.mjs` + `scripts/validate-no-pii.mjs` — public-snapshot tooling (sanitize-rules-driven find/replace + blacklist scan; rules data itself stays gitignored per `scripts/sanitize-rules.json`)
-- `module.yaml` — separated `cortex_root` (live source, default `~/cortex-x`) from `cortex_assets_root` (installed, default `~/.claude/shared`); removed Dave's local `~/Desktop/APPs/` default
+- `module.yaml` — separated `cortex_root` (live source, default `~/cortex-x`) from `cortex_assets_root` (installed, default `~/.claude/shared`); removed maintainer-local `~/Desktop/APPs/` default
 
 ### Changed (2026-05-06)
 - D-4 RESOLVED — 14 source files (README, prompts/*, evals/*, projects/README.md, config/evolve.yaml) rewritten from `~/cortex-x/<subdir>/` to either `~/.claude/shared/<subdir>/` (installed) or `$CORTEX_HOME/<subdir>/` (live); see MIGRATIONS.md §D-4

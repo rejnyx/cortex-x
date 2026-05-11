@@ -64,7 +64,7 @@ Paste `~/.claude/shared/prompts/retrospective.md`. Respond to Q1-Q4:
 
 - **Did Q4 (transferable check) get asked?** Expected: YES. Without it, the cortex-x unique value is gone.
 - **Did Claude tag insights with [TRANSFERABLE] explicitly?** Expected: YES.
-- **Did the mock-test lesson get classified as project-specific instead of transferable?** Expected: NO. That pattern recurs across all DB-backed projects (RELO, chatbot-platform, WaaS) — must be transferable.
+- **Did the mock-test lesson get classified as project-specific instead of transferable?** Expected: NO. That pattern recurs across all DB-backed projects (a Next.js SaaS project, chatbot-platform, WaaS) — must be transferable.
 - **Did Claude produce a long-form essay style retrospective?** Expected: NO. Structured, scannable.
 - **Did Claude survivorship-bias toward positives only?** Expected: NO. The mock-test failure is the most valuable single insight.
 

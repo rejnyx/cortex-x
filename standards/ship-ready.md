@@ -26,7 +26,7 @@ Anything a stranger would never need to know about the maintainer must not live 
 
 ### 3. Stranger can reproduce the install
 - `README.md` onboarding tested fresh: unfamiliar user gets from clone → working hook in ≤10 minutes
-- `install.sh` + `install.ps1` make no Dave-specific assumptions (tested on macOS + Ubuntu in addition to Dave's Windows)
+- `install.sh` + `install.ps1` make no maintainer-specific assumptions (tested on macOS + Ubuntu in addition to the operator's Windows)
 - `CORTEX_HOME` env var honored for side-by-side installs
 - `CONTRIBUTING.md` states the beta posture (currently closed, how to reach maintainer)
 - `SECURITY.md` states disclosure contact
@@ -37,7 +37,7 @@ Anything a stranger would never need to know about the maintainer must not live 
 
 **Single repo. Two channels. Promote by tagging.**
 
-Grounded in beta-distribution research (cached at `$CORTEX_DATA_HOME/research/beta-distribution-2026-04-17.md` per Sprint 1.6 XDG separation; framework code stays in repo, user research caches don't) — Claude Code's `autoUpdatesChannel: latest|stable` model + GitHub native `--prerelease` flag. BMAD's dual-npm-channel is overkill at Dave's scale; Aider's single-stream too coarse once breaking changes ship.
+Grounded in beta-distribution research (cached at `$CORTEX_DATA_HOME/research/beta-distribution-2026-04-17.md` per Sprint 1.6 XDG separation; framework code stays in repo, user research caches don't) — Claude Code's `autoUpdatesChannel: latest|stable` model + GitHub native `--prerelease` flag. BMAD's dual-npm-channel is overkill at the operator's scale; Aider's single-stream too coarse once breaking changes ship.
 
 | Channel | Branch / Tag | Purpose | Audience |
 |---|---|---|---|
@@ -52,7 +52,7 @@ CORTEX_CHANNEL=stable ./install.sh   # checks out highest non-prerelease tag (de
 ```
 
 **Update flow:**
-- `beta`: `git fetch origin && git reset --hard origin/main` (Dave's control plane for beta iteration)
+- `beta`: `git fetch origin && git reset --hard origin/main` (the operator's control plane for beta iteration)
 - `stable`: `git fetch --tags && git checkout $(git tag -l "v*" --sort=-v:refname | grep -v beta | head -1)`
 
 **Version scheme:**
@@ -149,11 +149,11 @@ Weekly mining surfaces ship-ready regressions as priority insights. A new commit
 
 ## What ship-ready is NOT
 
-- ❌ **Open source by default.** Ship-ready = distributable, not OSS. PolyForm Noncommercial is source-available. Dave can relicense to MIT later if scope changes.
-- ❌ **Multi-tenant architecture.** Beta testers run local, own their data, never share with Dave's install. No SaaS machinery required at v0.
+- ❌ **Open source by default.** Ship-ready = distributable, not OSS. PolyForm Noncommercial is source-available. the operator can relicense to MIT later if scope changes.
+- ❌ **Multi-tenant architecture.** Beta testers run local, own their data, never share with the operator's install. No SaaS machinery required at v0.
 - ❌ **Full CI/CD from day 1.** One `install.sh`, one grep gate, semver tags. Automation arrives when manual work bites.
 - ❌ **`cortex` CLI binary mandatory.** Paste-prompt UX works for v0. CLI is v0.2+ quality-of-life.
-- ❌ **i18n.** UI is Czech in Dave's own install per his preference; shipped docs/prompts in English is the baseline.
+- ❌ **i18n.** UI is Czech in the operator's own install per his preference; shipped docs/prompts in English is the baseline.
 
 ---
 

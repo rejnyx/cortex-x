@@ -247,7 +247,7 @@ try {
 }
 
 // Auto-orchestration: surface recent session budget if .budget.jsonl exists.
-// Helps Dave see at a glance whether yesterday's session was expensive and adjust
+// Helps the operator see at a glance whether yesterday's session was expensive and adjust
 // today's agent-spawning caution accordingly. Skipped on flat-subscription
 // installs (CORTEX_BUDGET_DISABLED=1) where token-cost warnings are noise.
 if (process.env.CORTEX_BUDGET_DISABLED !== '1') {

@@ -315,7 +315,7 @@ The two validators check:
 - References to `~/.claude/shared/agents/<name>.md` correspond to actual `agents/<name>.md`
 - References to `standards/<name>.md` correspond to actual files
 - Code-block fences balanced (catches half-truncated edits)
-- No PII / Dave-specific paths (denylist regex)
+- No PII / maintainer-specific paths (denylist regex)
 
 **verify-skills** (`tools/verify-skills.cjs`) — agentskills.io v1 spec compliance:
 - `name:` field kebab-case + matches parent dir name (spec hard requirement)

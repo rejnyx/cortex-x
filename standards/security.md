@@ -315,7 +315,7 @@ Any agent that executes LLM-authored code runs it with:
 
 ### Nice-to-have (team/org scale, not solo MUST)
 
-- **Dual-model injection screening** — small guardrail model (Llama Guard 3/4, Prompt Guard) scans input before the main model sees it. Lakera / NeMo Guardrails / Prompt Guard. Valuable at org scale; overkill for solo RELO-scale deployments.
+- **Dual-model injection screening** — small guardrail model (Llama Guard 3/4, Prompt Guard) scans input before the main model sees it. Lakera / NeMo Guardrails / Prompt Guard. Valuable at org scale; overkill for solo single-tenant deployments.
 - **Output egress filter** as a standalone middleware — strips markdown image/link targets not on an allow-list. Ships with Guardrails AI by default; implement as a 20-line middleware if not using a library.
 - **RAG-poisoning defenses** (TrustRAG, provenance-ranking) — critical if ingesting public third-party corpora; skip if RAG sources are all internal trusted docs.
 - **Rebuff**: archived May 2025, do not adopt.

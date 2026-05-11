@@ -24,7 +24,7 @@ related:
 
 - Steward primitives ran on cortex-x repo during sprint dogfood (operator-supervised).
 - 6-agent R2 review pipeline runs on cortex-x PRs continuously (this session, every sprint).
-- `/cortex-init` field-tested 8× on real projects (RELO, Kiosek, Portfolio, OrderMage, lasertgame, osvc-tax, pix-prep, webovky_hustle).
+- `/cortex-init` field-tested 8× on real projects (a Next.js SaaS project, Kiosek, Portfolio, an admin-platform client, lasertgame, osvc-tax, pix-prep, webovky_hustle).
 
 **What we have NOT done:** let Steward run *autonomously, overnight, without operator review* against a production-track repo. This plan closes that gap. The cortex-x repo is the right first target because:
 
@@ -199,6 +199,6 @@ Term origin: 1980s Microsoft / IBM ("eating your own dog food" — using interna
 
 1. **Skin in the game**: if it's bad, *you* suffer first, not the customer. cortex-x running on cortex-x means *we* eat the bad PRs.
 2. **Real-world surface**: synthetic tests miss what production exposes. 7-day burn-in reveals failure modes that 1349 unit tests don't.
-3. **Confidence transfer**: if it works on us, we've earned the right to say "this works" to anyone else (RELO, Kiosek, future cortex-x users).
+3. **Confidence transfer**: if it works on us, we've earned the right to say "this works" to anyone else (a Next.js SaaS project, Kiosek, future cortex-x users).
 
 The R3 principle (one incident class = one defense + one regression test) compounds with dogfood: every burn-in failure becomes a permanent test. After 7 days, cortex-x's defenses are not theoretical — they're battle-tested.

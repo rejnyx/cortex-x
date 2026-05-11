@@ -64,7 +64,7 @@ CHECKS PERFORMED (per SKILL.md)
   6. 'compatibility:' if present, max 500 chars
   7. 'metadata:' if present, must be a YAML map (1-level nested)
   8. Body non-empty after frontmatter
-  9. No PII / Dave-specific paths in body
+  9. No PII / maintainer-specific paths in body
 `);
 }
 
@@ -283,7 +283,7 @@ class Validator {
       this.pass(`${id}.body`, `${id}/SKILL.md: body ${body.length} chars`);
     }
 
-    // 9. PII / Dave-path leak (skipping <!-- denylist-example --> lines)
+    // 9. PII / the operator-path leak (skipping <!-- denylist-example --> lines)
     const srcForPii = stripDenylistExamples(src);
     let piiHits = [];
     for (const re of PII_DENY) {
@@ -291,7 +291,7 @@ class Validator {
       if (matches) piiHits.push(matches[0]);
     }
     if (piiHits.length > 0) {
-      this.fail(`${id}.pii`, 'blocker', `${id}/SKILL.md: PII / Dave-specific path leak: ${[...new Set(piiHits)].join(', ')}`);
+      this.fail(`${id}.pii`, 'blocker', `${id}/SKILL.md: PII / maintainer-specific path leak: ${[...new Set(piiHits)].join(', ')}`);
     } else {
       this.pass(`${id}.pii`, `${id}/SKILL.md: no PII leak`);
     }

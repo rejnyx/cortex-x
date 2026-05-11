@@ -18,7 +18,7 @@
 
 ## Review cadence
 
-Weekly (Friday?) — Dave reviews all insights, marks:
+Weekly (Friday?) — the operator reviews all insights, marks:
 - ✅ Acted on
 - 🔄 In progress
 - ❌ Dismissed (with reason)

@@ -357,7 +357,7 @@ node tools/verify-skills.cjs --strict    # 3 skills: agentskills.io v1 spec comp
    Net result = a daily empty PR. Wait for v0.5.
 
 5. **D-1 closes** before any first `v0.1.0` tag (external review priority #2).
-   The git history PII purge requires a destructive force-push only Dave
+   The git history PII purge requires a destructive force-push only the operator
    should run. Until D-1 closes, the repo stays private.
 
 ## Troubleshooting
