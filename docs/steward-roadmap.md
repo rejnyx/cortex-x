@@ -1019,37 +1019,52 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing (M effort)
+### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing + LLM Wiki layer (M effort) — R1 ✅ DONE 2026-05-11
 
-**Why**: lessons.jsonl is linear-scan, fine for one project. Cross-project federated learning needs indexed query. NousResearch's hermes-agent has FTS5 in production at 139k-star scale.
+**Why**: lessons.jsonl is linear-scan, fine for one project. Cross-project federated learning needs indexed query. NousResearch's hermes-agent has FTS5 in production at 139k-star scale. **Sprint 3.6 R1 (2026-05-11)** folded the Karpathy LLM Wiki pattern into this sprint instead of creating a new one — cortex-x already does what Karpathy describes (institutional wisdom in markdown), it just doesn't enforce `[[wikilink]]` syntax or run a curation pass.
 
-**Scope**:
+**Scope (FTS5 — original)**:
 - SQLite FTS5 index over `cortex/hermes-lessons.jsonl` (per-project) + `~/.cortex/lessons.federated.jsonl` (cross-project).
 - New helpers `lessons.searchByText()` + `lessons.searchByActionKind()` + `lessons.searchByErrorCode()`.
 - Action-engine recall step (Sprint 1.8.3) uses FTS lookup instead of scoring full archive.
 - Cross-project sync: opt-in via `cortex/cortex-source.yaml` flag, signed entries to prevent poisoning.
 
-**Pre-implementation research dispatch**:
-- "SQLite FTS5 patterns for agent memory 2026. NousResearch hermes-agent skill curation implementation. Cross-tenant memory poisoning defenses + signing patterns."
+**Scope (LLM Wiki extension — Sprint 3.6 fold-in)**:
+- `[[wikilink]]` regex extractor over `cortex/projects/*.md` + `lessons.jsonl` topic entries. Surfaces orphan pages (linked-to but not yet written) + dangling references (page exists but never linked).
+- `prompts/wiki-curator.md` — Karpathy gist (`karpathy/442a6bf555914893e9891c11519de94f`) parameterized over `$CORTEX_DATA_HOME/projects/`. Invokable nightly via existing Steward cron lane. Output: per-run report flagging contradictions across `lessons.jsonl` + `cortex/projects/*.md`, missing entity pages, stale entries.
+- Curator runs **on-read, not on-index** (LazyGraphRAG-style economics — see Sprint 3.3 deferral note). No DB beyond FTS5; corpus stays plain markdown.
 
-**Stolen from**: NousResearch/hermes-agent skill curation + ReasoningBank federated angle.
+**Pre-implementation research dispatch (R1 ✅ done)**:
+- ✅ R1 memo: [`docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md`](./research/sprint-3.6-llm-wiki-research-2026-05-11.md) — Karpathy gist primary source, 2026 GraphRAG state of the art, Anthropic Memory Tool comparison, Letta / GitNexus / Obsidian-second-brain landscape.
+
+**Why this is "one sprint extension, not a new sprint"** (per R1 §5 recommendation):
+- Karpathy ships **no reference implementation** — gist is explicitly abstract, meant to be copy-pasted as a pattern prompt (F2).
+- Anthropic Memory Tool (`memory_20250818`) is already file-based + markdown-based, shipped BEFORE Karpathy's post (F9) — confirms the file-based shape is the durable primitive.
+- cortex-x's existing `lessons.jsonl` + `cortex/projects/<slug>.md` already implements the Karpathy 3-layer split (raw sources / wiki / schema). Adding wikilink-lint + curator prompt completes the pattern without architectural change (T2, T3).
+- Graph DB (Neo4j / FalkorDB / Memgraph) **rejected** for Tier 1-2 — violates zero-deps invariant, indexing-cost premium 10-40x without LazyGraphRAG.
+
+**Stolen from**: NousResearch/hermes-agent skill curation + ReasoningBank federated angle + Karpathy llm-wiki gist (2026-04-03) + `obsidian-second-brain` skill (eugeniughelbur) + Anthropic memory-tool file-based design.
 
 ---
 
-### Sprint 3.3 — GraphRAG codebase context (M effort)
+### Sprint 3.3 — GraphRAG codebase context (M effort) — ⏸️ DEFERRED 2026-05-11 (pending LazyGraphRAG + buy-vs-build)
 
-**Why**: single LLM call sees ~5 files of context. GitNexus reports 6.8× fewer tokens / 49× more capability with Tree-sitter knowledge graph. Critical for client projects (a Next.js SaaS project has thousands of files).
+**Status**: ⏸️ Deferred 2026-05-11 per Sprint 3.6 R1 research ([`docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md`](./research/sprint-3.6-llm-wiki-research-2026-05-11.md)). Two reasons:
 
-**Scope**:
+1. **LazyGraphRAG cost cliff** (R1 F6) — Microsoft's LazyGraphRAG (Q1-Q2 2026 release, currently in cleanup at [microsoft/graphrag](https://github.com/microsoft/graphrag)) cuts indexing cost to **0.1% of full GraphRAG** + **700× lower query cost** for global queries. Production deployments report 70-97% cost reduction ([graph-praxis cliff analysis](https://medium.com/graph-praxis/the-graphrag-cost-cliff-how-33-000-became-33-in-eighteen-months-be1b0fbe37e4)). Building on full-fat GraphRAG now = amortizing yesterday's economics.
+2. **Buy-vs-build re-evaluation** (R1 F10) — **GitNexus** (10k+ stars, MCP-native, [github.com/CodeGraphContext/CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext)) + **Nomik** ([nomik.co](https://nomik.co/)) already ship the wiki-shaped codebase pattern we planned to build. Both are MCP-native and already work with Claude Code / Cursor. Re-evaluate whether cortex-x writes its own Tree-sitter pipeline or wires the existing MCP server as an external adapter (Sprint 3.4).
+
+**Original scope** (kept for reference, revisit at Q2 2026 when LazyGraphRAG ships):
 - Tree-sitter parse on `npm install` + on-demand refresh.
 - Local SQLite-backed graph (FalkorDB later if needed).
 - New helper `codeGraph.findCallSites(symbol)` + `codeGraph.findImporters(file)`.
 - Per-kind retrieval: `dep_update_patch` queries call sites of breaking symbol, `recommendation` queries importers of mentioned files.
 
-**Pre-implementation research dispatch**:
-- "GitNexus + code-review-graph + AST GraphRAG (arXiv 2601.08773) + FalkorDB 2026 patterns. Tree-sitter incremental update strategies. Semantic search on top of AST graphs."
+**Re-eval gate**: when LazyGraphRAG hits stable release OR when an action_kind genuinely needs multi-hop code-graph traversal (Sprint 3.3 R1 §5 trade-off T1: graph DB violates zero-deps invariant for Tier 1-2; reconsider only post-Tier 3).
 
-**Stolen from**: GitNexus + GraphRAG papers.
+**Interim**: if structural code awareness is needed before LazyGraphRAG ships, evaluate GitNexus MCP as a drop-in (matches Sprint 3.4 External Tool Capability Adapters pattern).
+
+**Stolen from**: GitNexus + GraphRAG papers + LazyGraphRAG cost analysis.
 
 ---
 
