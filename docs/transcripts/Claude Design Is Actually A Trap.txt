@@ -1,0 +1,1183 @@
+00:00 Claude design dropped and it changed
+00:02 
+
+00:02 everything about design. But in reality,
+00:04 
+
+00:04 it's way more hype than most people
+00:05 
+
+00:05 realize. And this is exactly why what
+00:07 
+
+00:07 you've been seeing on X isn't the full
+00:09 
+
+00:09 story. If you think Claude Design is
+00:11 
+
+00:11 doing something groundbreaking or that
+00:13 
+
+00:13 those insane demos floating around are
+00:15 
+
+00:15 proof you need to switch to it, you are
+00:16 
+
+00:16 actually wrong here. The tool itself
+00:18 
+
+00:18 isn't even the reason those designs look
+00:20 
+
+00:20 so good, and the way people are using it
+00:22 
+
+00:22 is quietly working against them in a way
+00:24 
+
+00:24 most haven't caught on to yet. Claude
+00:26 
+
+00:26 Design was marketed as a revolutionary
+00:28 
+
+00:28 product for the design industry. The
+00:30 
+
+00:30 moment it dropped, people started
+00:31 
+
+00:31 calling it a Figma killer or the end of
+00:33 
+
+00:33 designers. And the impact was big enough
+00:35 
+
+00:35 that Figma's stock kept decreasing and
+00:37 
+
+00:37 its valuation took a hit. It is a tool
+00:40 
+
+00:40 for creating realistic prototypes,
+00:41 
+
+00:41 wireframes, designs, pitch decks, and
+00:43 
+
+00:43 other different types of designs. But
+00:45 
+
+00:45 the reality is that it's more hype than
+00:47 
+
+00:47 anything. It is literally Claude Code
+00:49 
+
+00:49 repackaged as another tool and sold as
+00:51 
+
+00:51 one because Claude Code can do the same
+00:53 
+
+00:53 and possibly more. There are features
+00:55 
+
+00:55 like editing and comments in claude
+00:57 
+
+00:57 design. But nothing here is something
+00:58 
+
+00:58 claude code cannot do if you give it the
+01:01 
+
+01:01 right tools. And when we say this is
+01:02 
+
+01:02 claude code repackaged, it is not
+01:04 
+
+01:04 because we didn't test it. We gave it a
+01:06 
+
+01:06 simple prompt asking it to create a
+01:08 
+
+01:08 community website and answered the
+01:09 
+
+01:09 questions it had. It created two designs
+01:12 
+
+01:12 that were impressive on their own and
+01:13 
+
+01:13 much better than the way Claude used to
+01:15 
+
+01:15 generate landing pages previously, but
+01:17 
+
+01:17 they still had a lot of problems. One
+01:19 
+
+01:19 version was cut off at the pricing
+01:21 
+
+01:21 section and there was no footer at all.
+01:22 
+
+01:22 So, we tested how Claude Code would
+01:24 
+
+01:24 perform with a similar prompt. We used
+01:26 
+
+01:26 Opus 4.7 on high effort to compare the
+01:29 
+
+01:29 two, and the design it produced stood on
+01:31 
+
+01:31 par with Claw Design's capabilities.
+01:33 
+
+01:33 There were a few issues like the font
+01:34 
+
+01:34 color of the signup button not being
+01:36 
+
+01:36 chosen correctly. But overall, it was a
+01:38 
+
+01:38 really well-built design, and this was
+01:40 
+
+01:40 despite not having the design harness
+01:42 
+
+01:42 and without any special prompting that
+01:44 
+
+01:44 Claw Design has built in purely on its
+01:46 
+
+01:46 own with us providing almost nothing.
+01:48 
+
+01:48 But the demos you must have seen around
+01:50 
+
+01:50 look impressive and there is something
+01:52 
+
+01:52 hidden behind them. Most of what is
+01:53 
+
+01:53 circulating on social media is based on
+01:56 
+
+01:56 hype rather than what the tool actually
+01:58 
+
+01:58 does on its own. People generate designs
+01:60 
+
+01:60 by following extensive workflows and
+02:02 
+
+02:02 then present them as if cla design built
+02:04 
+
+02:04 everything in one shot. But those same
+02:06 
+
+02:06 workflows can be run in claude code
+02:08 
+
+02:08 directly without needing cla. So even
+02:11 
+
+02:11 though this product is built for
+02:12 
+
+02:12 designers, they should just use claude
+02:14 
+
+02:14 code instead of claw design because this
+02:16 
+
+02:16 way they will be able to try out
+02:18 
+
+02:18 different variations, experiment more
+02:20 
+
+02:20 and get the same, if not better results
+02:22 
+
+02:22 than claw design. They can iterate more
+02:24 
+
+02:24 times with claw code instead of being
+02:25 
+
+02:25 cut short right when the design is
+02:27 
+
+02:27 actually getting somewhere. Building on
+02:29 
+
+02:29 top of what the site already is instead
+02:30 
+
+02:30 of starting over every time gives them
+02:33 
+
+02:33 better control over the direction of
+02:34 
+
+02:34 each design. And because everything
+02:36 
+
+02:36 Claude Code produces is real code, what
+02:38 
+
+02:38 they end up with is not a throwaway
+02:40 
+
+02:40 prototype, but something that can be
+02:42 
+
+02:42 shipped directly into the product
+02:43 
+
+02:43 without being rebuilt by someone else
+02:45 
+
+02:45 afterward. And on top of all this, there
+02:47 
+
+02:47 is a cost problem with claw design.
+02:49 
+
+02:49 Claude code can do the same things at a
+02:51 
+
+02:51 much cheaper cost. While claw design is
+02:53 
+
+02:53 built separately and counted toward
+02:54 
+
+02:54 limits that run weekly, and it does not
+02:56 
+
+02:56 count toward your other limits, but it
+02:58 
+
+02:58 burns through usage at a much faster
+03:00 
+
+03:00 pace than you would normally expect with
+03:02 
+
+03:02 models through other clawed apps. This
+03:04 
+
+03:04 hits designers the hardest because the
+03:06 
+
+03:06 quota is so low that they cannot really
+03:08 
+
+03:08 experiment the way they need to and
+03:10 
+
+03:10 their limit runs out after just a few
+03:12 
+
+03:12 design iterations. And this is exactly
+03:14 
+
+03:14 what a lot of people are complaining
+03:15 
+
+03:15 about. When someone was working with it,
+03:17 
+
+03:17 they ran out of their design limit fast
+03:19 
+
+03:19 just after around 20 design iterations
+03:21 
+
+03:21 even when they were on the highest max
+03:23 
+
+03:23 plan. And plenty of others say they hit
+03:25 
+
+03:25 the limit in just 1 hour and still end
+03:27 
+
+03:27 up with a simple design that is easily
+03:29 
+
+03:29 implementable with clawed code in one
+03:31 
+
+03:31 shot. So, it's not really usable in
+03:33 
+
+03:33 practice since they are hitting the
+03:34 
+
+03:34 limits before they can even finish the
+03:36 
+
+03:36 workflow they are working on, making it
+03:38 
+
+03:38 much worse compared to Claude code
+03:39 
+
+03:39 limits. The reason Claude Design's work
+03:42 
+
+03:42 looks so impressive is actually the Opus
+03:44 
+
+03:44 4.7 model drop, not the tool itself.
+03:46 
+
+03:46 Opus 4.7 is again the state-of-the-art
+03:48 
+
+03:48 model with amazing capabilities and is
+03:50 
+
+03:50 performing better across all of the
+03:52 
+
+03:52 benchmarks. But the upgrade that
+03:53 
+
+03:53 actually matters here is vision. This
+03:55 
+
+03:55 model has substantially better vision
+03:57 
+
+03:57 and can see images at a much greater
+03:59 
+
+03:59 resolution than it was able to
+04:00 
+
+04:00 previously. Claude Opus 4.6 was able to
+04:03 
+
+04:03 analyze images at a resolution of 1.15
+04:06 
+
+04:06 megapixels while the 4.7 is able to
+04:08 
+
+04:08 analyze 3.75 megapixels. So that implies
+04:11 
+
+04:11 it is able to understand design from a
+04:13 
+
+04:13 reference much better. If you give it a
+04:15 
+
+04:15 reference design, it processes that
+04:17 
+
+04:17 reference with much better clarity and
+04:19 
+
+04:19 picks up on things it would have missed
+04:20 
+
+04:20 before. With this model upgrade,
+04:22 
+
+04:22 Anthropic filled the only gap where
+04:24 
+
+04:24 clawed models were lacking and needed
+04:26 
+
+04:26 extensive work, which was front-end
+04:27 
+
+04:27 design. This model is more tasteful and
+04:29 
+
+04:29 creative when completing a task, and on
+04:31 
+
+04:31 its own, it produces higher quality
+04:33 
+
+04:33 interfaces and designs. So, when Claw
+04:35 
+
+04:35 Design dropped, it was featured with a
+04:37 
+
+04:37 lot of hype because of its insane
+04:38 
+
+04:38 designs. But in reality, it was the
+04:40 
+
+04:40 model that got better. It was not the
+04:42 
+
+04:42 tool that got so insanely good that it
+04:44 
+
+04:44 resulted in the different visuals you
+04:46 
+
+04:46 see. Claude design was another clever
+04:48 
+
+04:48 way of selling something and creating
+04:49 
+
+04:49 hype around it by anthropic. Now you can
+04:51 
+
+04:51 get the same benefits you get in claude
+04:53 
+
+04:53 design in claude code 2 or possibly
+04:55 
+
+04:55 better. You can replicate claude
+04:57 
+
+04:57 design's questioning flow in claude code
+04:59 
+
+04:59 by creating a simple skill. When you
+05:01 
+
+05:01 create a project in claude design, you
+05:03 
+
+05:03 give a prompt and it asks a lot of
+05:04 
+
+05:04 questions so it can properly ascertain
+05:06 
+
+05:06 the design direction. It asks far more
+05:08 
+
+05:08 than Claude codes planning mode does,
+05:10 
+
+05:10 but a skill can do exactly the same. The
+05:12 
+
+05:12 skill contains instructions on how to
+05:14 
+
+05:14 run a questioning session, just like
+05:16 
+
+05:16 claw design, using questions to fill in
+05:18 
+
+05:18 the gaps the prompt creates, and asking
+05:20 
+
+05:20 about what needs to be built. It defines
+05:22 
+
+05:22 when to trigger follow-up questions and
+05:24 
+
+05:24 how the flow should actually work. It
+05:26 
+
+05:26 also includes example questions for
+05:27 
+
+05:27 running the session, a library of
+05:29 
+
+05:29 questions, and even asky layouts of
+05:31 
+
+05:31 sites so it can determine the
+05:33 
+
+05:33 positioning of elements in the landing
+05:34 
+
+05:34 page. So, if you give it a prompt, it
+05:36 
+
+05:36 uses the skill and asks questions
+05:38 
+
+05:38 related to the gaps it identifies. Just
+05:40 
+
+05:40 like claw design, it asks multiple
+05:42 
+
+05:42 questions across different areas and
+05:44 
+
+05:44 once it has all the information needed
+05:46 
+
+05:46 to implement, it starts building. The
+05:48 
+
+05:48 best part is that it directly outputs
+05:50 
+
+05:50 code. So there is no design to code
+05:51 
+
+05:51 handoff. And with this approach, you can
+05:53 
+
+05:53 iterate as much as you want without
+05:55 
+
+05:55 worrying about running out of limits in
+05:57 
+
+05:57 just an hour. The UI generation from the
+05:59 
+
+05:59 same type of prompt along with the
+06:00 
+
+06:00 similar questioning flow in Claude code
+06:02 
+
+06:02 was more or less similar to what Claude
+06:04 
+
+06:04 design generated. The main difference is
+06:06 
+
+06:06 that Claw Design had an edge in certain
+06:08 
+
+06:08 aspects where it made the website more
+06:10 
+
+06:10 immersive by adding small animations to
+06:13 
+
+06:13 make it look more engaging. But before
+06:14 
+
+06:14 we move forwards, let's have a word by
+06:16 
+
+06:16 our sponsor, Hey Gen. You've probably
+06:18 
+
+06:18 tried making a video with an AI tool. 20
+06:20 
+
+06:20 minutes in, you're juggling timelines,
+06:22 
+
+06:22 re-recording voiceovers, and fighting
+06:24 
+
+06:24 lip sync that looks like a bad dub. Hey
+06:26 
+
+06:26 skips all of that. Hey Genen is the AI
+06:28 
+
+06:28 video generator that just shipped a
+06:29 
+
+06:29 brand new CLI, meaning a full digital
+06:32 
+
+06:32 twin avatar video can be generated with
+06:34 
+
+06:34 a single command. No timeline, no
+06:36 
+
+06:36 camera, no crew. Record your digital
+06:37 
+
+06:37 twin once and Hey Genen lets you publish
+06:39 
+
+06:39 consistently without refilming. Turning
+06:41 
+
+06:41 newsletters, PDFs, powerpoints into
+06:44 
+
+06:44 videos. Generate fully edited,
+06:45 
+
+06:45 multi-seene videos from a single prompt
+06:47 
+
+06:47 with video agent, then translate for a
+06:49 
+
+06:49 global audience with full lip sync.
+06:51 
+
+06:51 Build with avatars, voices, video agent,
+06:54 
+
+06:54 translation, and more at developers.
+06:57 
+
+06:57 Digital twins require verified consent.
+06:59 
+
+06:59 Your content is never used to train
+07:01 
+
+07:01 public models and the whole platform is
+07:03 
+
+07:03 built for enterprisegrade security.
+07:05 
+
+07:05 Start shipping studio quality videos
+07:07 
+
+07:07 without touching a camera. Click the
+07:08 
+
+07:08 link in the pinned comment and try Hen
+07:10 
+
+07:10 today. Most of the scroll interacting
+07:13 
+
+07:13 designs you might have seen on X when
+07:15 
+
+07:15 people were showing off claw design are
+07:17 
+
+07:17 just sites using video backgrounds which
+07:19 
+
+07:19 makes them look far more premium and
+07:21 
+
+07:21 gives the impression that they are more
+07:23 
+
+07:23 impressive than they actually are. Most
+07:25 
+
+07:25 of the demos are often just prompts
+07:26 
+
+07:26 copied from sites that provide
+07:28 
+
+07:28 readytouse prompt templates. These
+07:30 
+
+07:30 prompts include a link to a video that
+07:32 
+
+07:32 is meant to be used as a background
+07:34 
+
+07:34 along with detailed guidelines on how to
+07:36 
+
+07:36 implement it. So any agent is capable of
+07:38 
+
+07:38 implementing this kind of website, not
+07:40 
+
+07:40 just claw design, as long as it is given
+07:42 
+
+07:42 similar prompts. But these are only
+07:43 
+
+07:43 sample prompts for showcase sites. In
+07:46 
+
+07:46 reality, production-grade applications
+07:48 
+
+07:48 are built using libraries like Lennis,
+07:50 
+
+07:50 which is used in many production apps,
+07:52 
+
+07:52 as well as Gap, which is one of the most
+07:54 
+
+07:54 popular libraries for implementing
+07:56 
+
+07:56 smooth animations that make the website
+07:58 
+
+07:58 experience far more immersive than
+07:59 
+
+07:59 before. To test this, we actually
+08:01 
+
+08:01 downloaded a video and in our prompt
+08:03 
+
+08:03 just told Claude code to use the video
+08:05 
+
+08:05 as the hero section along with the color
+08:07 
+
+08:07 themes we wanted, and it implemented the
+08:09 
+
+08:09 rest of the website on its own. We only
+08:11 
+
+08:11 had to correct it once where we had to
+08:13 
+
+08:13 explain what the video was about. And it
+08:15 
+
+08:15 incorporated the style perfectly into
+08:17 
+
+08:17 the landing page, making it much better
+08:18 
+
+08:18 than the previous version. The website
+08:20 
+
+08:20 was implemented really well, which is
+08:22 
+
+08:22 quite powerful given how simple the
+08:24 
+
+08:24 prompt was. And it included different
+08:25 
+
+08:25 animations and interactions that made
+08:27 
+
+08:27 this part of the site much more powerful
+08:29 
+
+08:29 and interactive than before with
+08:31 
+
+08:31 Claude's capabilities. Now in cloud
+08:33 
+
+08:33 code, you can also supplement it with
+08:35 
+
+08:35 more tools with ease compared to claude
+08:37 
+
+08:37 design because claude code is more
+08:39 
+
+08:39 technically capable and can implement
+08:41 
+
+08:41 things more seamlessly. You can even use
+08:43 
+
+08:43 an open-source skill like scrolltyelling
+08:45 
+
+08:45 which basically enables scrolling
+08:47 
+
+08:47 storytelling animations in your project.
+08:49 
+
+08:49 So with this skill, Claude can easily
+08:51 
+
+08:51 implement multi-level storytelling from
+08:53 
+
+08:53 a simple prompt and work to create
+08:54 
+
+08:54 animations that go much further in depth
+08:57 
+
+08:57 than what Claude design would be able to
+08:58 
+
+08:58 do on its own. Also, if you are enjoying
+09:01 
+
+09:01 our content, consider pressing the hype
+09:03 
+
+09:03 button because it helps us create more
+09:05 
+
+09:05 content like this and reach out to more
+09:06 
+
+09:06 people. Using Claude code instead of
+09:09 
+
+09:09 Claude Design makes it easier to
+09:10 
+
+09:10 implement UIs because with Claude Code,
+09:13 
+
+09:13 you can integrate built-in design
+09:14 
+
+09:14 systems with ease by incorporating
+09:16 
+
+09:16 components from Shad CN, Aceternity, or
+09:19 
+
+09:19 Hero UI, which already include a lot of
+09:21 
+
+09:21 pre-built animations. This reduces the
+09:23 
+
+09:23 need for the model to figure out how
+09:25 
+
+09:25 each component should look and behave
+09:27 
+
+09:27 and instead lets it focus on improving
+09:29 
+
+09:29 the overall design. So the output is
+09:31 
+
+09:31 much easier to reach compared to working
+09:33 
+
+09:33 directly in claw design by default. You
+09:35 
+
+09:35 can also use front-end design skills or
+09:37 
+
+09:37 other specialized skills tailored to
+09:39 
+
+09:39 your project built using a skill creator
+09:41 
+
+09:41 that analyzes the current state of the
+09:43 
+
+09:43 project. This helps it implement
+09:45 
+
+09:45 features more effectively without
+09:46 
+
+09:46 wasting time. Claude code is also more
+09:48 
+
+09:48 flexible because you can connect MCP
+09:50 
+
+09:50 servers to it. For example, you can use
+09:52 
+
+09:52 a shad CN MCP server so the agent can
+09:55 
+
+09:55 install the right components on its own
+09:57 
+
+09:57 instead of being explicitly told what to
+09:59 
+
+09:59 use and where. Similarly, you can use
+10:01 
+
+10:01 various MCPs that help build UIs more
+10:03 
+
+10:03 effectively rather than relying on a
+10:05 
+
+10:05 purely generated design. Even with
+10:07 
+
+10:07 models like Opus 4.7 and tools like Claw
+10:10 
+
+10:10 Design, straightup generated designs
+10:12 
+
+10:12 often reveal that they were produced by
+10:14 
+
+10:14 a model because they tend to follow
+10:15 
+
+10:15 similar patterns. But using established
+10:17 
+
+10:17 libraries helps reduce this issue and
+10:19 
+
+10:19 makes the output feel more natural and
+10:21 
+
+10:21 less predictable. The biggest advantage
+10:23 
+
+10:23 of using cloud code instead of cloud
+10:25 
+
+10:25 design is that you can connect it to
+10:26 
+
+10:26 Git. Now, even though you can connect
+10:28 
+
+10:28 GitHub to Claude Design as well, there's
+10:30 
+
+10:30 a huge difference in how they both work.
+10:32 
+
+10:32 Claude Design's Git integration is
+10:33 
+
+10:33 fairly basic. It mainly allows it to
+10:35 
+
+10:35 fetch files from a connected GitHub
+10:37 
+
+10:37 repository and use them to understand
+10:39 
+
+10:39 designs, but its purpose is mostly
+10:41 
+
+10:41 limited to reading and referencing. It
+10:43 
+
+10:43 does not really make changes to the
+10:44 
+
+10:44 repository. Clawed code on the other
+10:46 
+
+10:46 hand is very different. It can perform
+10:48 
+
+10:48 full git operations like commits,
+10:50 
+
+10:50 branching and more. So if something goes
+10:52 
+
+10:52 wrong in your implementation or if you
+10:54 
+
+10:54 prefer an older version after making
+10:56 
+
+10:56 changes, you can easily revert back to a
+10:58 
+
+10:58 previous version using git. That's
+10:60 
+
+10:60 something you wouldn't be able to do
+11:01 
+
+11:01 with claw design as you use it, which
+11:03 
+
+11:03 makes claude code a much stronger
+11:04 
+
+11:04 approach for designing different
+11:06 
+
+11:06 prototypes. Instead of going to claw
+11:08 
+
+11:08 design or using Figma, it is more
+11:10 
+
+11:10 effective if you just make mock-ups
+11:11 
+
+11:11 straight in HTML. for trying out
+11:13 
+
+11:13 different variations. You can also make
+11:15 
+
+11:15 use of parallel agents and work trees to
+11:17 
+
+11:17 divide tasks similar to how claude
+11:19 
+
+11:19 design explores designs but in a git
+11:21 
+
+11:21 managed way so you can keep the best
+11:23 
+
+11:23 version and discard the rest easily. You
+11:25 
+
+11:25 can simply give it a prompt to use sub
+11:26 
+
+11:26 agents in separate work trees and ask
+11:28 
+
+11:28 each agent to implement a different
+11:30 
+
+11:30 variation of the same design. With that,
+11:32 
+
+11:32 Claude will spawn agents in separate
+11:34 
+
+11:34 workspaces. Using parallel agents helps
+11:36 
+
+11:36 you save both time and effort while
+11:38 
+
+11:38 exploring multiple directions at once.
+11:40 
+
+11:40 Now, once each agent has finished its
+11:42 
+
+11:42 work, you get multiple variations that
+11:44 
+
+11:44 you can review at any time and choose
+11:46 
+
+11:46 whichever one best suits your needs.
+11:48 
+
+11:48 From there, you can make changes and
+11:49 
+
+11:49 continue building the app based on the
+11:51 
+
+11:51 exact style that you like the most. And
+11:53 
+
+11:53 despite not being generated by Claude
+11:55 
+
+11:55 Design, each of the generated designs
+11:57 
+
+11:57 still has an aesthetic look with proper
+11:59 
+
+11:59 SVGs created entirely through code to
+12:02 
+
+12:02 depict elements and a much better
+12:03 
+
+12:03 overall balance. You can then merge your
+12:05 
+
+12:05 preferred version into main and remove
+12:07 
+
+12:07 the work trees that contain the designs
+12:09 
+
+12:09 you didn't like. The skills used here
+12:11 
+
+12:11 along with other resource are available
+12:13 
+
+12:13 in AI labs pro for this video and for
+12:15 
+
+12:15 all our previous videos from where you
+12:17 
+
+12:17 can download and use it for your own
+12:19 
+
+12:19 projects. If you found value in what we
+12:21 
+
+12:21 do and want to support the channel, this
+12:23 
+
+12:23 is the best way to do it. The links in
+12:24 
+
+12:24 the description. That brings us to the
+12:26 
+
+12:26 end of this video. If you'd like to
+12:28 
+
+12:28 support the channel and help us keep
+12:29 
+
+12:29 making videos like this, you can do so
+12:31 
+
+12:31 by using the super thanks button below.
+12:33 
+
+12:33 As always, thank you for watching and
+12:35 
+
+12:35 I'll see you in the next one.

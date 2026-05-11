@@ -832,6 +832,89 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
+### Sprint 2.16 — `/designer` skill (Claude Design-style flow inside Claude Code) ✅ SHIPPED 2026-05-11
+
+**Status**: ✅ Shipped 2026-05-11. `shared/skills/designer/SKILL.md` — auto-discovered after `install.{sh,ps1}` sync, invokable as `/designer` or via natural language ("navrhni mi landing page"). Reproduces the public Claude Design recipe: intake questioning flow + library-palette decision (shadcn / Aceternity / Hero UI + GSAP / Lenis / Framer Motion) + parallel worktree exploration (3-4 variations, operator picks winner, rest discarded) + iteration loop + handoff to `cortex/STYLE.md`.
+
+**Why**: Claude Design is Claude Code + a skill + Opus 4.7's vision upgrade (1.15 → 3.75 MP). The weekly limit and design-to-code handoff are the actual user-facing pains in the standalone product. Inside Claude Code we have:
+- Real code output (not a throwaway prototype)
+- Git-integrated iteration (revert, branch, worktree)
+- No design-budget cliff (same Max sub, same effort budget as everything else)
+- Parallel subagent worktrees for variation exploration — feature Claude Design doesn't have
+
+**Scope**: SKILL.md only (~280 LoC markdown). Zero runtime code added. Composes with existing `senior_tester_review` (a11y / motion-overuse review) and roadmapped Sprint 4.6 (Playwright-MCP UI verification).
+
+**Source-recipe analysis**: [docs/transcripts/Claude Design Is Actually A Trap.txt](./transcripts/Claude%20Design%20Is%20Actually%20A%20Trap.txt) public Claude Design post-mortem.
+
+**Future**: when Sprint 4.6 (Playwright-MCP) lands, designer flow auto-runs visual-regression check on the chosen variation before merge.
+
+---
+
+### Sprint 3.4 — External tool capability adapters (M effort, ⭐ ECOSYSTEM) — 📋 PROPOSED 2026-05-11 · R1 ✅ DONE
+
+**Status**: 📋 Proposed 2026-05-11. R1 research dispatch completed same day — [`docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`](research/sprint-3.4-external-adapters-research-2026-05-11.md). Formalizes the architectural shape for "cortex-x knows how to drive external repos" — Hyperframes (HTML → video, agent-native), Remotion (React programmatic video, licensed), Lottie generators, Figma plugins, Playwright codegen, etc. Gated on Sprint 2.8 Memory Foundation (so adapter usage records into lessons.jsonl) and complementary to Sprint 3.1 (self-extending capabilities — adapters are first-class skill targets).
+
+**Why this is one sprint, not 50 per-tool skills**:
+- The HARD part is the **invocation contract** (sandboxing, output discovery, error normalization, cost attribution, license/secret scoping) — not the specific tool wrapper.
+- Per-tool skills are Sprint 4.0 (capability marketplace) — that's the distribution layer once the adapter pattern is proven.
+- R1 confirmed CLI-based agent adapters are **10-32× cheaper on tokens than MCP** for identical tasks ([Firecrawl 2026 CLI roundup](https://www.firecrawl.dev/blog/best-cli-tools)) — pattern direction is validated by external data before we ship.
+- Named precedent to cite: `claude-agent-acp` (Zed Industries) wraps Claude Code CLI as ACP provider. Microsoft Agent Framework v1.0 (2026-04-02) bakes "clone repo + prepare deps + invoke CLI" into its contract ([microsoft/agent-framework](https://github.com/microsoft/agent-framework)).
+
+**Scope**:
+- New SKILL.md schema extension: `external_dependency:` block declaring repo URL, install command, version constraint, **license tier** (`oss-permissive` / `license_required` / `seat_metered` / `per_invocation_metered`), secret requirements.
+- New helper `bin/steward/_lib/external-adapter.cjs` — clones/symlinks external repo into `~/.cortex/external/<slug>/`, runs install, exposes invocation handle.
+- **Sandbox**: Docker-per-action-kind for first slice (matches existing `bin/steward/execute.cjs` mutex model, no new auth surface). E2B upgrade path reserved for Sprint 4.0 marketplace (multi-tenant) — see [Letta E2B usage](https://docs.letta.com/quickstart/docker), [Docker AI sandboxes](https://docs.docker.com/ai/sandboxes/).
+- Cost attribution: external-tool invocations bill against the adapter's own `cost_envelope` field + license tier; rolls up via existing journal. `license_required` adapters refuse to run when `STEWARD_LICENSE_AUTHORIZED=<adapter-slug>` env unset (R4 budget gate).
+- **First adapter (proof-of-concept): Hyperframes** — [github.com/heygen-com/hyperframes](https://github.com/heygen-com/hyperframes), 17.2k★, Apache-2.0, v0.5.7 (2026-05-10), tagline literally "Built for agents." Already ships agentskills.io-aligned skill bundle (`npx skills add heygen-com/hyperframes` registers `/hyperframes`, `/hyperframes-cli`, `/website-to-hyperframes`, etc.) consumable by Claude Code / Cursor / Codex out of the box. No per-render fees, no seat caps, deterministic ("same input = identical output"). Node ≥ 22 + FFmpeg + Puppeteer-driven Chrome headless. Adapter is **thinner than expected** — we wire into capability registry + action_kind dispatcher, not invent a translation layer.
+- **Second adapter: Remotion** — forces design of license/cost-meter axis. NOT permissive OSS: Automators tier $0.01/render with **$100/mo floor** ([Remotion license](https://www.remotion.dev/docs/license), [pricing](https://www.remotion.pro/license)). Real R4 budget item. Programmatic surface: `getCompositions() → selectComposition() → renderMedia()`. Docker image 1.2-1.8 GB. **Windows-shell `--props` quirk**: inline JSON broken on Windows, must use file (operator dogfoods on Win11 — Steward Linux cron unaffected, but operator-invoked path must use file-mode).
+- Failure mode: external tool absent → adapter records `EXTERNAL_TOOL_MISSING` + tells operator how to install, never silently degrades.
+
+**Acceptance criteria for v0**:
+- [ ] SKILL.md extension schema documented + linted by `bin/cortex-capabilities.cjs`
+- [ ] Hyperframes adapter renders a 5-second test composition end-to-end (Linux CI + Win11 dogfood)
+- [ ] Remotion adapter scaffold present but gated on `STEWARD_LICENSE_AUTHORIZED=remotion` env — proves the license-tier gate works without paying yet
+- [ ] Docker sandbox: external-adapter actions run in container, never on host filesystem
+- [ ] Existing 16 action_kinds unaffected (R6 backward-compat)
+- [ ] Cost attribution validated — adapter invocations show in `cortex-steward status` journal with license_tier annotation
+
+**Pre-ship verifications (from R1 § Unverified)**:
+- [ ] Hyperframes maintenance signal stable through 2026-Q3 (commit cadence check before ship date)
+- [ ] Hyperframes Windows-shell smoke test (operator dogfoods on Win11 — Puppeteer + FFmpeg path needs verification)
+- [ ] agentskills.io spec stability re-check at ship time (skill-bundle advantage evaporates if spec drifts)
+
+**Why this is "promote Sprint 3.1's substrate, don't pre-multiply"**: the operator's intuition that cortex-x should orchestrate Hyperframes / Remotion / project-X is correct — R1 confirms the pattern direction is winning over MCP by 10-32× cost margin. The trap is shipping 50 wrappers. The right unit is the ADAPTER PROTOCOL. Once that ships, the operator (and Steward via Sprint 3.1 self-extending) can author new adapters in a single SKILL.md without runtime changes.
+
+---
+
+### Sprint 3.5 — SaaS-unit positioning (app + web + media as one delivered artifact) — 📋 ROADMAP-ADD 2026-05-11
+
+**Status**: 📋 Roadmap-add 2026-05-11. This is **positioning**, not a single feature — it composes Sprint 2.16 (designer) + Sprint 3.4 (external adapters) + existing `waas-template` profile + existing `pattern_transfer` action_kind into a single delivery flow.
+
+**Why**: operator's 2026-05-11 brainstorm — "cortex-x by mohl být totální SaaS builder, kde z jednoho promptu vyleze app + web + animace na promo + designové variace." Each piece exists separately today. The positioning shift is **explicit composition** + a single entry point that orchestrates them.
+
+**Competitive landscape (R1-grounded, [research memo §4](research/sprint-3.4-external-adapters-research-2026-05-11.md))**: nobody is shipping the **full** composite under one brand in 2026, but four adjacent quadrants exist —
+- [Flatlogic](https://flatlogic.com/generator) and [Fuzen](https://www.fuzen.io/posts/ai-saas-website-builder) own "text → working SaaS app"
+- [WeWeb](https://www.weweb.io/blog/best-saas-website-builder-tools) owns "best SaaS website builder, no-code"
+- [Agent Opus / Opus.pro](https://www.opus.pro/agent/workflows/saas-product-video-maker) owns "URL → promo video"
+
+**Nobody glues both halves under one operator-grade autonomous-agent shell.** That's the cortex-x white space — and Sprint 2.16 (designer) + 3.4 (Hyperframes adapter) + existing `waas-template` profile + `pattern_transfer` already cover all four quadrants individually. Sprint 3.5 = compose them under one entry point.
+
+**Scope (composition, not new runtime)**:
+- New prompt `prompts/saas-unit.md` — multi-phase flow: `/start` (app scaffold) → `/designer` (web hero + landing) → `external-adapter:remotion` (promo video) → optional `external-adapter:hyperframes` (avatar pitch) → `pattern_transfer` from previously-shipped Dave projects (RELO patterns into new project).
+- Updated `waas-template` profile — declares `composes_with: [designer, external-adapters, pattern_transfer]`.
+- Positioning update in `README.md` + landing copy: cortex-x as "the agentic-first **SaaS-unit builder** — one entry point produces production-grade app, marketing site, design variations, and promo media, all as real shippable code."
+
+**Why this isn't a feature sprint**: nothing here requires new runtime. Sprint 2.16 + 3.4 + existing `waas-template` + `pattern_transfer` already cover the substrate. This sprint **wires the pieces into one operator-facing flow** + updates positioning. Effort lives in writing + integration testing, not core engineering.
+
+**Gated on**: Sprint 3.4 v0 (need at least 1 external adapter for the "media" leg) + Sprint 2.16 (need designer skill landed — ✅ done).
+
+**Anti-scope** (out of this sprint, in case the temptation is to bundle):
+- ❌ Phone control / Discord remote — Sprint 2.6 already shipped (Discord) and Sprint 4.3 covers voice (Telegram).
+- ❌ Local LLM as primary engine — Sprint 5.0 (self-hosted Steward) covers this; orthogonal axis.
+- ❌ Whole-PC manipulation — R5 (human-only paths inviolate) holds; cross-project READ is fine, cross-project WRITE stays scoped per action_kind policy.
+
+---
+
 ### Sprint 2.8.1 — lessons.jsonl → MEMORY.md exporter (S effort) — 📋 PROPOSED 2026-05-11
 
 **Status**: 📋 Proposed 2026-05-11 as smaller-bite alternative to full Anthropic Memory Tool integration (Sprint 3.X). Decision deferred from autonomous-ship to operator review because schema design needs review.
