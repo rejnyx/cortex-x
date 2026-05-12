@@ -1,28 +1,18 @@
 # Contributing to cortex-x
 
-cortex-x is currently in **closed beta**. The `main` branch is the rolling beta channel; tagged `vX.Y.Z` releases are the stable channel.
+cortex-x is **public preview (v0.3-pre)** under Apache License 2.0. The `main` branch is the rolling channel; tagged `vX.Y.Z` releases are stable snapshots.
 
-## Beta posture
+## Posture
 
-- No public contribution process yet — the framework is maintained by a single author.
-- Beta testers are invited directly. Access = agreement to the [LICENSE](./LICENSE) (Apache License 2.0).
-- Bug reports, feature ideas, and feedback welcome via GitHub Issues on the [cortex-x repo](https://github.com/Rejnyx/cortex-x). Prefix issues with `[beta]` so they're easy to triage.
-- Security issues → see [SECURITY.md](./SECURITY.md) (do not open a public issue for those).
-
-## Channels
-
-| Channel | How to install | When to use |
-|---|---|---|
-| `beta` (rolling) | `CORTEX_CHANNEL=beta ./install.sh` | Beta testers accepting breaking changes |
-| `stable` (tagged) | `CORTEX_CHANNEL=stable ./install.sh` (default) | Anyone who wants a reproducible snapshot |
-
-See [standards/ship-ready.md](./standards/ship-ready.md) for the full distribution model.
+- **Issues + Discussions welcome.** Bug reports, feature ideas, and feedback via GitHub Issues on the [cortex-x repo](https://github.com/Rejnyx/cortex-x) — prefix with `[beta]` to flag known-rough-edge reports. Questions and design discussion → GitHub Discussions.
+- **External code contributions: opening soon.** Until `v0.3` is tagged, the maintainer is doing a final architecture-stabilization pass and is not accepting external PRs. After `v0.3` cut: PRs welcome under Apache 2.0 §5 (contributions implicitly licensed under the same terms; no separate CLA).
+- **Security issues** → see [SECURITY.md](./SECURITY.md). Use GitHub Private Vulnerability Reporting; do not open a public issue for vulns.
 
 ## Expectations
 
-- **No PRs expected** during closed beta. If you want to contribute code, open an issue first so we can discuss scope + license implications.
-- **No warranty.** Per LICENSE Section `No Liability`. This is alpha/beta software; expect rough edges.
-- **Your data stays local.** The framework collects zero telemetry in v0. See [standards/ship-ready.md](./standards/ship-ready.md#telemetry-stance-opinionated) for future stance.
+- **Pre-`v0.3` PR posture**: external code PRs paused. Open an issue first; if it's a one-line fix or doc improvement, the maintainer may take it as a patch reference. Substantial changes wait for `v0.3` cut.
+- **No warranty.** Per Apache 2.0 §7 (Disclaimer of Warranty) and §8 (Limitation of Liability). This is pre-1.0 software; expect rough edges.
+- **Your data stays local.** The framework collects zero telemetry. See [standards/ship-ready.md](./standards/ship-ready.md#telemetry-stance-opinionated) for the stance.
 
 ## Beta tester checklist
 
@@ -44,7 +34,7 @@ When this section becomes relevant, the rules below apply.
 
 1. **Tests pass locally** — run before pushing:
    ```bash
-   npm test                  # full suite (unit + contract + integration), ~16 sec
+   npm test                  # full suite (unit + contract + integration), ~27 sec at 2339 tests
    npm run test:smoke        # post-install verification (after install.sh has run)
    ```
 2. **Cross-platform sanity** (if your change touches `install.{sh,ps1}`, hooks, or detectors):

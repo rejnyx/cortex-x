@@ -1,15 +1,13 @@
 # Steward — User Guide
 
-> **What Steward is today (v0):** an autonomous *planning* loop. Reads
-> `cortex/recommendations.md`, picks the next action, emits a structured plan
-> with a valid Conventional-Commits message + Git trailers, journals the run.
-> **It does NOT edit files or open PRs yet** — that's v0.5 (the Claude
-> Agent SDK seam).
->
-> **Why ship v0 without the LLM call:** every plumbing piece (halt-check,
-> lock, journal, recommendations parser, git-trailer builder, policy
-> denylist) is testable, deterministic, network-free. The Claude Agent SDK
-> integration becomes one isolated PR instead of a refactor across 6 modules.
+> **What Steward is today (v0.5b+):** a full autonomous *execution* loop.
+> Reads `cortex/recommendations.md`, picks the next action, calls an LLM
+> (OpenRouter / Anthropic claude-cli / mock), applies edits with SHA-pinned
+> verification, runs the spec-verifier (6 acceptance-criterion kinds incl.
+> `read_set` coverage proof), runs `npm test`, atomic commit + push +
+> `gh pr create --draft`, journals everything. Atomic rollback on any
+> failure phase. Currently running on this repo as 15 active cron workflows
+> producing real auto-PRs since 2026-05-09.
 >
 > **Companion docs:** [`docs/steward-rfc.md`](./steward-rfc.md) (motivation),
 > [`docs/steward-runtime.md`](./steward-runtime.md) (5-component design),
@@ -23,10 +21,10 @@ stop at any level and still get value.
 
 | Level | Status | What runs autonomously | What you still do manually |
 |---|---|---|---|
-| **L1 Planning** | ✅ shipped (v0) | Reads recommendations, picks action, emits plan with valid commit message + trailers | Make the file edits yourself, run `npm test`, commit, push, PR |
-| **L2 Execution** | ⏳ v0.5 (1 PR away) | + Claude SDK calls → makes the file edits → runs `npm test` → atomic commit → draft PR | Review the draft PR, merge |
-| **L3 Triggers** | ⏳ v1 | + GitHub Actions cron fires weekly automatically | Add `OPENROUTER_API_KEY` secret once |
-| **L4 Recommendations** | ⏳ Phase 5 + v1 | + cortex-evolve weekly mining auto-generates new DO-this-week items | Review proposals occasionally |
+| **L1 Planning** | ✅ shipped (v0) | Reads recommendations, picks action, emits plan with valid commit message + trailers | (nothing — L2 supersedes) |
+| **L2 Execution** | ✅ shipped (v0.5b, 2026-05-07) | + LLM call → file edits via `edit_ops[]` primitive → spec-verifier gate (6 criterion kinds) → `npm test` gate → atomic commit → draft PR | Review the draft PR, merge |
+| **L3 Triggers** | ✅ shipped (v1, 2026-05-09) | + GitHub Actions cron fires nightly/weekly/monthly across 15 action_kinds | Set `OPENROUTER_API_KEY` (or `CLAUDE_CODE_OAUTH_TOKEN` for claude-cli) secret once |
+| **L4 Recommendations** | ⏳ Phase 5 (spec'd, not auto-wired) | + cortex-evolve weekly mining auto-generates new DO-this-week items | Review proposals occasionally |
 
 **Hardcoded NEVER autonomous (per `standards/steward-policy.md` MUST-H6):**
 auto-merging PRs. Steward opens drafts; humans always merge.
@@ -284,16 +282,19 @@ workflow instead of local crontab:
 
 ```bash
 # Per-project setup (one-time):
-cp .github/workflows/steward.example.yml .github/workflows/steward.yml
-# Edit hermes.yml: uncomment the schedule: block + set STEWARD_MODEL/STEWARD_MAX_TOKENS env
-# Add OPENROUTER_API_KEY secret on GitHub:
+# The cortex-x repo ships 15 active workflow files under .github/workflows/steward-*.yml
+# (one per shipped action_kind) plus the main steward.yml for the recommendation loop.
+# Copy the ones you want into your own repo and configure the secret:
+cp /path/to/cortex-x/.github/workflows/steward.yml .github/workflows/
 gh secret set OPENROUTER_API_KEY --body=$OPENROUTER_API_KEY
+# (Alternative: use claude-cli engine with CLAUDE_CODE_OAUTH_TOKEN to bill
+#  Steward against your Anthropic Max subscription instead of OpenRouter.)
 
 # Optional: trigger a manual run to verify
-gh workflow run hermes.yml
+gh workflow run steward.yml
 ```
 
-Sunday 04:00 UTC → workflow fires → checkout → `npm ci` → `cortex-steward
+Nightly 04:00 UTC → workflow fires → checkout → `npm ci` → `cortex-steward
 dry-run` → if plan produced → `cortex-steward execute` → draft PR opened.
 
 You'll see the run in the GitHub Actions UI. Journal artifact uploads with
@@ -315,8 +316,8 @@ node bin/cortex-steward.cjs status --slug=cortex-x
 ### Programmatic test (CI-gated)
 
 ```bash
-npm test                   # ~490 tests across all 8 tier gates (count current at HEAD)
-npm run test:hermes        # Steward-only suite (132 tests in ~600ms)
+npm test                   # 2339 tests across all 8 tier gates (count current at HEAD)
+npm run test:hermes        # Steward-only suite (subset; check package.json for exact count)
 npm run test:standards     # Tier 7 link integrity (13 tests)
 npm run test:bin           # Tier 6 bin/ tools (13 tests)
 ```
@@ -351,14 +352,15 @@ node tools/verify-skills.cjs --strict    # 3 skills: agentskills.io v1 spec comp
    `docs/steward-research-synthesis.md` v0 assumption #4) — that proves the
    plumbing is stable enough to layer the LLM on top.
 
-4. **Don't try to enable `.github/workflows/steward.example.yml` today.** The
-   v0.5 step is commented out for a reason — without the SDK call, the
-   workflow runs `dry-run` (which works) but no actual code changes happen.
-   Net result = a daily empty PR. Wait for v0.5.
+4. **Activate Steward on your own repo** by copying the workflows from
+   `.github/workflows/steward*.yml` into your project, setting the
+   `OPENROUTER_API_KEY` (or `CLAUDE_CODE_OAUTH_TOKEN`) secret, and writing
+   your own `cortex/recommendations.md` (template lives at the repo root).
 
-5. **D-1 closes** before any first `v0.1.0` tag (external review priority #2).
-   The git history PII purge requires a destructive force-push only the operator
-   should run. Until D-1 closes, the repo stays private.
+5. **D-1 (git history PII purge)** scheduled 2026-05-12 with operator OK
+   ahead of public-launch promotional content. Repo is already public under
+   Apache 2.0; the destructive force-push closes the working-tree-clean +
+   history-clean gap.
 
 ## Troubleshooting
 
@@ -409,9 +411,9 @@ resolved whatever caused the halt.
 | `bin/steward/_lib/git-trailers.cjs` | MUST-H3 commit-message + ULID + parser |
 | `bin/steward/_lib/policy-check.cjs` | Ring 1 denylist (over `block-destructive.cjs` Ring 2) |
 | `cortex/recommendations.md` | Cortex-x's own DO-list (Steward target for self-dogfood) |
-| `.github/workflows/steward.example.yml` | Reference GHA workflow (disabled until v0.5) |
+| `.github/workflows/steward.yml` + `.github/workflows/steward-*.yml` | 15 active cron schedules — one per shipped action_kind |
 | `tests/fixtures/steward-dryrun/` | Deterministic test target |
-| `tests/unit/steward/` | 95+ unit tests across primitives + dispatcher + execute |
+| `tests/unit/steward/` | Unit tests across primitives + dispatcher + execute (current count via `npm test`) |
 | `tests/integration/steward-dryrun.test.cjs` | 16 fixture-driven integration tests |
 
 ## Cross-references

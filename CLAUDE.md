@@ -8,8 +8,8 @@ cortex-x is moving in 4 tiers from "excellent dev tool" to "operator's second br
 
 | Tier | Status | Theme |
 |---|---|---|
-| 0 — Foundation | ✅ shipped (v0.8 + Sprint 1.8.13 + 1.9.0) | Scaffold + 9-kind capability palette + safety mechanics + spec-driven verification |
-| 1 — Verification + multi-agent | ✅ Sprint 1.9 + 2.0 + 2.0b + 2.1 + 2.2.5 v0/v1 + 2.3a + 2.5b + 2.6b + 2.11 shipped (2026-05-08 → 2026-05-10) · ⏳ 2.3b runner+Stryker (operator OK pending) | Spec-driven verification (✅), Phoenix OTLP observability (✅), autoresearch overnight burst (✅), `edit_ops[]` primitive (✅), mutation-testing fitness foundation (✅), `senior_tester_review` 12th capability (✅, ⭐ DIFFERENTIATOR), `workflow_hardener` 13th + `secret_history_sweep` 14th capabilities (✅ devops hygiene), runner+Stryker integration (deferred) |
+| 0 — Foundation | ✅ shipped (v0.8 + Sprint 1.8.13 + 1.9.0 + 2.18) | Scaffold + 16-kind capability palette + safety mechanics + 6-kind spec-driven verification (incl. Sprint 2.18 read_set coverage proof) |
+| 1 — Verification + multi-agent | ✅ Sprint 1.9 + 2.0 + 2.0b + 2.1 + 2.2.5 v0/v1 + 2.3a + 2.5b + 2.6b + 2.11 + 2.18 shipped (2026-05-08 → 2026-05-12) · ⏳ 2.3b runner+Stryker (operator OK pending) | Spec-driven verification (✅), Phoenix OTLP observability (✅), autoresearch overnight burst (✅), `edit_ops[]` primitive (✅), mutation-testing fitness foundation (✅), `senior_tester_review` 12th capability (✅, ⭐ DIFFERENTIATOR), `workflow_hardener` 13th + `secret_history_sweep` 14th capabilities (✅ devops hygiene), `read_set` 6th criterion kind (✅ read-coverage proof — Sprint 2.18), runner+Stryker integration (deferred) |
 | 2 — Compound learners | ⏳ Sprint 3.0–3.3 | AlphaEvolve prompt evolution, self-extending capabilities, FTS5 skills, GraphRAG |
 | 3 — Productization | ⏳ Sprint 4.0–4.7 | Capability marketplace, WaaS for clients, voice → recommendation, identity LoRA |
 | 4 — Persistent entity | 🔮 Sprint 5.0+ | Self-hosted home server, soul abstraction, Obsidian SSOT, multi-source life ingest |
@@ -38,7 +38,7 @@ See [prompts/cortex-load.md](./prompts/cortex-load.md) for the authoritative men
 
 ## Status
 
-Phase 1 — Foundation (in progress)
+**v0.3-pre, public-ready** (Apache 2.0 relicense 2026-05-12). Tier 0 (Foundation) ✅ shipped. Tier 1 (Verification + multi-agent) ✅ mostly shipped — Sprint 1.9 + 2.0–2.1 + 2.2.5 + 2.3a + 2.5b + 2.6b + 2.11 + 2.18 all landed; Sprint 2.3b mutation-runner integration deferred (operator OK pending). Tier 2/3/4 ⏳ ahead. **2339 tests, 0 failing.** 16 action_kinds in Steward registry (14 shipped, 2 declared-not-shipped). 6 acceptance-criterion kinds in spec-verifier.
 
 ## Tech Stack
 
@@ -128,7 +128,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 
 ## Roadmap
 
-**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-5 QA infrastructure landed 2026-05-07: 207 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates) + **QA Retrofit lens shipped 2026-05-09 Sprint 2.10** (`prompts/qa-retrofit.md` + `profiles/qa-engineer.yaml` + `shared/skills/test-audit/SKILL.md` + 2 hbs templates with 3-hop citation traceability; ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM + tsDetect FSE'20 grounded; AI-augmented-tester positioning, not replacement)
+**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-8 QA infrastructure: started at 207 tests 2026-05-07, now 2339 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates) + **QA Retrofit lens shipped 2026-05-09 Sprint 2.10** (`prompts/qa-retrofit.md` + `profiles/qa-engineer.yaml` + `shared/skills/test-audit/SKILL.md` + 2 hbs templates with 3-hop citation traceability; ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM + tsDetect FSE'20 grounded; AI-augmented-tester positioning, not replacement)
 - Shared hooks (block-destructive, session-start [+ detector integration 2026-04-20], pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20
@@ -180,8 +180,8 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - ✅ **Sprint 1.6.19 v0.5b finalization shipped** — `gh pr create --draft` integration in execute.cjs (push + PR open Phase 11), `STEWARD_DAILY_USD_CAP` + consecutive-failure circuit breaker (`STEWARD_FAILURE_BREAKER`).
 - ✅ **Sprint 1.9.0 spec-driven verification shipped 2026-05-09** — generalizes Sprint 1.8.13 hardcoded `EDIT_DESTRUCTIVE_REWRITE` into per-kind `acceptance_criteria[]` (5 criterion kinds: shell / file_predicate / regex / ears_text / llm_judge), new `bin/steward/_lib/spec-verifier.cjs` runner gates between `applyAction` and `runNpmTest`. 8 new error codes (SPEC_VIOLATION through SPEC_LLM_JUDGE_NOT_IMPLEMENTED). Inline shrink check removed from action-engine.cjs (single source of truth = registry criterion). 871 tests, all 3 CI lanes green. R1 memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`.
 - ✅ **Sprint 1.9.1 multi-window cost safety + loop detector shipped 2026-05-09** — `bin/steward/_lib/cost-safety.cjs` adds `STEWARD_WEEKLY_USD_CAP` ($25 default), `STEWARD_MONTHLY_USD_CAP` ($80), `STEWARD_TOKEN_VELOCITY_CAP` (50K/5min), cross-session loop detector (5x same criterion id in 7 days → write `STEWARD_HALT`), `cortex-steward status --forecast` flag. 4 new error codes. Operator-suggested gap analysis after 2026-05-09 audit ("daily $5 × 30 = $150/month would have passed without alarm"). Pre-2.x pojistka before Sprint 2.1 autoresearch.
-- ✅ **923 unit + contract + integration tests** across 8 tier gates (Tier 0-7 + 8). All 3 CI workflows green (test / install-smoke / no-pii).
-- ⏳ **v1 cron triggers**: uncomment `.github/workflows/steward.example.yml`, set `OPENROUTER_API_KEY` repo secret, expand from cortex-x dogfood → a Next.js SaaS project + Kiosek.
+- ✅ **2339 unit + contract + integration tests** across 8 tier gates (Tier 0-7 + 8). All 3 CI workflows green (test / install-smoke / no-pii).
+- ✅ **v1 cron triggers shipped**: 15 active `.github/workflows/steward-*.yml` workflows (daily harvest, weekly dep-patch / flaky-test / coverage / lint / tech-debt / workflow-hardener / secret-sweep, monthly senior-tester / doc-drift / todo-triage, every-4-hours pr-review-responder). Real nightly cron PRs producing commits since 2026-05-09. Next: expand from cortex-x dogfood → a Next.js SaaS project + Kiosek.
 - ⏳ **v1.5+ hardening backlog (Sprint 1.6.20+ + 1.9.1+)**: hardcode endpoint, extractUsage string coercion + multi-call ensemble shape (RouteLLM blocker), detached HEAD pre-flight, timeoutMs/maxTokens upper-bound clamps, `<untrusted>` delimiters around prompt-injected content, eval suite + property tests + stateful simulation per `standards/correctness.md`. Sprint 1.9.1: `kind: ears_text` runtime semantics, render `spec_failures` block in PR body, EISDIR + symlink hardening in applyEditsToFilesystem.
 - See [docs/steward-rfc.md](./docs/steward-rfc.md), [docs/steward-runtime.md](./docs/steward-runtime.md), [docs/steward-usage.md](./docs/steward-usage.md), [standards/steward-policy.md](./standards/steward-policy.md)
 

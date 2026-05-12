@@ -26,7 +26,7 @@ Retrofitting agentic patterns into a CRUD codebase = architecture rewrite. 30 mi
 
 Opens a new empty project folder → one command → you get:
 
-- **CLAUDE.md** tailored to your stack (one of 9 profiles — see below)
+- **CLAUDE.md** tailored to your stack (one of 11 profiles — see below)
 - **PROGRESS.md** sprint tracking template
 - **.claude/** folder with hooks, subagents, skills, settings
 - **MEMORY.md** multi-layer memory scaffold
@@ -63,47 +63,66 @@ See [docs/steward-usage.md](./docs/steward-usage.md) to activate Steward for you
 
 No duplication = no drift = no lying cortex entries.
 
-## Design principles (11 standards)
+## Design principles (25 standards across 4 tiers)
 
-Every scaffolded project inherits these — see [standards/](./standards/README.md) for full docs:
+Every scaffolded project inherits these — see [standards/](./standards/README.md) for the full set. **Tiered rule hierarchy** (RULE-1 doc explains priority):
 
+**Rule 0 — Distribution gate:** [ship-ready](./standards/ship-ready.md)
+
+**Rule 1 — Architectural invariants (block PR if violated):**
 1. **[SSOT](./standards/ssot.md)** — One source of truth per piece of knowledge
 2. **[Modular](./standards/modular.md)** — Isolated subsystems with clean interfaces
 3. **[Scalable](./standards/scalable.md)** — Patterns that survive 10x growth
-4. **[Security](./standards/security.md)** — Layered defense, 8-layer model, RLS from day 1
-5. **[Testing](./standards/testing.md)** — Test pyramid, 5 pillars per test (happy/error/edge/security/integration)
-6. **[Observability](./standards/observability.md)** — Structured logs, metrics, traces, Sentry from day 1
-7. **[Performance](./standards/performance.md)** — Core Web Vitals, DB indexes, streaming, bundle budgets
-8. **[Accessibility](./standards/accessibility.md)** — WCAG 2.2 AA, keyboard, screen reader, reduced motion
-9. **[Error handling](./standards/error-handling.md)** — Classify, recover, user-friendly messages
-10. **[Git workflow](./standards/git-workflow.md)** — Atomic commits, safety, conventional commits
-11. **[Documentation](./standards/documentation.md)** — README + CLAUDE.md + PROGRESS.md + ADRs
+
+**Rule 1.5 — Coding behavior contract:** [coding-behavior](./standards/coding-behavior.md), [auto-optimization](./standards/auto-optimization.md), [self-correction](./standards/self-correction.md)
+
+**Rule 2 — Critical (must-have, review-pipeline blocker):**
+4. **[Security](./standards/security.md)** — 8-layer + agentic-security §, RLS from day 1
+5. **[Testing](./standards/testing.md)** — Test pyramid, 5 pillars per test
+6. **[Observability](./standards/observability.md)** — Logs/metrics/traces + Runtime SLOs + circuit breakers + LLM obs
+7. **[Correctness](./standards/correctness.md)** — Zod boundaries, property tests, eval-driven, mutation testing
+
+**Rule 3 — Process (should-have):** [performance](./standards/performance.md), [accessibility](./standards/accessibility.md), [error-handling](./standards/error-handling.md), [git-workflow](./standards/git-workflow.md), [documentation](./standards/documentation.md), [ai-patterns](./standards/ai-patterns.md), [ai-sdks](./standards/ai-sdks.md), [skills](./standards/skills.md), [steward-policy](./standards/steward-policy.md), [auto-orchestration](./standards/auto-orchestration.md), [story-sizing](./standards/story-sizing.md), [test-types-catalog](./standards/test-types-catalog.md), [coding-behavior-examples](./standards/coding-behavior-examples.md)
 
 ## Repo structure
 
 ```
 cortex-x/
-├── bin/              CLI entrypoint (init, doctor, sync)
-├── profiles/         Project-type profiles (Next.js SaaS, Chatbot, Website-as-a-Service, ...)
-├── templates/        Handlebars templates (CLAUDE.md, PROGRESS.md, ...)
-├── standards/        Principle docs (SSOT, Modular, Scalable, Security)
+├── bin/                  CLI entrypoints (cortex-bootstrap, cortex-steward, cortex-capabilities, cortex-gap-report)
+│   ├── steward/          Steward autonomous-maintenance runtime (dry-run + execute + status + _lib/ primitives)
+│   ├── cortex/           Skill-side tools invoked by /cortex-init, /cortex-help, etc.
+│   └── discord-bridge/   Discord remote-control surface (optional, Sprint 2.6)
+├── profiles/             11 project-type profiles (nextjs-saas, chatbot-platform, waas-template, ai-agent, browser-agent, cli-tool, tauri-desktop, kiosek, qa-engineer, astro-static, minimal)
+├── templates/            Handlebars templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, SKILL.md, ...)
+├── standards/            25 standards across 4 tiers (Rule 0/1/1.5/2/3)
+├── prompts/              15 reusable prompts (bound to slash commands or paste-style)
+├── agents/               9 specialized subagents (review pipeline + planner + synthesizer + cortex-thinker)
 ├── shared/
-│   ├── hooks/        Universal safety + context hooks
-│   ├── skills/       Reusable skills (init, doctor, memory-consolidate)
-│   └── agents/       Reusable subagents (reviewer, security, architect)
-├── detectors/        Auto-detect project type from package.json
-├── research/         Cached 2026 best-practices per profile
-├── tests/            Tier 0-5 QA infrastructure (207 tests, 5-lane CI matrix)
-├── tools/            Verifiers (verify-prompts, verify-skills, verify-audit-output, verify-install)
-├── projects/         README only — actual project entries land in $CORTEX_DATA_HOME/projects/
-└── install.sh        One-command install to ~/.claude/
+│   ├── hooks/            7 universal Claude Code hooks (session-start, block-destructive, post-tool-use, ...)
+│   ├── skills/           Reusable agentskills.io-format skills shipped to ~/.claude/skills/
+│   └── agents/           (mirrored from agents/ at install time)
+├── detectors/            Deterministic profile + stage classifiers + per-action_kind detectors (fail-open <100ms)
+├── tools/                Validators (verify-prompts, verify-skills, verify-audit-output, verify-no-pii, ...)
+├── tests/                Tier 0-8 QA infrastructure (2339 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates)
+├── evals/                Aider-style eval suite (10 canonical task rubrics)
+├── cortex/               Auto-generated capabilities registry + qa/ + recommendations.md template
+├── docs/                 Long-form docs + research memos + dogfood-examples/
+├── config/               evolve.yaml + research.yaml + ship-ready denylist
+├── insights/             Cortex-thinker auto-observations (gitignored timestamps)
+├── journal/              Tool-use traces (gitignored)
+├── projects/             README only — actual project entries land in $CORTEX_DATA_HOME/projects/
+├── .github/
+│   ├── workflows/        17 GitHub Actions workflows (3 CI lanes + 15 Steward cron schedules + 1 PR template)
+│   ├── ISSUE_TEMPLATE/   bug-report + beta-feedback + config (security → Private Vuln Reporting)
+│   └── PULL_REQUEST_TEMPLATE.md
+└── install.{sh,ps1}      One-command install to ~/.claude/shared/
 ```
 
 > **XDG separation (Sprint 1.6, 2026-04).** The repo holds **framework code only**. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`). The empty-looking `projects/` in the repo is intentional: it documents the contract; data is per-machine.
 
 ## Installation
 
-> **Status: pre-alpha, public preview.** The repo is public. The framework code, install pipeline, and ~2200 tests are real. Steward (the autonomous nightly runtime) currently runs as **manual dogfood on this repo only** — nightly cron auto-deployment to your own projects is **v1 (not yet wired)**. Read the Status section below before relying on Steward in production.
+> **Status: v0.3-pre, public.** Repo is public under Apache 2.0 (2026-05-12). Framework code, install pipeline, and **2339 tests** are real. Steward (autonomous nightly maintenance runtime) is **wired and running** — 15 cron workflows shipped, producing real auto-PRs on this repo since 2026-05-09. To activate Steward on your own repo: see [docs/steward-runtime.md](./docs/steward-runtime.md).
 
 **Linux / macOS / WSL / Git Bash:**
 
@@ -340,7 +359,7 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 - 11 standards (SSOT, Modular, Scalable, Security, Testing, Observability, Performance, A11y, Error handling, Git, Docs) — Rule 1/1.5/2/3 tier system
 - 5 templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md)
 - Cross-platform install scripts (5-lane CI matrix: ubuntu-bash, macos-bash, win-gitbash, win-pwsh7, win-ps5.1)
-- Tier 0-5 QA infrastructure (207 tests, hook contract + prompt regression — 2026-05-07)
+- Tier 0-8 QA infrastructure (started at 207 tests 2026-05-07, now 2339 tests, hook contract + prompt regression as hard gates)
 
 **Phase 2 — Bootstrap skill** ⚠️ partial — prompt-driven scaffold (`prompts/new-project.md`) shipped; Clack-based interactive CLI deferred
 
@@ -366,7 +385,7 @@ Pick via `cortex init` → interactive selector → scaffolds everything.
 - ✅ **OpenRouter engine (v0.5b)** — real LLM via `fetch()` (Node ≥18), zero-deps preserved. 8 distinct error codes, configurable timeout, JSON-mode response_format, default `deepseek/deepseek-v4-flash` (~$0.0008/run). Pluggable seam: mock / openrouter / claude-sdk.
 - ✅ **First real OpenRouter call validated end-to-end** (Sprint 1.6.13 dogfood): LLM → JSON → edits → test gate → atomic rollback proven safe by reality.
 - ✅ **Sprint 1.6.14–1.6.18 hardening** from real-world signal + 6-agent review pipeline: `STEWARD_MAX_TOKENS` (legacy `STEWARD_MAX_TOKENS` honored), cost capture on all failure paths (`addCostFields` + `extractUsage`), JSON-fence stripping for cross-model robustness, tightened path-traversal (NUL byte + flag-injection + realpath containment), editPlan shape gate (`OPENROUTER_PLAN_SHAPE_INVALID`), null-body guard, default-model SSOT alignment, MIGRATIONS.md backfill.
-- ✅ **489 tests** across `tests/unit/steward/` + `tests/integration/steward-dryrun.test.cjs`. All 3 CI workflows green.
+- ✅ **2339 tests** across `tests/unit/`, `tests/contract/`, `tests/integration/`, `tests/smoke/`. All 3 CI workflows green (test / install-smoke / no-pii).
 - ✅ **v0.5b finalization (Sprint 1.6.19):** `gh pr create --draft` integration in execute.cjs (push + PR open), daily spend cap (`STEWARD_DAILY_USD_CAP`) + consecutive-failure circuit breaker — all shipped.
 - ⏳ **v1 enablement (your repo):** the workflow files in `.github/workflows/steward-*.yml` exist as templates. Set `OPENROUTER_API_KEY` (or Anthropic Max sub via `claude-cli` engine) + the appropriate per-workflow secrets, then enable the workflows on your fork. Manual `cortex-steward dry-run` works today without cron.
 - ⏳ **v1.5+ hardening:** hardcode endpoint, extractUsage string coercion, detached HEAD pre-flight, `<untrusted>` delimiters, denylist expansion, eval suite + property tests + stateful simulation.
