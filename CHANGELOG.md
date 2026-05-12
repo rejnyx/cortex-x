@@ -4,6 +4,34 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Fixed (2026-05-12 — Sprint LR.B+ R2: 6-agent review pipeline hardening — 6 HIGH + 4 MED closed)
+
+After commit `73e7a07` shipped capability discovery + install pipeline + web-research teaching fixes, a 6-agent parallel review pipeline (acceptance + blind + correctness + security + ssot + edge-case) found additional gaps. All HIGH + impactful MED findings fixed in this round.
+
+HIGH closed:
+- **inventoryTests regex** (correctness + edge HIGH): regex `/^[ \t]*(?:test|it)\s*\(/gm` undercounted `.each / .skip / .only / .todo / .concurrent` variants. Extended alternation: `(?:test|it)(?:\.(?:each|skip|only|todo|concurrent))?\s*\(`. Capability inventory now counts 2243 (vs node:test 2339 = 4% diff, was 95% off before).
+- **session-start yaml CRLF survival** (correctness HIGH): regex capture left trailing `\r` from Windows-edited `cortex-source.yaml`. Added explicit `.replace(/\r$/, '')` before quote-strip.
+- **session-start clock-skew silent-disable** (correctness HIGH): future-dated marker mtime made `Date.now() - mtimeMs < interval` true (negative < positive), suppressing nudge for years. Now gates on `ageMs >= 0 && ageMs < NUDGE_INTERVAL_MS`.
+- **session-start hardcoded counts** (SSOT Orange): nudge text "25 standards, 17 workflows" already drifted vs auto-registry (26, 18) in same commit. Counts now read dynamically from `cortex/capabilities.json`.
+- **install.sh CAPSHIM write-fail invisible** (blind IMPORTANT): heredoc cat had no failure check; mid-stream write fault silently continued. Wrapped in `if ! cat > ...; then exit 1; fi`.
+- **install.sh CAPSHIM tab + CRLF** (edge MED): sed used `[ ]*` (space only); didn't strip `\r`. Switched to `[[:space:]]*` + added `tr -d '\r'`. Cross-platform yaml editing no longer breaks the shim.
+
+MED closed:
+- **session-start marker race + fresh-install spam** (correctness + edge MED): atomic `fs.openSync(path, 'wx')` for exclusive-create + `mkdirSync({recursive:true})` on parent dir before write.
+- **session-start marker containment** (correctness MED): `path.relative(dataRoot, markerPath)` escape check.
+- **capabilities-refresh.yml phantom commits** (correctness + edge MED): `git diff -I '"generated_at"'` ignores timestamp-only hunks; falls back to plain diff for older git.
+- **inventoryTests silent-skip large files** (edge MED): tracks `skippedLarge` count + stderr warning.
+
+Doc honesty:
+- **standards/web-research.md budget caps softened**: caps marked "operator discipline (Sprint 3.X will harness)" with explicit honesty note that no runtime loader consumes `config/research.yaml` yet.
+
+Deferred (Orange SSOT — acceptable for now):
+- Shim emitter Rule-of-Three extraction (4 shims duplicate cortex-source.yaml resolver). Will land before 5th shim.
+- Skill-promote list duplicated across install.{sh,ps1} + verify-install.cjs. Same rationale.
+- retrofit + designer skill research-phase wiring claimed in web-research.md but not yet shipped — softened to "planned" in next round.
+
+Tests: 2339, 0 failures. Capability registry inventoryTests count: 2243 (was 110 yesterday).
+
 ### Changed (2026-05-12 — License: PolyForm Noncommercial 1.0.0 → Apache License 2.0)
 
 **Sprint LR.6 closed.** Relicensed from PolyForm Noncommercial 1.0.0 to Apache License 2.0 pre-public-launch. Why Apache 2.0:

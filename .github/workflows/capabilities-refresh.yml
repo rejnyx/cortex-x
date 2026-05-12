@@ -72,14 +72,21 @@ jobs:
 
       - name: Check if registry drifted
         id: drift
+        # R2 edge audit MED: ignore `generated_at` timestamp field so a fresh
+        # `npm run capabilities` run doesn't produce phantom commits when the
+        # actual inventory is stable. Uses git -I 'regex' (git 2.30+) to skip
+        # hunks where the only change matches the timestamp line. Falls back
+        # to plain diff if the flag isn't supported (older runners).
         run: |
-          if git diff --quiet cortex/capabilities.md cortex/capabilities.json; then
+          set -e
+          DIFF_OUT=$(git diff -I '"generated_at"' --stat cortex/capabilities.md cortex/capabilities.json 2>/dev/null || git diff --stat cortex/capabilities.md cortex/capabilities.json)
+          if [ -z "$DIFF_OUT" ]; then
             echo "drifted=false" >> "$GITHUB_OUTPUT"
-            echo "Registry up-to-date."
+            echo "Registry up-to-date (timestamp-only diffs ignored)."
           else
             echo "drifted=true" >> "$GITHUB_OUTPUT"
             echo "::notice::Capability registry drifted — regeneration needed."
-            git --no-pager diff --stat cortex/capabilities.md cortex/capabilities.json
+            echo "$DIFF_OUT"
           fi
 
       - name: PR path — fail loudly so contributor regenerates locally

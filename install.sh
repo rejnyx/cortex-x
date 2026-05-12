@@ -351,22 +351,29 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 # Writes a thin wrapper that delegates via cortex-source.yaml — same
 # pattern as cortex-steward (source repo stays SSOT, no drift).
 if [ -f "$CORTEX_ROOT/bin/cortex-capabilities.cjs" ]; then
-  cat > "$CLAUDE_HOME/shared/bin/cortex-capabilities" <<'CAPSHIM'
+  # R2 blind-hunter IMPORTANT: heredoc write must fail loud if it fails mid-stream.
+  if ! cat > "$CLAUDE_HOME/shared/bin/cortex-capabilities" <<'CAPSHIM'
 #!/usr/bin/env bash
 # cortex-capabilities shim — delegates to $CORTEX_SOURCE/bin/cortex-capabilities.cjs.
+# R2 edge audit MED: handle both space + tab after the yaml key, strip trailing \r
+# from Windows-edited yaml.
 set -e
 SRC_YAML="$HOME/.claude/shared/cortex-source.yaml"
 if [ ! -f "$SRC_YAML" ]; then
   echo "cortex-x not configured ($SRC_YAML missing). Re-run install.sh." >&2
   exit 1
 fi
-CORTEX_SOURCE=$(grep '^cortex_source:' "$SRC_YAML" | head -1 | sed 's/^cortex_source:[ ]*//' | tr -d '"' | tr -d "'")
+CORTEX_SOURCE=$(grep '^cortex_source:' "$SRC_YAML" | head -1 | sed 's/^cortex_source:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r')
 if [ -z "$CORTEX_SOURCE" ] || [ ! -d "$CORTEX_SOURCE" ]; then
   echo "cortex-x source not found at: $CORTEX_SOURCE" >&2
   exit 1
 fi
 exec node "$CORTEX_SOURCE/bin/cortex-capabilities.cjs" "$@"
 CAPSHIM
+  then
+    echo "  ✗ Failed to write cortex-capabilities shim — check disk space + perms" >&2
+    exit 1
+  fi
   chmod +x "$CLAUDE_HOME/shared/bin/cortex-capabilities"
 fi
 

@@ -67,14 +67,14 @@ Severity: **HIGH** when the audit catches a missing research dispatch on a touch
 
 ## Cost / budget
 
-| Surface | Default cap |
-|---|---|
-| Per-session web research budget | 3 parallel agents × 10 fetches = 30 web hits |
-| Per-week budget | 10 research dispatches |
-| Cache TTL | 14 days per topic |
-| Bypass | `--force-research` flag explicit; `CORTEX_RESEARCH_BUDGET_DISABLED=1` env for unlimited |
+| Surface | Default cap | Enforcement |
+|---|---|---|
+| Per-session web research budget | 3 parallel agents × 10 fetches = 30 web hits | **operator discipline** (Sprint 3.X will harness) |
+| Per-week budget | 10 research dispatches | **operator discipline** |
+| Cache TTL | 14 days per topic | **operator discipline** (filename mtime is the contract) |
+| Bypass | `--force-research` flag · `CORTEX_RESEARCH_BUDGET_DISABLED=1` env | reserved keywords; no enforcement layer yet |
 
-Override defaults in `~/.claude/shared/config/research.yaml`.
+> **Honesty note:** these caps are **documented expectations**, not harness-enforced limits. The `~/.claude/shared/config/research.yaml` knobs live in the repo (Sprint 2.14 R1) but no runtime loader consumes them yet. Sprint 3.X `web_research_dispatch` action_kind will wire the budget gate end-to-end. Until then: the operator is the gate. Token-cost guardrails for *all* Steward agentic spend (multi-window cost-safety, Sprint 1.9.1) still apply globally and will surface high research-spend in the daily cap.
 
 ## Related
 

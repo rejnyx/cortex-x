@@ -244,14 +244,22 @@ function inventoryActionKinds() {
 function inventoryTests() {
   // Sprint LR.B+ (2026-05-12): count actual test cases (test/it invocations)
   // not just files. Previous file-count gave 110 in capabilities.md while
-  // README + node:test reported 2339 — embarrassing self-contradiction. The
-  // regex /^[ \t]*(test|it)\s*\(/ captures every top-level + indented case;
-  // matches what node --test sees.
+  // README + node:test reported 2339 — embarrassing self-contradiction.
+  //
+  // R2 hardening (correctness HIGH + edge HIGH): cover .each / .skip / .only /
+  // .todo / .concurrent variants too. The regex matches either:
+  //   - bare `test(` / `it(` at line start (with optional indent), or
+  //   - `test.<verb>(` / `it.<verb>(` where verb is the documented suffix set.
+  // This approximates what node --test sees (skip/todo are still cases). It
+  // intentionally does NOT match commented-out block patterns inside multi-
+  // line string literals or `*`-prefixed JSDoc; a small false-positive on
+  // template literals is acceptable vs the prior 95% undercount.
   const buckets = ['unit', 'contract', 'integration', 'smoke'];
   const counts = {};
   let total = 0;
+  let skippedLarge = 0;
   // Sprint 2.15.1 R2: regex compiled once, multiline.
-  const TEST_CASE_RE = /^[ \t]*(?:test|it)\s*\(/gm;
+  const TEST_CASE_RE = /^[ \t]*(?:test|it)(?:\.(?:each|skip|only|todo|concurrent))?\s*\(/gm;
   for (const b of buckets) {
     const dir = path.join(REPO_ROOT, 'tests', b);
     if (!fs.existsSync(dir)) { counts[b] = 0; continue; }
@@ -277,10 +285,14 @@ function inventoryTests() {
           stack.push(full);
         } else if (ent.name.endsWith('.test.cjs')) {
           // Read + count test()/it() invocations. Cap file size to 1 MiB
-          // so a runaway fixture can't OOM the inventory pass.
+          // so a runaway fixture can't OOM the inventory pass. Track skips
+          // (edge audit MED — surface to stderr so operator sees stale count).
           try {
             const stat = fs.statSync(full);
-            if (stat.size > 1024 * 1024) continue;
+            if (stat.size > 1024 * 1024) {
+              skippedLarge += 1;
+              continue;
+            }
             const content = fs.readFileSync(full, 'utf8');
             const matches = content.match(TEST_CASE_RE);
             n += matches ? matches.length : 0;
@@ -290,6 +302,12 @@ function inventoryTests() {
     }
     counts[b] = n;
     total += n;
+  }
+  if (skippedLarge > 0) {
+    // R2 edge audit MED: surface skipped-files signal so capability counts
+    // aren't silently bounded by the 1 MiB cap. Stderr only — stdout stays
+    // machine-parseable for the JSON consumers.
+    try { process.stderr.write(`[capabilities] inventoryTests: skipped ${skippedLarge} test file(s) over 1 MiB cap\n`); } catch {}
   }
   return { counts, total };
 }

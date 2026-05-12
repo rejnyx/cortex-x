@@ -226,16 +226,33 @@ try {
     }
 
     // Sprint LR.B+ (2026-05-12): discovery nudge. Most operators never read
-    // capabilities.md unless prompted. On first session per day, surface a
+    // capabilities.md unless prompted. On first session per ~18h surface a
     // one-line reminder + the canonical entry points. Marker file prevents
-    // spam — only fires when mtime is older than 18h.
+    // spam.
+    //
+    // R2 hardening (correctness HIGH + edge MED):
+    //   - Strip CR after yaml regex capture (Windows-edited yaml ships with
+    //     \r in $1, breaks existsSync silently).
+    //   - Clock-skew guard: if marker mtime is in the future, treat as stale
+    //     so operator doesn't get silently disabled for years.
+    //   - Counts read dynamically from capabilities.json (SSOT) — never
+    //     hardcoded prose.
+    //   - mkdirSync(parent) before write so fresh-install marker survives.
+    //   - Atomic exclusive-create for concurrent-session race; second
+    //     session skips the nudge cleanly.
     try {
       const markerPath = path.join(dataRoot, '.last-capability-tip');
+      // Containment check (correctness HIGH): marker MUST stay inside dataRoot.
+      const relCheck = path.relative(dataRoot, markerPath);
+      if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) throw new Error('marker escape');
       const NUDGE_INTERVAL_MS = 18 * 60 * 60 * 1000;
       let shouldNudge = true;
       try {
         const markerStat = fs.statSync(markerPath);
-        if (Date.now() - markerStat.mtimeMs < NUDGE_INTERVAL_MS) shouldNudge = false;
+        const ageMs = Date.now() - markerStat.mtimeMs;
+        // Clock-skew: future-dated marker (negative age) is suspect; treat
+        // as expired so the nudge isn't silently suppressed for years.
+        if (ageMs >= 0 && ageMs < NUDGE_INTERVAL_MS) shouldNudge = false;
       } catch { /* missing marker = first session, do nudge */ }
       if (shouldNudge) {
         const sourceYamlPath = path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml');
@@ -244,16 +261,52 @@ try {
           let yaml = fs.readFileSync(sourceYamlPath, 'utf8');
           if (yaml.charCodeAt(0) === 0xfeff) yaml = yaml.slice(1);
           const m = yaml.match(/^cortex_source:\s*(.+)$/m);
-          if (m) cortexSourceRoot = m[1].trim().replace(/^["']|["']$/g, '');
+          if (m) cortexSourceRoot = m[1].replace(/\r$/, '').trim().replace(/^["']|["']$/g, '');
         } catch { /* no source yaml */ }
-        const capsPath = cortexSourceRoot ? path.join(cortexSourceRoot, 'cortex', 'capabilities.md') : null;
-        if (capsPath && fs.existsSync(capsPath)) {
-          ctx.push('\ncortex-x discovery (tip shown once / 18h):');
-          ctx.push('  • Type /cortex-help inside Claude Code for one-screen capability menu');
-          ctx.push('  • Machine-readable inventory: cortex/capabilities.md (16 action_kinds, 25 standards, 11 profiles, 7 hooks, 17 workflows)');
-          ctx.push('  • Web research: cortex defaults to dispatching WebSearch+WebFetch on external-state tasks; SSOT ~/.claude/shared/research-protocol.md');
-          // Refresh marker (best-effort).
-          try { fs.writeFileSync(markerPath, new Date().toISOString(), { mode: 0o600 }); } catch {}
+        const capsMdPath = cortexSourceRoot ? path.join(cortexSourceRoot, 'cortex', 'capabilities.md') : null;
+        const capsJsonPath = cortexSourceRoot ? path.join(cortexSourceRoot, 'cortex', 'capabilities.json') : null;
+        if (capsMdPath && fs.existsSync(capsMdPath)) {
+          // Read counts from capabilities.json (SSOT) instead of hardcoding —
+          // SSOT enforcer Orange #1 (counts drifted in same commit). Fail-open
+          // to a generic line if JSON unreadable.
+          let countsLine = '  • Machine-readable inventory: cortex/capabilities.md (auto-generated registry)';
+          try {
+            if (capsJsonPath && fs.existsSync(capsJsonPath)) {
+              const reg = JSON.parse(fs.readFileSync(capsJsonPath, 'utf8'));
+              const ak = (reg.action_kinds && reg.action_kinds.length) || 0;
+              const std = (reg.standards && reg.standards.length) || 0;
+              const prof = (reg.profiles && reg.profiles.length) || 0;
+              const hk = (reg.hooks && reg.hooks.length) || 0;
+              const wf = (reg.workflows && reg.workflows.length) || 0;
+              countsLine = `  • Machine-readable inventory: cortex/capabilities.md (${ak} action_kinds, ${std} standards, ${prof} profiles, ${hk} hooks, ${wf} workflows)`;
+            }
+          } catch { /* fall through to generic line */ }
+          // Try atomic exclusive-create FIRST so concurrent sessions don't
+          // double-fire. If the open succeeds, this session owns the nudge.
+          let ownsNudge = true;
+          try {
+            fs.mkdirSync(path.dirname(markerPath), { recursive: true, mode: 0o700 });
+            const fd = fs.openSync(markerPath, 'wx', 0o600);
+            fs.writeSync(fd, new Date().toISOString());
+            fs.closeSync(fd);
+          } catch (err) {
+            // EEXIST = another session beat us. Refresh mtime so other
+            // session's stat reflects our window; skip the nudge to avoid
+            // duplicates.
+            if (err && err.code === 'EEXIST') {
+              try { fs.utimesSync(markerPath, new Date(), new Date()); } catch {}
+              ownsNudge = false;
+            }
+            // Any other write error (permission, ENOSPC) → still show the
+            // nudge once (best-effort UX) but don't loop on next session
+            // because we couldn't persist.
+          }
+          if (ownsNudge) {
+            ctx.push('\ncortex-x discovery (tip refreshed every 18h):');
+            ctx.push('  • Type /cortex-help inside Claude Code for one-screen capability menu');
+            ctx.push(countsLine);
+            ctx.push('  • Web research: cortex defaults to dispatching WebSearch+WebFetch on external-state tasks; SSOT ~/.claude/shared/research-protocol.md');
+          }
         }
       }
     } catch { /* nudge failures are non-blocking */ }
