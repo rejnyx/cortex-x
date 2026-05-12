@@ -124,7 +124,7 @@ After all gaps filled, run dry-run. This is the no-side-effect preview.
 cortex-steward dry-run --slug=$(basename $(git rev-parse --show-toplevel)) --json | jq .
 ```
 
-Expected output: structured JSON plan with `mode: "dry-run"`, `action.title` (the recommendation), `branch` (planned `hermes/<date>-<slug>-<id>`), `commit_message` (with valid Git trailers).
+Expected output: structured JSON plan with `mode: "dry-run"`, `action.title` (the recommendation), `branch` (planned `steward/<date>-<slug>-<id>`), `commit_message` (with valid Git trailers).
 
 If output shows `mode: "no_actionable_step"` — recommendations.md is empty or all items already journaled. Add a fresh `- [ ]` entry to test.
 
@@ -139,7 +139,7 @@ If smoke test passes, summarize what happens next:
    1. Re-run dry-run inside the GH Actions runner
    2. Acquire ~/.cortex/locks/<slug>.lock (mutex)
    3. Make the OpenRouter LLM call (~$0.0008 spend)
-   4. Apply edits to a fresh hermes/<date>-<slug>-<id> branch
+   4. Apply edits to a fresh steward/<date>-<slug>-<id> branch
    5. Run npm test as the gate (rollback on fail)
    6. Atomic commit + push + gh pr create --draft
    7. Journal everything to ~/.cortex/journal/<slug>.jsonl
@@ -159,7 +159,7 @@ Tell user how to check Steward status post-activation:
 ```bash
 cortex-steward status --slug=<your-repo>          # halt + lock + recommendations + journal rollup
 gh pr list --author "Steward (cortex-x)"          # draft PRs Steward opened
-gh run list --workflow=hermes.yml --limit=10     # recent cron runs
+gh run list --workflow=steward.yml --limit=10    # recent cron runs
 tail -20 ~/.cortex/journal/<slug>.jsonl | jq .   # journal entries
 ```
 

@@ -1,6 +1,6 @@
 // action-kinds.cjs — Sprint 1.8.1 typed action_kind registry.
 //
-// The Hermes evolution roadmap (research synth 2026-05-07) calls for evolving
+// The Steward evolution roadmap (research synth 2026-05-07) calls for evolving
 // from "single-shot recommendation processor" to a "quality colleague" with
 // a tool palette of specialized capabilities (#1 dep-update, #2 flaky-test
 // repair, #3 doc-drift, #4 TODO triage, #5 recommendation harvester, ...).
@@ -397,7 +397,7 @@ const ACTION_KINDS = {
 
   pr_review_responder: {
     description:
-      'Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.',
+      'Monitor open Steward-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.',
     requires_llm: false, // v1: aggregate + file issue, no patch generation
     source: 'gh pr list + gh api repos/.../pulls/N/comments',
     detector: 'detectors/pr-review-responder.cjs', // Sprint 1.8.11
@@ -728,7 +728,7 @@ const ACTION_KINDS = {
   },
 
   // ReasoningBank-lite memory ISN'T an action_kind — it's a cross-cutting
-  // memory module written by every kind on failure. Lives in cortex/hermes-lessons.jsonl.
+  // memory module written by every kind on failure. Lives in cortex/lessons-learned.jsonl.
   // See Sprint 1.8.3 design.
 };
 

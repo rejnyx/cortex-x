@@ -406,7 +406,7 @@ Next step: `~/.claude/shared/prompts/project-scan.md` to register this project i
 
 ## When to use
 
-- **Client project you didn't bootstrap with cortex-x** — a Next.js SaaS project, custom-chatbot, an e-commerce chatbot client/a booking-platform client, Kiosek (legacy branches), WaaS
+- **Client project you didn't bootstrap with cortex-x** — a Next.js SaaS, a chatbot platform, an e-commerce site, a kiosk PWA on legacy branches, a website-as-a-service template
 - **Your own old project** that predates cortex-x discipline
 - **Project a teammate made** that you're now maintaining
 - **Pre-refactor** — run retrofit first, then do the refactor under cortex-x governance

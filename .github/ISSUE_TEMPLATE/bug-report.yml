@@ -1,0 +1,63 @@
+name: Bug report
+description: Something broke. Reproduce + I'll look.
+title: "[beta] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        cortex-x is **closed beta** (pre-1.0). Bug reports welcome, no PR contributions yet — see [CONTRIBUTING.md](https://github.com/Rejnyx/cortex-x/blob/main/CONTRIBUTING.md).
+
+  - type: input
+    id: what-failed
+    attributes:
+      label: What failed
+      placeholder: "e.g. `install.sh` exited 1 on macOS 14.5 Sonoma"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Exact commands. Pretend I'm an empty machine.
+      placeholder: |
+        1. `curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash`
+        2. Expected: ✓ Install verification passed
+        3. Got: (paste error here)
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS + version, shell, Node version (`node --version`), Claude Code version if relevant.
+      placeholder: |
+        - macOS 14.5
+        - zsh 5.9
+        - Node v22.4.1
+        - Claude Code 2.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        Helpful: `~/.cortex/.hook-errors.log` (last 50 lines), `~/.cortex/journal/<slug>.jsonl` (last entry).
+        Redact anything that looks like a secret before posting.
+      render: shell
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+        - label: I confirmed Node ≥ 22 is on PATH
+          required: true
+        - label: This is not a security vulnerability (those go via Private Vulnerability Reporting)
+          required: true

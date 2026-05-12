@@ -1,4 +1,4 @@
-// execute.cjs — Steward v0.5a action executor (Hermes v0.5a pre-rebrand).
+// execute.cjs — Steward action executor.
 //
 // Takes a JSON plan from `cortex-steward dry-run --json` and runs it
 // end-to-end:
@@ -27,7 +27,7 @@
 //   0  — action committed successfully
 //   1  — generic error
 //   64 — engine-not-implemented (claude-sdk explicit opt-in path)
-//   75 — halted (STEWARD_HALT or HERMES_HALT sentinel)
+//   75 — halted (STEWARD_HALT sentinel; HERMES_HALT accepted as Sprint 4.7 legacy alias)
 
 'use strict';
 
@@ -86,7 +86,7 @@ const depPatch = require('../../detectors/dep-update-patch.cjs');
 // with code-context body. No LLM call, no file edits — only opens gh issues.
 const todoTriage = require('../../detectors/todo-triage.cjs');
 // Sprint 1.8.5 — flaky_test_repair marker-based quarantine. Scan source for
-// `// HERMES-FLAKY: reason` above test/it/describe → replace with .skip +
+// `// HERMES-FLAKY: reason` legacy marker above test/it/describe → replace with .skip +
 // remove marker + open gh issue. Deterministic, no LLM, file edits + issue.
 const flakyRepair = require('../../detectors/flaky-test-repair.cjs');
 // Sprint 1.8.6 — doc_drift scans exported symbols, checks doc mentions,
@@ -99,7 +99,7 @@ const lintFix = require('../../detectors/lint-fix.cjs');
 // Sprint 1.8.10 — test_coverage_gap cross-references coverage summary +
 // recent git history, files gh issues for low-coverage hot-spots.
 const coverageGap = require('../../detectors/test-coverage-gap.cjs');
-// Sprint 1.8.11 — pr_review_responder monitors Hermes-authored PRs for
+// Sprint 1.8.11 — pr_review_responder monitors Steward-authored PRs for
 // reviewer comments, files aggregation issue per PR. No auto-patch in v1.
 const prResponder = require('../../detectors/pr-review-responder.cjs');
 // Sprint 1.8.3 — ReasoningBank-lite memory. Every failed run records a lesson
@@ -175,7 +175,7 @@ function loadPlan(planFile) {
 }
 
 function writeCommitMessageToTmp(message) {
-  const tmpFile = path.join(os.tmpdir(), `hermes-commit-${Date.now()}-${process.pid}.txt`);
+  const tmpFile = path.join(os.tmpdir(), `steward-commit-${Date.now()}-${process.pid}.txt`);
   fs.writeFileSync(tmpFile, message, 'utf8');
   return tmpFile;
 }
@@ -231,7 +231,7 @@ function addCostFields(entry, applyResult) {
 
 // Sprint 1.6.21 (T4): SSOT rollback helper for stateful-pipeline failure paths.
 // Discards working-tree edits, returns to originalBranch, deletes the dead
-// hermes/<...> branch. Best-effort — each step's failure is intentionally
+// steward/<...> branch. Best-effort — each step's failure is intentionally
 // swallowed because we're already in a failure path; bubbling up here would
 // mask the real failure code (STAGE_FAILED, COMMIT_FAILED, etc.).
 //
@@ -286,10 +286,10 @@ async function maybePushAndOpenPR({ repoRoot, plan, slug, skipPush, prLabels }) 
   }
 
   // Title from commit subject (first line). Body from rest of commit message
-  // — already includes the action body + Hermes-* trailers, which is exactly
-  // what a Hermes PR description should be.
+  // — already includes the action body + Steward-* trailers (with Hermes-* legacy aliases preserved per Sprint 4.7), which is exactly
+  // what a Steward PR description should be.
   const lines = (plan.commit_message || '').split('\n');
-  const title = lines[0] || `Hermes: ${plan.action.title}`;
+  const title = lines[0] || `Steward: ${plan.action.title}`;
   const body = lines.slice(2).join('\n').trim() || plan.action.body || '';
 
   const prResult = ghOps.createDraftPR({
@@ -389,7 +389,7 @@ function checkFailureBreaker(slug, actionKey) {
   return { ok: true, breaker, recentFailures };
 }
 
-// Filter out Hermes's own runtime artifacts (lock files, journal dir) from
+// Filter out Steward's own runtime artifacts (lock files, journal dir) from
 // the tree status — those are bookkeeping, not user data.
 // Sprint 1.8.2c — Insert harvested candidate lines into cortex/recommendations.md
 // under the existing "## DO this week (cited)" section. If section is absent,
@@ -551,7 +551,7 @@ async function runPRResponderAction(plan, opts = {}) {
     return {
       ok: false,
       code: 'PR_RESPONDER_NO_CANDIDATES',
-      error: `no Hermes-authored PRs with unresolved reviewer comments (${detected.total_open_prs} Hermes PRs total)`,
+      error: `no Steward-authored PRs with unresolved reviewer comments (${detected.total_open_prs} Steward PRs total)`,
       touchedFiles: [],
       usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     };
@@ -581,7 +581,7 @@ async function runPRResponderAction(plan, opts = {}) {
     for (const cand of detected.candidates) {
       const title = prResponder.formatIssueTitle(cand);
       const body = prResponder.formatIssueBody(cand);
-      const tmpFile = path.join(os.tmpdir(), `hermes-prresp-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      const tmpFile = path.join(os.tmpdir(), `steward-prresp-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
       fs.writeFileSync(tmpFile, body, 'utf8');
       const result = require('node:child_process').spawnSync('gh', [
         'issue', 'create',
@@ -664,7 +664,7 @@ async function runCoverageGapAction(plan, opts = {}) {
     for (const cand of detected.candidates) {
       const title = coverageGap.formatIssueTitle(cand);
       const body = coverageGap.formatIssueBody(cand);
-      const tmpFile = path.join(os.tmpdir(), `hermes-coverage-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      const tmpFile = path.join(os.tmpdir(), `steward-coverage-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
       fs.writeFileSync(tmpFile, body, 'utf8');
       const result = require('node:child_process').spawnSync('gh', [
         'issue', 'create',
@@ -726,7 +726,7 @@ async function runLintFixAction(plan, opts = {}) {
       for (const err of errorsToFile) {
         const title = lintFix.formatIssueTitle(err);
         const body = lintFix.formatIssueBody(err);
-        const tmpFile = path.join(os.tmpdir(), `hermes-lint-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+        const tmpFile = path.join(os.tmpdir(), `steward-lint-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
         fs.writeFileSync(tmpFile, body, 'utf8');
         const result = require('node:child_process').spawnSync('gh', [
           'issue', 'create',
@@ -804,7 +804,7 @@ async function runDocDriftAction(plan, opts = {}) {
     for (const cand of detected.candidates) {
       const title = docDrift.formatIssueTitle(cand);
       const body = docDrift.formatIssueBody(cand);
-      const tmpFile = path.join(os.tmpdir(), `hermes-docdrift-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      const tmpFile = path.join(os.tmpdir(), `steward-docdrift-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
       fs.writeFileSync(tmpFile, body, 'utf8');
       const result = require('node:child_process').spawnSync('gh', [
         'issue', 'create',
@@ -834,10 +834,10 @@ async function runDocDriftAction(plan, opts = {}) {
 
 // Sprint 1.8.5 — flaky_test_repair executor branch. Marker-based quarantine
 // (deterministic, no LLM):
-//   1. Scan source for `// HERMES-FLAKY: <reason>` markers
+//   1. Scan source for `// HERMES-FLAKY: <reason>` markers (legacy name kept for back-compat)
 //   2. For each match within 3 lines of a test/it/describe declaration:
 //      - Replace declaration with `<kind>.skip(...)` form
-//      - Remove the HERMES-FLAKY marker line (action consumed)
+//      - Remove the HERMES-FLAKY marker line (action consumed) — legacy marker name kept for back-compat
 //   3. Optionally open gh issue per quarantined test (skipGh=false)
 //   4. Return touchedFiles for atomic commit + draft PR pipeline
 async function runFlakyRepairAction(plan, opts = {}) {
@@ -852,7 +852,7 @@ async function runFlakyRepairAction(plan, opts = {}) {
     return {
       ok: false,
       code: 'FLAKY_REPAIR_NO_CANDIDATES',
-      error: 'no HERMES-FLAKY markers found in source — mark a flaky test with `// HERMES-FLAKY: <reason>` above its declaration',
+      error: 'no HERMES-FLAKY markers found in source — mark a flaky test with `// HERMES-FLAKY: <reason>` (legacy marker name kept for back-compat) above its declaration',
       touchedFiles: [],
       usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     };
@@ -895,7 +895,7 @@ async function runFlakyRepairAction(plan, opts = {}) {
       for (const cand of detected.candidates) {
         const title = flakyRepair.formatIssueTitle(cand);
         const body = flakyRepair.formatIssueBody(cand);
-        const tmpFile = path.join(os.tmpdir(), `hermes-flaky-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+        const tmpFile = path.join(os.tmpdir(), `steward-flaky-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
         fs.writeFileSync(tmpFile, body, 'utf8');
         const result = require('node:child_process').spawnSync('gh', [
           'issue', 'create',
@@ -979,13 +979,13 @@ async function runTodoTriageAction(plan, opts = {}) {
       const title = todoTriage.formatIssueTitle(cand);
       const body = todoTriage.formatIssueBody(cand);
       // Write body to tmp file (gh issue create accepts --body-file for multi-line)
-      const tmpFile = path.join(os.tmpdir(), `hermes-todo-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
+      const tmpFile = path.join(os.tmpdir(), `steward-todo-${Date.now()}-${process.pid}-${openedIssues.length}.md`);
       fs.writeFileSync(tmpFile, body, 'utf8');
       const result = require('node:child_process').spawnSync('gh', [
         'issue', 'create',
         '--title', title,
         '--body-file', tmpFile,
-        '--label', 'hermes-triage',
+        '--label', 'steward-triage',
       ], { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 });
       try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
       if (result.status === 0) {
@@ -1698,7 +1698,7 @@ async function _runExecuteInner(opts, ctx) {
     return { ok: false, code: 'NOT_GIT_REPO', error: `repoRoot is not a git repository: ${repoRoot}` };
   }
 
-  // Pre-flight clean-tree check, ignoring Hermes's own runtime artifacts
+  // Pre-flight clean-tree check, ignoring Steward's own runtime artifacts
   // (cortex/journal/<slug>/.lock and the journal dir itself).
   const treeStatus = getCleanTreeIgnoringSteward(repoRoot);
   if (!treeStatus.clean) {
@@ -1713,7 +1713,7 @@ async function _runExecuteInner(opts, ctx) {
     return {
       ok: false,
       code: 'DIRTY_TREE',
-      error: 'working tree has uncommitted changes; commit or stash before running Hermes',
+      error: 'working tree has uncommitted changes; commit or stash before running Steward',
       modified: treeStatus.modified,
       untracked: treeStatus.untracked,
     };
@@ -1740,7 +1740,7 @@ async function _runExecuteInner(opts, ctx) {
     return {
       ok: false,
       code: 'DETACHED_HEAD',
-      error: 'HEAD is detached (or unborn); checkout a branch before running Hermes',
+      error: 'HEAD is detached (or unborn); checkout a branch before running Steward',
       currentBranch,
     };
   }

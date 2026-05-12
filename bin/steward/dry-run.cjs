@@ -627,7 +627,7 @@ function runDryRun(opts = {}) {
       ok: true,
       mode: 'dry-run',
       slug,
-      // Sprint 1.8.1 — typed action_kind for Hermes capability dispatcher.
+      // Sprint 1.8.1 — typed action_kind for Steward capability dispatcher.
       // Default 'recommendation' = backwards-compatible with all 1.6.X / 1.7.X
       // plans. Future kinds (recommendation_harvest, dep_update_patch, ...)
       // will be set by their own dry-run paths in Sprint 1.8.2+.
@@ -663,14 +663,14 @@ function runDryRun(opts = {}) {
     // Step 7 — Pre-flight policy check on a representative tool call.
     // The dry-run doesn't actually edit, but we sanity-check the action's
     // implied target paths against the policy denylist so users see policy
-    // violations BEFORE running the real Hermes.
+    // violations BEFORE running the real Steward.
     const implied = action.body.toLowerCase();
     if (
       /\b(standards|prompts|profiles|agents)\//.test(implied)
       || /\b(claude|readme|module)\.(md|yaml)\b/i.test(implied)
     ) {
       plan.policy_warning = {
-        message: 'Action body references human_only paths; the real Hermes run will be policy-blocked',
+        message: 'Action body references human_only paths; the real Steward run will be policy-blocked',
         recommendation: 'Reword the recommendation, or move the change to an auto_improves path',
       };
     }
@@ -748,9 +748,9 @@ if (require.main === module) {
     console.log(JSON.stringify(result, null, 2));
   } else if (!quiet) {
     if (result.no_actionable_step) {
-      console.log(`[hermes dry-run] slug=${result.slug} → no actionable step (${result.processed.length} processed)`);
+      console.log(`[steward dry-run] slug=${result.slug} → no actionable step (${result.processed.length} processed)`);
     } else {
-      console.log(`[hermes dry-run] slug=${result.slug}`);
+      console.log(`[steward dry-run] slug=${result.slug}`);
       console.log(`  branch: ${result.branch}`);
       console.log(`  action: ${result.action.num}. ${result.action.title}`);
       console.log(`  action_key: ${result.action.action_key}`);

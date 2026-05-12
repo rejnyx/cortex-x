@@ -269,7 +269,7 @@ function applyEditsToFilesystem(edits, opts = {}) {
         return {
           ok: false,
           code: opts.deniedCode || 'EDIT_DENYLISTED',
-          error: `edit path is on Hermes hard denylist: ${edit.path}`,
+          error: `edit path is on Steward hard denylist: ${edit.path}`,
           touchedFiles: touched,
           previousSizes,
           previousContents,
@@ -357,13 +357,13 @@ function applyEditsToFilesystem(edits, opts = {}) {
         edits: appliedEdits,
       };
     }
-    // Sprint 1.6.20 (T8): hard denylist — secrets, package.json, Hermes self,
+    // Sprint 1.6.20 (T8): hard denylist — secrets, package.json, Steward self,
     // CI workflows, SSH/GPG. Engine-level defense in depth over policy-check.cjs.
     if (isDenylistedPath(edit.path)) {
       return {
         ok: false,
         code: opts.deniedCode || 'EDIT_DENYLISTED',
-        error: `edit path is on Hermes hard denylist (secrets/package/self/CI/keys): ${edit.path}`,
+        error: `edit path is on Steward hard denylist (secrets/package/self/CI/keys): ${edit.path}`,
         touchedFiles: touched,
         previousSizes,
         previousContents,

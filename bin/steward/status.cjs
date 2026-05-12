@@ -1,6 +1,6 @@
-// status.cjs — Hermes observability CLI.
+// status.cjs — Steward observability CLI.
 //
-// Reports the current state of a Hermes-managed project:
+// Reports the current state of a Steward-managed project:
 //   - HALTED status (which sentinel, if any)
 //   - Lock status (held? by whom? stale?)
 //   - Journal summary (last N entries, action counts, cost rollup)

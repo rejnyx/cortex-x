@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-12T15:00:41.695Z",
+  "generated_at": "2026-05-12T16:34:26.063Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -59,7 +59,7 @@
     },
     {
       "name": "pr_review_responder",
-      "description": "Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.",
+      "description": "Monitor open Steward-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9.",
       "requires_llm": false,
       "shipped_in": "0.1.0",
       "effort": null,
@@ -183,7 +183,7 @@
       "name": "gh-ops",
       "path": "bin/steward/_lib/gh-ops.cjs",
       "sprint": "Sprint 1.6.19",
-      "description": "GitHub CLI wrapper for Hermes draft-PR creation (Sprint 1.6.19)"
+      "description": "GitHub CLI wrapper for Steward draft-PR creation (Sprint 1.6.19)"
     },
     {
       "name": "git-ops",
@@ -708,6 +708,12 @@
       "purpose": ""
     },
     {
+      "name": "README",
+      "path": "prompts/README.md",
+      "title": "prompts/",
+      "purpose": "| Prompt | Cadence | Purpose |"
+    },
+    {
       "name": "retrofit",
       "path": "prompts/retrofit.md",
       "title": "Retrofit — apply cortex-x structure to an existing (messy) project",
@@ -767,6 +773,12 @@
       "name": "planner",
       "path": "agents/planner.md",
       "description": "Reads detected stack + project context, picks 3-5 most relevant research topics from the {profile} × {concern} matrix. Used by Phase 5 Adapt (new-project) and Phase 4 Research (existing-project-audit). Returns a prioritized JSON list of top",
+      "tools": ""
+    },
+    {
+      "name": "README",
+      "path": "agents/README.md",
+      "description": "",
       "tools": ""
     },
     {
@@ -957,6 +969,6 @@
   },
   "code_volume": {
     "steward_runtime_loc": 22489,
-    "test_code_loc": 29219
+    "test_code_loc": 29232
   }
 }

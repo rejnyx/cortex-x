@@ -1,0 +1,46 @@
+name: Beta feedback
+description: Closed-beta usage feedback — friction, surprises, ergonomic gaps. NOT bugs.
+title: "[beta-feedback] "
+labels: ["feedback", "beta"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **subjective friction** — "the bootstrap flow felt off here", "I expected X but got Y", "the docs missed Z". For reproducible breakage, use the **Bug report** template instead.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      options:
+        - Install pipeline (`install.{sh,ps1}`)
+        - `/cortex-init` / new-project bootstrap
+        - `/retrofit` on existing repo
+        - `/test-audit` (QA retrofit)
+        - Steward (`cortex-steward dry-run` / `execute` / `status`)
+        - Hooks (session-start / block-destructive / etc.)
+        - Standards docs (`standards/*.md`)
+        - Profiles selection
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: What felt off
+      description: Concrete moment that didn't land. "I tried X, expected Y, got Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would help
+      description: Optional. If you have an idea, share it — but raw friction reports are valuable on their own.
+
+  - type: input
+    id: profile
+    attributes:
+      label: Profile you used (if applicable)
+      placeholder: nextjs-saas / ai-agent / chatbot-platform / astro-static / minimal / ...

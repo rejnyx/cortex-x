@@ -340,7 +340,7 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 [ -f "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-migrate-data.ps1" "$CLAUDE_HOME/shared/bin/"
 # cortex-steward shim — bash + pwsh entry points that delegate to
 # $CORTEX_ROOT/bin/cortex-steward.cjs via cortex-source.yaml. The shim is
-# small + stable; the actual hermes runtime stays in the source repo
+# small + stable; the actual steward runtime stays in the source repo
 # (no drift between $CLAUDE_HOME/shared/bin/ and bin/steward/).
 [ -f "$CORTEX_ROOT/bin/cortex-steward" ]     && { cp "$CORTEX_ROOT/bin/cortex-steward"     "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-steward"; }
 [ -f "$CORTEX_ROOT/bin/cortex-steward.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-steward.ps1" "$CLAUDE_HOME/shared/bin/"
@@ -501,6 +501,17 @@ if ! command -v node > /dev/null 2>&1; then
   echo >&2
   echo "  ✗ node is required to verify install but not found on PATH." >&2
   echo "    Install Node.js >=22 (Active LTS) and re-run." >&2
+  exit 1
+fi
+# Numeric version check — refuse to verify on Node <22 (cortex-x uses
+# built-in fetch, structuredClone, AbortController, top-level await widely).
+# `node --version` prints "v22.4.1" — strip leading v, take major segment.
+NODE_VER_RAW="$(node --version 2>/dev/null || true)"
+NODE_MAJOR="$(printf '%s' "${NODE_VER_RAW#v}" | cut -d. -f1)"
+if ! printf '%s' "$NODE_MAJOR" | grep -Eq '^[0-9]+$' || [ "$NODE_MAJOR" -lt 22 ]; then
+  echo >&2
+  echo "  ✗ Node.js $NODE_VER_RAW is too old (cortex-x needs >=22, Active LTS)." >&2
+  echo "    Upgrade via nvm/fnm/volta or your system package manager, then re-run." >&2
   exit 1
 fi
 if ! node "$VERIFIER"; then

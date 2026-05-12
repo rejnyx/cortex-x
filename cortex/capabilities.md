@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-12T15:00:41.695Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-12T16:34:26.063Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -13,12 +13,12 @@
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 25 |
 | Profiles (`profiles/`) | 11 |
-| Prompts (`prompts/`) | 15 |
-| Review-pipeline agents (`agents/`) | 9 |
+| Prompts (`prompts/`) | 16 |
+| Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 17 |
 | Tests total | 110 (unit 89 · contract 13 · integration 8 · smoke 0) |
 | Runtime LoC (`bin/`) | 22 489 |
-| Test LoC (`tests/`) | 29 219 |
+| Test LoC (`tests/`) | 29 232 |
 
 ## 1. Steward action_kinds (16)
 
@@ -32,7 +32,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `lint_fix_shipper` | Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8. |
 | `mutation_score_drift` | Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the executor + detector once vitest migration … |
 | `pattern_transfer` | Read allowlisted sibling projects (cortex/sibling-projects.json) read-only, distill cross-project patterns into the CURRENT project's lessons-learned.jsonl. v1: journal-only — never opens PRs, never edits sibling repos. LLM-driven. Capability #11. |
-| `pr_review_responder` | Monitor open Hermes-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9. |
+| `pr_review_responder` | Monitor open Steward-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9. |
 | `recommendation` | Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR. |
 | `recommendation_harvest` | Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code. |
 | `release_notes_drafter` | After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation. |
@@ -54,7 +54,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`autoresearch`](../bin/steward/_lib/autoresearch.cjs) | Sprint 2.1 | Sprint 2.1 N-strategy serial autoresearch loop |
 | [`cost-safety`](../bin/steward/_lib/cost-safety.cjs) | Sprint 1.9.1 | Sprint 1.9.1 multi-window cost safety + loop detector |
 | [`env`](../bin/steward/_lib/env.cjs) | — |  |
-| [`gh-ops`](../bin/steward/_lib/gh-ops.cjs) | Sprint 1.6.19 | GitHub CLI wrapper for Hermes draft-PR creation (Sprint 1.6.19) |
+| [`gh-ops`](../bin/steward/_lib/gh-ops.cjs) | Sprint 1.6.19 | GitHub CLI wrapper for Steward draft-PR creation (Sprint 1.6.19) |
 | [`git-ops`](../bin/steward/_lib/git-ops.cjs) | — | atomic git operations for Hermes's commit-per-action contract |
 | [`git-trailers`](../bin/steward/_lib/git-trailers.cjs) | — | build commit messages with parseable Git trailers (MUST-H3) |
 | [`halt-check`](../bin/steward/_lib/halt-check.cjs) | — | file-based kill-switch detection (MUST-H5) |
@@ -151,7 +151,7 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
 | [`waas-template`](../profiles/waas-template.yaml) | — | vercel # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
 
-## 6. Prompts (15)
+## 6. Prompts (16)
 
 Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-into-session.
 
@@ -168,12 +168,13 @@ Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-int
 | [`new-project`](../prompts/new-project.md) | New Project — Discovery + Auto-Research + Architect + Scaffold + Adapt |  |
 | [`project-scan`](../prompts/project-scan.md) | Universal Project Scan Prompt (SLIM) |  |
 | [`qa-retrofit`](../prompts/qa-retrofit.md) | QA Retrofit — Deep Test-Strategy Audit + Risk Worm-Through + Cited Gap Backlog |  |
+| [`README`](../prompts/README.md) | prompts/ | \| Prompt \| Cadence \| Purpose \| |
 | [`retrofit`](../prompts/retrofit.md) | Retrofit — apply cortex-x structure to an existing (messy) project |  |
 | [`retrospective`](../prompts/retrospective.md) | Retrospective — Post-Sprint Reflection → cortex library |  |
 | [`sprint-status`](../prompts/sprint-status.md) | Sprint Status — Parse PROGRESS.md and Report |  |
 | [`steward-setup`](../prompts/steward-setup.md) | Steward setup — guided activation flow |  |
 
-## 7. Review-pipeline agents (9)
+## 7. Review-pipeline agents (10)
 
 Specialized review agents dispatched by R2 review pipeline. Each lives in `agents/` with its own tool allowlist.
 
@@ -185,6 +186,7 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`cortex-thinker`](../agents/cortex-thinker.md) | - Read | Meta-agent that reflects on cortex-x state, detects cross-project patterns, and surfaces proactive suggestions. Invoked at SessionStart, Stop events, or manually via /cortex-reflect. Reads cortex-x/projects/ library and proposes insights gr |
 | [`edge-case-hunter`](../agents/edge-case-hunter.md) | - Read | Walks every branching path and boundary condition in changed code. Reports ONLY unhandled edge cases. Has project read access for context, but focuses on what inputs would break the code. Orthogonal to adversarial review — method-driven, no |
 | [`planner`](../agents/planner.md) | — | Reads detected stack + project context, picks 3-5 most relevant research topics from the {profile} × {concern} matrix. Used by Phase 5 Adapt (new-project) and Phase 4 Research (existing-project-audit). Returns a prioritized JSON list of top |
+| [`README`](../agents/README.md) | — |  |
 | [`security-auditor`](../agents/security-auditor.md) | - Read | Security-focused code review against cortex-x/standards/security.md 8-layer model. Checks: secrets leakage, RLS violations, injection vectors, auth bypass, missing rate limits, insecure defaults. Flags findings with severity + CWE reference |
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |

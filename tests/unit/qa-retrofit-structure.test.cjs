@@ -518,27 +518,40 @@ describe('Sprint 2.10.2 — installer profile selection (--profile=qa-tester)', 
 });
 
 describe('Sprint 2.10.5 — cortex-x self-audit deliverables (eat-our-own-dogfood)', () => {
-  test('cortex/qa/AUDIT.md exists (12-section ISO 25010:2023 self-audit)', () => {
-    assert.equal(exists('cortex/qa/AUDIT.md'), true);
+  // Sprint LR.B (2026-05-12): moved operator's working self-audit content from
+  // tracked cortex/qa/* to docs/dogfood-examples/* so fresh-install users get a
+  // clean cortex/qa/ (only README + their own future audit output). Self-audit
+  // artifacts remain public as historical examples. Tests now verify the new
+  // canonical paths + the cortex/qa/README pointer back to examples.
+  test('docs/dogfood-examples/qa-audit-cortex-x.md exists (12-section ISO 25010:2023 self-audit)', () => {
+    assert.equal(exists('docs/dogfood-examples/qa-audit-cortex-x.md'), true);
   });
 
-  test('cortex/qa/testing-strategy.md exists', () => {
-    assert.equal(exists('cortex/qa/testing-strategy.md'), true);
+  test('docs/dogfood-examples/qa-testing-strategy-cortex-x.md exists', () => {
+    assert.equal(exists('docs/dogfood-examples/qa-testing-strategy-cortex-x.md'), true);
   });
 
-  test('cortex/qa/testing-gaps.md exists', () => {
-    assert.equal(exists('cortex/qa/testing-gaps.md'), true);
+  test('docs/dogfood-examples/qa-testing-gaps-cortex-x.md exists', () => {
+    assert.equal(exists('docs/dogfood-examples/qa-testing-gaps-cortex-x.md'), true);
+  });
+
+  test('cortex/qa/README points operators at the dogfood-examples for sample content', () => {
+    assert.equal(exists('cortex/qa/README.md'), true);
+    const readme = read('cortex/qa/README.md');
+    assert.match(readme, /docs\/dogfood-examples\/qa-audit-cortex-x\.md/);
+    assert.match(readme, /docs\/dogfood-examples\/qa-testing-gaps-cortex-x\.md/);
+    assert.match(readme, /docs\/dogfood-examples\/qa-testing-strategy-cortex-x\.md/);
   });
 
   test('self-audit references ISO 25010:2023 + Phase 5a-bis catalog selection', () => {
-    const audit = read('cortex/qa/AUDIT.md');
+    const audit = read('docs/dogfood-examples/qa-audit-cortex-x.md');
     assert.match(audit, /ISO\/IEC 25010:2023/);
     assert.match(audit, /Catalog selection \(Phase 5a-bis\)/);
     assert.match(audit, /Selected types:.*\d+ of 117/);
   });
 
   test('self-audit testing-gaps surfaces P0 GAP-001 (adversarial regression suite)', () => {
-    const gaps = read('cortex/qa/testing-gaps.md');
+    const gaps = read('docs/dogfood-examples/qa-testing-gaps-cortex-x.md');
     assert.match(gaps, /GAP-001/);
     assert.match(gaps, /Adversarial.*regression/i);
     assert.match(gaps, /security-lethal-trifecta/);

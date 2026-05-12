@@ -1,9 +1,9 @@
-// gh-ops.cjs — GitHub CLI wrapper for Hermes draft-PR creation (Sprint 1.6.19).
+// gh-ops.cjs — GitHub CLI wrapper for Steward draft-PR creation (Sprint 1.6.19).
 //
 // Wraps `gh pr create --draft` via spawnSync (no shell injection: array argv,
 // shell:false). Mirrors git-ops.cjs contract: returns { ok, ... } never throws.
 //
-// Why a separate module: gh CLI is an OPTIONAL dependency of Hermes (the
+// Why a separate module: gh CLI is an OPTIONAL dependency of Steward (the
 // commit + push path works without it; gh adds the draft-PR step on top).
 // Keeping it isolated lets execute.cjs degrade gracefully when gh is absent.
 //
@@ -54,7 +54,7 @@ function gh(repoRoot, args, opts = {}) {
 }
 
 // Detect gh CLI presence. Cached after first call (process-lifetime) since
-// CLI binary doesn't appear/disappear during a Hermes run.
+// CLI binary doesn't appear/disappear during a Steward run.
 function hasGhCli(opts = {}) {
   if (opts.refresh) _ghCliCache = null;
   if (_ghCliCache !== null) return _ghCliCache;
@@ -72,7 +72,7 @@ function hasGhCli(opts = {}) {
 // bodies often contain backticks, dollars, double-quotes that would need
 // shell-escaping otherwise — even though spawnSync shell:false avoids the
 // shell, the tmp-file path is also more debuggable on failure).
-function writeTmpBody(content, prefix = 'hermes-pr-body-') {
+function writeTmpBody(content, prefix = 'steward-pr-body-') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const file = path.join(dir, `body-${crypto.randomBytes(4).toString('hex')}.md`);
   fs.writeFileSync(file, content, 'utf8');

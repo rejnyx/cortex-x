@@ -460,7 +460,7 @@ URL is the upstream SSOT for human readers and `cortex-doctor` freshness checks.
   ↳ canonical: https://github.com/Rejnyx/cortex-x/blob/main/standards/ai-patterns.md
 
 Skip pointers a project doesn't need. `astro-static` projects can drop AI patterns;
-`hermes-agent` profile adds `~/.claude/shared/standards/security.md` § Agentic Security (2026).
+`ai-agent` profile adds `~/.claude/shared/standards/security.md` § Agentic Security (2026).
 ```
 
 `cortex-doctor` periodically compares each local file's hash to the canonical URL's content hash; warns if drift > 30 days.

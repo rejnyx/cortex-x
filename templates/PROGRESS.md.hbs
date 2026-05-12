@@ -1,21 +1,21 @@
 # {{projectName}} — Sprint Progress
 
-> SSOT pro stav projektu. Aktualizuje se po každé dokončené story.
+> Single source of truth for project state. Updated after every completed story.
 
-## Legenda
+## Legend
 
-- **pending** — ještě nezačato
-- **in-progress** — právě se dělá
-- **done** — hotovo, zmergeno
-- **blocked** — čeká na externí input
+- **pending** — not yet started
+- **in-progress** — being worked on right now
+- **done** — completed, merged
+- **blocked** — waiting on external input
 
 ---
 
 {{#each initial_sprint}}
-### Fáze {{@index}}: {{@key}}
+### Phase {{@index}}: {{@key}}
 
-| Story | Popis | Stav |
-|-------|-------|------|
+| Story | Description | Status |
+|-------|-------------|--------|
 | {{@index}}.1 | {{this}} | pending |
 
 {{/each}}
@@ -24,11 +24,11 @@
 
 ## Recent Completions
 
-(prázdné — naplní se postupně)
+(empty — fill in over time)
 
 ## Blocked / Open Questions
 
-(prázdné)
+(empty)
 
 ---
 

@@ -404,7 +404,7 @@ $BootstrapFiles = @(
     @{ Src = "bin/cortex-migrate-data.ps1"; Dst = "cortex-migrate-data.ps1" }
     # cortex-steward shim — bash + pwsh entry points that delegate to
     # $CortexRoot/bin/cortex-steward.cjs via cortex-source.yaml. The shim
-    # stays small + stable; the actual hermes runtime lives in the source
+    # stays small + stable; the actual steward runtime lives in the source
     # repo (no drift between bin/ shim and bin/steward/ implementation).
     @{ Src = "bin/cortex-steward";          Dst = "cortex-steward" }
     @{ Src = "bin/cortex-steward.ps1";      Dst = "cortex-steward.ps1" }
@@ -581,6 +581,18 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host ""
     Write-Host "  $([char]0x2717) node is required to verify install but not found on PATH." -ForegroundColor Red
     Write-Host "    Install Node.js >=22 (Active LTS) and re-run." -ForegroundColor Red
+    exit 1
+}
+# Numeric Node version check — cortex-x uses built-in fetch / structuredClone /
+# AbortController / top-level await widely. Anything <22 fails at runtime
+# with cryptic errors; reject loudly at install time instead.
+$NodeVerRaw = (& node --version 2>$null)
+$NodeMajor = -1
+if ($NodeVerRaw -match '^v(\d+)\.') { $NodeMajor = [int]$Matches[1] }
+if ($NodeMajor -lt 22) {
+    Write-Host ""
+    Write-Host "  $([char]0x2717) Node.js $NodeVerRaw is too old (cortex-x needs >=22, Active LTS)." -ForegroundColor Red
+    Write-Host "    Upgrade via nvm-windows / fnm / volta, then re-run." -ForegroundColor Red
     exit 1
 }
 & node $Verifier
