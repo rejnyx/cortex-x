@@ -568,7 +568,7 @@ async function runPRResponderAction(plan, opts = {}) {
       });
     }
   } else {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (!ghOpsLib.hasGhCli()) {
       return {
         ok: false,
@@ -651,7 +651,7 @@ async function runCoverageGapAction(plan, opts = {}) {
       });
     }
   } else {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (!ghOpsLib.hasGhCli()) {
       return {
         ok: false,
@@ -720,7 +720,7 @@ async function runLintFixAction(plan, opts = {}) {
   // Optionally file gh issues for type errors (non-auto-fixable)
   const openedIssues = [];
   if (hasErrors && !opts.skipGh && !opts.dryRunGh) {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (ghOpsLib.hasGhCli()) {
       const errorsToFile = detected.type_errors.slice(0, opts.maxIssues || 5);
       for (const err of errorsToFile) {
@@ -791,7 +791,7 @@ async function runDocDriftAction(plan, opts = {}) {
       });
     }
   } else {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (!ghOpsLib.hasGhCli()) {
       return {
         ok: false,
@@ -890,7 +890,7 @@ async function runFlakyRepairAction(plan, opts = {}) {
   // Optional: open gh issues for each quarantined test
   const openedIssues = [];
   if (!opts.skipGh && !opts.dryRunGh) {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (ghOpsLib.hasGhCli()) {
       for (const cand of detected.candidates) {
         const title = flakyRepair.formatIssueTitle(cand);
@@ -965,7 +965,7 @@ async function runTodoTriageAction(plan, opts = {}) {
       });
     }
   } else {
-    const ghOpsLib = require('./gh-ops.cjs');
+    const ghOpsLib = require('./_lib/gh-ops.cjs');
     if (!ghOpsLib.hasGhCli()) {
       return {
         ok: false,
