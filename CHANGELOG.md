@@ -4,6 +4,101 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Fixed (2026-05-12 — Sprint LR.C: gh-ops require path drift — nightly cron P0)
+
+**Sprint LR.C** (commit `a0b4039`) — `bin/steward/execute.cjs` had 6 inline `require('./gh-ops.cjs')` calls (correct path: `./_lib/gh-ops.cjs`). Top-level require at line 43 was already correct, masking the inline copy-paste drift. Production failures observed in `steward nightly` (2026-05-12 05:08 UTC) and `steward flaky-test-repair` (07:59 UTC), both with "Cannot find module './gh-ops.cjs'". Why CI didn't catch: gh-push code path runs only in non-dry-run mode; existing tests mock gh-ops or skip the gh-push phase.
+
+- 6 require paths corrected via Edit replace_all.
+- New regression test `tests/contract/steward-require-paths.test.cjs` (~80 LoC): parses every `require('./...')` in execute.cjs / dry-run.cjs / status.cjs, asserts resolved path exists on disk. Pins the 2026-05-12 incident as a hard-coded negative assertion.
+
+**Tests**: 2266 → **2270** (+4 contract tests in regression suite).
+
+**R3 discipline closed**: one incident class = one defense layer (correct paths) + one regression test (contract path-resolution gate).
+
+### Fixed (2026-05-12 — Sprint LR.B: workflow_hardener — least-privilege permissions across 15 workflows)
+
+**Sprint LR.B** (commit `f6d0ad0`) — workflow_hardener action_kind detected 16 HIGH findings: 14 workflows lacked top-level `permissions:` block; `no-pii.yml` additionally lacked `concurrency:` + `timeout-minutes:`. Wiz/StepSecurity P1 finding — workflows inheriting broad repo-write defaults via GITHUB_TOKEN.
+
+- 14 steward-*.yml workflows + steward.yml — added top-level `permissions: contents: read` baseline.
+- no-pii.yml — added `concurrency:` group + `timeout-minutes: 10`.
+- workflow_hardener analyzer: 16 findings → 0.
+- Per-job permissions already correctly elevated; no functional changes to any workflow.
+
+### Added (2026-05-12 — Sprint 2.18: read-coverage proof `read_set` acceptance-criterion — 📋 PROPOSED + R1 done)
+
+**Sprint 2.18** (commit `4387b07`, doc-only) — operator-flagged after FB discussion of doc-gen agent reading 64/278 methods and confabulating 214. Class of failure invisible to current Steward gates because edit-side artifact is internally consistent — wrong only about coverage of input set.
+
+R1 dispatch ([`docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`](docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md)) confirmed:
+- No 2026 framework ships first-class read-coverage primitive (Letta / AutoGen / LangGraph / CrewAI / OpenAI Agents SDK / Cursor / Devin / Replit Agent — all silent).
+- CloudAPIBench (arxiv 2407.09726) quantifies the doc-gen hallucination class as persistent.
+- Claude Agent SDK `PostToolUse` hook receives `tool_input.file_path` for every Read — host harness can build authoritative manifest agent cannot lie about.
+- GitNexus `PostToolUse` stale-index hook is structurally identical pattern.
+
+**Scope** (narrow per R1): 6th `kind: read_set` in `spec-verifier.cjs` (~150 LoC) + PostToolUse hook handler (~80 LoC) + 1 error code (`SPEC_READ_SET_INCOMPLETE`) + ~12 tests. Half-day to one day when promoted. 3 immediate beneficiary action_kinds: `pattern_transfer`, `release_notes_drafter`, `senior_tester_review`.
+
+### Changed (2026-05-11 → 2026-05-12 — roadmap status flag sync + Sprint 3.6→3.2 LLM Wiki fold)
+
+- **Sprint 3.6 R1** (commit `6aaf808`) — Karpathy LLM Wiki pattern research dispatch. Decisive recommendation: fold into existing Sprint 3.2 (FTS5 + `[[wikilink]]` extractor + `prompts/wiki-curator.md` from Karpathy gist), defer Sprint 3.3 GraphRAG codebase by 1 sprint to land on Microsoft LazyGraphRAG (Q1-Q2 2026, 0.1% indexing cost, 700× cheaper query). Zero new sprints, one scope extension, one defer.
+- Roadmap status flags corrected: Sprint 2.5b workflow_hardener, Sprint 2.6b secret_history_sweep, Sprint 2.11 senior_tester_review → ✅ SHIPPED (all already in production via commit `213ea72` / `e3829a3`, status flags lagged).
+
+### Added (2026-05-11 — Sprint 2.16 + 2.17: `/designer` + `/cortex-help` skills)
+
+**Sprint 2.16** (commit `6c5c57e`) — `shared/skills/designer/SKILL.md` (~280 LoC markdown). Reproduces the public Claude Design recipe inside Claude Code: intake questioning flow + library palette (shadcn / Aceternity / Hero UI + GSAP / Lenis / Framer Motion) + parallel worktree exploration (3-4 variations, operator picks winner) + iteration loop + handoff to `cortex/STYLE.md`. Source-recipe analysis from public Claude Design post-mortem transcript. Zero runtime code added.
+
+**Sprint 2.17** (commit `0e82192` + rename `de256e6`) — `shared/skills/cortex-help/SKILL.md`. Lightweight user-facing menu of 10 invokable slash commands with project-state-aware "default next" nudge (5 filesystem peeks: `.cortex-bootstrap-pending`, `cortex/AUDIT.md`, `cortex/discovery.md`, `package.json` family, empty folder). Complements machine-readable `cortex/capabilities.md` from Sprint 2.15 — registry stays SSOT. Initial ship as `/help` collided with Claude Code built-in; same-day rename to `/cortex-help` matching `cortex-*` prefix convention (cortex-init, cortex-doctor, cortex-reflect, cortex-sync). `install.{sh,ps1}` updated to sync skill to `~/.claude/skills/cortex-help/` user-level slash registry.
+
+Plus Sprint 3.4 (External tool capability adapters — Hyperframes-first / Remotion-second, R1 ✅ done) + Sprint 3.5 (SaaS-unit positioning) roadmap entries — both proposed pending operator promotion.
+
+### Fixed (2026-05-11 — Sprint LR.A: public-readiness scrub — PII strip + README narrative + Dave→maintainer sweep)
+
+**Sprint LR.A** (commit `2fa9a18`) — 2-agent audit (install-stranger-eyes + ship-ready leak hunt) after operator confirmed repo stays public. Auto-mode autonomous mandate. 60 files changed, +524 / −1285.
+
+P0 PII + identity leaks stripped:
+- `REDACTED@redacted.invalid` from CODE_OF_CONDUCT.md (→ GitHub Issues + Private Vulnerability Reporting), docs/user-identity.md, detectors/detect-user-identity.cjs JSDoc example (→ jane@example.com), CHANGELOG.md.
+- ship-ready denylist expanded: case-insensitive grep (`-iEf`), generic email pattern catches gmail / outlook / protonmail / icloud / yahoo / live / fastmail leaks.
+- `scripts/regression-all-detectors.cjs` no longer hardcodes maintainer client repos — reads from `$CORTEX_REGRESSION_TARGETS` env var → gitignored `regression-targets.local.json` → committed `.example.json` fallback.
+
+P0 internal docs hidden:
+- `OPERATOR_HANDOVER.md`, `docs/launch-checklist.md`, `docs/public-launch-plan.md`, `docs/research/cortex-x-sprint-brief-10-5.md` moved to gitignored `docs/dogfood/`.
+
+P0 README narrative drift fixed:
+- "Closed-beta install (current — repo is private)" section removed (repo is public).
+- Steward pitch honest about v1 cron status (manual dogfood ✅, per-fork enablement ⏳).
+- Broken README links removed (`docs/SSOT-architecture.md`, `.github/workflows/steward.example.yml`).
+- Profile table now includes `browser-agent` + `qa-engineer` (had been missing).
+
+P0+P1 Dave→maintainer/operator sweep — 74 replacements across 30+ files (standards/, tools/verify-*.cjs error strings, prompts/, docs/steward-*, evals/, insights/, journal/, research/ READMEs). Client project names genericized (RELO → "a Next.js SaaS project", Champions Barber → "a barbershop WaaS client", Amici → "an e-commerce chatbot client", Objedname → "a booking-platform client", OrderMage → "an admin-platform client"). Authorship attribution preserved per ship-ready.md exception (LICENSE, README author line, module.yaml kept).
+
+P1 Czech-in-public: `docs/qa-tester-onboarding.md` (162 lines Czech) → renamed to `.cs.md`; English stub at canonical path. `insights/proposals/{README,rejected/README}.md` fully translated.
+
+### Added (2026-05-11 — Sprint 2.15 + 2.15.1 + 2.4.1 + 2.4.2: capability registry + effort tuning + R2 hardening)
+
+**Sprint 2.15** (commit `59a91a8`) — `bin/cortex-capabilities.cjs` auto-generated capability registry. Walks repo filesystem, produces SSOT `cortex/capabilities.md` + `cortex/capabilities.json` listing every action_kind, Steward primitive, universal hook, standard, profile, prompt, review-pipeline agent, GitHub workflow, and test count. Zero-deps, fail-open, side-effect-free without `--write`. npm script `npm run capabilities`. Contract tests cover shape, idempotency, markdown validity. Operator-facing answer to *"I do not even know what we have anymore."*
+
+**Sprint 2.4.1** (commit `2a4dd72`) — per-action_kind effort tuning. `bin/steward/_lib/action-engine.cjs resolveEffortLevel(plan, opts, env)` with 4-tier precedence (env > opts > action_kind > 'medium' default). 5 valid levels via `VALID_EFFORT_LEVELS` allowlist. `--effort <level>` injected into claudeCliEngine argv. R1 memo: `docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.md` (25+ citations, novaknown.com Apr 2026 regression analysis, resolve.ai production benchmarks). Anti-overthinking discipline: no action_kind defaults to `xhigh` or `max`.
+
+**Sprint 2.15.1 + 2.4.2** (commit `6c34f81`) — R2 review pipeline hardening. 6 agents in parallel (acceptance + blind + correctness + security + ssot + edge-case) on combined diff. 4 HIGH + 3 MEDIUM closed pre-commit:
+- HIGH#1: `inventoryActionKinds` rewrite via `require()` not regex (fixes description truncation at apostrophe in `pattern_transfer`).
+- HIGH#2: symlink + cycle protection in `countLines` + `inventoryTests` (`realpathSync` + visited Set + symlink skip).
+- HIGH#3: `resolveEffortLevel` env=null TypeError defense + opts case-insensitive symmetry + prototype-pollution defense via `hasOwnProperty.call()`.
+- HIGH#4: `readCoverageSummary` DI contract tightening (rejects arrays/primitives as ambiguous).
+- MED: `mdCell()` helper escaping control chars + pipes; `--write` try/catch + dir-stat guard; removed hardcoded counts from roadmap prose.
+
+**Tests**: 2226 → 2265 (+39 across Sprint 2.4.1 + 2.15 + hardening).
+
+### Fixed (2026-05-11 — test-coverage-gap first Monday cron P0)
+
+Commit `d4f8e2f` — first Monday `steward-test-coverage-gap` cron failed 2026-05-11 07:12 UTC. Root cause: `package.json` `test:coverage` script lacked `--reporter=json-summary`. c8 only generated text / lcov / html, leaving no JSON for detector. Cascade bug: detector DI sentinel `!= null` ambiguous when local coverage file existed. Fix: added `json-summary` reporter + DI sentinel changed to `!== undefined` for type clarity. First Monday autonomous-runtime dogfood validated the rollback discipline — failure surfaced + diagnosed within hours, not weeks.
+
+### Added (2026-05-10 evening — Sprint 2.11: senior_tester_review action_kind, ⭐ DIFFERENTIATOR)
+
+**Sprint 2.11** (commit `e3829a3`) — 13th action_kind, 2-stage hybrid test-quality auditor. Deterministic detector (~16 smells with regex: tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source / test files in v1. Monthly cron cadence. Differentiator vs Devin / Replit / Cursor — no hosted competitor ships a "senior tester" review pass at the action-engine level.
+
+### Added (2026-05-10 — Sprint LR.1.1 + Sprint LR.7: launch-readiness track items)
+
+- **Sprint LR.1.1** (commit `5db1750`) — Aider-Polyglot lift discipline encoded as Phase 2 runner spec (`evals/runner.md`). `MIN_STEPS=30` + `test_executed:true` required before score write. Verified Steward action_kinds enforce test-execution-before-scoring via spec-verifier + runNpmTest + atomic rollback. Step-limit equivalent via cost-safety multi-window caps + intra-run StuckLoopDetection + cross-session loop detector.
+- **Sprint LR.7** (commit `f196cdf`) — cross-model transfer protocol shipped as `docs/eval-cross-model-protocol.md`. Defines `transfer_ratio ≥ 1.0` formula, model set (deepseek-v4-flash baseline + claude-sonnet-4-6 OR gpt-5-mini secondary), GATE-MANDATORY / OPTIONAL / WAIVED path classification, fail-closed on missing runs. Integrated as Phase C.5 in `prompts/cortex-evolve.md` + SSOT config under `eval_suite.cross_model_transfer` in `config/evolve.yaml`. Grounded in DGM cross-model transfer test (o3-mini 23% → 33%, Claude 3.7 Sonnet 19% → 59.5%).
+
 ### Added (2026-05-10 mid-morning — Sprint 2.10.5 self-audit + tutorial + README + Sprint 2.10.6 Phase 1b existing-tests modernization)
 
 **Sprint 2.10.5 — eat-our-own-dogfood self-audit** (operator: "klidně to celé dokonči, ještě máme čas. já ani nevím co řeká teď"):

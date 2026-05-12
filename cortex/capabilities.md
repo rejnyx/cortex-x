@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-11T15:47:52.251Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-12T11:34:32.030Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -16,9 +16,9 @@
 | Prompts (`prompts/`) | 15 |
 | Review-pipeline agents (`agents/`) | 9 |
 | GitHub workflows | 17 |
-| Tests total | 108 (unit 88 · contract 12 · integration 8 · smoke 0) |
+| Tests total | 109 (unit 88 · contract 13 · integration 8 · smoke 0) |
 | Runtime LoC (`bin/`) | 22 085 |
-| Test LoC (`tests/`) | 28 373 |
+| Test LoC (`tests/`) | 28 463 |
 
 ## 1. Steward action_kinds (16)
 

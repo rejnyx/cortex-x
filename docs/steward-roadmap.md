@@ -685,7 +685,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ---
 
-### Sprint 2.5b — `workflow_hardener` action_kind (S effort) — 📋 PROPOSED 2026-05-10
+### Sprint 2.5b — `workflow_hardener` action_kind (S effort) ✅ SHIPPED 2026-05-10 (commit `213ea72`)
 
 **Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3 + [`sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`](research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md). Awaiting operator approval.
 
@@ -718,7 +718,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ---
 
-### Sprint 2.6b — `secret_history_sweep` action_kind (S effort) — 📋 PROPOSED 2026-05-10
+### Sprint 2.6b — `secret_history_sweep` action_kind (S effort) ✅ SHIPPED 2026-05-10 (commit `213ea72`)
 
 **Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3. Awaiting operator approval.
 
@@ -761,7 +761,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ---
 
-### Sprint 2.11 — `senior_tester_review` action_kind (M effort, ⭐ DIFFERENTIATOR) — 📋 PROPOSED 2026-05-10
+### Sprint 2.11 — `senior_tester_review` action_kind (M effort, ⭐ DIFFERENTIATOR) ✅ SHIPPED 2026-05-10 (commit `e3829a3`)
 
 **Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §2 + [`sprint-2.11-senior-tester-research-2026-05-10.md`](research/sprint-2.11-senior-tester-research-2026-05-10.md). Awaiting operator approval.
 

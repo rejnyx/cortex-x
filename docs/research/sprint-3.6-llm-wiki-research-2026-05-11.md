@@ -2,7 +2,7 @@
 title: "Sprint 3.6 — LLM Wiki research (Karpathy pattern vs existing Sprint 3.2/3.3/5.2)"
 date: 2026-05-11
 sprint: "3.6 (proposed) — decision: fold into 3.2/3.3 vs new sprint"
-status: in-progress
+status: research-complete
 authors: ["autoresearch agent"]
 inputs:
   - "Callum/Waterloos YouTube transcript: 'Why LLM Wiki'"

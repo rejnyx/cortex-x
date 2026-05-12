@@ -2,7 +2,7 @@
 title: "Sprint 2.18 — Read-coverage proof: is agent-completion verification the right next gate?"
 date: 2026-05-12
 sprint: 2.18 (proposed)
-status: in-progress
+status: research-complete
 ---
 
 # Sprint 2.18 — Read-coverage proof research memo

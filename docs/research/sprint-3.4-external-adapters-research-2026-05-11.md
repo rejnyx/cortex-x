@@ -2,7 +2,7 @@
 title: Sprint 3.4 — External Tool Capability Adapters (Remotion + Hyperframes) — focused research
 date: 2026-05-11
 sprint: 3.4
-status: in-progress
+status: research-complete
 ---
 
 ## 1. HeyGen Hyperframes — verified, the URL is real
