@@ -113,6 +113,63 @@ config/ship-ready-denylist.local.txt
 # Temp review artifacts (diff files, lock files from prior sessions)
 *.diff
 .tmp-*
+*.tmp
+*.bak
+*.backup
+*.orig
+*.tsbuildinfo
+
+# Editor swap / autosave / local history
+*.swp
+*.swo
+*~
+.history/
+
+# OS extras (preempted — none currently in repo)
+.AppleDouble/
+__MACOSX/
+.Spotlight-V100
+.Trashes
+Desktop.ini
+$RECYCLE.BIN/
+
+# Credentials — pre-emptive. cortex-x doesn't ship any of these today; rule
+# blocks accidental commit when an operator generates a key locally.
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+.ssh/
+id_rsa
+id_ed25519
+
+# Local cortex-data alias when CORTEX_DATA_HOME points inside the workspace
+# without the explicit `.cortex-data/` prefix (defensive — main rule above
+# is `.cortex-data/`, this catches the `./.cortex/` shorthand some users try)
+/.cortex/
+
+# Python (rare — only if operator uses py tooling locally for filter-repo etc.)
+venv/
+.venv/
+__pycache__/
+*.pyc
+.python-version
+
+# Framework build/cache dirs (none currently used by cortex-x; pre-emptive
+# for retrofit scenarios where users adopt cortex-x in repos that already
+# have these)
+.next/
+.nuxt/
+.svelte-kit/
+.serverless/
+.parcel-cache/
+.tool-versions
+.nvmrc
+
+# Local PII purge / history-rewrite safety branches/tags
+pre-pii-purge-*
 
 # Internal design docs referencing maintainer's private projects — not shipped
 /docs/framework-rfc.md
