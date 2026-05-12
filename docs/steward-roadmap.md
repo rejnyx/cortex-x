@@ -832,6 +832,54 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
+### Sprint 2.18 — `read_set` acceptance-criterion kind (read-coverage proof) — 📋 PROPOSED 2026-05-12 · R1 ✅ DONE
+
+**Status**: 📋 Proposed 2026-05-12. R1 research dispatch completed same day — [`docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`](research/sprint-2.18-read-coverage-proof-research-2026-05-12.md). Operator-flagged after a 2026-05-12 Facebook incident discussion: agent for API doc generation read 64/278 methods and confabulated the remaining 214. Class of failure invisible to every current Steward gate because the edit-side artifact is internally consistent — it's just wrong about coverage of the input set.
+
+**Why this is one criterion-kind, not a new architectural layer**:
+- Current spec-verifier (Sprint 1.9) gates the **edit side** via 5 criterion kinds (shell, file_predicate, regex, ears_text, llm_judge). Sprint 2.18 adds a **6th kind: `read_set`** — folds into the existing dispatcher, no new top-level subsystem.
+- Claude Agent SDK already exposes `PostToolUse` hook with `tool_input.file_path` for every Read invocation ([code.claude.com/docs/en/agent-sdk/hooks](https://code.claude.com/docs/en/agent-sdk/hooks)) — the host harness can build an authoritative read manifest the agent **cannot lie about** because the SDK boundary captures every Read call independently of agent self-report. cortex-x just needs to log + verify the manifest.
+- GitNexus has already proven the architectural pattern at the indexed-codebase level ([github.com/abhigyanpatwari/GitNexus](https://github.com/abhigyanpatwari/GitNexus)) — `gitnexus status` + PostToolUse stale-index hook is structurally identical to "declared-scope coverage check."
+
+**Scope** (~150 LoC verifier + ~80 LoC hook + 1 error code + ~12 tests, half-day to one day):
+- `kind: read_set` criterion handler in `bin/steward/_lib/spec-verifier.cjs` — declarative fields:
+  - `expected_glob: '<glob>'` — file set the action claims to fully cover
+  - `expected_count: <N>` (optional) — pinned method/file/entity count from plan
+  - `min_coverage: 1.0` — fraction of `expected_glob` that must appear in read manifest (default = 1.0)
+- PostToolUse hook handler `shared/hooks/post-tool-use-read-manifest.cjs` — writes JSONL entry per Read invocation to `$CORTEX_DATA_HOME/journal/read-manifest-<action_key>.jsonl`. Hook is event-driven, no polling, no overhead when not gating.
+- New error code: `SPEC_READ_SET_INCOMPLETE` — fires when manifest count < expected_count OR manifest set ∩ expected_glob enumeration < min_coverage.
+- Plan-side schema extension: `acceptance_criteria` array can include `{ kind: 'read_set', expected_glob, min_coverage, expected_count? }`.
+
+**Action_kinds that benefit immediately** (3 candidates already in current registry):
+- `pattern_transfer` — reads sibling repos read-only. Without read_set, agent can claim "I read all 5 allowlisted siblings" while having only read 2. Sprint 2.7 ✅ shipped + Sprint 2.18 closes the read-coverage gap.
+- `release_notes_drafter` — reads merged PRs since last tag. Read_set ensures the draft notes actually cover the full PR range.
+- `senior_tester_review` (Sprint 2.11 📋 in flight) — reads test files + source. Sprint 2.18 is the natural co-ship gate ("the senior tester actually read what it claims to have read").
+
+**R1 grounding**:
+- No 2026 framework ships a first-class read-coverage primitive — confirmed against Letta, AutoGen, LangGraph, CrewAI, OpenAI Agents SDK, Cursor, Devin, Replit Agent in the R1 memo. Terminology hasn't crystallized ("completion proof", "coverage attestation", "read-set verification" return no canonical hits).
+- CloudAPIBench ([arxiv.org/abs/2407.09726](https://arxiv.org/abs/2407.09726)) quantifies the doc-generation hallucination class — not a one-off anecdote.
+- "Execution Hallucination" taxonomy ([arxiv.org/html/2509.18970v1](https://arxiv.org/html/2509.18970v1)) scopes only tool-invocation claims, not read-side claims — leaving cortex-x to ship a **named differentiator**, not a me-too.
+- TheAgentCompany checkpoint pattern ([arxiv.org/html/2412.14161v2](https://arxiv.org/html/2412.14161v2)) — programmatic evaluators baked into task definition, structurally similar to acceptance_criteria. Best frontier model autonomous completion = 30.3%, meaning the agent-claimed vs agent-achieved gap **is** the dominant signal in production.
+
+**Acceptance criteria for the sprint itself** (recursive defense — read_set criterion gates the sprint's own ship):
+- [ ] `spec-verifier.cjs` handles `kind: read_set` for all 3 candidate action_kinds without breaking existing tests
+- [ ] PostToolUse hook writes manifest JSONL per Read invocation; survives concurrent action runs (mutex via Sprint 2.7 lock primitive)
+- [ ] `SPEC_READ_SET_INCOMPLETE` error fires when agent claim > manifest reality
+- [ ] Property test: random `expected_glob` × random partial-read manifest → verifier correctly detects under-coverage
+- [ ] Manual dogfood: `pattern_transfer` action with read_set criterion catches simulated 60% partial-read
+
+**Anti-scope** (deliberately excluded — narrow scope per R1 recommendation):
+- ❌ No new top-level capability layer. Folds into existing Sprint 1.9 verifier dispatcher.
+- ❌ No retroactive read-set criteria on existing 16 action_kinds — opt-in per kind, ship 3 candidates only.
+- ❌ No edit-side coverage proof — Sprint 2.2.5 `expectedSha256` on str_replace/insert already covers that.
+- ❌ No OTel export of manifest in v0 — Sprint 2.0 Phoenix path can consume it later if needed.
+
+**Stolen from**: GitNexus PostToolUse hook architecture + Claude Agent SDK hooks-as-audit-boundary + TheAgentCompany checkpoint pattern + CloudAPIBench failure-class quantification.
+
+**Co-ship candidate**: when Sprint 2.11 `senior_tester_review` lands, add `read_set` criterion to its acceptance_criteria as the first real production usage. Read-heavy reviewer is the perfect first beneficiary.
+
+---
+
 ### Sprint 2.17 — `/cortex-help` skill (one-screen capability menu) ✅ SHIPPED 2026-05-11
 
 **Status**: ✅ Shipped 2026-05-11. `shared/skills/cortex-help/SKILL.md` — auto-discovered after `install.{sh,ps1}` sync, invokable as `/cortex-help` or via natural language ("co umíš?", "what can cortex do?"). Lightweight user-facing menu of invokable slash commands, complementing the machine-readable `cortex/capabilities.md` registry from Sprint 2.15. **Namespaced as `/cortex-help` because `/help` is a Claude Code built-in slash command** — initial Sprint 2.17 shipped as `/help` and collided with the built-in (Claude Code rejected loading the custom skill); same-day fix renames to `/cortex-help` matching the existing `cortex-*` prefix convention (`cortex-init`, `cortex-doctor`, `cortex-reflect`, `cortex-sync`).
