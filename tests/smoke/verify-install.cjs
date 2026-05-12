@@ -239,6 +239,19 @@ function runChecks() {
   checkFileExists('user.agents.security-auditor', path.join(CLAUDE_HOME, 'agents', 'security-auditor.md'));
   checkFileExists('user.skills.cortex-init', path.join(CLAUDE_HOME, 'skills', 'cortex-init', 'SKILL.md'));
 
+  // Sprint LR.B+ (2026-05-12) — these skills must promote to ~/.claude/skills/
+  // or they're invisible as slash commands. Claude Code only auto-loads from
+  // this exact path (NOT from ~/.claude/shared/skills/).
+  checkFileExists('user.skills.cortex-help', path.join(CLAUDE_HOME, 'skills', 'cortex-help', 'SKILL.md'));
+  checkFileExists('user.skills.audit', path.join(CLAUDE_HOME, 'skills', 'audit', 'SKILL.md'));
+  checkFileExists('user.skills.designer', path.join(CLAUDE_HOME, 'skills', 'designer', 'SKILL.md'));
+  checkFileExists('user.skills.start', path.join(CLAUDE_HOME, 'skills', 'start', 'SKILL.md'));
+
+  // Sprint LR.B+ — cortex-capabilities CLI shim. Without this, /cortex-help
+  // can't surface the registry on a stranger's machine because the
+  // implementation lives only in the source repo.
+  checkFileExists('shared.bin.cortex-capabilities', path.join(SHARED, 'bin', 'cortex-capabilities'), 'warning');
+
   // Cortex-source.yaml integrity (Sprint 1.6 contract)
   checkYamlField('shared.cortex-source.cortex_source', path.join(SHARED, 'cortex-source.yaml'), 'cortex_source');
   checkYamlField('shared.cortex-source.cortex_data_home', path.join(SHARED, 'cortex-source.yaml'), 'cortex_data_home');

@@ -225,6 +225,39 @@ try {
       ctx.push(`  Suggest: paste ~/.claude/shared/prompts/project-scan.md to populate`);
     }
 
+    // Sprint LR.B+ (2026-05-12): discovery nudge. Most operators never read
+    // capabilities.md unless prompted. On first session per day, surface a
+    // one-line reminder + the canonical entry points. Marker file prevents
+    // spam — only fires when mtime is older than 18h.
+    try {
+      const markerPath = path.join(dataRoot, '.last-capability-tip');
+      const NUDGE_INTERVAL_MS = 18 * 60 * 60 * 1000;
+      let shouldNudge = true;
+      try {
+        const markerStat = fs.statSync(markerPath);
+        if (Date.now() - markerStat.mtimeMs < NUDGE_INTERVAL_MS) shouldNudge = false;
+      } catch { /* missing marker = first session, do nudge */ }
+      if (shouldNudge) {
+        const sourceYamlPath = path.join(os.homedir(), '.claude', 'shared', 'cortex-source.yaml');
+        let cortexSourceRoot = null;
+        try {
+          let yaml = fs.readFileSync(sourceYamlPath, 'utf8');
+          if (yaml.charCodeAt(0) === 0xfeff) yaml = yaml.slice(1);
+          const m = yaml.match(/^cortex_source:\s*(.+)$/m);
+          if (m) cortexSourceRoot = m[1].trim().replace(/^["']|["']$/g, '');
+        } catch { /* no source yaml */ }
+        const capsPath = cortexSourceRoot ? path.join(cortexSourceRoot, 'cortex', 'capabilities.md') : null;
+        if (capsPath && fs.existsSync(capsPath)) {
+          ctx.push('\ncortex-x discovery (tip shown once / 18h):');
+          ctx.push('  • Type /cortex-help inside Claude Code for one-screen capability menu');
+          ctx.push('  • Machine-readable inventory: cortex/capabilities.md (16 action_kinds, 25 standards, 11 profiles, 7 hooks, 17 workflows)');
+          ctx.push('  • Web research: cortex defaults to dispatching WebSearch+WebFetch on external-state tasks; SSOT ~/.claude/shared/research-protocol.md');
+          // Refresh marker (best-effort).
+          try { fs.writeFileSync(markerPath, new Date().toISOString(), { mode: 0o600 }); } catch {}
+        }
+      }
+    } catch { /* nudge failures are non-blocking */ }
+
     // Check for pending insights (in same data root — siblings of projects/)
     const insightsDir = path.join(dataRoot, 'insights');
     if (fs.existsSync(insightsDir)) {

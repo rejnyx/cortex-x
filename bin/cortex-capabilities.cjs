@@ -242,9 +242,16 @@ function inventoryActionKinds() {
 }
 
 function inventoryTests() {
+  // Sprint LR.B+ (2026-05-12): count actual test cases (test/it invocations)
+  // not just files. Previous file-count gave 110 in capabilities.md while
+  // README + node:test reported 2339 — embarrassing self-contradiction. The
+  // regex /^[ \t]*(test|it)\s*\(/ captures every top-level + indented case;
+  // matches what node --test sees.
   const buckets = ['unit', 'contract', 'integration', 'smoke'];
   const counts = {};
   let total = 0;
+  // Sprint 2.15.1 R2: regex compiled once, multiline.
+  const TEST_CASE_RE = /^[ \t]*(?:test|it)\s*\(/gm;
   for (const b of buckets) {
     const dir = path.join(REPO_ROOT, 'tests', b);
     if (!fs.existsSync(dir)) { counts[b] = 0; continue; }
@@ -266,8 +273,19 @@ function inventoryTests() {
       for (const ent of entries) {
         if (ent.isSymbolicLink()) continue;
         const full = path.join(d, ent.name);
-        if (ent.isDirectory()) stack.push(full);
-        else if (ent.name.endsWith('.test.cjs')) n++;
+        if (ent.isDirectory()) {
+          stack.push(full);
+        } else if (ent.name.endsWith('.test.cjs')) {
+          // Read + count test()/it() invocations. Cap file size to 1 MiB
+          // so a runaway fixture can't OOM the inventory pass.
+          try {
+            const stat = fs.statSync(full);
+            if (stat.size > 1024 * 1024) continue;
+            const content = fs.readFileSync(full, 'utf8');
+            const matches = content.match(TEST_CASE_RE);
+            n += matches ? matches.length : 0;
+          } catch { /* unreadable file, skip */ }
+        }
       }
     }
     counts[b] = n;

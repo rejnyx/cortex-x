@@ -1,0 +1,100 @@
+name: capabilities-refresh
+
+# Auto-regenerate cortex/capabilities.{md,json} when filesystem inputs
+# change. Sprint LR.B+ (2026-05-12) — closes the audit-flagged gap that
+# the registry promised auto-refresh in its own README but no workflow
+# existed.
+#
+# Strategy:
+#   - Run on every push to main + every PR touching a tracked input path
+#   - Regenerate registry via npm run capabilities
+#   - If diff non-empty, commit the regen on main (skipping CI loop)
+#   - On PRs, fail the check loudly so the contributor regenerates locally
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bin/**'
+      - 'shared/**'
+      - 'standards/**'
+      - 'profiles/**'
+      - 'prompts/**'
+      - 'agents/**'
+      - 'detectors/**'
+      - 'tools/**'
+      - 'templates/**'
+      - '.github/workflows/**'
+      - 'tests/**'
+      - 'bin/cortex-capabilities.cjs'
+  pull_request:
+    paths:
+      - 'bin/**'
+      - 'shared/**'
+      - 'standards/**'
+      - 'profiles/**'
+      - 'prompts/**'
+      - 'agents/**'
+      - 'detectors/**'
+      - 'tools/**'
+      - 'templates/**'
+      - '.github/workflows/**'
+      - 'tests/**'
+      - 'bin/cortex-capabilities.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capabilities-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        with:
+          node-version: '22'
+
+      - name: Regenerate capabilities registry
+        run: npm run capabilities
+
+      - name: Check if registry drifted
+        id: drift
+        run: |
+          if git diff --quiet cortex/capabilities.md cortex/capabilities.json; then
+            echo "drifted=false" >> "$GITHUB_OUTPUT"
+            echo "Registry up-to-date."
+          else
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Capability registry drifted — regeneration needed."
+            git --no-pager diff --stat cortex/capabilities.md cortex/capabilities.json
+          fi
+
+      - name: PR path — fail loudly so contributor regenerates locally
+        if: ${{ github.event_name == 'pull_request' && steps.drift.outputs.drifted == 'true' }}
+        run: |
+          echo "::error::cortex/capabilities.{md,json} is out of sync with the filesystem."
+          echo "::error::Regenerate locally: npm run capabilities && git add cortex/ && git commit"
+          exit 1
+
+      - name: Main path — auto-commit the regen
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.drift.outputs.drifted == 'true' }}
+        run: |
+          git config user.name "cortex-x[bot]"
+          git config user.email "198740764+Rejnyx@users.noreply.github.com"
+          git add cortex/capabilities.md cortex/capabilities.json
+          git commit -m "chore(capabilities): auto-regenerate registry [skip ci]" \
+                     -m "Triggered by ${{ github.event.head_commit.id }}"
+          git push origin HEAD:main

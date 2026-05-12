@@ -126,3 +126,4 @@ config/ship-ready-denylist.local.txt
 # commit. Sprint 2.10.7 cleanup: removed pre-existing docs/dogfood/* archive
 # and added this rule to prevent recurrence.
 /docs/dogfood/
+.last-capability-tip

@@ -111,6 +111,20 @@ Automatically active from `~/.claude/shared/hooks/`:
 - `pre-compact` — recovery state before context compact
 - `post-tool-use` — journal traces for cortex-evolve (metadata only)
 
+## Web research (default behavior)
+
+cortex defaults to web-researching whenever a task depends on the **current state of an external system** — framework versions, library APIs, CVEs, regulatory thresholds, design trends, a11y standards. You don't have to say "go look it up"; Claude is expected to dispatch a parallel research subagent first, cache the result under `$CORTEX_DATA_HOME/research/`, and cite URLs.
+
+**When research fires automatically:**
+- Sprint kickoff / new feature with external dependency
+- Dep upgrade with breaking-change risk
+- "Best practice for X" / "modern way to" questions
+- Anything where Claude's training cutoff (Jan 2026) is older than the relevant artifact
+
+**Override:** add `--no-research` to the prompt or set `CORTEX_OFFLINE=1` to skip. Use `--force-research` to bypass cache.
+
+**SSOT:** `~/.claude/shared/research-protocol.md` (when, how, budget caps, output discipline) + `~/.claude/shared/standards/web-research.md` (Rule 3 standard).
+
 ## Cross-project context
 
 Institutional wisdom + cross-project patterns: `{{cortex_source}}/projects/` (live source). Load cheat sheet: `~/.claude/shared/prompts/cortex-load.md`.

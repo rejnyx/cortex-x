@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-12T16:34:26.063Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-12T17:06:33.683Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -11,14 +11,14 @@
 | Steward action_kinds | 16 |
 | Steward primitives (`bin/steward/_lib/`) | 37 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 25 |
+| Standards (rule tiers 0-3) | 26 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 16 |
 | Review-pipeline agents (`agents/`) | 10 |
-| GitHub workflows | 17 |
-| Tests total | 110 (unit 89 · contract 13 · integration 8 · smoke 0) |
-| Runtime LoC (`bin/`) | 22 489 |
-| Test LoC (`tests/`) | 29 232 |
+| GitHub workflows | 18 |
+| Tests total | 2240 (unit 2077 · contract 106 · integration 57 · smoke 0) |
+| Runtime LoC (`bin/`) | 22 507 |
+| Test LoC (`tests/`) | 29 245 |
 
 ## 1. Steward action_kinds (16)
 
@@ -101,7 +101,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (25)
+## 4. Standards (26)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -132,6 +132,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`story-sizing`](../standards/story-sizing.md) | Story Sizing — Rule 3 | Cortex-x scaffolds projects whose recommendation backlogs are consumed by autonomous agents (Steward, manual `/audit`, Ralph-style loops). Action items must be sized so an LLM can complete one in a single context window without losing track |
 | [`test-types-catalog`](../standards/test-types-catalog.md) | Test Types — Exhaustive 2026 Catalog (SSOT) | **For the audit (Phase 5 selection oracle):** |
 | [`testing`](../standards/testing.md) | Testing — Confidence Through Layered Coverage | Without tests: |
+| [`web-research`](../standards/web-research.md) | Web Research — Rule 3 standard | cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple |
 
 ## 5. Profiles (11)
 
@@ -191,12 +192,13 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |
 
-## 8. GitHub workflows (17)
+## 8. GitHub workflows (18)
 
 CI + Steward cron workflows in `.github/workflows/`.
 
 | Workflow | Triggers | Description |
 |---|---|---|
+| [`capabilities-refresh`](../.github/workflows/capabilities-refresh.yml) | manual · push · pull_request | Auto-regenerate cortex/capabilities.{md,json} when filesystem inputs |
 | [`install-smoke`](../.github/workflows/install-smoke.yml) | cron(17 3 * * *) · manual · push · pull_request | 5-lane matrix: linux/macOS bash + Windows (Git Bash, pwsh 7, Windows PowerShell 5.1). |
 | [`no-pii`](../.github/workflows/no-pii.yml) | push · pull_request | Two-mode CI gate. |
 | [`steward autoresearch (weekly Sunday)`](../.github/workflows/steward-autoresearch.yml) | cron(0 2 * * 0) · manual | steward-autoresearch.example.yml — Sprint 2.1 weekly autoresearch overnight |

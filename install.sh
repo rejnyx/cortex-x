@@ -345,6 +345,31 @@ mkdir -p "$CLAUDE_HOME/shared/bin/_lib"
 [ -f "$CORTEX_ROOT/bin/cortex-steward" ]     && { cp "$CORTEX_ROOT/bin/cortex-steward"     "$CLAUDE_HOME/shared/bin/"; chmod +x "$CLAUDE_HOME/shared/bin/cortex-steward"; }
 [ -f "$CORTEX_ROOT/bin/cortex-steward.ps1" ] && cp "$CORTEX_ROOT/bin/cortex-steward.ps1" "$CLAUDE_HOME/shared/bin/"
 
+# Sprint LR.B+ (2026-05-12) — cortex-capabilities CLI. Without this shim,
+# /cortex-help could not surface the registry on a stranger's machine
+# because the implementation was never copied out of the source repo.
+# Writes a thin wrapper that delegates via cortex-source.yaml — same
+# pattern as cortex-steward (source repo stays SSOT, no drift).
+if [ -f "$CORTEX_ROOT/bin/cortex-capabilities.cjs" ]; then
+  cat > "$CLAUDE_HOME/shared/bin/cortex-capabilities" <<'CAPSHIM'
+#!/usr/bin/env bash
+# cortex-capabilities shim — delegates to $CORTEX_SOURCE/bin/cortex-capabilities.cjs.
+set -e
+SRC_YAML="$HOME/.claude/shared/cortex-source.yaml"
+if [ ! -f "$SRC_YAML" ]; then
+  echo "cortex-x not configured ($SRC_YAML missing). Re-run install.sh." >&2
+  exit 1
+fi
+CORTEX_SOURCE=$(grep '^cortex_source:' "$SRC_YAML" | head -1 | sed 's/^cortex_source:[ ]*//' | tr -d '"' | tr -d "'")
+if [ -z "$CORTEX_SOURCE" ] || [ ! -d "$CORTEX_SOURCE" ]; then
+  echo "cortex-x source not found at: $CORTEX_SOURCE" >&2
+  exit 1
+fi
+exec node "$CORTEX_SOURCE/bin/cortex-capabilities.cjs" "$@"
+CAPSHIM
+  chmod +x "$CLAUDE_HOME/shared/bin/cortex-capabilities"
+fi
+
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
 # Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and
@@ -393,6 +418,18 @@ if [ "$CORTEX_PROFILE" = "qa-tester" ]; then
     cp "$CORTEX_ROOT/shared/skills/test-audit/SKILL.md" "$CLAUDE_HOME/skills/test-audit/SKILL.md"
   fi
 fi
+
+# Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
+# they're discoverable as slash commands (Claude Code only auto-loads from
+# ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/).
+# Without this, /audit, /designer, /start are invisible.
+for SKILL_NAME in audit designer start; do
+  SRC_SKILL="$CORTEX_ROOT/shared/skills/$SKILL_NAME/SKILL.md"
+  if [ -f "$SRC_SKILL" ]; then
+    mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
+    cp "$SRC_SKILL" "$CLAUDE_HOME/skills/$SKILL_NAME/SKILL.md"
+  fi
+done
 
 # Generate INSTALL_NOTES.md with all the verbose detail. Keep terminal output
 # tight — users who want detail can read the file. (Pattern from Bun, Deno.)

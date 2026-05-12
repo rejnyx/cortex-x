@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-12T16:34:26.063Z",
+  "generated_at": "2026-05-12T17:06:33.683Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -559,6 +559,12 @@
       "path": "standards/testing.md",
       "title": "Testing — Confidence Through Layered Coverage",
       "description": "Without tests:"
+    },
+    {
+      "name": "web-research",
+      "path": "standards/web-research.md",
+      "title": "Web Research — Rule 3 standard",
+      "description": "cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple"
     }
   ],
   "profiles": [
@@ -802,6 +808,16 @@
   ],
   "workflows": [
     {
+      "name": "capabilities-refresh",
+      "path": ".github/workflows/capabilities-refresh.yml",
+      "triggers": [
+        "manual",
+        "push",
+        "pull_request"
+      ],
+      "description": "Auto-regenerate cortex/capabilities.{md,json} when filesystem inputs"
+    },
+    {
       "name": "install-smoke",
       "path": ".github/workflows/install-smoke.yml",
       "triggers": [
@@ -960,15 +976,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 89,
-      "contract": 13,
-      "integration": 8,
+      "unit": 2077,
+      "contract": 106,
+      "integration": 57,
       "smoke": 0
     },
-    "total": 110
+    "total": 2240
   },
   "code_volume": {
-    "steward_runtime_loc": 22489,
-    "test_code_loc": 29232
+    "steward_runtime_loc": 22507,
+    "test_code_loc": 29245
   }
 }

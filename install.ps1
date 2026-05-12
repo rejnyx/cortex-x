@@ -421,6 +421,27 @@ if (Test-Path $LibSelectSrc) {
     Copy-Item -Path $LibSelectSrc -Destination (Join-Path $BinLibTarget "select.cjs") -Force
 }
 
+# Sprint LR.B+ (2026-05-12) — cortex-capabilities CLI shim (PowerShell variant).
+# Delegates to $CortexSource/bin/cortex-capabilities.cjs via cortex-source.yaml.
+# Without this, /cortex-help can't surface the capability registry on a
+# stranger's machine because the implementation lives only in the source repo.
+$CapShimPath = Join-Path $BinTarget "cortex-capabilities.ps1"
+$CapShimContent = @'
+# cortex-capabilities shim — delegates to $CortexSource\bin\cortex-capabilities.cjs.
+$ErrorActionPreference = "Stop"
+$SrcYaml = Join-Path $env:USERPROFILE ".claude\shared\cortex-source.yaml"
+if (-not (Test-Path $SrcYaml)) {
+    Write-Error "cortex-x not configured ($SrcYaml missing). Re-run install.ps1."
+    exit 1
+}
+$line = Get-Content $SrcYaml | Where-Object { $_ -match '^cortex_source:' } | Select-Object -First 1
+if (-not $line) { Write-Error "cortex_source missing in $SrcYaml"; exit 1 }
+$CortexSource = ($line -replace '^cortex_source:\s*', '').Trim().Trim('"').Trim("'")
+if (-not (Test-Path $CortexSource)) { Write-Error "cortex-x source not found at: $CortexSource"; exit 1 }
+& node (Join-Path $CortexSource "bin\cortex-capabilities.cjs") @args
+'@
+Set-Content -Path $CapShimPath -Value $CapShimContent -Encoding UTF8 -NoNewline:$false
+
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
 # Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and
@@ -468,6 +489,18 @@ if ($Profile -eq "qa-tester") {
     $TestAuditSkillSrc = Join-Path $CortexRoot "shared/skills/test-audit/SKILL.md"
     if (Test-Path $TestAuditSkillSrc) {
         Copy-Item -Path $TestAuditSkillSrc -Destination (Join-Path $TestAuditSkillDir "SKILL.md") -Force
+    }
+}
+
+# Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
+# they're discoverable as slash commands. Claude Code only auto-loads from
+# ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/.
+foreach ($SkillName in @("audit", "designer", "start")) {
+    $SrcSkill = Join-Path $CortexRoot "shared/skills/$SkillName/SKILL.md"
+    if (Test-Path $SrcSkill) {
+        $DstSkillDir = Join-Path $ClaudeHome "skills/$SkillName"
+        New-Item -ItemType Directory -Force -Path $DstSkillDir | Out-Null
+        Copy-Item -Path $SrcSkill -Destination (Join-Path $DstSkillDir "SKILL.md") -Force
     }
 }
 

@@ -43,6 +43,15 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 | **`/cortex-reflect`** | Deep reflection — surfaces grounded cross-project insights | When something feels off, or after big refactor |
 | **`/cortex-help`** | This menu | Anytime you forget what's available |
 
+### Default behaviors (these run without being asked)
+
+| Behavior | When | Override |
+|---|---|---|
+| **Web research** | Whenever a task depends on external state (framework versions, library APIs, CVEs, design trends, a11y standards) — Claude is expected to dispatch parallel research subagents first, cache under `$CORTEX_DATA_HOME/research/`, cite URLs | `--no-research` flag · `CORTEX_OFFLINE=1` env |
+| **Session-start context injection** | Every Claude Code session — sprint state, git state, capability tip (once / 18h), pending insights | uninstall hooks or `CORTEX_HOOKS_DISABLED=1` |
+| **Block destructive** | `rm -rf /`, force-push to main, `DROP TABLE`, `--no-verify` are refused | run outside Claude Code |
+| **Auto-orchestrate review** | Multi-agent parallel review pipeline auto-dispatches on non-trivial diffs | `CORTEX_AUTO_ORCHESTRATE_DISABLED=1` |
+
 ### What's under the hood (read-only summary)
 
 The above are user-facing skills. Underneath, cortex-x ships:
@@ -50,7 +59,7 @@ The above are user-facing skills. Underneath, cortex-x ships:
 - **Steward action_kinds** — typed actions the autonomous nightly runtime can execute (`dep_update_patch`, `recommendation`, `pattern_transfer`, `senior_tester_review`, etc.)
 - **Steward primitives** — zero-deps CJS modules implementing safety, dispatch, memory layers
 - **Universal hooks** — block-destructive, session-start, pre-compact, post-tool-use, etc.
-- **Standards** — Rule 0 (Ship-Ready) → Rule 1 (SSOT / Modular / Scalable) → Rule 2 (Security / Testing / Observability / Correctness) → Rule 3 (process)
+- **Standards** — Rule 0 (Ship-Ready) → Rule 1 (SSOT / Modular / Scalable) → Rule 2 (Security / Testing / Observability / Correctness) → Rule 3 (process incl. web-research)
 - **Profiles** — project-type templates (nextjs-saas, waas-template, chatbot-platform, ai-agent, browser-agent, kiosek, qa-engineer, tauri-desktop, astro-static, cli-tool, minimal)
 - **Review-pipeline agents** — blind-hunter, edge-case-hunter, acceptance-auditor, security-auditor, ssot-enforcer, correctness-auditor, etc.
 - **GitHub workflows** — `steward-*.yml` cron lanes per action_kind
