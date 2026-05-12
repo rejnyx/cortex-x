@@ -187,4 +187,4 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 
 ## License
 
-PolyForm Noncommercial 1.0.0. See [LICENSE](./LICENSE).
+Apache License 2.0. See [LICENSE](./LICENSE) + [NOTICE](./NOTICE).

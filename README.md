@@ -375,7 +375,7 @@ See [docs/steward-rfc.md](./docs/steward-rfc.md), [docs/steward-runtime.md](./do
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](./LICENSE) — SPDX `PolyForm-Noncommercial-1.0.0`. Noncommercial use is broadly permitted; commercial use requires a separate grant. See [LICENSE](./LICENSE) for full text.
+[Apache License 2.0](./LICENSE) — SPDX `Apache-2.0`. Permissive use including commercial, with patent grant and attribution requirement. See [LICENSE](./LICENSE) for full text and [NOTICE](./NOTICE) for the attribution notice.
 
 ---
 

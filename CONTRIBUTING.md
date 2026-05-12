@@ -5,7 +5,7 @@ cortex-x is currently in **closed beta**. The `main` branch is the rolling beta 
 ## Beta posture
 
 - No public contribution process yet — the framework is maintained by a single author.
-- Beta testers are invited directly. Access = agreement to the [LICENSE](./LICENSE) (PolyForm Noncommercial 1.0.0).
+- Beta testers are invited directly. Access = agreement to the [LICENSE](./LICENSE) (Apache License 2.0).
 - Bug reports, feature ideas, and feedback welcome via GitHub Issues on the [cortex-x repo](https://github.com/Rejnyx/cortex-x). Prefix issues with `[beta]` so they're easy to triage.
 - Security issues → see [SECURITY.md](./SECURITY.md) (do not open a public issue for those).
 
@@ -28,7 +28,7 @@ See [standards/ship-ready.md](./standards/ship-ready.md) for the full distributi
 
 Before your first install, please:
 
-1. Read [LICENSE](./LICENSE) — PolyForm Noncommercial means no commercial use without a separate grant.
+1. Read [LICENSE](./LICENSE) — Apache License 2.0 permits commercial use, requires attribution + NOTICE preservation, includes patent grant.
 2. Read [SECURITY.md](./SECURITY.md) — disclosure process matters.
 3. Run `./install.sh` (or `.ps1` on Windows). Hooks land in `~/.claude/shared/`.
 4. Paste the snippet from the install output into `~/.claude/settings.json` to register hooks.

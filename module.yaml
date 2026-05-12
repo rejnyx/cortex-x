@@ -6,7 +6,7 @@ name: cortex-x
 description: AI-agentic-first Claude Code framework — bootstrap + institutional wisdom + adversarial review
 author: David Rajnoha (Rejnyx)
 repo: https://github.com/Rejnyx/cortex-x
-license: PolyForm-Noncommercial-1.0.0
+license: Apache-2.0
 
 # Config variables — resolved via {placeholder} syntax in prompts/agents.
 # These are DEFAULTS shipped with the framework. For your own install,

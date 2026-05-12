@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/Rejnyx/cortex-x",
   "repository": "https://github.com/Rejnyx/cortex-x",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "Apache-2.0",
   "keywords": [
     "claude-code",
     "agentic",

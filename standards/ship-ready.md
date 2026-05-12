@@ -20,8 +20,8 @@ Anything a stranger would never need to know about the maintainer must not live 
 
 ### 2. Clear licensing + attribution
 - `LICENSE` names a specific license with SPDX identifier
-- `Proprietary`/`All Rights Reserved` blocks all beta distribution — either clearly OSS (MIT/Apache-2.0/etc.) or **source-available** (PolyForm Noncommercial 1.0.0, Elastic License 2.0)
-- `Required Notice` (PolyForm) or copyright header present on copy-redistributable files
+- `Proprietary`/`All Rights Reserved` blocks all beta distribution — clearly OSS (MIT, Apache-2.0, BSL, etc.) is required
+- `NOTICE` file (Apache 2.0 §4(d)) or equivalent attribution header present on copy-redistributable files
 - Third-party dependencies listed with their licenses (when we add any)
 
 ### 3. Stranger can reproduce the install
@@ -124,7 +124,7 @@ Shipped `config/ship-ready-denylist.txt` contains ONLY generic patterns (no main
 Exceptions (by design — not leaks):
 - `CLAUDE.md` Identity line may name the framework author if authorship matters to users — but never email, paths, or names of other private projects.
 - `projects/cortex-x.md` is the framework's self-entry and OK as-is.
-- `LICENSE` `Required Notice` line intentionally names the licensor per PolyForm `§Notices`.
+- `LICENSE` + `NOTICE` files intentionally name the licensor per Apache 2.0 §4(c)/(d) attribution requirements.
 - `standards/ship-ready.md` (this file) and `CHANGELOG.md` / `MIGRATIONS.md` are excluded because they discuss the denylist abstractly.
 
 Forkers: update `config/ship-ready-denylist.txt` with your own private project slugs + personal email pattern. Do not edit this standard to hardcode them.
@@ -149,7 +149,7 @@ Weekly mining surfaces ship-ready regressions as priority insights. A new commit
 
 ## What ship-ready is NOT
 
-- ❌ **Open source by default.** Ship-ready = distributable, not OSS. PolyForm Noncommercial is source-available. the operator can relicense to MIT later if scope changes.
+- ❌ **Source-available only.** As of 2026-05-12 cortex-x ships under Apache License 2.0 — fully open source with patent grant. This standard documents distribution hygiene regardless of license tier.
 - ❌ **Multi-tenant architecture.** Beta testers run local, own their data, never share with the operator's install. No SaaS machinery required at v0.
 - ❌ **Full CI/CD from day 1.** One `install.sh`, one grep gate, semver tags. Automation arrives when manual work bites.
 - ❌ **`cortex` CLI binary mandatory.** Paste-prompt UX works for v0. CLI is v0.2+ quality-of-life.
@@ -190,7 +190,7 @@ Initial pass state → final state (2026-04-19):
 
 | Artifact | Was | Fix | Status |
 |---|---|---|---|
-| `LICENSE` | `Proprietary` blocks beta | PolyForm Noncommercial 1.0.0 | ✅ done |
+| `LICENSE` | `Proprietary` blocks beta | PolyForm Noncommercial 1.0.0 → Apache 2.0 (relicensed 2026-05-12 pre-public-launch) | ✅ done |
 | `README.md` | Personal email in public docs | Link to GitHub contact | ✅ done |
 | `projects/relo.md`, other private project entries | Private data shipped | Gitignored + `git rm --cached` | ✅ done |
 | `insights/20*-*.md` at top level | Private insights shipped | Gitignore pattern | ✅ done |

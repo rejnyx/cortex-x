@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha",
   "private": true,
   "description": "Sprint 2.6 — Discord remote-control bridge for Steward. Sibling-folder pattern preserves zero-deps Steward core; bridge has its own deps (discord.js).",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "Apache-2.0",
   "main": "bridge.cjs",
   "bin": {
     "cortex-discord-bridge": "./bridge.cjs"

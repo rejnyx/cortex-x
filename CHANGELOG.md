@@ -4,6 +4,31 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Changed (2026-05-12 — License: PolyForm Noncommercial 1.0.0 → Apache License 2.0)
+
+**Sprint LR.6 closed.** Relicensed from PolyForm Noncommercial 1.0.0 to Apache License 2.0 pre-public-launch. Why Apache 2.0:
+- Patent grant (§3) protects users from patent trolls — important in 2026 AI framework landscape
+- Permits commercial use without separate grant — removes friction for hiring-side use case ("a real company wants to use cortex-x")
+- Default OSS license for serious frameworks (TensorFlow, Kubernetes, Airflow, LangChain) — signals seriousness to corporate legal review
+- `NOTICE` file (§4(d)) preserves attribution; modifications must declare changes (§4(b))
+
+Files touched: `LICENSE` (full Apache 2.0 text), new `NOTICE`, `package.json` + `bin/discord-bridge/package.json` + `.claude-plugin/plugin.json` + `module.yaml` (SPDX field), `README.md` + `CLAUDE.md` + `CONTRIBUTING.md` (license references), `standards/ship-ready.md` (relicense flag in artifact table).
+
+### Fixed (2026-05-12 — Sprint LR.B+: launch-readiness hygiene pass — 3-agent audit findings)
+
+**Commit `0bec7a9`** — three parallel audit agents surveyed cortex-x for closed-beta → public-launch hygiene. P0 + P1 + targeted P2 findings shipped.
+
+- Hermes → Steward residual sweep: ~40 user-visible mentions (tmpfile prefixes, gh issue label, stdout strings, error messages, PR title fallback, file headers in 6 files) replaced. Backward-compat aliases preserved (HERMES_HALT env, Hermes-* git trailers, HERMES-FLAKY marker).
+- `cortex/recommendations.md` + `cortex/qa/{AUDIT,testing-gaps,testing-strategy}.md` moved to `docs/dogfood-examples/` so fresh-install users get a clean cortex/ scaffold.
+- `prompts/steward-setup.md` instructions fixed (workflow `hermes.yml` → `steward.yml`, branch `hermes/<...>` → `steward/<...>`).
+- `prompts/new-project.md`: `hermes-agent` profile reference → `ai-agent`.
+- `install.{sh,ps1}`: Node ≥22 numeric version check (previously only `command -v node`).
+- 9 new READMEs: `bin/`, `bin/steward/`, `agents/`, `profiles/`, `prompts/`, `shared/hooks/`, `.github/workflows/`, `cortex/qa/`, `docs/dogfood-examples/`.
+- `.github/ISSUE_TEMPLATE/{config,bug-report,beta-feedback}.yml` + `PULL_REQUEST_TEMPLATE.md`.
+- `templates/PROGRESS.md.hbs` Czech states → English.
+
+**Tests**: 2338 → 2339, 0 failures.
+
 ### Fixed (2026-05-12 — Sprint LR.C: gh-ops require path drift — nightly cron P0)
 
 **Sprint LR.C** (commit `a0b4039`) — `bin/steward/execute.cjs` had 6 inline `require('./gh-ops.cjs')` calls (correct path: `./_lib/gh-ops.cjs`). Top-level require at line 43 was already correct, masking the inline copy-paste drift. Production failures observed in `steward nightly` (2026-05-12 05:08 UTC) and `steward flaky-test-repair` (07:59 UTC), both with "Cannot find module './gh-ops.cjs'". Why CI didn't catch: gh-push code path runs only in non-dry-run mode; existing tests mock gh-ops or skip the gh-push phase.
