@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-During closed beta, **only the latest `main` and the most recent tagged release are supported.** Older tags are frozen snapshots for reproducibility; no security backports.
+cortex-x is pre-v1.0 (public preview under Apache License 2.0). **Only the latest `main` and the most recent tagged release are supported.** Older tags are frozen snapshots for reproducibility; no security backports until v1.0 cut.
 
 ## Reporting a vulnerability
 
