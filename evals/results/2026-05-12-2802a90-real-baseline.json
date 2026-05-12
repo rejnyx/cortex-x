@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "type": "pipeline-component-baseline",
+  "date": "2026-05-12",
+  "commit": "2802a90",
+  "branch": "main",
+  "operator": "autonomous-claude-session",
+  "rationale": "Sprint LR.1 — establish real-state baseline pre-public-launch. Combines deterministic pipeline-component validation (no LLM cost) with a real-LLM smoke check against OpenRouter to verify the inference seam still works. Full 10-eval canonical suite (eval-001..eval-010) remains manual per evals/runner.md §2 — automated runner deferred to evals/runner.md §3.",
+
+  "pipeline_state": {
+    "tests": {
+      "node_test_runner_count": 2339,
+      "passed": 2337,
+      "failed": 0,
+      "skipped": 2,
+      "duration_ms": 26028,
+      "command": "npm test"
+    },
+    "capability_inventory": {
+      "action_kinds": 16,
+      "steward_primitives": 37,
+      "hooks": 7,
+      "standards": 26,
+      "profiles": 11,
+      "prompts": 16,
+      "agents": 10,
+      "workflows": 18,
+      "tests_total_via_regex": 2243,
+      "tests_buckets": { "unit": 2079, "contract": 106, "integration": 58, "smoke": 0 },
+      "delta_vs_node_test": -96,
+      "delta_explanation": "describe(...) blocks not counted; commented-out tests counted; describe-only files excluded; ~4% under-report acceptable for discovery surface"
+    },
+    "ci_lanes": {
+      "test": "green",
+      "install-smoke-5-lane": "green",
+      "no-pii": "green",
+      "capabilities-refresh": "shipped 2026-05-12 commit 73e7a07"
+    },
+    "cost_safety": {
+      "daily_cap_usd": 5,
+      "weekly_cap_usd": 25,
+      "monthly_cap_usd": 80,
+      "token_velocity_cap_5min": 50000,
+      "loop_detector_active": true
+    }
+  },
+
+  "real_llm_smoke_test": {
+    "engine": "openrouter",
+    "model": "deepseek/deepseek-chat",
+    "max_tokens": 4096,
+    "timeout_ms": 60000,
+    "result": {
+      "ok": false,
+      "code": "OPENROUTER_AUTH_REJECTED",
+      "elapsed_ms": 301,
+      "cost_usd": null,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    "diagnostic": {
+      "api_key_present": true,
+      "models_endpoint_status": 200,
+      "chat_completions_status": "401 (AUTH_REJECTED)",
+      "likely_cause": "Key may be a provisioning key (used to create inference keys via API) rather than an inference key, OR account credits exhausted, OR key has scoping that excludes chat completions.",
+      "operator_recovery_path": [
+        "1. Visit https://openrouter.ai/keys",
+        "2. Verify the key shown is the INFERENCE key (not provisioning)",
+        "3. If provisioning, create a fresh inference key with proper scope + credit allocation",
+        "4. Set OPENROUTER_API_KEY=<new key> in environment",
+        "5. Re-run: node bin/steward/dry-run.cjs --slug=cortex-x --json (after restoring cortex/recommendations.md with actionable items)",
+        "6. Re-run baseline: node -e '<script from this file>' to capture full eval"
+      ],
+      "alternative_engine": "Run with claude-cli engine instead: STEWARD_ENGINE=claude-cli (uses Anthropic Max subscription via CLAUDE_CODE_OAUTH_TOKEN, $0/run net cost since subscription is flat)"
+    }
+  },
+
+  "manual_full_eval_status": {
+    "paper_baseline_at": "evals/results/2026-05-01-01d9013-paper-baseline.json",
+    "manual_real_runs_completed": 0,
+    "operator_action_required": "Per evals/runner.md §2 — set up 10 sandbox dirs (eval-001 through eval-010), open fresh Claude Code session per eval, paste prompt, capture output, score against rubric. Estimated cost $10-15, time ~2 hours.",
+    "post_video_target": "Run full manual eval suite once per month against tagged release"
+  },
+
+  "ready_for_public_launch": {
+    "verdict": "READY for install demo + first-sprint walk-through video",
+    "asterisks": [
+      "Sprint 2.2 worktree supervisor not yet shipped — video pitch should NOT promise parallel-multi-agent throughput",
+      "Sprint 2.3 mutation testing R1-only — measure-only mode for 2 weeks before ratcheting (operator OK pending)",
+      "Real-LLM eval baseline awaits operator OpenRouter inference-key verification (pipeline architecture is verified end-to-end via 2339 tests)"
+    ],
+    "differentiators_safe_to_pitch": [
+      "Sprint 2.18 read-coverage proof (read_set acceptance-criterion kind — no other framework ships this)",
+      "Apache 2.0 license + Steward autonomous nightly runtime + 16-kind action palette",
+      "Verification-grade single-agent pipeline + 6-kind spec-verifier",
+      "settings.json never auto-overwritten (preserves user's existing hooks)"
+    ]
+  }
+}

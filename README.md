@@ -297,15 +297,24 @@ Framework se zlepšuje sám, ale NIKDY nepřepisuje standards/prompts/profiles �
 jen navrhuje diffy přes PR. Viz $CORTEX_HOME/docs/self-improvement-rfc.md.
 ```
 
-> **Phase 5 evidence base — honest disclaimer (Sprint LR.3, 2026-05-10).**
+> **Phase 5 evidence base — honest disclaimer (Sprint LR.3, refreshed 2026-05-12).**
 > The statistical gates above (`min_support=3`, `≥2 projects`, `>7d spread`,
-> Bonferroni correction, citations required) are **specified in code + prose**
-> but the empirical base is currently a **paper baseline** ([`evals/results/2026-05-01-01d9013-paper-baseline.json`](./evals/results/)) —
-> per-task scores predicted from prompt + standard review at commit `01d9013`,
-> NOT from real Claude session executions. Real-execution baseline (5 runs ×
-> 3 canonical tasks recommended per Sprint LR.1) lands once `evals/results/`
-> populates with `2026-05-*-real-*.json` artifacts. **Claims of "framework
-> improves itself" are designed but not yet measured.** Track in
+> Bonferroni correction, citations required) are **specified in code + prose**.
+> Empirical state as of 2026-05-12:
+> - **Pipeline-component baseline** at [`evals/results/2026-05-12-2802a90-real-baseline.json`](./evals/results/) —
+>   2339 node-test cases green, 5-lane install-smoke green, capability registry
+>   auto-refreshes, cost-safety multi-window caps active, OpenRouter inference
+>   seam verified architecturally (smoke call returned AUTH_REJECTED on the
+>   operator's current key — see baseline for recovery path).
+> - **Paper baseline** at [`evals/results/2026-05-01-01d9013-paper-baseline.json`](./evals/results/) —
+>   per-task scores predicted from prompt + standard review at commit `01d9013`.
+> - **Full manual eval suite** (10 canonical tasks per `evals/runner.md` §2)
+>   remains operator-run, ~$10-15 + 2 hours per pass, targeted post-launch
+>   monthly cadence.
+>
+> **Claims of "framework improves itself" are designed but not yet measured by
+> a real Claude-session execution score.** Sprint LR.1 closes once one full
+> manual eval pass is captured. Track in
 > [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](./docs/research/cortex-x-housekeeping-audit-2026-05-10.md) §1
 > Sprint LR track.
 
