@@ -232,9 +232,9 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.2.5 — `edit.position` primitive in action-engine (M effort) — R1 ⏳ in flight 2026-05-10
+### Sprint 2.2.5 — `edit.position` primitive in action-engine (M effort) — ✅ SHIPPED 2026-05-10 (v0/v1)
 
-**Status**: 🔬 R1 research dispatched 2026-05-10 (3 parallel agents: edit-primitives in 2026 tools / splice patterns / safety + verifier alignment). R1 memo target: [`docs/research/sprint-2.3-edit-position-2026-05-10.md`](research/sprint-2.3-edit-position-2026-05-10.md) (note: filename intentionally uses `2.3` for chronological order, supersedes; sprint number is 2.2.5).
+**Status**: ✅ Shipped 2026-05-10. Action-engine now supports `edit_ops[]` shape with `append` / `create` / `insert` / `str_replace` operations + `expectedSha256` SHA pinning gate. R1 memo: [`docs/research/sprint-2.3-edit-position-2026-05-10.md`](research/sprint-2.3-edit-position-2026-05-10.md) (filename intentionally `2.3-` for chronological order; sprint label is 2.2.5). Three-stage validation: LLM emits op + SHA → engine validates SHA matches pre-edit content → engine applies op → spec-verifier gates result.
 
 **Why before mutation testing**: 2026-05-10 dogfood proved that current LLMs (DeepSeek V4 Flash + likely all current production models) cannot reliably return full-file content for "insert N bytes into existing >200 B file" tasks. Today's edit shape is `{ path, content, replace_all? }`. LLM either returns empty response or partial-content rewrite — `no_destructive_rewrite` correctly blocks 100 % of these. **Result**: 3 of 7 cortex-x recommendations had to be marked `[HUMAN-ONLY]` as same-incident-class. Most production cortex-x recommendations will hit the same wall until we ship a richer edit primitive.
 
@@ -751,9 +751,9 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ---
 
-### Sprint 2.5c — `tech_debt_audit` test_count delta extension (XS effort) — 📋 PROPOSED 2026-05-10
+### Sprint 2.5c — `tech_debt_audit` test_count delta extension (XS effort) — ✅ SHIPPED
 
-**Status**: 📋 Proposed 2026-05-10. ~10 LoC addition to existing `tech_debt_audit` (Sprint 2.5).
+**Status**: ✅ Shipped (verified 2026-05-12). `test_count` field threaded through `fallbackTestSourceRatio()` in `bin/steward/_lib/tech-debt-audit.cjs:277-322`; added to `metrics` envelope; `DEFAULT_TRIGGERS` in `bin/steward/_lib/snapshot-diff.cjs:120` includes `{ metric: 'test_count', kind: 'pct_drop', threshold: 5 }`. Test coverage in `tests/unit/steward/tech-debt-audit.test.cjs:106-138`. No new infra; folds into existing nightly cron via `tech_debt_audit` action_kind.
 
 **Scope**: Add `test_count` field to `cortex/debt-snapshot.json`; alarm if month-over-month delta < -5 %. No new action_kind; folds into existing nightly cron.
 
@@ -1015,17 +1015,17 @@ PHASE C — DELIVER (deterministic)
 
 **Status**: 📋 Proposed 2026-05-10 from operator brief audit ([`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §1). Distinct track from Tier 1 engineering — these are publish-readiness items that should never block engineering momentum.
 
-| ID | Item | Effort | Operator-only? |
-|---|---|---|---|
-| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run |
-| LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits |
-| LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now |
-| LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial |
-| LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic |
-| LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic |
-| LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded |
+| ID | Item | Effort | Operator-only? | Status |
+|---|---|---|---|---|
+| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | 📋 pending real-LLM run |
+| LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits | 📋 partial — draft in `docs/dogfood/readme-drafts-pending-2026-05-11.md` |
+| LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now | ✅ shipped (README §Phase 5 disclaimer) |
+| LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial | ✅ shipped (`docs/dogfood/launch-checklist.md`) |
+| LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic | ⏳ awaiting operator |
+| LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic | ⏳ awaiting operator |
+| LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded | ⏳ awaiting operator |
 
-**Sequencing**: LR.3 + LR.4 + LR.1 + LR.2 (skeleton) ship-able now without operator intervention. LR.5/LR.6/LR.7 wait for explicit operator strategic decision.
+**Sequencing**: LR.3 + LR.4 shipped 2026-05-10/11. LR.1 + LR.2 skeleton are next ship-able-without-operator items. LR.5/LR.6/LR.7 wait for explicit operator strategic decision.
 
 ---
 
