@@ -421,10 +421,12 @@ if (Test-Path $LibSelectSrc) {
     Copy-Item -Path $LibSelectSrc -Destination (Join-Path $BinLibTarget "select.cjs") -Force
 }
 
-# Sprint LR.B+ (2026-05-12) — cortex-capabilities CLI shim (PowerShell variant).
+# Sprint LR.B+ (2026-05-12) — cortex-capabilities CLI shims.
 # Delegates to $CortexSource/bin/cortex-capabilities.cjs via cortex-source.yaml.
-# Without this, /cortex-help can't surface the capability registry on a
+# Without these, /cortex-help can't surface the capability registry on a
 # stranger's machine because the implementation lives only in the source repo.
+# Emit BOTH variants (bash + ps1) so Git Bash users on Windows get the
+# extension-less form too — same convention as cortex-bootstrap / cortex-steward.
 $CapShimPath = Join-Path $BinTarget "cortex-capabilities.ps1"
 $CapShimContent = @'
 # cortex-capabilities shim — delegates to $CortexSource\bin\cortex-capabilities.cjs.
@@ -440,7 +442,33 @@ $CortexSource = ($line -replace '^cortex_source:\s*', '').Trim().Trim('"').Trim(
 if (-not (Test-Path $CortexSource)) { Write-Error "cortex-x source not found at: $CortexSource"; exit 1 }
 & node (Join-Path $CortexSource "bin\cortex-capabilities.cjs") @args
 '@
-Set-Content -Path $CapShimPath -Value $CapShimContent -Encoding UTF8 -NoNewline:$false
+Set-Content -Path $CapShimPath -Value $CapShimContent -Encoding UTF8
+
+# Bash variant for Git Bash users on Windows (verify-install.cjs --strict
+# expects this file to exist; install.sh emits the same body, install.ps1
+# matches the contract).
+$CapShimBashPath = Join-Path $BinTarget "cortex-capabilities"
+$CapShimBashContent = @'
+#!/usr/bin/env bash
+# cortex-capabilities shim — delegates to $CORTEX_SOURCE/bin/cortex-capabilities.cjs.
+set -e
+SRC_YAML="$HOME/.claude/shared/cortex-source.yaml"
+if [ ! -f "$SRC_YAML" ]; then
+  echo "cortex-x not configured ($SRC_YAML missing). Re-run install.ps1 (or install.sh on POSIX)." >&2
+  exit 1
+fi
+CORTEX_SOURCE=$(grep '^cortex_source:' "$SRC_YAML" | head -1 | sed 's/^cortex_source:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r')
+if [ -z "$CORTEX_SOURCE" ] || [ ! -d "$CORTEX_SOURCE" ]; then
+  echo "cortex-x source not found at: $CORTEX_SOURCE" >&2
+  exit 1
+fi
+exec node "$CORTEX_SOURCE/bin/cortex-capabilities.cjs" "$@"
+'@
+# Use UTF8NoBOM via [System.IO.File]::WriteAllText with explicit encoding —
+# install.ps1 already does this for cortex-source.yaml (line 317 per existing
+# pattern) because PS 5.1's `Set-Content -Encoding UTF8` writes BOM, and a BOM
+# in a bash script causes `bad interpreter` errors on Git Bash.
+[System.IO.File]::WriteAllText($CapShimBashPath, $CapShimBashContent, (New-Object System.Text.UTF8Encoding($false)))
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
