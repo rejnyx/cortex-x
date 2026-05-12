@@ -2300,7 +2300,12 @@ async function _runExecuteInner(opts, ctx) {
         // when the defense fires correctly. Other SPEC_* codes (MALFORMED,
         // PREDICATE_THREW, SHELL_TIMEOUT) indicate internal bugs, not the
         // defense doing its job — those stay exit 1.
-        const cleanRollback = specResult.code === 'SPEC_VIOLATION';
+        // Sprint 2.18: SPEC_READ_SET_INCOMPLETE is also a defense-working signal
+        // — the agent declared less coverage than expected_glob enumeration.
+        // Treat as clean rollback (exit 0) like SPEC_VIOLATION.
+        const cleanRollback =
+          specResult.code === 'SPEC_VIOLATION' ||
+          specResult.code === 'SPEC_READ_SET_INCOMPLETE';
         return {
           ok: false,
           code: specResult.code,

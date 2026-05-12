@@ -14,8 +14,12 @@ describe('Sprint 2.9.7 — execute.cjs spec-verifier rollback returns exitCode:0
       require('node:path').join(__dirname, '../../../bin/steward/execute.cjs'),
       'utf8',
     );
-    // Find the spec-verifier return block.
-    assert.match(src, /cleanRollback = specResult\.code === 'SPEC_VIOLATION'/);
+    // Find the spec-verifier return block. Match cleanRollback assignment whose
+    // RHS includes the SPEC_VIOLATION literal (Sprint 2.18 widened the RHS to
+    // also include SPEC_READ_SET_INCOMPLETE — both are defense-working signals,
+    // both must roll back clean).
+    assert.match(src, /cleanRollback\s*=[\s\S]{0,200}?specResult\.code === 'SPEC_VIOLATION'/);
+    assert.match(src, /specResult\.code === 'SPEC_READ_SET_INCOMPLETE'/);
     assert.match(src, /exitCode: cleanRollback \? 0 : 1/);
   });
 

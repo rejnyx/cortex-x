@@ -832,9 +832,9 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 2.18 — `read_set` acceptance-criterion kind (read-coverage proof) — 📋 PROPOSED 2026-05-12 · R1 ✅ DONE
+### Sprint 2.18 — `read_set` acceptance-criterion kind (read-coverage proof) — ✅ SHIPPED 2026-05-12
 
-**Status**: 📋 Proposed 2026-05-12. R1 research dispatch completed same day — [`docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`](research/sprint-2.18-read-coverage-proof-research-2026-05-12.md). Operator-flagged after a 2026-05-12 Facebook incident discussion: agent for API doc generation read 64/278 methods and confabulated the remaining 214. Class of failure invisible to every current Steward gate because the edit-side artifact is internally consistent — it's just wrong about coverage of the input set.
+**Status**: ✅ Shipped 2026-05-12. R1 → R2 → review pipeline → R2 hardening all same day. 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) found 1 HIGH symlink termination, 1 HIGH expected_glob path-traversal, 1 HIGH padding bypass via expected_count, 1 HIGH mergeCriteria override weakening, 4 MED (NFC normalize, excludes merge-vs-replace, rootMissing → SPEC_MALFORMED, min_coverage=0 contradiction) — all fixed pre-commit. 2270 → 2338 tests (+68 read_set + R2 regression). R1 memo: [`docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`](research/sprint-2.18-read-coverage-proof-research-2026-05-12.md). Operator-flagged after a 2026-05-12 Facebook incident discussion: agent for API doc generation read 64/278 methods and confabulated the remaining 214. Class of failure invisible to every current Steward gate because the edit-side artifact is internally consistent — it's just wrong about coverage of the input set.
 
 **Why this is one criterion-kind, not a new architectural layer**:
 - Current spec-verifier (Sprint 1.9) gates the **edit side** via 5 criterion kinds (shell, file_predicate, regex, ears_text, llm_judge). Sprint 2.18 adds a **6th kind: `read_set`** — folds into the existing dispatcher, no new top-level subsystem.

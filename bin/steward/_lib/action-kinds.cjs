@@ -567,6 +567,26 @@ const ACTION_KINDS = {
         ears: 'WHEN pattern_transfer runs THE SYSTEM SHALL only append to the current project lessons-learned.jsonl AND never edit any sibling project',
         severity: 'block',
       },
+      // Sprint 2.18: read-coverage proof — sanity check that the agent at
+      // least declares it loaded the sibling manifest before claiming to
+      // distill cross-project lessons. v0 anchors on the single-file glob
+      // `cortex/sibling-projects.json` (the manifest pattern_transfer must
+      // load first) — coverage proof there is a baseline truthfulness gate,
+      // not a full proof that the agent read every sibling. The richer
+      // glob `cortex/siblings/*/lessons-learned.jsonl` is the v0.5 upgrade
+      // path once Sprint 2.7.1 wires real LLM dispatch and we know which
+      // sibling files the agent actually opens. Soft `warn` for v0 so the
+      // first real run can surface the gap without rolling action back —
+      // we promote to `block` after seeing one cron cycle of declarations
+      // per R5 (one-incident = one-defense).
+      {
+        id: 'pattern_transfer_read_set_declared',
+        kind: 'read_set',
+        description: 'pattern_transfer must declare plan.read_set including cortex/sibling-projects.json (the manifest it loads first). v0 baseline truthfulness gate; v0.5 will widen the glob to enumerated sibling lessons once LLM dispatch is live.',
+        expected_glob: 'cortex/sibling-projects.json',
+        min_coverage: 1.0,
+        severity: 'warn',
+      },
     ],
   },
 
