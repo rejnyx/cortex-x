@@ -29,10 +29,10 @@ The cost gap to SaaS peers is roughly **3 orders of magnitude per task** — Dev
 | Cron-driven unattended runs | ❌ | ⚠️ via Actions cron | ❌ | ⚠️ manual trigger | ❌ research | ✅ | ⚠️ via OS cron | ✅ first-class |
 | Multi-window USD cap (D/W/M) | ❌ ACU budget only | ❌ credit pool | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Cross-session loop detection | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 5x/7d |
-| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ⚠️ benchmark gate | ❌ | ❌ | ✅ 5 criterion kinds |
+| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ⚠️ benchmark gate | ❌ | ❌ | ✅ 6 criterion kinds |
 | File-based killswitch | ❌ | ⚠️ revoke token | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ STEWARD_HALT |
 | "Senior tester" review pass | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ monthly cron |
-| Open-source license | ❌ | ❌ | ❌ | ❌ | ✅ research code | ✅ | ✅ Apache-2 | ⚠️ PolyForm Noncommercial |
+| Open-source license | ❌ | ❌ | ❌ | ❌ | ✅ research code | ✅ | ✅ Apache-2 | ✅ Apache-2 |
 | Typical operator cost / run | ~$2/15min ACU | credit-debited | $0.25/checkpoint | $0.50–7.50/Mtok | model bill | model bill | ~$0.01/file | **~$0.0008/run** |
 | Marketplace / dashboard | ✅ web | ✅ GitHub | ✅ web | ✅ IDE | ❌ | ⚠️ chat surfaces | ❌ | ❌ (CLI + journal) |
 | Target audience | Mid-market eng | GitHub orgs | Builders | IDE-first devs | Researchers | Hobbyists | Terminal solo | **Operator w/ many repos** |
@@ -102,11 +102,11 @@ Legend: ✅ shipped & first-class · ⚠️ partial / via workaround · ❌ abse
 
 If a reviewer asks "where's the catch," the answer is one of these:
 
-1. **Closed beta, dogfooding only.** Every other tool in the matrix has paying users; cortex-x has the operator. Public flip is gated by [`docs/launch-checklist.md`](./launch-checklist.md) P0 items.
+1. **Fresh public preview, single-operator dogfooding.** Every other tool in the matrix has paying users; cortex-x has the operator + early adopters from launch day. 0★ on day 1 is structural, not a quality signal.
 2. **No GUI / dashboard.** Cursor / Replit / Devin / GitHub all have polished consoles. cortex-x ships a status CLI + a journal file. The BIOS-style dashboard is parked at Tier 3 Sprint 4.5.
 3. **No SaaS option.** Deliberate posture, but it means anyone who wants "click-install, billing handled" walks past cortex-x.
 4. **Anthropic / OpenRouter shape lock-in (today).** Engine seam exists (mock / openrouter / claude-sdk / claude-cli), but spec verifier + edit-ops format implicitly assume Claude-style structured output. Multi-provider parity is roadmap-only.
-5. **License is PolyForm Noncommercial 1.0.0.** OSS purists who want Apache/MIT (Aider, OpenClaw) get a stricter contract. Commercial use needs separate arrangement. License decision is on the launch-checklist (P0 operator-only).
+5. **License is Apache 2.0** (relicensed 2026-05-12 from PolyForm Noncommercial pre-public-launch). Permissive commercial use + patent grant; CLA model still operator-only — external PRs land under inbound-equals-outbound until governance scales.
 6. **Capability palette is opinionated, not extensible from outside.** Devin/Cursor/OpenClaw have plugin/skill marketplaces (ClawHub: 5.7K skills). cortex-x's 15 action_kinds are curated by the operator, not open-marketplace.
 7. **No browser/computer-use.** Cursor Cloud Agents (Feb 2026) and Devin's parallel sessions can drive a UI to verify changes visually. cortex-x is text-and-test-suite only.
 8. **Public benchmark numbers are absent.** DGM publishes SWE-bench 20→50%; cortex-x has eval rubrics ([`evals/eval-001`–`010`](../evals/)) but no public scorecard yet (Sprint LR.1 — `evals/results/2026-MM-DD-real-baseline.json` is the closing gate).
@@ -117,12 +117,12 @@ If a reviewer asks "where's the catch," the answer is one of these:
 
 Every competitor either (a) charges per quarter-hour of agent time at minimum $20/mo floor, or (b) is open-source but lacks the pipeline safety primitives, or (c) is research code without production discipline. cortex-x's combination of:
 
-- `STEWARD_DAILY_USD_CAP` ($10) + `STEWARD_WEEKLY_USD_CAP` ($25) + `STEWARD_MONTHLY_USD_CAP` ($80)
+- `STEWARD_DAILY_USD_CAP` ($5 default in shipped workflows; $10 documented ceiling) + `STEWARD_WEEKLY_USD_CAP` ($25) + `STEWARD_MONTHLY_USD_CAP` ($80)
 - `STEWARD_TOKEN_VELOCITY_CAP` (50K tokens / 5 min)
 - Cross-session loop detector (5x same criterion in 7d → halt)
 - Intra-run StuckLoopDetection (3 patterns, threshold 3)
 - Self-invocation tracker (4 hard guardrails: max-depth=3, wall-clock=30min, dedup-window=3, cost gate)
-- Per-kind spec verifier (5 criterion kinds: shell / file_predicate / regex / ears_text / llm_judge)
+- Per-kind spec verifier (6 criterion kinds: shell / file_predicate / regex / ears_text / llm_judge / read_set)
 - Atomic git rollback (branch → LLM apply → spec gate → npm test → commit → push → draft PR; rollback on any failure)
 - File-based killswitch (`STEWARD_HALT` sentinel; operator-cleared, never agent-cleared)
 

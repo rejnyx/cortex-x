@@ -11,7 +11,7 @@ metadata:
   references:
     - bin/cortex/tools/_spec.md
     - bin/cortex/tools/index.cjs
-license: PolyForm-Noncommercial-1.0.0
+license: Apache-2.0
 ---
 
 # Example skill — using cortex-x tools via descriptor palette
