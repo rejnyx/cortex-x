@@ -122,7 +122,7 @@ STEWARD_AUTORESEARCH_JUDGE_MODEL=anthropic/claude-opus-4.6 \
 
 ### Cron — weekly Sunday autoresearch
 
-Copy `.github/workflows/steward-autoresearch.example.yml` to
+Copy `.github/workflows/steward-autoresearch.yml` to
 `.github/workflows/steward-autoresearch.yml`. Schedule: `0 2 * * 0`
 (Sunday 02:00 UTC, lowest-traffic GHA window).
 
@@ -197,4 +197,4 @@ The R1 memo flagged 6 open questions; operator-pre-approved decisions:
 
 Orchestrator + primitives — [`bin/steward/_lib/autoresearch.cjs`](../bin/steward/_lib/autoresearch.cjs).
 Wire-up — [`bin/steward/execute.cjs runAutoresearchAction`](../bin/steward/execute.cjs).
-Cron template — [`.github/workflows/steward-autoresearch.example.yml`](../.github/workflows/steward-autoresearch.example.yml).
+Cron template — [`.github/workflows/steward-autoresearch.yml`](../.github/workflows/steward-autoresearch.yml).

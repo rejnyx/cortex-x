@@ -51,7 +51,7 @@ async function runStewardIteration(opts: StewardRunOpts): Promise<StewardRunResu
   if (!action) return { outcome: 'no_actionable_step' }
 
   // Phase 2 — Branch + execute
-  const branch = `hermes/${today()}-${slug(action.title)}-${shortId()}`
+  const branch = `steward/${today()}-${slug(action.title)}-${shortId()}`
   await git.checkoutB(branch)
   const result = await executeAction(action, opts.budget)
   if (result.tier >= 'T2') return await haltAndPing(action, result, lock)
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write     # commit on hermes/<branch>
+      contents: write     # commit on steward/<branch>
       pull-requests: write # gh pr create --draft
     steps:
       - uses: actions/checkout@v5
@@ -155,7 +155,7 @@ jobs:
 - **on-PR-merged** — GHA `pull_request` event with `types: [closed]` filter + `merged == true` check
 - **manual** — `cortex hermes run --action <id> [--dry-run]` CLI subcommand for local development; GHA `workflow_dispatch` for triggered-by-human runs in production
 
-A reference workflow template lives at [`.github/workflows/steward.example.yml`](../.github/workflows/steward.example.yml) — disabled (renamed to `.example.yml`) pending the operator's first dogfood window with real cron triggers. Copy + rename to `hermes.yml` + add `OPENROUTER_API_KEY` secret to enable. v0.5b LLM seam shipped Sprint 1.6.13.
+15 active workflow files live at [`.github/workflows/steward*.yml`](../.github/workflows/) — one per shipped action_kind (steward.yml for the recommendation loop, plus steward-dep-patch.yml / steward-flaky-test-repair.yml / etc.). Add `OPENROUTER_API_KEY` (or `CLAUDE_CODE_OAUTH_TOKEN` for the claude-cli engine) repo secret to enable cron firing. v0.5b LLM seam shipped Sprint 1.6.13.
 
 ### 1.3 Memory model
 
@@ -164,8 +164,8 @@ Three storage tiers, all under `~/.cortex/`:
 ```
 ~/.cortex/
 ├── journal/<slug>/<YYYY-MM-DD>.jsonl    # append-only event stream (MUST-H4)
-├── hermes/state/<slug>.json              # last-known-good state for replay
-├── hermes/cache/<slug>/                  # research / eval intermediate results
+├── steward/state/<slug>.json             # last-known-good state for replay
+├── steward/cache/<slug>/                 # research / eval intermediate results
 └── projects/<slug>.md                    # institutional wisdom (cortex SSOT, separate from Steward)
 ```
 
@@ -178,7 +178,7 @@ Three storage tiers, all under `~/.cortex/`:
   "slug": "cortex-x",
   "last_run": "2026-05-07T04:00:11Z",
   "last_action_id": "01HXG9F7Z8M2K9",
-  "last_branch": "hermes/2026-05-07-evolve-mining-3a7f",
+  "last_branch": "steward/2026-05-07-evolve-mining-3a7f",
   "last_commit": "abc123def",
   "last_pr": "https://github.com/Rejnyx/cortex-x/pull/...",
   "lock_held": false
@@ -258,13 +258,13 @@ Step-by-step:
 4. **Clean tree gate** — `git status --porcelain` empty (or stash + restore)
 5. **Read recommendations** — parse `cortex/recommendations.md` "DO this week" section
 6. **Pick action** — `pickNextAction()` selects first item not yet in journal as `{event: "action_completed", action_id: ...}`
-7. **Branch checkout** — `git checkout -b hermes/2026-05-07-evolve-mining-a3f2`
+7. **Branch checkout** — `git checkout -b steward/2026-05-07-evolve-mining-a3f2`
 8. **Execute** — run cortex-evolve mining (or whatever action #6 chose); collect `touchedFiles`, `costUsd`, `tier`
 9. **Tier gate** — if `tier ≥ T2`, halt + ping (skip remaining)
 10. **Atomic stage** — `git add -- <touchedFiles>` (explicit paths)
 11. **Atomic commit** — Conventional Commits subject + Git trailers (`Steward-Action-Id`, `Steward-Journal-Entry`, `Steward-Trigger=cron`, `Steward-Recommendation-Source`)
 12. **Post-verify** — `git status --porcelain` empty + `git rev-parse HEAD` matches journaled SHA
-13. **Push** — `git push -u origin hermes/2026-05-07-evolve-mining-a3f2`
+13. **Push** — `git push -u origin steward/2026-05-07-evolve-mining-a3f2`
 14. **Draft PR** — `gh pr create --draft --base main --head <branch>`
 15. **Journal entry** — `{event: "action_completed", outcome: "success", pr_url, ...}`
 16. **Lock release** — delete `.lock` file
@@ -359,7 +359,7 @@ on next iteration:
 - One commit on that branch with Git trailers
 - One draft PR against `main`
 - One or more journal entries appended to `~/.cortex/journal/<slug>/<date>.jsonl`
-- Updated `~/.cortex/hermes/state/<slug>.json`
+- Updated `~/.cortex/steward/state/<slug>.json`
 - Released lock at `cortex/journal/<slug>/.lock`
 
 ### Idempotency

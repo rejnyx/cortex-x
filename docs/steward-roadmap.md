@@ -1017,15 +1017,15 @@ PHASE C — DELIVER (deterministic)
 
 | ID | Item | Effort | Operator-only? | Status |
 |---|---|---|---|---|
-| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | 📋 pending real-LLM run |
+| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | ✅ pipeline-component baseline shipped 2026-05-12 ([`evals/results/2026-05-12-2802a90-real-baseline.json`](../evals/results/)). Real-LLM smoke flagged operator's OpenRouter key as provisioning-only — full 10-eval manual suite remains operator-paced post-launch. |
 | LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits | 📋 partial — draft in `docs/dogfood/readme-drafts-pending-2026-05-11.md` |
-| LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now | ✅ shipped (README §Phase 5 disclaimer) |
+| LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now | ✅ shipped (README §Phase 5 disclaimer, refreshed 2026-05-12 to cite both baselines) |
 | LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial | ✅ shipped (`docs/dogfood/launch-checklist.md`) |
-| LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic | ⏳ awaiting operator |
-| LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic | ⏳ awaiting operator |
-| LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded | ⏳ awaiting operator |
+| LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic | ✅ resolved 2026-05-12 — operator decided to keep `cortex-x` (personal touch matching Rejnyx_x gamer nick); kolize acknowledged + documented as acceptable. |
+| LR.6 | **License decision** (PolyForm NC → MIT/Apache/BSL/dual?) | M | yes — strategic | ✅ shipped 2026-05-12 — Apache License 2.0 (commit `1235f62`). Patent grant + permissive commercial use + corporate-legal-friendly default. |
+| LR.7 | Demo asset (asciinema/MP4 scaffold + Steward dry-run) | S | yes — operator-recorded | ⏳ awaiting operator video recording (post-LR.5/LR.6 unblock confirmed) |
 
-**Sequencing**: LR.3 + LR.4 shipped 2026-05-10/11. LR.1 + LR.2 skeleton are next ship-able-without-operator items. LR.5/LR.6/LR.7 wait for explicit operator strategic decision.
+**Sequencing**: LR.1/LR.3/LR.4/LR.5/LR.6 all shipped 2026-05-10 → 2026-05-12. **LR.2 (README compare table) + LR.7 (demo asset) remain** — both operator-side. Public-launch blockers cleared.
 
 ---
 

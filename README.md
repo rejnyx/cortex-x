@@ -63,7 +63,7 @@ See [docs/steward-usage.md](./docs/steward-usage.md) to activate Steward for you
 
 No duplication = no drift = no lying cortex entries.
 
-## Design principles (25 standards across 4 tiers)
+## Design principles (26 standards across 4 tiers)
 
 Every scaffolded project inherits these — see [standards/](./standards/README.md) for the full set. **Tiered rule hierarchy** (RULE-1 doc explains priority):
 
@@ -94,7 +94,7 @@ cortex-x/
 │   └── discord-bridge/   Discord remote-control surface (optional, Sprint 2.6)
 ├── profiles/             11 project-type profiles (nextjs-saas, chatbot-platform, waas-template, ai-agent, browser-agent, cli-tool, tauri-desktop, kiosek, qa-engineer, astro-static, minimal)
 ├── templates/            Handlebars templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, SKILL.md, ...)
-├── standards/            25 standards across 4 tiers (Rule 0/1/1.5/2/3)
+├── standards/            26 standards across 4 tiers (Rule 0/1/1.5/2/3)
 ├── prompts/              15 reusable prompts (bound to slash commands or paste-style)
 ├── agents/               9 specialized subagents (review pipeline + planner + synthesizer + cortex-thinker)
 ├── shared/

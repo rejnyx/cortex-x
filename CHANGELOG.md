@@ -4,6 +4,27 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-12 — Sprint LR.1: real-state baseline + Phase 5 disclaimer refresh)
+
+**Commit `b65c19c`**. Closes Sprint LR.1 partially:
+
+- `evals/results/2026-05-12-2802a90-real-baseline.json` — pipeline-component state snapshot (2339 tests, 16 action_kinds, 26 standards, 11 profiles, 7 hooks, 18 workflows, 5-lane install-smoke green, capability registry auto-refresh shipped, cost-safety multi-window caps active).
+- Real-LLM smoke test attempted via OpenRouter — current `OPENROUTER_API_KEY` returned 200 on `/models` but `AUTH_REJECTED` on `/chat/completions` (likely provisioning vs inference key). Recovery path documented in baseline JSON; pipeline architecture is verified end-to-end by 2339 tests.
+- README.md § Phase 5 disclaimer refreshed: now cites both the paper baseline (2026-05-01-01d9013) AND the new pipeline-component baseline, with explicit "self-improvement designed but not yet measured by a real Claude-session execution score" framing.
+- LR.5 + LR.6 status flags updated in `docs/steward-roadmap.md` table — LR.5 resolved (`cortex-x` kept), LR.6 shipped (Apache 2.0). Only LR.2 (README compare table) + LR.7 (demo asset) remain — both operator-side.
+
+Verdict from baseline: **READY for install demo + first-sprint walk-through video.** Sprint 2.2 worktree supervisor pitch deferred until shipped.
+
+### Fixed (2026-05-12 — final docs consistency audit: 1 BLOCK + 3 HIGH + 3 MED closed)
+
+Post-commit `b65c19c` consistency audit found residual drift across user-facing docs. All BLOCK + HIGH findings fixed:
+
+- **Roadmap LR.5/LR.6 BLOCK** (`docs/steward-roadmap.md:1024-1026`): table still said "⏳ awaiting operator" though both decisions shipped today. Updated to ✅ with commit/decision references. Sequencing footnote corrected to reflect 5-of-7 LR items shipped.
+- **README + install-walkthrough HIGH** (5 occurrences): "25 standards" → 26 (matches capability registry count after RULE-README filter). "17 workflows" → 18.
+- **`docs/steward-runtime.md` HIGH** (9 occurrences): residual `hermes/` branch + `hermes.yml` workflow references after Sprint 4.7 rebrand. Replaced with `steward/` / `steward.yml`. Block listing the "reference workflow template" pointed at deleted `steward.example.yml` → rewrote to point at the 15 active workflow files.
+- **`docs/steward-autoresearch.md` MED** (3 occurrences): same `.example.yml` → real file name fix.
+- **`cortex/capabilities.md` MED**: test-count footnote added explaining ~4% diff between regex-based registry count (2243) and node:test gate count (2339). Header-table TL;DR now sets expectation: registry is discovery-surface estimate, `npm test` is the gate.
+
 ### Fixed (2026-05-12 — Sprint LR.B+ R2: 6-agent review pipeline hardening — 6 HIGH + 4 MED closed)
 
 After commit `73e7a07` shipped capability discovery + install pipeline + web-research teaching fixes, a 6-agent parallel review pipeline (acceptance + blind + correctness + security + ssot + edge-case) found additional gaps. All HIGH + impactful MED findings fixed in this round.

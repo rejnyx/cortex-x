@@ -30,7 +30,7 @@ The installer is a 600-line bash script. The first thing it does is **clone the 
 ~/cortex-x/                          ← cortex-x source clone (the framework code)
 ├── bin/                             — CLI tools (cortex-bootstrap, cortex-steward, ...)
 ├── shared/                          — hooks, skills, agents stage
-├── standards/                       — 25 standards docs (SSOT, security, testing, ...)
+├── standards/                       — 26 standards docs (SSOT, security, testing, ...)
 ├── profiles/                        — 11 project archetypes
 ├── prompts/                         — 16 reusable prompts
 ├── agents/                          — 9 review-pipeline subagents
@@ -95,7 +95,7 @@ Claude Code looks for hooks, skills, agents, and shared resources under `~/.clau
 │   └── user.yaml                   ← identity (from Phase 2)
 └── shared/                         ← cortex-x runtime assets (WIPED + re-copied on every re-install)
     ├── hooks/                      ← 7 universal hooks (block-destructive, session-start, ...)
-    ├── standards/                  ← 25 standards copied
+    ├── standards/                  ← 26 standards copied
     ├── templates/                  ← Handlebars templates
     ├── profiles/                   ← 11 YAMLs
     ├── prompts/                    ← 16 prompts
@@ -188,7 +188,7 @@ cortex-x library: no entry for 'random'
 
 cortex-x discovery (tip shown once / 18h):
   • Type /cortex-help inside Claude Code for one-screen capability menu
-  • Machine-readable inventory: cortex/capabilities.md (16 action_kinds, 25 standards, 11 profiles, 7 hooks, 17 workflows)
+  • Machine-readable inventory: cortex/capabilities.md (16 action_kinds, 26 standards, 11 profiles, 7 hooks, 18 workflows)
   • Web research: cortex defaults to dispatching WebSearch+WebFetch on external-state tasks
 ```
 

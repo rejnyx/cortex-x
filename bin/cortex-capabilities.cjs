@@ -425,6 +425,8 @@ function renderMarkdown(r) {
   lines.push(`| Runtime LoC (\`bin/\`) | ${r.code_volume.steward_runtime_loc.toLocaleString()} |`);
   lines.push(`| Test LoC (\`tests/\`) | ${r.code_volume.test_code_loc.toLocaleString()} |`);
   lines.push('');
+  lines.push(`> _Test count is computed via regex over \`test()\`/\`it()\` invocations across \`tests/{unit,contract,integration,smoke}/\`. The authoritative count for CI/release gating is whatever \`npm test\` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because \`describe()\` blocks and some \`.skip\`/\`.todo\` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, \`npm test\` is the gate._`);
+  lines.push('');
 
   // Action kinds
   lines.push(`## 1. Steward action_kinds (${r.action_kinds.length})`);
