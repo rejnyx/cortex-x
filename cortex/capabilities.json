@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T10:00:07.734Z",
+  "generated_at": "2026-05-13T10:13:46.885Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -226,6 +226,12 @@
       "path": "bin/steward/_lib/evolve-weekly-action.cjs",
       "sprint": "Sprint 2.19",
       "description": "bin/steward/_lib/evolve-weekly-action.cjs — Sprint 2.19 v1"
+    },
+    {
+      "name": "external-adapter",
+      "path": "bin/steward/_lib/external-adapter.cjs",
+      "sprint": "Sprint 3.4",
+      "description": "bin/steward/_lib/external-adapter.cjs — Sprint 3.4 v0"
     },
     {
       "name": "gh-ops",
@@ -627,6 +633,12 @@
       "description": "Without tests:"
     },
     {
+      "name": "voice",
+      "path": "standards/voice.md",
+      "title": "Voice — cortex-x identity & tone charter",
+      "description": "The framework is invisible by default. **Claude is the actor, cortex is the environment.** This document is what cortex sounds like across all skills, so the operator hears one coherent agent — not eleven different bots wearing the cortex h"
+    },
+    {
       "name": "web-research",
       "path": "standards/web-research.md",
       "title": "Web Research — Rule 3 standard",
@@ -765,6 +777,12 @@
       "name": "new-project",
       "path": "prompts/new-project.md",
       "title": "New Project — Discovery + Auto-Research + Architect + Scaffold + Adapt",
+      "purpose": ""
+    },
+    {
+      "name": "onboarding-first-10min",
+      "path": "prompts/onboarding-first-10min.md",
+      "title": "Onboarding — first 10 minutes after fresh install",
       "purpose": ""
     },
     {
@@ -1076,15 +1094,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2225,
+      "unit": 2253,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2389
+    "total": 2417
   },
   "code_volume": {
-    "steward_runtime_loc": 25380,
-    "test_code_loc": 31336
+    "steward_runtime_loc": 25645,
+    "test_code_loc": 31628
   }
 }

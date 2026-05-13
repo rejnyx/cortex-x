@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T10:00:07.734Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T10:13:46.885Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 18 |
-| Steward primitives (`bin/steward/_lib/`) | 45 |
+| Steward primitives (`bin/steward/_lib/`) | 46 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 26 |
+| Standards (rule tiers 0-3) | 27 |
 | Profiles (`profiles/`) | 11 |
-| Prompts (`prompts/`) | 16 |
+| Prompts (`prompts/`) | 17 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2389 (unit 2225 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 25,380 |
-| Test LoC (`tests/`) | 31,336 |
+| Tests total | 2417 (unit 2253 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 25,645 |
+| Test LoC (`tests/`) | 31,628 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -47,7 +47,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (45)
+## 2. Steward primitives (46)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -63,6 +63,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`eval-scorer`](../bin/steward/_lib/eval-scorer.cjs) | Sprint 3.0 | bin/steward/_lib/eval-scorer.cjs — Sprint 3.0 v0 |
 | [`evolve-action`](../bin/steward/_lib/evolve-action.cjs) | Sprint 2.19 | bin/steward/_lib/evolve-action.cjs — Sprint 2.19 daily Dreaming handler |
 | [`evolve-weekly-action`](../bin/steward/_lib/evolve-weekly-action.cjs) | Sprint 2.19 | bin/steward/_lib/evolve-weekly-action.cjs — Sprint 2.19 v1 |
+| [`external-adapter`](../bin/steward/_lib/external-adapter.cjs) | Sprint 3.4 | bin/steward/_lib/external-adapter.cjs — Sprint 3.4 v0 |
 | [`gh-ops`](../bin/steward/_lib/gh-ops.cjs) | Sprint 1.6.19 | GitHub CLI wrapper for Steward draft-PR creation (Sprint 1.6.19) |
 | [`git-ops`](../bin/steward/_lib/git-ops.cjs) | — | atomic git operations for Hermes's commit-per-action contract |
 | [`git-trailers`](../bin/steward/_lib/git-trailers.cjs) | — | build commit messages with parseable Git trailers (MUST-H3) |
@@ -113,7 +114,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (26)
+## 4. Standards (27)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -144,6 +145,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`story-sizing`](../standards/story-sizing.md) | Story Sizing — Rule 3 | Cortex-x scaffolds projects whose recommendation backlogs are consumed by autonomous agents (Steward, manual `/audit`, Ralph-style loops). Action items must be sized so an LLM can complete one in a single context window without losing track |
 | [`test-types-catalog`](../standards/test-types-catalog.md) | Test Types — Exhaustive 2026 Catalog (SSOT) | **For the audit (Phase 5 selection oracle):** |
 | [`testing`](../standards/testing.md) | Testing — Confidence Through Layered Coverage | Without tests: |
+| [`voice`](../standards/voice.md) | Voice — cortex-x identity & tone charter | The framework is invisible by default. **Claude is the actor, cortex is the environment.** This document is what cortex sounds like across all skills, so the operator hears one coherent agent — not eleven different bots wearing the cortex h |
 | [`web-research`](../standards/web-research.md) | Web Research — Rule 3 standard | cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple |
 
 ## 5. Profiles (11)
@@ -164,7 +166,7 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
 | [`waas-template`](../profiles/waas-template.yaml) | — | vercel # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
 
-## 6. Prompts (16)
+## 6. Prompts (17)
 
 Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-into-session.
 
@@ -179,6 +181,7 @@ Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-int
 | [`cortex-sync`](../prompts/cortex-sync.md) | Cortex Sync Prompt |  |
 | [`existing-project-audit`](../prompts/existing-project-audit.md) | Existing Project Audit — Deep 12-Dimension Analysis + Auto-Research + Retrofit |  |
 | [`new-project`](../prompts/new-project.md) | New Project — Discovery + Auto-Research + Architect + Scaffold + Adapt |  |
+| [`onboarding-first-10min`](../prompts/onboarding-first-10min.md) | Onboarding — first 10 minutes after fresh install |  |
 | [`project-scan`](../prompts/project-scan.md) | Universal Project Scan Prompt (SLIM) |  |
 | [`qa-retrofit`](../prompts/qa-retrofit.md) | QA Retrofit — Deep Test-Strategy Audit + Risk Worm-Through + Cited Gap Backlog |  |
 | [`README`](../prompts/README.md) | prompts/ | \| Prompt \| Cadence \| Purpose \| |
