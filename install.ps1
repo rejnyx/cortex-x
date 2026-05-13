@@ -524,6 +524,9 @@ New-DelegateShim "cortex-doc-audit"      "cortex-doc-audit.cjs"
 New-DelegateShim "cortex-wiki-consolidate" "cortex-wiki-consolidate.cjs"
 New-DelegateShim "cortex-update"         "cortex-update.cjs"
 New-DelegateShim "cortex-uninstall"      "cortex-uninstall.cjs"
+New-DelegateShim "cortex-hooks-register" "cortex-hooks-register.cjs"
+New-DelegateShim "cortex-claude-md-augment" "cortex-claude-md-augment.cjs"
+New-DelegateShim "cortex-doctor"         "cortex-doctor.cjs"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
@@ -578,7 +581,7 @@ if ($Profile -eq "qa-tester") {
 # Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
 # they're discoverable as slash commands. Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/.
-foreach ($SkillName in @("audit", "designer", "start")) {
+foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor")) {
     $SrcSkill = Join-Path $CortexRoot "shared/skills/$SkillName/SKILL.md"
     if (Test-Path $SrcSkill) {
         $DstSkillDir = Join-Path $ClaudeHome "skills/$SkillName"
@@ -718,6 +721,81 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "    Try: re-run install.ps1, or open an issue at" -ForegroundColor Red
     Write-Host "         https://github.com/Rejnyx/cortex-x/issues" -ForegroundColor Red
     exit 1
+}
+
+# Sprint 2.21 — opt-in hook registration (mirror install.sh logic).
+# $env:CORTEX_REGISTER_HOOKS:
+#   '1' / 'y' / 'yes' / 'true'  → register without prompting
+#   '0' / 'n' / 'no' / 'false'  → skip without prompting
+#   unset, interactive          → ask Y/n
+#   unset, non-interactive      → skip silently
+$HooksRegisterScript = Join-Path $CortexRoot "bin\cortex-hooks-register.cjs"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $HooksRegisterScript)) {
+    $RegisterDecision = $null
+    $EnvDecision = $env:CORTEX_REGISTER_HOOKS
+    if ($EnvDecision -match '^(1|y|yes|true)$') {
+        $RegisterDecision = 'y'
+    } elseif ($EnvDecision -match '^(0|n|no|false)$') {
+        $RegisterDecision = 'n'
+    } elseif ([Environment]::UserInteractive) {
+        Write-Host ""
+        Write-Host "  Cortex hooks (block-destructive safety, SessionStart context, auto-orchestrate)"
+        Write-Host "  are NOT active until registered in ~/.claude/settings.json."
+        Write-Host "  Without them, you lose ~50% of cortex-x value — but settings.json is yours,"
+        Write-Host "  so the choice is explicit. A timestamped backup is written before any change."
+        $Reply = Read-Host "  Register cortex hooks now? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($Reply) -or $Reply -match '^(y|Y|yes|YES)$') {
+            $RegisterDecision = 'y'
+        } else {
+            $RegisterDecision = 'n'
+        }
+    } else {
+        $RegisterDecision = 'n'
+    }
+    if ($RegisterDecision -eq 'y') {
+        & node $HooksRegisterScript --apply --yes
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  warning: hook registration failed (settings.json untouched per safety contract)." -ForegroundColor Yellow
+            Write-Host "  manual: paste the block from $InstallNotes under '## Register hooks in ~/.claude/settings.json'." -ForegroundColor Yellow
+        }
+    } elseif ($RegisterDecision -eq 'n' -and [Environment]::UserInteractive) {
+        Write-Host "  $([char]0x21B3) Skipped. Re-run anytime: cortex-hooks-register"
+    }
+}
+
+# Sprint 2.21 — opt-in CLAUDE.md discipline block (mirror install.sh logic).
+$AugmentScript = Join-Path $CortexRoot "bin\cortex-claude-md-augment.cjs"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScript)) {
+    $AugmentDecision = $null
+    $EnvAugment = $env:CORTEX_AUGMENT_CLAUDE_MD
+    if ($EnvAugment -match '^(1|y|yes|true)$') {
+        $AugmentDecision = 'y'
+    } elseif ($EnvAugment -match '^(0|n|no|false)$') {
+        $AugmentDecision = 'n'
+    } elseif ([Environment]::UserInteractive) {
+        Write-Host ""
+        Write-Host "  Cortex discipline block (R1 research-first, R2 review pipeline, parallel agents"
+        Write-Host "  by default) can be appended to your global ~/.claude/CLAUDE.md. This biases EVERY"
+        Write-Host "  Claude Code session — not just cortex slash commands — toward cortex behavior."
+        Write-Host "  Bracketed by BEGIN/END markers — your existing CLAUDE.md content is preserved."
+        $AugmentReply = Read-Host "  Append cortex discipline block to global CLAUDE.md? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($AugmentReply) -or $AugmentReply -match '^(y|Y|yes|YES)$') {
+            $AugmentDecision = 'y'
+        } else {
+            $AugmentDecision = 'n'
+        }
+    } else {
+        $AugmentDecision = 'n'
+    }
+    if ($AugmentDecision -eq 'y') {
+        & node $AugmentScript --apply --yes
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  warning: CLAUDE.md augment failed (file untouched per safety contract)." -ForegroundColor Yellow
+            Write-Host "  manual: cortex-claude-md-augment --apply" -ForegroundColor Yellow
+        }
+    } elseif ($AugmentDecision -eq 'n' -and [Environment]::UserInteractive) {
+        Write-Host "  $([char]0x21B3) Skipped. Re-run anytime: cortex-claude-md-augment"
+    }
 }
 
 # Compact final summary — model: Bun, uv, Rustup. Detail in INSTALL_NOTES.md.

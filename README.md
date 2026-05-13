@@ -76,13 +76,24 @@ Content-hash-aware: files you modified after install are detected and skipped wi
 Inside Claude Code (auto-discovered slash commands):
 
 - `/cortex-help` — one-screen menu of every invokable slash command + a "default next" nudge based on detected project state
+- `/cortex-init` — interactive picker (New / Existing / Framework) — primes the right flow
 - `/start` — new-project bootstrap (Discover → Research → Architect → Scaffold → Adapt)
 - `/audit` — existing-project deep audit (12 dimensions, 4 parallel agents)
 - `/test-audit` — senior-QA-consultant audit, P0/P1/P2 gap list with research memos
 - `/designer` — design flow (intake + library palette + parallel worktree exploration) · `--award` overlay for Awwwards-SOTD-targeted work
+- `/cortex-doctor` — health check + drift detection with one-tap auto-fix
 - `/sync` — end-of-session knowledge capture → cortex library
-- `/doctor` — install integrity + drift detection
 - `/cortex-reflect` — deep reflection, grounds insights in file paths
+
+After install (recommended sequence — all opt-in, all with consent prompt + backup):
+
+```bash
+cortex-hooks-register      # activate block-destructive + SessionStart + auto-orchestrate hooks
+cortex-claude-md-augment   # append R1/R2/parallel discipline block to global ~/.claude/CLAUDE.md
+cortex-doctor              # verify everything is wired (use weekly + after migrations)
+```
+
+Without these, `/cortex-init`, `/audit`, `/start` still work (skills auto-discover), but ad-hoc work outside those skills loses the cortex defaults. Install asks you about both during the interactive prompt; you can re-run them anytime.
 
 ## What you get
 

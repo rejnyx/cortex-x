@@ -1,0 +1,301 @@
+#!/usr/bin/env node
+// cortex-claude-md-augment — opt-in append of cortex-x discipline block to
+// the user's global ~/.claude/CLAUDE.md.
+//
+// Why this exists: skills only kick in inside /cortex-init, /audit, /start,
+// /designer flows. For ad-hoc work ("make me a feature") the operator's
+// Claude model has no instruction to dispatch parallel research agents,
+// follow R1 (research-before-implement), or auto-spawn the R2 review
+// pipeline. The global CLAUDE.md is the lever that biases EVERY session
+// toward cortex discipline — but cortex install never auto-edits it
+// (Principle 1). This helper is the bridge: explicit user consent →
+// idempotent BEGIN/END-marked append.
+//
+// Identity rule: the cortex-managed block lives between two literal markers
+// (see CORTEX_BLOCK_START / CORTEX_BLOCK_END below). Everything outside
+// the markers is the user's content and is never touched.
+//
+// Modes:
+//   --apply        append cortex discipline block (default)
+//   --remove       strip the block between BEGIN/END markers
+//   --status       print whether block is present + version
+//   --dry-run      print planned diff, no mutation
+//
+// Flags:
+//   --yes / -y     skip interactive confirmation
+//   --json         machine-readable output
+//   --help / -h
+//
+// Exit codes:
+//   0   success / nothing-to-do
+//   1   user-visible failure
+//   2   internal bug
+
+'use strict';
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const HOME = os.homedir();
+const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
+
+// Block version — bump when content changes so we can detect outdated blocks
+// and offer to refresh them.
+const BLOCK_VERSION = '1';
+const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
+const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
+// Match any version of the block (for removal + version-drift detection).
+const CORTEX_BLOCK_RE = /<!-- BEGIN cortex-x discipline \(v(\d+)\) — managed by cortex-claude-md-augment -->[\s\S]*?<!-- END cortex-x discipline -->/g;
+
+const DISCIPLINE_BLOCK = `## cortex-x discipline (auto-loaded — see standards/ for full rules)
+
+You are working in an environment where cortex-x is installed (~/.claude/shared/). Apply these defaults to **every** session, not just inside cortex slash commands:
+
+**R1 — research before implementing.** Whenever a task depends on external state (framework versions, library APIs, design trends, CVEs, a11y standards, best practices that change yearly), dispatch parallel web research subagents FIRST. Cite findings with URLs. Cache under \`$CORTEX_DATA_HOME/research/\`. SSOT: \`~/.claude/shared/standards/web-research.md\`. Don't guess from training data on anything dated past your cutoff.
+
+**R2 — review pipeline.** For non-trivial diffs (≥3 files, public API change, security-adjacent, agentic code paths), dispatch the 6-agent parallel review pipeline (\`security-auditor\`, \`correctness-auditor\`, \`acceptance-auditor\`, \`ssot-enforcer\`, \`blind-hunter\`, \`edge-case-hunter\`) BEFORE the user merges. Apply consensus HIGH findings in-commit.
+
+**Parallel by default.** When multiple agent calls are independent (research topics, audit dimensions, file scans), dispatch them in a single message with multiple Agent tool blocks. Sequential calls only when later calls depend on earlier output.
+
+**Standards order** (when budgets conflict): Rule 0 Ship-Ready → Rule 1 SSOT/Modular/Scalable → Rule 1.5 Coding Behavior → Rule 2 Security/Testing/Observability/Correctness → Rule 3 process. Browse: \`~/.claude/shared/standards/\` (28 files).
+
+**Discoverability.** Type \`/cortex-help\` to see the slash command menu. \`/cortex-init\` (new project) · \`/audit\` (existing) · \`/test-audit\` (QA lens) · \`/designer\` (UI). For nightly autonomous work: \`steward-setup.md\`.
+
+**Memory.** Per-project \`MEMORY.md\` (this project). Cross-project library: \`$CORTEX_DATA_HOME/projects/<slug>.md\` (populate via paste \`prompts/cortex-sync.md\` at end of session). Sprint state: \`PROGRESS.md\` (pending/in-progress/done/blocked).
+
+**Safety hooks** are registered in \`~/.claude/settings.json\` if you ran \`cortex-hooks-register\` post-install. Verify: \`cortex-hooks-register --status\`. Without them, you lose block-destructive guard, SessionStart context, and auto-orchestrate parallel-agent nudge.
+
+**Out-of-date?** This block is auto-generated. Refresh: \`cortex-claude-md-augment --apply\`. Remove: \`cortex-claude-md-augment --remove\`.`;
+
+function parseArgs(argv) {
+  const args = { mode: 'apply', yes: false, json: false, help: false, dryRun: false };
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--apply') args.mode = 'apply';
+    else if (a === '--remove') args.mode = 'remove';
+    else if (a === '--status') args.mode = 'status';
+    else if (a === '--dry-run') args.dryRun = true;
+    else if (a === '--yes' || a === '-y') args.yes = true;
+    else if (a === '--json') args.json = true;
+    else if (a === '--help' || a === '-h') args.help = true;
+    else {
+      console.error(`cortex-claude-md-augment: unknown flag '${a}'. Use --help for usage.`);
+      process.exit(1);
+    }
+  }
+  return args;
+}
+
+function printHelp() {
+  console.log('cortex-claude-md-augment — opt-in append of cortex-x discipline block to ~/.claude/CLAUDE.md');
+  console.log('');
+  console.log('Usage:');
+  console.log('  cortex-claude-md-augment             append discipline block (default)');
+  console.log('  cortex-claude-md-augment --remove    strip the cortex block, leave user content');
+  console.log('  cortex-claude-md-augment --status    print current state, no mutation');
+  console.log('  cortex-claude-md-augment --dry-run   print planned diff, no mutation');
+  console.log('  cortex-claude-md-augment --yes       skip interactive confirmation');
+  console.log('  cortex-claude-md-augment --json      machine-readable output');
+  console.log('');
+  console.log('Identity rule: only the content between');
+  console.log(`  ${CORTEX_BLOCK_START}`);
+  console.log(`  ${CORTEX_BLOCK_END}`);
+  console.log('is touched. User content outside the markers is preserved verbatim.');
+}
+
+function readCurrent() {
+  if (!fs.existsSync(CLAUDE_MD_PATH)) return { exists: false, content: '' };
+  const raw = fs.readFileSync(CLAUDE_MD_PATH, 'utf8');
+  const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+  return { exists: true, content: cleaned };
+}
+
+// Scan content for any existing cortex block(s) and return:
+//   { present: bool, version: '1' | '2' | ..., count: number }
+function detectBlock(content) {
+  const matches = [...content.matchAll(CORTEX_BLOCK_RE)];
+  if (matches.length === 0) return { present: false, version: null, count: 0 };
+  return { present: true, version: matches[0][1], count: matches.length };
+}
+
+function backupFile(rawContent) {
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const backupPath = `${CLAUDE_MD_PATH}.backup-${ts}`;
+  fs.writeFileSync(backupPath, rawContent, 'utf8');
+  return backupPath;
+}
+
+function writeContent(content) {
+  const tmp = CLAUDE_MD_PATH + '.tmp';
+  let renamed = false;
+  try {
+    fs.mkdirSync(path.dirname(CLAUDE_MD_PATH), { recursive: true });
+    fs.writeFileSync(tmp, content, 'utf8');
+    fs.renameSync(tmp, CLAUDE_MD_PATH);
+    renamed = true;
+  } finally {
+    if (!renamed) {
+      try { fs.unlinkSync(tmp); } catch {}
+    }
+  }
+}
+
+// Compute the new content after applying mode. Pure function.
+function computeNext(currentContent, mode) {
+  const stripped = currentContent.replace(CORTEX_BLOCK_RE, '').replace(/\n{3,}/g, '\n\n');
+  if (mode === 'remove') {
+    return stripped.trimEnd() + '\n';
+  }
+  // apply: strip any existing block first, then append fresh.
+  const fullBlock = `${CORTEX_BLOCK_START}\n${DISCIPLINE_BLOCK}\n${CORTEX_BLOCK_END}`;
+  const base = stripped.trimEnd();
+  return (base.length > 0 ? base + '\n\n' : '') + fullBlock + '\n';
+}
+
+function confirmInteractive(promptText) {
+  if (!process.stdin.isTTY) return false;
+  process.stdout.write(promptText);
+  try {
+    const buf = Buffer.alloc(8);
+    const fd = fs.openSync('/dev/tty', 'r');
+    let n = 0;
+    try { n = fs.readSync(fd, buf, 0, 8, null); } catch { /* fall through */ }
+    fs.closeSync(fd);
+    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
+    return reply === '' || reply === 'y' || reply === 'yes';
+  } catch {
+    return false;
+  }
+}
+
+function main() {
+  const args = parseArgs(process.argv);
+  if (args.help) { printHelp(); return 0; }
+
+  const current = readCurrent();
+  const detected = detectBlock(current.content);
+
+  if (args.mode === 'status') {
+    const report = {
+      claude_md_present: current.exists,
+      cortex_block_present: detected.present,
+      cortex_block_version: detected.version,
+      cortex_block_current_version: BLOCK_VERSION,
+      duplicate_blocks: detected.count > 1 ? detected.count : 0,
+      claude_md_path: CLAUDE_MD_PATH,
+      stale: detected.present && detected.version !== BLOCK_VERSION,
+    };
+    if (args.json) {
+      console.log(JSON.stringify({ ok: true, ...report }, null, 2));
+    } else {
+      console.log('cortex-claude-md-augment status:');
+      console.log(`  CLAUDE.md: ${current.exists ? CLAUDE_MD_PATH : '(not present)'}`);
+      console.log(`  cortex block: ${detected.present ? `present (v${detected.version})` : '(absent)'}`);
+      if (report.stale) console.log(`  ↳ STALE — current version is v${BLOCK_VERSION}, run --apply to refresh`);
+      if (report.duplicate_blocks > 0) console.log(`  ↳ WARNING: ${report.duplicate_blocks} duplicate blocks — run --apply to dedupe`);
+      if (!detected.present) console.log(`  → run \`cortex-claude-md-augment\` to add`);
+    }
+    return 0;
+  }
+
+  const nextContent = computeNext(current.content, args.mode);
+  const noChange = nextContent === current.content || (
+    !current.exists && args.mode === 'remove'
+  );
+
+  if (noChange) {
+    if (args.json) {
+      console.log(JSON.stringify({ ok: true, mode: args.mode, no_change: true }, null, 2));
+    } else {
+      console.log(`cortex-claude-md-augment: nothing to do (already in desired state).`);
+    }
+    return 0;
+  }
+
+  if (args.dryRun) {
+    if (args.json) {
+      console.log(JSON.stringify({
+        ok: true, mode: args.mode, dry_run: true,
+        prev_length: current.content.length, next_length: nextContent.length,
+        block_present_before: detected.present,
+        block_version_before: detected.version,
+      }, null, 2));
+    } else {
+      console.log('cortex-claude-md-augment dry-run:');
+      console.log(`  CLAUDE.md: ${CLAUDE_MD_PATH}`);
+      console.log(`  block currently: ${detected.present ? `v${detected.version}` : 'absent'}`);
+      console.log(`  after ${args.mode}: ${args.mode === 'apply' ? `v${BLOCK_VERSION}` : 'absent'}`);
+      console.log(`  size: ${current.content.length} → ${nextContent.length} bytes`);
+    }
+    return 0;
+  }
+
+  if (!args.yes) {
+    const verb = args.mode === 'apply'
+      ? (detected.present ? (detected.version === BLOCK_VERSION ? 'refresh' : `upgrade v${detected.version} → v${BLOCK_VERSION}`) : 'append')
+      : 'remove';
+    const prompt =
+      `cortex-claude-md-augment will ${verb} the cortex discipline block in ${CLAUDE_MD_PATH}.\n` +
+      `  (user content outside the markers is preserved.)\n` +
+      `Proceed? [Y/n] `;
+    if (!confirmInteractive(prompt)) {
+      if (args.json) {
+        console.log(JSON.stringify({ ok: true, aborted: true }, null, 2));
+      } else {
+        console.log('cortex-claude-md-augment: aborted.');
+      }
+      return 0;
+    }
+  }
+
+  let backupPath = null;
+  if (current.exists) {
+    try {
+      backupPath = backupFile(current.content);
+    } catch (err) {
+      console.error(`cortex-claude-md-augment: backup failed: ${err.message}`);
+      return 1;
+    }
+  }
+
+  try {
+    writeContent(nextContent);
+  } catch (err) {
+    console.error(`cortex-claude-md-augment: write failed: ${err.message}`);
+    if (backupPath) console.error(`  backup preserved at: ${backupPath}`);
+    return 1;
+  }
+
+  if (args.json) {
+    console.log(JSON.stringify({
+      ok: true, mode: args.mode, backup_path: backupPath,
+      claude_md_path: CLAUDE_MD_PATH, block_version: BLOCK_VERSION,
+    }, null, 2));
+  } else {
+    console.log(`cortex-claude-md-augment: ${args.mode === 'apply' ? 'applied' : 'removed'}.`);
+    if (backupPath) console.log(`  backup: ${backupPath}`);
+    console.log(`  next Claude Code session will pick up the new global CLAUDE.md.`);
+  }
+  return 0;
+}
+
+if (require.main === module) {
+  try {
+    process.exit(main());
+  } catch (err) {
+    console.error('cortex-claude-md-augment: internal error:', err && err.stack ? err.stack : err);
+    process.exit(2);
+  }
+}
+
+module.exports = {
+  BLOCK_VERSION,
+  CORTEX_BLOCK_START,
+  CORTEX_BLOCK_END,
+  CORTEX_BLOCK_RE,
+  DISCIPLINE_BLOCK,
+  parseArgs,
+  detectBlock,
+  computeNext,
+};

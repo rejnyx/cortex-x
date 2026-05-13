@@ -185,6 +185,51 @@ After the chained workflow finishes (Phase 5 finalize / Phase 7 audit final), do
    Co se nabaluje dál: /cortex-help · /sync na konci sezení · /designer pro UI práci.
    ```
 
+3. **Print the Sprint 2.21 three-tier memory + Steward briefing (30-second explainer).** Most operators have zero idea WHY they end up with `CLAUDE.md` + `PROGRESS.md` + `MEMORY.md` + `cortex/AUDIT.md` + `~/.cortex/projects/<slug>.md` on disk. They need ONE sentence per tier so they know what each does. Print in the operator's prior-turn language; default Czech for this operator. Format must be a table OR compact list, NEVER prose paragraphs (voice charter — counts not narrative).
+
+   English:
+
+   ```
+   Where your knowledge accumulates from here:
+   • PROGRESS.md      sprint state (what's next, what's blocked)        manual edit during work
+   • CLAUDE.md        current state (tech, conventions, env vars)       manual edit when stack shifts
+   • MEMORY.md        per-project memory index                          you populate, Claude auto-loads
+   • cortex/AUDIT.md  + cortex/recommendations.md                       audit deliverables (read-only after Phase 5)
+   • ~/.cortex/projects/<slug>.md  cross-project library entry          paste prompts/cortex-sync.md at end of session
+
+   Steward (nightly autopilot) reads cortex/recommendations.md and opens draft PRs while you sleep.
+   Activate: paste ~/.claude/shared/prompts/steward-setup.md  (needs OPENROUTER_API_KEY GitHub secret).
+   ```
+
+   Czech:
+
+   ```
+   Kde se ti znalost nabaluje:
+   • PROGRESS.md      sprint state (co je další, co je blocked)         manuální edit za běhu
+   • CLAUDE.md        current state (tech, konvence, env vars)          manuální edit když se mění stack
+   • MEMORY.md        per-project memory index                          ty populujes, Claude auto-loaduje
+   • cortex/AUDIT.md  + cortex/recommendations.md                       audit deliverables (read-only po Phase 5)
+   • ~/.cortex/projects/<slug>.md  cross-project library entry          paste prompts/cortex-sync.md na konci session
+
+   Steward (noční autopilot) přečte cortex/recommendations.md a otevře draft PRs zatímco spíš.
+   Aktivuj: paste ~/.claude/shared/prompts/steward-setup.md  (potřebuje OPENROUTER_API_KEY GitHub secret).
+   ```
+
+4. **Offer Steward activation as inline Y/n** (only if `cortex/recommendations.md` was just written by Phase 5 — i.e. mode=new or mode=existing actually finished, AND `.github/workflows/steward.yml` doesn't already exist). Use `AskUserQuestion` with two options:
+
+   - **Activate Steward now** — chain to `~/.claude/shared/prompts/steward-setup.md`. Walks operator through Phase 1-4 of steward-setup. Includes the OPENROUTER_API_KEY secret-create reminder + workflow file copy.
+   - **Maybe later** — exits cleanly with reminder: *"Re-run anytime: paste prompts/steward-setup.md. Steward stays dormant until you do."*
+
+5. **Hooks + CLAUDE.md status reminder** (only if either is missing). Quick check:
+   - `cortex-hooks-register --status --json` → if `cortex_entries_total === 0`, suggest `cortex-hooks-register`.
+   - `cortex-claude-md-augment --status --json` → if `cortex_block_present === false`, suggest `cortex-claude-md-augment`.
+
+   Print ONE consolidated line per missing piece. Skip silently if both registered. Examples:
+
+   English: *"Cortex hooks not registered — block-destructive + SessionStart + auto-orchestrate are inactive. Activate: `cortex-hooks-register`."*
+
+   Czech: *"Cortex hooks nejsou registrované — block-destructive + SessionStart + auto-orchestrate jsou neaktivní. Aktivuj: `cortex-hooks-register`."*
+
 The chained prompt's own "Phase 6 — Final on_complete" / "Phase 7 — Final on_complete" block runs BEFORE this; the marker write + nudge here is `/cortex-init`'s outer cleanup. **Don't repeat the chained prompt's "Co dál?" block.**
 
 ## Edge cases

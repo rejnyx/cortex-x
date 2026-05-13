@@ -416,6 +416,9 @@ emit_delegate_shim cortex-doc-audit        cortex-doc-audit.cjs
 emit_delegate_shim cortex-wiki-consolidate cortex-wiki-consolidate.cjs
 emit_delegate_shim cortex-update           cortex-update.cjs
 emit_delegate_shim cortex-uninstall        cortex-uninstall.cjs
+emit_delegate_shim cortex-hooks-register   cortex-hooks-register.cjs
+emit_delegate_shim cortex-claude-md-augment cortex-claude-md-augment.cjs
+emit_delegate_shim cortex-doctor           cortex-doctor.cjs
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
@@ -470,7 +473,7 @@ fi
 # they're discoverable as slash commands (Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/).
 # Without this, /audit, /designer, /start are invisible.
-for SKILL_NAME in audit designer start; do
+for SKILL_NAME in audit designer start cortex-doctor; do
   SRC_SKILL="$CORTEX_ROOT/shared/skills/$SKILL_NAME/SKILL.md"
   if [ -f "$SRC_SKILL" ]; then
     mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
@@ -604,6 +607,102 @@ if ! node "$VERIFIER"; then
   echo "    Try: re-run install.sh, or open an issue at" >&2
   echo "         https://github.com/Rejnyx/cortex-x/issues" >&2
   exit 1
+fi
+
+# Sprint 2.21 — opt-in hook registration. Without hooks in
+# ~/.claude/settings.json, fresh users lose block-destructive safety,
+# SessionStart context injection, auto-orchestrate parallel-agent
+# suggestion, post-tool-use journal/budget, pre-compact state save.
+# We never auto-edit settings.json (Principle 1) but the install path is
+# the natural moment to OFFER explicit registration. Skip silently in
+# non-interactive mode unless CORTEX_REGISTER_HOOKS is set.
+#
+# CORTEX_REGISTER_HOOKS=1 → register without prompting (e.g. CI / scripts)
+# CORTEX_REGISTER_HOOKS=0 → skip without prompting
+# (unset, TTY)            → interactive Y/n
+# (unset, non-TTY)        → skip silently
+if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" ]; then
+  REGISTER_HOOKS_DECISION=''
+  case "$CORTEX_REGISTER_HOOKS" in
+    1|y|yes|true) REGISTER_HOOKS_DECISION='y' ;;
+    0|n|no|false) REGISTER_HOOKS_DECISION='n' ;;
+    '')
+      if [ -t 0 ]; then
+        echo
+        echo "  Cortex hooks (block-destructive safety, SessionStart context, auto-orchestrate)"
+        echo "  are NOT active until registered in ~/.claude/settings.json."
+        echo "  Without them, you lose ~50% of cortex-x value — but settings.json is yours,"
+        echo "  so the choice is explicit. A timestamped backup is written before any change."
+        printf "  Register cortex hooks now? [Y/n]: "
+        read -r CORTEX_HOOKS_REPLY || true
+        CORTEX_HOOKS_REPLY="${CORTEX_HOOKS_REPLY:-y}"
+        case "$CORTEX_HOOKS_REPLY" in
+          [yY]|[yY][eE][sS]) REGISTER_HOOKS_DECISION='y' ;;
+          *) REGISTER_HOOKS_DECISION='n' ;;
+        esac
+      else
+        REGISTER_HOOKS_DECISION='n'
+      fi
+      ;;
+  esac
+  if [ "$REGISTER_HOOKS_DECISION" = "y" ]; then
+    if node "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" --apply --yes; then
+      :
+    else
+      echo "  warning: hook registration failed (settings.json untouched per safety contract)." >&2
+      echo "  manual: paste the block from $INSTALL_NOTES under '## Register hooks in ~/.claude/settings.json'." >&2
+    fi
+  elif [ "$REGISTER_HOOKS_DECISION" = "n" ]; then
+    if [ -t 0 ]; then
+      echo "  ↳ Skipped. Re-run anytime: cortex-hooks-register"
+    fi
+  fi
+fi
+
+# Sprint 2.21 — opt-in CLAUDE.md discipline block. Without this, the user's
+# Claude has no instruction to dispatch parallel research / R1 / R2 outside
+# cortex-specific slash commands. Same consent model as hooks above.
+#
+# CORTEX_AUGMENT_CLAUDE_MD=1 → apply without prompting
+# CORTEX_AUGMENT_CLAUDE_MD=0 → skip without prompting
+# (unset, TTY)               → interactive Y/n
+# (unset, non-TTY)           → skip silently
+if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" ]; then
+  AUGMENT_CLAUDE_MD_DECISION=''
+  case "$CORTEX_AUGMENT_CLAUDE_MD" in
+    1|y|yes|true) AUGMENT_CLAUDE_MD_DECISION='y' ;;
+    0|n|no|false) AUGMENT_CLAUDE_MD_DECISION='n' ;;
+    '')
+      if [ -t 0 ]; then
+        echo
+        echo "  Cortex discipline block (R1 research-first, R2 review pipeline, parallel agents"
+        echo "  by default) can be appended to your global ~/.claude/CLAUDE.md. This biases EVERY"
+        echo "  Claude Code session — not just cortex slash commands — toward cortex behavior."
+        echo "  Bracketed by BEGIN/END markers — your existing CLAUDE.md content is preserved."
+        printf "  Append cortex discipline block to global CLAUDE.md? [Y/n]: "
+        read -r CORTEX_AUGMENT_REPLY || true
+        CORTEX_AUGMENT_REPLY="${CORTEX_AUGMENT_REPLY:-y}"
+        case "$CORTEX_AUGMENT_REPLY" in
+          [yY]|[yY][eE][sS]) AUGMENT_CLAUDE_MD_DECISION='y' ;;
+          *) AUGMENT_CLAUDE_MD_DECISION='n' ;;
+        esac
+      else
+        AUGMENT_CLAUDE_MD_DECISION='n'
+      fi
+      ;;
+  esac
+  if [ "$AUGMENT_CLAUDE_MD_DECISION" = "y" ]; then
+    if node "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" --apply --yes; then
+      :
+    else
+      echo "  warning: CLAUDE.md augment failed (file untouched per safety contract)." >&2
+      echo "  manual: cortex-claude-md-augment --apply" >&2
+    fi
+  elif [ "$AUGMENT_CLAUDE_MD_DECISION" = "n" ]; then
+    if [ -t 0 ]; then
+      echo "  ↳ Skipped. Re-run anytime: cortex-claude-md-augment"
+    fi
+  fi
 fi
 
 # Detect shell + PATH state for the final action line.
