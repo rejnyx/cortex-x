@@ -138,6 +138,93 @@ function recallLessons(slug, ctx = {}, { topK = DEFAULT_RECALL_K, maxLines = MAX
   return scored.slice(0, topK).map((entry) => entry.lesson);
 }
 
+// Sprint 3.2 v1 — FTS5-backed recall via node:sqlite. When the FTS5
+// index built by `lessons-search.cjs` is available + fresh, returns
+// matches ranked by a priority ladder (action_key → action_kind →
+// text-query free-text), each tier internally ordered by ts DESC.
+// This preserves the priority hierarchy of `recallLessons`' positional
+// score (action_key +100 > action_kind +30 > recency +10) without
+// reproducing the additive arithmetic — first non-empty tier wins.
+//
+// Falls back to `recallLessons` (linear scan) on:
+//   - node:sqlite unavailable (Node < 22.5)
+//   - index file missing or stale beyond opts.maxIdxAgeMs (default 6h)
+//   - clock skew (mtime in the future) — Sprint 3.2 v1 R2 fix, mirrors
+//     Sprint 2.19 session-start guard pattern
+//   - any FTS error
+//   - empty result through all 3 tiers (final fall-through)
+//
+// `ctx.queryText` (or `ctx.error_code`) triggers the free-text tier.
+// Action-engine call site doesn't pass these today — forward-compat for
+// Sprint 2.8 retrieval-at-decision-time + Sprint 3.3 GraphRAG.
+//
+// Drop-in replacement signature: same first two args as recallLessons.
+function recallLessonsFTS(slug, ctx = {}, opts = {}) {
+  const topK = Number.isFinite(opts.topK) && opts.topK > 0 ? opts.topK : DEFAULT_RECALL_K;
+  const maxIdxAgeMs = Number.isFinite(opts.maxIdxAgeMs) && opts.maxIdxAgeMs > 0
+    ? opts.maxIdxAgeMs : 6 * 60 * 60 * 1000;
+
+  let search;
+  try {
+    search = require('./lessons-search.cjs');
+  } catch {
+    return recallLessons(slug, ctx, { topK, maxLines: opts.maxLines });
+  }
+  if (!search.isAvailable()) {
+    return recallLessons(slug, ctx, { topK, maxLines: opts.maxLines });
+  }
+
+  const idxFile = search.indexPath(slug);
+  let stat;
+  try { stat = fs.statSync(idxFile); } catch { stat = null; }
+  if (!stat) {
+    // No index yet — fall back to linear scan (lazy-build is the
+    // operator's call via `cortex-lessons-search build`).
+    return recallLessons(slug, ctx, { topK, maxLines: opts.maxLines });
+  }
+  // Sprint 3.2 v1 R2 (correctness-auditor HIGH): clock-skew defense.
+  // A negative ageMs (mtime > now — NTP correction, VM snapshot restore,
+  // wall-clock fiddling) would silently pass the `> maxIdxAgeMs` check
+  // and use a future-stamped/stale index. Fail-safe to linear scan on
+  // any anomaly. Same incident class as Sprint 2.19 session-start
+  // (`ageMs >= 0 && ageMs < INTERVAL`).
+  const ageMs = Date.now() - stat.mtimeMs;
+  if (!(ageMs >= 0 && ageMs <= maxIdxAgeMs)) {
+    return recallLessons(slug, ctx, { topK, maxLines: opts.maxLines });
+  }
+
+  // Combine action-key match (highest priority) + action_kind filter +
+  // text query (root_cause + any keyword hints in ctx).
+  const aks = ctx.action_kind;
+  const akey = ctx.action_key;
+  const query = String(ctx.queryText || ctx.error_code || '').trim();
+
+  try {
+    let result;
+    // Tier 1: exact action_key match (preserves linear-scan +100 priority).
+    // Uses SQL equality on UNINDEXED column, NOT FTS MATCH — special chars
+    // like `#` over-tokenize in FTS5.
+    if (akey) {
+      result = search.searchByActionKey(slug, akey, { limit: topK });
+      if (result.ok && result.hits.length > 0) return result.hits.slice(0, topK);
+    }
+    // Tier 2: action_kind filter (preserves linear-scan +30 priority).
+    if (aks) {
+      result = search.searchByActionKind(slug, aks, { limit: topK });
+      if (result.ok && result.hits.length > 0) return result.hits.slice(0, topK);
+    }
+    // Tier 3: free-text fallback. Forward-compat — dead at action-engine
+    // call site today; populated by retrieval-at-decision-time (Sprint 2.8).
+    if (query.length > 0) {
+      result = search.searchByText(slug, query, { limit: topK });
+      if (result.ok && result.hits.length > 0) return result.hits.slice(0, topK);
+    }
+  } catch {
+    // FTS failure — fall back to linear scan.
+  }
+  return recallLessons(slug, ctx, { topK, maxLines: opts.maxLines });
+}
+
 // Format an array of lessons as a compact markdown block for prompt injection.
 // Empty input returns empty string (caller can ?? the result).
 function formatLessonsForPrompt(lessons) {
@@ -295,6 +382,7 @@ module.exports = {
   recordLesson,
   readAllLessons,
   recallLessons,
+  recallLessonsFTS,
   scoreLesson,
   formatLessonsForPrompt,
   lessonFromExecuteResult,

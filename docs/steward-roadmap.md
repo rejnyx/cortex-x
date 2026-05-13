@@ -1148,7 +1148,17 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing + LLM Wiki layer (M effort) — ✅ v0 SHIPPED 2026-05-13 (first Tier 2 sprint)
+### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing + LLM Wiki layer (M effort) — ✅ v0 + v1 SHIPPED 2026-05-13 (first Tier 2 sprint)
+
+**v1 shipped 2026-05-13** — action-engine FTS recall integration:
+- `bin/steward/_lib/lessons.cjs:recallLessonsFTS()` — drop-in replacement for `recallLessons` with 3-tier priority ladder (action_key SQL equality → action_kind filter → free-text query) preserving the linear-scan score hierarchy (+100 / +30 / +10) without reproducing additive arithmetic. First non-empty tier wins.
+- `bin/steward/_lib/lessons-search.cjs:searchByActionKey()` — new SQL exact-match helper on the UNINDEXED action_key column (NOT FTS MATCH — special chars like `#` over-tokenize).
+- `bin/steward/_lib/action-engine.cjs:711` — swapped `recallLessons` → `recallLessonsFTS` for the pre-prompt recall step. Strict improvement (falls back to linear scan on any unavailability).
+- R2 (correctness-auditor HIGH) — clock-skew defense applied (`ageMs >= 0 && ageMs <= maxIdxAgeMs`) matching Sprint 2.19 incident-class pattern. Regression test for negative ageMs (mtime in future).
+- 6 new tests covering no-index fall-back, stale-index fall-back, clock-skew defense, FTS happy-path with action-key match, empty slug, FTS exact-key match correctness.
+- v1.5+ deferred: cross-project federated `~/.cortex/lessons.federated.jsonl` + signed-entries poisoning defense, wikilink extractor, wiki-curator prompt.
+
+**v0 shipped 2026-05-13** — FTS5 lessons index:
 
 **v0 shipped 2026-05-13**:
 - `bin/steward/_lib/lessons-search.cjs` (~220 LoC) — node:sqlite FTS5 index over `$CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl`. Zero npm deps (built-in `node:sqlite`, Node ≥22.5). Feature-detected at module load; gracefully reports `SQLITE_UNAVAILABLE` on older Node patches.

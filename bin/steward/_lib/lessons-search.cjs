@@ -212,6 +212,30 @@ function searchByText(slug, query, opts = {}) {
   }
 }
 
+function searchByActionKey(slug, actionKey, opts = {}) {
+  assertSafeSlug(slug);
+  if (!sqliteAvailable) return { ok: false, code: 'SQLITE_UNAVAILABLE', error: unavailableReason(), hits: [] };
+  if (typeof actionKey !== 'string' || actionKey.trim().length === 0) {
+    return { ok: false, code: 'INVALID_ACTION_KEY', error: 'actionKey must be a non-empty string', hits: [] };
+  }
+  const opened = openIndexReadOnly(slug, opts);
+  if (!opened.ok) return { ...opened, hits: [] };
+  const limit = Number.isFinite(opts.limit) && opts.limit > 0 ? Math.min(100, opts.limit) : 20;
+  try {
+    // action_key column is UNINDEXED — exact-match via SQL equality, not FTS.
+    const rows = opened.db.prepare(`
+      SELECT action_kind, action_key, root_cause, lesson_text, hint, impact, ts, frequency
+      FROM lessons_fts
+      WHERE action_key = ?
+      ORDER BY ts DESC
+      LIMIT ?
+    `).all(actionKey, limit);
+    return { ok: true, hits: rowsToLessons(rows) };
+  } finally {
+    opened.db.close();
+  }
+}
+
 function searchByActionKind(slug, actionKind, opts = {}) {
   assertSafeSlug(slug);
   if (!sqliteAvailable) return { ok: false, code: 'SQLITE_UNAVAILABLE', error: unavailableReason(), hits: [] };
@@ -264,6 +288,7 @@ module.exports = {
   unavailableReason,
   buildIndex,
   searchByText,
+  searchByActionKey,
   searchByActionKind,
   searchByErrorCode,
   indexPath,

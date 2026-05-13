@@ -709,7 +709,10 @@ function buildUserPrompt(plan, opts = {}) {
   // doesn't repeat the same root cause without addressing the hint.
   try {
     const lessons = require('./lessons.cjs');
-    const recalled = lessons.recallLessons(plan.slug, {
+    // Sprint 3.2 v1 — prefer FTS recall when index is available + fresh.
+    // recallLessonsFTS falls back to linear scan on any unavailability,
+    // so this is a strict-improvement swap with no regression risk.
+    const recalled = lessons.recallLessonsFTS(plan.slug, {
       action_kind: plan.action_kind || 'recommendation',
       action_key: plan.action && plan.action.action_key,
     }, { topK: 3 });
