@@ -1969,6 +1969,33 @@ async function _runExecuteInner(opts, ctx) {
           issue_url: (applyResult.issue && applyResult.issue.url) || null,
         });
       }
+    } else if (plan.action_kind === 'evolve_weekly') {
+      // Sprint 2.19 v1 — weekly Dreaming / consolidation phase B.
+      // Pure-deterministic mining + evidence gates, then ≤3 LLM
+      // validation calls. Writes proposals to insights/proposals/.
+      const evolveWeeklyAction = require('./_lib/evolve-weekly-action.cjs');
+      // Sprint 2.19 v1 R2 (security-auditor MED Q3): wrap journal write
+      // in try/finally so partial cost lands even when runEvolveWeekly
+      // throws (e.g. an uncaught error inside the validator fetch). Pre-
+      // fix: journal write was conditional on applyResult.ok, losing
+      // cost data on crashes — Sprint 1.9.1 multi-window cap could be
+      // bypassed by a mid-loop exception.
+      try {
+        applyResult = await evolveWeeklyAction.runEvolveWeekly({ repoRoot, slug });
+      } finally {
+        const partial = applyResult || { ok: false, cost_usd: 0 };
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T0',
+          event: 'evolve_weekly_completed',
+          actor: 'steward',
+          action_kind: 'evolve_weekly',
+          outcome: partial.ok ? (partial.no_work ? 'skipped' : 'success') : 'failure',
+          candidates_total: partial.candidates_total || 0,
+          proposals_count: (partial.proposals_written || []).length,
+          cost_usd: partial.cost_usd || 0,
+        });
+      }
     } else if (plan.action_kind === 'evolve_daily') {
       // Sprint 2.19 — daily Dreaming / consolidation phase.
       // Pure-deterministic; emits advisory rollup to insights/proposals/.

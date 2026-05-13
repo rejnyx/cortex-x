@@ -730,6 +730,34 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.19 v1: weekly Dreaming mining + LLM validation ───────────
+  evolve_weekly: {
+    description:
+      'Weekly consolidation phase ("Dreaming" Phase B). Mines repeated-mistake candidates from journal/*.jsonl across 14-day window, applies deterministic evidence gates (min_events=3, min_projects=2, min_days_span=7), then LLM-validates each surviving candidate via cortex-thinker-style judge. Writes max 3 insight proposals per run to insights/proposals/. Industry slovník: "Dreaming consolidation" (OpenClaw nightly+weekly), "Auto Dream" (Anthropic). Sprint 2.19 v1 scope: repeated-mistake patterns only; PrefixSpan sequence mining + cross-project pattern transfer deferred to v1.5+.',
+    requires_llm: true,
+    effort: 'medium', // <=3 LLM calls per run, each ~$0.001 with Sonnet
+    source: 'journal/*.jsonl + cortex/projects/*.md',
+    detector: 'detectors/evolve-weekly.cjs',
+    cost_envelope: 'low', // ~$0.003/run worst-case
+    blast_radius: 'minimal', // only writes to insights/proposals/
+    shipped_in: '0.3.0', // Sprint 2.19 v1
+    acceptance_criteria: [
+      {
+        id: 'evolve_weekly_proposals_under_proposals',
+        kind: 'file_predicate',
+        description: 'If anything written, it MUST be under insights/proposals/ — never outside.',
+        predicate: 'touchedFiles.every((p) => p === "" || p.startsWith("insights/proposals/"))',
+        severity: 'block',
+      },
+      {
+        id: 'evolve_weekly_audit_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN evolve_weekly runs THE SYSTEM SHALL only write under insights/proposals/ AND never edit any source file',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:

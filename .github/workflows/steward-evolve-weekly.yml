@@ -1,0 +1,93 @@
+# steward-evolve-weekly.yml — Sprint 2.19 v1 weekly Dreaming Phase B.
+#
+# Sundays 04:00 UTC (1h after daily evolve at 03:00). Mines repeated-
+# mistake candidates from journal/*.jsonl across 14-day window, applies
+# deterministic evidence gates (min_events=3, min_projects=2,
+# min_days_span=7), then LLM-validates each surviving candidate via
+# cortex-thinker-style judge. Writes ≤3 insight proposals per run.
+#
+# Cost ceiling: max 3 LLM calls × ~$0.001 (Sonnet 4.6) = ~$0.003/run.
+# Sits at <0.01% of Sprint 1.9.1 $25/week cap.
+
+name: steward evolve-weekly
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 0'   # Sunday 04:00 UTC. Matches config/evolve.yaml cadence.weekly.cron.
+
+concurrency:
+  group: steward-evolve-weekly-${{ github.event.repository.name }}
+  cancel-in-progress: false
+
+jobs:
+  steward-evolve-weekly:
+    name: steward evolve-weekly
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "Steward (cortex-x)"
+          git config user.email "steward@cortex-x.local"
+
+      - name: Steward evolve-weekly dry-run
+        id: plan
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.cortex-data
+          node bin/cortex-steward.cjs dry-run \
+            --slug=${{ github.event.repository.name }} \
+            --trigger=cron \
+            --kind=evolve_weekly \
+            --json > /tmp/steward-evolve-weekly-plan.json || true
+          cat /tmp/steward-evolve-weekly-plan.json
+          if ! jq -e . /tmp/steward-evolve-weekly-plan.json > /dev/null 2>&1; then
+            echo "Steward dry-run did not produce valid JSON — failing loudly"
+            exit 1
+          fi
+          if jq -e '.mode == "dry-run"' /tmp/steward-evolve-weekly-plan.json > /dev/null; then
+            echo "has_action=true"  >> $GITHUB_OUTPUT
+          else
+            echo "has_action=false" >> $GITHUB_OUTPUT
+            echo "evolve_weekly produced no actionable plan — exiting clean."
+          fi
+        env:
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+
+      - name: Steward evolve-weekly execute
+        if: steps.plan.outputs.has_action == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CORTEX_DATA_HOME: ${{ github.workspace }}/.cortex-data
+        run: |
+          node bin/cortex-steward.cjs execute \
+            --plan-file=/tmp/steward-evolve-weekly-plan.json
+
+      - name: Upload journal + proposals artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: steward-evolve-weekly-${{ github.run_id }}
+          path: |
+            .cortex-data/journal/
+            insights/proposals/
+          retention-days: 90
+          if-no-files-found: warn

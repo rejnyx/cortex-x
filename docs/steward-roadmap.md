@@ -1021,7 +1021,19 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 2.19 — Phase 5 cortex-evolve cron wiring + "Dreaming" terminology alignment (S-M effort) — 📋 PROPOSED 2026-05-13
+### Sprint 2.19 — Phase 5 cortex-evolve cron wiring + "Dreaming" terminology alignment (S-M effort) — ✅ v0 + v1 SHIPPED 2026-05-13
+
+**v1 shipped 2026-05-13** — weekly mining LLM phase (Phase B):
+- `detectors/evolve-weekly.cjs` — pure-deterministic mining of repeated-mistake candidates from `journal/*.jsonl` across 14-day window. Applies B.2 evidence gates inline (min_events=3, min_projects=2, min_days_span=7).
+- `bin/steward/_lib/evolve-weekly-action.cjs` — LLM validation (Phase B.3) via OpenRouter with Sonnet 4.6 default. Budget cap MAX_INSIGHTS_PER_RUN=3. Writes proposals to `insights/proposals/<date>-evolve-<slug>.md` with full citation traceability (3 journal refs per candidate). Skip_commit:true (advisory output).
+- `bin/steward/_lib/action-kinds.cjs` — `evolve_weekly` registry entry with 2 acceptance criteria (writes-only-under-proposals invariant).
+- `bin/steward/_lib/routing-table.cjs` — `evolve_weekly` entry with profile slots (cheap=deepseek-flash, balanced=sonnet, premium=opus).
+- `.github/workflows/steward-evolve-weekly.yml` — cron `0 4 * * 0` (Sunday 04:00 UTC, matches config/evolve.yaml cadence.weekly.cron).
+- 17 new tests covering: 3 evidence gates (events/projects/span), success-outcome skip, 14-day window, validator schema validation, integration (no_work, insight proposal write, noise rejection, MAX_INSIGHTS cap).
+- Industry slovník alignment preserved — Dreaming/Auto Dream/NREM+REM consolidation terminology.
+- R1 reused: brain-kit memo 2026-05-13 + Phase 5 design in `config/evolve.yaml` + prompts/cortex-evolve.md Phase B spec.
+
+**v0 shipped 2026-05-13** — daily Dreaming cron (Phase A deterministic):
 
 **Status**: 📋 Proposed 2026-05-13 from brain-kit research synthesis ([`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md)). Pull-forward from "Phase 5 self-improvement loop ⏳ designed, awaits Phase 7" — industry has shipped the same primitive (OpenClaw "Dreaming" cron, Anthropic "Auto Dream", ICLM 2026 "Language Models Need Sleep", arXiv SCM Sleep-Consolidated Memory), cortex-x is now behind on what was a designed-but-runtime-dormant capability.
 

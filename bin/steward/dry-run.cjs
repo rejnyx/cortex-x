@@ -453,16 +453,17 @@ function runDryRun(opts = {}) {
 
     if (kind === 'doc_drift' || kind === 'flaky_test_repair' || kind === 'lint_fix_shipper'
         || kind === 'test_coverage_gap' || kind === 'pr_review_responder'
-        || kind === 'tech_debt_audit' || kind === 'evolve_daily') {
+        || kind === 'tech_debt_audit' || kind === 'evolve_daily' || kind === 'evolve_weekly') {
       return buildDeterministicPlan({
         slug, trigger, isoDate, kind,
         synthTitle: `Run ${kind} detector`,
         synthBodyPrefix: `Sprint 2.9.6: deterministic ${kind} kind dispatched via dry-run. Executor will run the detector against the live tree.`,
         // tech_debt_audit + flaky_test_repair + lint_fix_shipper EDIT files;
         // others (doc_drift, test_coverage_gap, pr_review_responder, todo_triage,
-        // evolve_daily) are issue-only / rollup-only with skip_commit=true.
+        // evolve_daily, evolve_weekly) are issue-only / rollup-only with skip_commit=true.
         skipCommit: kind === 'doc_drift' || kind === 'test_coverage_gap'
-                    || kind === 'pr_review_responder' || kind === 'evolve_daily',
+                    || kind === 'pr_review_responder' || kind === 'evolve_daily'
+                    || kind === 'evolve_weekly',
       });
     }
 

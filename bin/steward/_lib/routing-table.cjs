@@ -118,6 +118,19 @@ const ROUTING_TABLE = {
     },
   },
 
+  // Sprint 2.19 v1: evolve_weekly LLM validator. Single-shot reasoning
+  // call per candidate, max 3 candidates per run. Cross-family judge
+  // (Sonnet) defends self-preference bias vs DeepSeek candidate inputs.
+  evolve_weekly: {
+    cheap: 'deepseek/deepseek-v4-flash',
+    balanced: 'anthropic/claude-sonnet-4.6',
+    premium: 'anthropic/claude-opus-4.6',
+    ensemble: {
+      workers: ['anthropic/claude-sonnet-4.6'],
+      judge: null,
+    },
+  },
+
   security_review: {
     // Always cross-family — single-family review can miss family-specific
     // blind spots (DryRun Security March 2026 report).
