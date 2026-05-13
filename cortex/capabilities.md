@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T08:42:32.961Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:09:04.766Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -15,7 +15,7 @@
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 16 |
 | Review-pipeline agents (`agents/`) | 10 |
-| GitHub workflows | 19 |
+| GitHub workflows | 20 |
 | Tests total | 2318 (unit 2154 · contract 106 · integration 58 · smoke 0) |
 | Runtime LoC (`bin/`) | 24,141 |
 | Test LoC (`tests/`) | 30,242 |
@@ -200,7 +200,7 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |
 
-## 8. GitHub workflows (19)
+## 8. GitHub workflows (20)
 
 CI + Steward cron workflows in `.github/workflows/`.
 
@@ -217,6 +217,7 @@ CI + Steward cron workflows in `.github/workflows/`.
 | [`steward harvest`](../.github/workflows/steward-harvest.yml) | cron(0 3 * * *) · manual | steward-harvest.yml — autonomous Steward recommendation harvester workflow. |
 | [`steward lint-fix`](../.github/workflows/steward-lint-fix.yml) | cron(0 8 * * 3) · manual | steward-lint-fix.yml — autonomous Steward eslint --fix shipper. |
 | [`steward nightly`](../.github/workflows/steward.yml) | cron(0 4 * * *) · manual | steward.yml — autonomous Steward runtime workflow (renamed from hermes.yml |
+| [`steward openrouter-key-probe`](../.github/workflows/steward-key-probe.yml) | manual | steward-key-probe.yml — Sprint 3.0+ operator-paced smoke test. |
 | [`steward pr-review-responder`](../.github/workflows/steward-pr-review-responder.yml) | cron(0 */4 * * *) · manual | steward-pr-review-responder.yml — autonomous Steward PR comment responder. |
 | [`steward secret-history-sweep`](../.github/workflows/steward-secret-history-sweep.yml) | cron(0 2 * * 0) · manual | steward-secret-history-sweep.yml — Sprint 2.6b weekly cron. |
 | [`steward senior-tester-review`](../.github/workflows/steward-senior-tester-review.yml) | cron(0 4 1 * *) · manual | steward-senior-tester-review.yml — Sprint 2.11 monthly cron. |

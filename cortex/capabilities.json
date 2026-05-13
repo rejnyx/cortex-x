@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T08:42:32.961Z",
+  "generated_at": "2026-05-13T09:09:04.766Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -947,6 +947,14 @@
         "manual"
       ],
       "description": "steward.yml — autonomous Steward runtime workflow (renamed from hermes.yml"
+    },
+    {
+      "name": "steward openrouter-key-probe",
+      "path": ".github/workflows/steward-key-probe.yml",
+      "triggers": [
+        "manual"
+      ],
+      "description": "steward-key-probe.yml — Sprint 3.0+ operator-paced smoke test."
     },
     {
       "name": "steward pr-review-responder",
