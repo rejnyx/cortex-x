@@ -1162,7 +1162,25 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 3.1 — Self-extending capabilities (`skill-experiments/`) (L effort, ⭐ MOONSHOT)
+### Sprint 3.1 — Self-extending capabilities (`skill-experiments/`) (L effort, ⭐ MOONSHOT) — ✅ v0 SHIPPED 2026-05-13
+
+**v0 shipped 2026-05-13** — proposal-only pipeline with human-flag gate:
+- `detectors/skill-proposal-mining.cjs` — pure-deterministic mining of candidate patterns from journal. Stricter thresholds than Sprint 2.19 (events=5, span=14d, window=30d). No LLM.
+- `bin/steward/_lib/skill-scaffolder.cjs` (~240 LoC) — LLM-driven scaffolder (Sonnet 4.6 default, cross-family vs DeepSeek per Sprint 3.0 v2 bias-defense pattern). Writes `skill-experiments/<slug>/SKILL.md` + `acceptance.md` + `PROPOSAL.md` bundle. Strict structural validator + belt-and-suspenders re-check before disk write.
+- `bin/cortex-propose-skill.cjs` — operator CLI with `list` + `scaffold` subcommands. Hard rate limit ≤1 proposal/week enforced by reading journal. Journal events: `skill_proposal_emitted` (success) / `skill_proposal_attempt_failed` (LLM failure path with cost capture).
+- 19 tests covering detector evidence gates + window + flag-priority sort + stable id generation + scaffolder validator (8 failure paths) + integration with mock LLM.
+- R1 memo: [`docs/research/sprint-3.1-self-extending-2026-05-13.md`](./research/sprint-3.1-self-extending-2026-05-13.md) — DGM cautionary pattern, Anthropic skill-creator operator-invoked shape, agentskills.io conventions, eval-gated promotion criteria, 4 documented failure modes.
+- **Recursive self-improvement door explicitly closed**: scaffolder NEVER writes to `bin/steward/_lib/action-kinds.cjs`. Promotion to live action_kind requires explicit human commit (handler authoring, test authoring, registry entry, SKILL.md move from `skill-experiments/` to `shared/skills/`).
+- `skill-experiments/` directory deliberately outside `.agents/skills/` and `shared/skills/` — no SKILL-aware client (including Steward) auto-discovers proposals.
+
+**Deferred to Sprint 3.1 v1+**:
+- Auto-dispatch scaffolder on detector hits (relax human-flag gate when precision warrants)
+- `senior_tester_review` on every proposal (reward-hacking mitigation)
+- Mode-collapse detector (track criterion-kind diversity over 30 proposals)
+- Multi-judge ensemble for the scaffolder
+- `cortex-promote-skill` CLI that scaffolds handler/test/registry-entry skeleton (still never auto-merges)
+
+
 
 **Why**: from browser-use/browser-harness — agent writes its own missing helpers during execution. Most ambitious of the lot.
 
