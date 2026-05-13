@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T13:47:52.074Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T14:04:11.583Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -8,21 +8,21 @@
 
 | Category | Count |
 |---|---|
-| Steward action_kinds | 18 |
-| Steward primitives (`bin/steward/_lib/`) | 48 |
+| Steward action_kinds | 19 |
+| Steward primitives (`bin/steward/_lib/`) | 49 |
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 27 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 18 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2477 (unit 2300 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 26,778 |
-| Test LoC (`tests/`) | 32,651 |
+| Tests total | 2506 (unit 2329 · contract 106 · integration 71 · smoke 0) |
+| Runtime LoC (`bin/`) | 27,455 |
+| Test LoC (`tests/`) | 33,105 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
-## 1. Steward action_kinds (18)
+## 1. Steward action_kinds (19)
 
 What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manual, or recommendation harvester.
 
@@ -45,9 +45,10 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `tech_debt_audit` | Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call. |
 | `test_coverage_gap` | Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6. |
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
+| `wiki_consolidate` | Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills… |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (48)
+## 2. Steward primitives (49)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -100,6 +101,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`test-smell-detector`](../bin/steward/_lib/test-smell-detector.cjs) | Sprint 2.11 | Sprint 2.11 senior_tester_review Phase A |
 | [`test-smell-registry`](../bin/steward/_lib/test-smell-registry.cjs) | Sprint 2.11 | Sprint 2.11 senior_tester_review smell taxonomy |
 | [`verifier`](../bin/steward/_lib/verifier.cjs) | — | runs the project's verification commands (`npm test` and |
+| [`wiki-consolidate`](../bin/steward/_lib/wiki-consolidate.cjs) | Sprint 2.8.2 | bin/steward/_lib/wiki-consolidate.cjs — Sprint 2.8.2 v0 (Phase A only) |
 | [`workflow-hardener-action`](../bin/steward/_lib/workflow-hardener-action.cjs) | Sprint 2.5b | Sprint 2.5b advisory analyzer |
 
 ## 3. Universal hooks (7)

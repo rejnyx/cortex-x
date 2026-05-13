@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T13:47:52.074Z",
+  "generated_at": "2026-05-13T14:04:11.583Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -153,6 +153,15 @@
       "requires_llm": false,
       "shipped_in": "0.1.0",
       "effort": null,
+      "blast_radius": "minimal",
+      "cost_envelope": "free"
+    },
+    {
+      "name": "wiki_consolidate",
+      "description": "Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills + Obsidian conventions (tags, aliases, f",
+      "requires_llm": false,
+      "shipped_in": "0.3.0",
+      "effort": "low",
       "blast_radius": "minimal",
       "cost_envelope": "free"
     },
@@ -448,6 +457,12 @@
       "path": "bin/steward/_lib/verifier.cjs",
       "sprint": null,
       "description": "runs the project's verification commands (`npm test` and"
+    },
+    {
+      "name": "wiki-consolidate",
+      "path": "bin/steward/_lib/wiki-consolidate.cjs",
+      "sprint": "Sprint 2.8.2",
+      "description": "bin/steward/_lib/wiki-consolidate.cjs — Sprint 2.8.2 v0 (Phase A only)"
     },
     {
       "name": "workflow-hardener-action",
@@ -1112,15 +1127,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2300,
+      "unit": 2329,
       "contract": 106,
       "integration": 71,
       "smoke": 0
     },
-    "total": 2477
+    "total": 2506
   },
   "code_volume": {
-    "steward_runtime_loc": 26778,
-    "test_code_loc": 32651
+    "steward_runtime_loc": 27455,
+    "test_code_loc": 33105
   }
 }
