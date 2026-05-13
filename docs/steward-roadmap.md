@@ -1128,7 +1128,20 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing + LLM Wiki layer (M effort) — R1 ✅ DONE 2026-05-11
+### Sprint 3.2 — FTS5 skill index + cross-project lesson sharing + LLM Wiki layer (M effort) — ✅ v0 SHIPPED 2026-05-13 (first Tier 2 sprint)
+
+**v0 shipped 2026-05-13**:
+- `bin/steward/_lib/lessons-search.cjs` (~220 LoC) — node:sqlite FTS5 index over `$CORTEX_DATA_HOME/journal/<slug>/lessons.jsonl`. Zero npm deps (built-in `node:sqlite`, Node ≥22.5). Feature-detected at module load; gracefully reports `SQLITE_UNAVAILABLE` on older Node patches.
+- 3 search helpers: `searchByText` (bm25-ranked full-text), `searchByActionKind` (exact filter), `searchByErrorCode` (root_cause MATCH).
+- `bin/cortex-lessons-search.cjs` — operator CLI with 4 subcommands (`build`, `text`, `kind`, `code`).
+- 13 tests (`tests/unit/lessons-search.test.cjs`) — build idempotency, bm25 ranking, no-match path, INDEX_NOT_BUILT guard, FTS5 quote escaping, slug safety.
+- v0 contract: per-project index only, full rebuild each call (safe for <10K-entry lessons.jsonl), opts.dataHome propagates through both read + write paths.
+
+**Deferred to Sprint 3.2 v1+**:
+- Cross-project federated index at `~/.cortex/lessons.federated.jsonl` + signed-entries poisoning defense
+- Action-engine recall integration (Sprint 1.8.3 pre-prompt step) — replaces linear scan with FTS lookup
+- `[[wikilink]]` regex extractor over `cortex/projects/*.md` + orphan-page surfacing
+- `prompts/wiki-curator.md` — Karpathy-gist-style nightly curator
 
 **Why**: lessons.jsonl is linear-scan, fine for one project. Cross-project federated learning needs indexed query. NousResearch's hermes-agent has FTS5 in production at 139k-star scale. **Sprint 3.6 R1 (2026-05-11)** folded the Karpathy LLM Wiki pattern into this sprint instead of creating a new one — cortex-x already does what Karpathy describes (institutional wisdom in markdown), it just doesn't enforce `[[wikilink]]` syntax or run a curation pass.
 
