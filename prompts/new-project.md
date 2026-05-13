@@ -904,6 +904,12 @@ After Phase 5 (or after §4.6 if Phase 5 was skipped), end with this exact closi
 
 ```
 Hotovo. Co dál?
+- **Designovat UI vrstvu** (landing / dashboard / hero / signup flow / komponenty):
+  invoke /designer — Phase 0 detekuje existující DS, Phase 1 intake (přijímá i screenshot
+  nebo "vibe" popis), Phase 3 paralelní worktree exploration. Pro portfolio / agency /
+  Awwwards-targeted projekt přidej `--award` flag (overlay s 25-SOTD-empirickou disciplínou).
+  Auto-triggeruje se i když řekneš "navrhni mi homepage" / "udělej landing" — nemusíš si
+  pamatovat název skillu.
 - Začít první story: otevři PROGRESS.md, vyber 1.1
 - Aktivovat Steward nightly autopilot: paste ~/.claude/shared/prompts/steward-setup.md
   (Steward ráno otevře draft PR z cortex/recommendations.md. ~$0.0008/run, halt: touch ~/.cortex/STEWARD_HALT)

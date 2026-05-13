@@ -495,6 +495,10 @@ Plus in cortex data home:
 
 Co dál?
 - Začni s `DO this week` v cortex/recommendations.md
+- **Designovat / redesignovat UI vrstvu** (pokud AUDIT.md označil front-end / a11y / performance
+  / design-system jako P0/P1 gap, NEBO projekt má visible-design dluh): invoke /designer.
+  Phase 0 vytěží existující DS z tailwind.config + components/ui/ + CSS vars do cortex/DESIGN.md
+  (zero-loss), pak iterace. Pro portfolio refresh / award-targeted redesign: `/designer --award`.
 - Přijmi/zamítni navrhované patches v CLAUDE.md (Phase 5b)
 - Přijmi/zamítni navrhované agenty v cortex/agents-proposed/ (Phase 5c)
 - Pokud chybí ADR backfill: paste tento prompt s flagem `--backfill-adrs`
