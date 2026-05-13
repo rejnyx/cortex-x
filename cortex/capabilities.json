@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T08:23:35.313Z",
+  "generated_at": "2026-05-13T08:31:43.706Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -235,6 +235,12 @@
       "path": "bin/steward/_lib/lessons-exporter.cjs",
       "sprint": "Sprint 2.8.1",
       "description": "bin/steward/_lib/lessons-exporter.cjs — Sprint 2.8.1"
+    },
+    {
+      "name": "lessons-search",
+      "path": "bin/steward/_lib/lessons-search.cjs",
+      "sprint": "Sprint 3.2",
+      "description": "bin/steward/_lib/lessons-search.cjs — Sprint 3.2 v0"
     },
     {
       "name": "llm-judge-schema",
@@ -1006,15 +1012,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2110,
+      "unit": 2125,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2274
+    "total": 2289
   },
   "code_volume": {
-    "steward_runtime_loc": 23127,
-    "test_code_loc": 29713
+    "steward_runtime_loc": 23539,
+    "test_code_loc": 29913
   }
 }
