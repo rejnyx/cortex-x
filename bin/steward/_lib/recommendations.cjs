@@ -105,7 +105,8 @@ function parseActionItems(sectionBody) {
   return items;
 }
 
-function parseRecommendations(filePath) {
+function parseRecommendations(filePath, opts = {}) {
+  const requireActionItems = opts.requireActionItems !== false;
   const content = fs.readFileSync(filePath, 'utf8');
   const { frontmatter, body } = parseFrontmatter(content);
 
@@ -129,7 +130,7 @@ function parseRecommendations(filePath) {
     sections[sectionTitle] = parseActionItems(sectionBody);
   }
 
-  if (!sections['DO this week'] || sections['DO this week'].length === 0) {
+  if (requireActionItems && (!sections['DO this week'] || sections['DO this week'].length === 0)) {
     const e = new Error('recommendations.md missing required "## DO this week" section with ≥1 action item');
     e.field = 'sections';
     throw e;

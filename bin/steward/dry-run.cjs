@@ -239,9 +239,12 @@ function runDryRun(opts = {}) {
 
     let parsed = null;
     if (KINDS_REQUIRING_RECOMMENDATIONS_MD.has(kind)) {
-      // Step 4 — Parse recommendations (only for kinds that need it)
+      // Step 4 — Parse recommendations (only for kinds that need it).
+      // recommendation_harvest appends NEW items, so an empty `## DO this week`
+      // is not an error — skip the strict ≥1-action-item gate for harvest.
+      const requireActionItems = kind !== 'recommendation_harvest';
       try {
-        parsed = recommendations.parseRecommendations(recsPath);
+        parsed = recommendations.parseRecommendations(recsPath, { requireActionItems });
       } catch (err) {
         journal.appendJournal(slug, {
           ts: new Date().toISOString(),

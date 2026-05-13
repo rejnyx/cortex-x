@@ -73,8 +73,12 @@ jobs:
             --slug=${{ github.event.repository.name }} \
             --trigger=cron \
             --kind=tech_debt_audit \
-            --json > /tmp/steward-techdebt-plan.json
+            --json > /tmp/steward-techdebt-plan.json || true
           cat /tmp/steward-techdebt-plan.json
+          if ! jq -e . /tmp/steward-techdebt-plan.json > /dev/null 2>&1; then
+            echo "Steward dry-run did not produce valid JSON — failing loudly"
+            exit 1
+          fi
           if jq -e '.mode == "dry-run"' /tmp/steward-techdebt-plan.json > /dev/null; then
             echo "has_action=true"  >> $GITHUB_OUTPUT
           else
