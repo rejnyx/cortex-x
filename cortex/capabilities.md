@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T17:17:07.127Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T17:17:47.443Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -17,8 +17,8 @@
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
 | Tests total | 2601 (unit 2424 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 29 355 |
-| Test LoC (`tests/`) | 34 547 |
+| Runtime LoC (`bin/`) | 29,355 |
+| Test LoC (`tests/`) | 34,547 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -161,8 +161,8 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`ai-agent`](../profiles/ai-agent.yaml) | — | claude-agent # autonomy tier: filesystem/shell, Skills, MCP, subagents | Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration |
 | [`astro-static`](../profiles/astro-static.yaml) | — | none | Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default |
 | [`browser-agent`](../profiles/browser-agent.yaml) | — | — | Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling. |
-| [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
 | [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
+| [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
 | [`kiosek`](../profiles/kiosek.yaml) | — | none | Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout |
 | [`minimal`](../profiles/minimal.yaml) | — | none | Minimal scaffold for quick prototypes and experiments — no heavy architecture |
 | [`nextjs-saas`](../profiles/nextjs-saas.yaml) | ✅ | vercel # web tier: streaming UI, provider-agnostic, Next.js-native | Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor. |
