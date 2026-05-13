@@ -1025,6 +1025,56 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
+### Sprint 2.8.2 — Karpathy-style wiki layer (lessons + insights → human-readable Obsidian-shaped markdown) (S-M effort) — 📋 PROPOSED 2026-05-13
+
+**Status**: 📋 Roadmap-add 2026-05-13 from [Karpathy "From Vibe Coding to Agentic Engineering" transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
+> "I really enjoy whenever I read an article I have my wiki that's being built up from these articles and I love asking questions about things ... these are tools to enhance understanding."
+
+Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karpathy-Obsidian-RAG structure (vault → raw / wiki / output).
+
+**Why**: cortex-x already has the **raw** layer (`journal/*.jsonl`) and the **wiki SQL index** (Sprint 3.2 FTS5) and the **output proposals** (`insights/proposals/*.md`). What's missing is the **human-readable wiki layer between raw + output** — Markdown articles synthesized from lessons + insights, browsable in any Obsidian-compatible viewer. Karpathy's framing: "I gain insight whenever I see a different projection onto information." We have the data, we have the projection (Sprint 2.19 v1 LLM validator), we just don't emit the wiki shape yet.
+
+**Scope (v0)**:
+- New action_kind `wiki_consolidate` (Phase 5 monthly cadence, complement to evolve_daily/weekly).
+- Reads: `journal/*.jsonl` (raw), `lessons.jsonl` (distilled), `insights/proposals/*.md` (LLM-validated).
+- Writes: `wiki/<topic-slug>.md` markdown articles with frontmatter (`name`, `topic`, `last_updated`, `source_count`, `confidence_band`).
+- Topic grouping: by `action_kind` initially (lessons-recommendation, lessons-tech-debt, lessons-spec-criterion, …), then by emergent themes from Sprint 2.19 v1 transferable_to lists.
+- Output dir: `wiki/` at repo root (mirrors raw/wiki/output Karpathy layout) OR `$CORTEX_DATA_HOME/wiki/<slug>/` (XDG-clean separation). Operator decides at v0 ship.
+- LLM-validated synthesis: cross-family Sonnet (same pattern as Sprint 2.19 v1 + 3.0 v2). Budget cap shares the `STEWARD_WEEKLY_USD_CAP`.
+
+**Differs from**: Sprint 2.8.1 `lessons-exporter` (writes raw lesson rows to MEMORY.md — claude-cli auto-memory contract). 2.8.2 writes **synthesized articles** — Obsidian-shaped, human-first.
+
+**Non-goals**: no Obsidian app integration (markdown files are universal), no vector DB (FTS5 covers retrieval per Sprint 3.2 v1).
+
+**Acceptance criteria (≥3 kinds)**:
+- `shell`: `node bin/cortex-wiki-consolidate.cjs --slug=cortex-x --dry-run` exits 0 + lists ≥1 article slug.
+- `file_predicate`: every emitted article has frontmatter with required keys + body ≥200 chars.
+- `read_set`: wiki_consolidate reads `journal/`, `lessons.jsonl`, `insights/proposals/` only (not source code paths).
+
+---
+
+### Sprint 2.8.3 — Agent-first docs audit + retrofit (S effort, fast win) — 📋 PROPOSED 2026-05-13
+
+**Status**: 📋 Roadmap-add 2026-05-13 from [Karpathy transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
+> "Why are people still telling me what to do? I don't want to do anything. What is the thing I should copy paste to my agent? ... every time I'm told go to this URL or something, it's just ahhh."
+
+**Why**: cortex-x docs are mostly already agent-first (`CLAUDE.md`, `prompts/*.md`, `standards/*.md` all directly readable by Claude). But some surfaces remain human-first — install instructions ("download Node 22+"), `docs/install-walkthrough.md`, README install block, `docs/steward-usage.md`. **Karpathy's test**: can the operator copy-paste a single block into any agent and have the agent do the whole setup without manual URL navigation? Today: partly. Target: yes.
+
+**Scope**:
+- New skill `prompts/agent-first-audit.md` — runs across all `*.md` in cortex-x, scores each for "agent-first vs human-first" on 4 axes (copy-paste shape, URL-vs-content density, manual-steps count, "go to" / "open" / "click" trigger words).
+- Output: `docs/agent-first-audit.md` ranked gap list.
+- Retrofit pass: top 5 highest-impact docs rewritten to lead with **"copy this block to your agent →"** before the human-readable explainer. README.md install block first target.
+- Optional v1: `cortex-help` skill emits an **"install via agent"** mode that returns one paste-block including OS detection.
+
+**Stolen from**: Karpathy transcript + `agentskills.io` spec philosophy (SKILL.md format already designed for agent consumption).
+
+**Acceptance criteria**:
+- ≥5 user-facing docs scored + at least 1 (README install) retrofitted in v0.
+- Manual test: paste retrofitted README install block into a fresh Claude Code session → cortex-x installs correctly without operator intervention.
+- No regression: install-smoke 5-lane CI matrix stays green.
+
+---
+
 ### Sprint 3.X — Anthropic-native context plane (Memory Tool + context-editing) — 📋 ROADMAP 2026-05-11
 
 **Status**: 📋 Roadmap-add 2026-05-11. Deferred from autonomous-ship after R1 research dispatch identified three blockers. Gated on Sprint 2.8 Memory Foundation schema work.
@@ -1144,6 +1194,8 @@ PHASE C — DELIVER (deterministic)
 - **Honest disclaimer baked into CLI output**: N=10 << N=400-600 published threshold for 5% delta at 95% confidence; v0 results are directional, not statistical verdict.
 
 **Deferred to v1+** (operator decision): population search + island models (OpenEvolve pattern), real-LLM executor wiring (operator-paced cost ceiling), cross-action_kind generalization, DSPy MIPROv2 integration, eval-suite growth toward N=400.
+
+**Deferred to v3 — multi-judge ensemble** (📋 ROADMAP-ADD 2026-05-13, [Karpathy transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md) alignment): v2 ships single Sonnet judge with cross-family bias defense. Karpathy explicitly: "for unverifiable domains, you can have a council of LLM judges and probably get something reasonable." v3 adds Sonnet + GPT-5 + DeepSeek + majority-vote aggregation. Disagreement signal surfaced when judges split (proxy for "task is in jagged-intelligence zone"). Cost: ~3× v2 per eval-run. Budget cap stays $25/week — implies eval-suite trimming or weekly cadence. Acceptance: 22 existing v2 tests pass + new disagreement-signal test + 3-judge agreement ≥80% on N=20 calibration set vs human gold.
 
 **R1 memo**: [`docs/research/sprint-3.0-prompt-evolution-2026-05-13.md`](./research/sprint-3.0-prompt-evolution-2026-05-13.md) — AlphaEvolve May 2026 impact, Sakana DGM state, DSPy / Langfuse production patterns, eval-suite-size statistical thresholds, mode-collapse + metric-overfit defense.
 
@@ -1408,9 +1460,9 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 4.8 — BIOS-style health dashboard (M effort, ergonomic upgrade)
+### Sprint 4.8 — BIOS-style health dashboard + Chase-OS one-click skill triggers (M-L effort, ergonomic upgrade)
 
-**Status**: idea logged 2026-05-09. Pitched by operator: "udělat něco jako health dashboard s UI ... něco jako když existuje BIOS a je k němu grafický přístup ovládání, tak něco takového pro Cortex."
+**Status**: idea logged 2026-05-09. Pitched by operator: "udělat něco jako health dashboard s UI ... něco jako když existuje BIOS a je k němu grafický přístup ovládání, tak něco takového pro Cortex." **Scope expanded 2026-05-13** after [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) — observability dashboard with one-click skill/automation buttons via headless `claude -p`. Convergent design across two independent sources (operator pitch + Chase production pattern).
 
 **Why now (in Tier 3, not earlier)**: Steward has 9-kind palette + journal + lessons + cost ledger + halt + (1.9) spec_failures + (2.1) autoresearch signals + (2.2) judge verdicts + (2.3) mutation scores. CLI `cortex-steward status` is server-grade access. Dashboard is the ergonomic-grade surface — like UEFI is over a motherboard. **Building before Tier 1+2 schemas stabilize = rework.** Wait until 1.9 / 2.1 / 2.2 / 2.3 ship.
 
@@ -1420,6 +1472,7 @@ PHASE C — DELIVER (deterministic)
 - **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `STEWARD_DAILY_USD_CAP` / `STEWARD_TREE_USD_CAP` (post-2.2); halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
 - **Anthill view (post-2.2 / 2.3 — operator-pitched 2026-05-08).** When Sprint 2.2 ships supervisor + worker spawning, dashboard wraps the OTLP traces from Sprint 2.0 (Phoenix/Langfuse) and renders the live tree: supervisor at root, N workers as children, per-node cost + token + status, fan-out/fan-in animation. **Don't reinvent the trace store** — Phoenix already has the OTLP HTTP API; dashboard is just the Steward-flavored UI. See [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md) §9 for visualization options surveyed.
 - **v2 control**: halt button (writes `.cortex/STEWARD_HALT` with reason; legacy `STEWARD_HALT` filename also honored through v0.2.0), lesson edit/dismiss.
+- **v2 Chase-OS skill triggers (2026-05-13 transcript)**: one-click buttons for every action_kind + cron workflow that map to a headless `claude -p <skill-prompt>` invocation. Skills tab lists 16 action_kinds + 9 review-pipeline agents; click runs the skill in a headless Claude Code instance and streams output back to the dashboard panel. Same `cortex-source.yaml` shim resolution as the CLI delegation shims (Sprint 2.8.1+/3.0/3.1/3.2). Unlocks **team/client distribution** — non-CLI-fluent operators can run cortex-x by clicking buttons. See [Chase transcript §dashboard](./transcripts/claude-code-agentic-os.md) for shape reference.
 
 **Architecture**:
 - Reads documented contracts: journal entry shape, lessons.jsonl shape, `cortex-steward status --json`, `gh run list --json`.
