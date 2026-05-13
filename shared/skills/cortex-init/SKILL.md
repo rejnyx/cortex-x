@@ -1,6 +1,6 @@
 ---
 name: cortex-init
-description: Initialize cortex-x in the current project — interactively pick mode (New / Existing / Framework-only) via Claude's native AskUserQuestion, write the .cortex-bootstrap-pending marker, and immediately chain to the appropriate cortex-x workflow (/start for new, /audit for existing). RECOMMENDED entry point after running install.sh; replaces the shell-level cortex-bootstrap CLI for the most-common flow. Auto-discovered from ~/.claude/skills/cortex-init/SKILL.md (user-level), so it works in any project directory without per-project setup. Use this when the user says "let's start", "set up cortex", "init this project", "/cortex-init", or after a fresh install.
+description: Initialize cortex-x in the current project — interactively pick mode (New / Existing / Framework-only) via Claude's native AskUserQuestion, write the .cortex-bootstrap-pending marker, and immediately chain to the appropriate cortex-x workflow (/start for new, /audit for existing). RECOMMENDED entry point after running install.sh; replaces the shell-level cortex-bootstrap CLI for the most-common flow. Auto-discovered from ~/.claude/skills/cortex-init/SKILL.md (user-level), so it works in any project directory without per-project setup. INVOKE THIS PROACTIVELY whenever the user signals they installed or want to use cortex-x — natural-language triggers in EN and CZ are load-bearing here, do not wait for an explicit slash command. Triggers (EN) "let's start", "set up cortex", "init this project", "I installed cortex", "where is cortex installed", "is cortex set up?", "does cortex work?", "/cortex-init", or after a fresh install. Triggers (CZ) "začni", "nastav cortex", "nainstaloval jsem cortex", "kde je cortex", "je cortex nainstalovaný", "funguje cortex?", "spusť cortex".
 disable-model-invocation: false
 ---
 
@@ -9,6 +9,30 @@ disable-model-invocation: false
 You are running the cortex-x initialization flow. The user has installed cortex-x and pasted `/cortex-init` (or invoked it implicitly via "let's start"). Your job: pick a mode, persist the marker, and chain to the correct workflow — all in this session.
 
 **Voice charter:** see [`standards/voice.md`](../../../standards/voice.md). No greetings, no emoji, no emotion words, counts-not-praise.
+
+## Step 0a — Verify cortex-x install when user asks about it
+
+If the user's message expresses uncertainty about whether cortex-x is installed or where ("nainstaloval jsem cortex", "kde je cortex", "is cortex set up?", "where does cortex live?", "does this even work?"), DO NOT skip ahead to the picker. First verify and report the install state by reading `~/.claude/shared/cortex-source.yaml` via the Bash or Read tool:
+
+```bash
+cat ~/.claude/shared/cortex-source.yaml
+```
+
+Expected output:
+```yaml
+cortex_source: <absolute path to source clone, default ~/cortex-x>
+cortex_data_home: <absolute path to user data, default ~/.cortex>
+```
+
+Report concisely (match prior-turn language; default Czech for Dave):
+
+> "Cortex je nainstalovaný — source v `<cortex_source>`, data v `<cortex_data_home>`. Slash commands `/cortex-init`, `/cortex-help`, `/audit`, `/designer`, `/start`, `/test-audit` jsou aktivní v této session. Tahle složka ještě nemá setup — spustím `/cortex-init`?"
+
+If `cortex-source.yaml` does NOT exist:
+
+> "Cortex není nainstalovaný na této mašině. Install: `curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash` (macOS/Linux/WSL) nebo `iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex` (Windows PowerShell). Pak `claude` restart aby Claude Code načetl skills."
+
+Then either continue to Step 1 (if user confirmed) or stop (if they were only asking the question).
 
 ## Step 0 — First-run detection (one-shot manifesto)
 

@@ -14,6 +14,16 @@ You are running the cortex-x help menu. The user wants a one-screen answer to *"
 
 Read the user's language from prior turns. If they wrote Czech, answer in Czech. Otherwise English. Don't ask explicitly.
 
+## Step 1.5 — surface install state (one line, always)
+
+Before the menu, print ONE line showing where cortex-x is installed. Read `~/.claude/shared/cortex-source.yaml` via Bash or Read tool to get the resolved paths. Format:
+
+> `cortex-x: source <cortex_source> · data <cortex_data_home>`
+
+Fail-open: if the yaml is unreadable, fall through to "(install state unknown — try `cortex-update --check`)".
+
+This is load-bearing because the operator's friend / new-PC scenario commonly opens with *"kde je cortex?"* — surface the answer at the top of the menu so they don't have to ask.
+
 ## Step 2 — detect current state (one quick scan)
 
 Before printing the menu, peek at `$PWD`:
