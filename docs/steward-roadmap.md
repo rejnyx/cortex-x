@@ -1011,6 +1011,57 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
+### Sprint 2.19 — Phase 5 cortex-evolve cron wiring + "Dreaming" terminology alignment (S-M effort) — 📋 PROPOSED 2026-05-13
+
+**Status**: 📋 Proposed 2026-05-13 from brain-kit research synthesis ([`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md)). Pull-forward from "Phase 5 self-improvement loop ⏳ designed, awaits Phase 7" — industry has shipped the same primitive (OpenClaw "Dreaming" cron, Anthropic "Auto Dream", ICLM 2026 "Language Models Need Sleep", arXiv SCM Sleep-Consolidated Memory), cortex-x is now behind on what was a designed-but-runtime-dormant capability.
+
+**Scope**:
+- 4 new GitHub Actions workflows wrapping existing prompts: `cortex-evolve-daily.yml` (ingest), `-weekly.yml` (mining), `-monthly.yml` (eval), `-quarterly.yml` (audit). Reuse Steward cron + skip-commit pattern shipped today (bash-e tolerance + JSON-validity gate).
+- Terminology alignment: rename evolve-cycle outputs to "dream-cycle" / "consolidation" in user-facing docs (README, capabilities.md, prompts/cortex-evolve.md). Industry slovník is now `Auto Dream` (Anthropic), `Dreaming` (OpenClaw) — cortex-x sjednocuje, neimprovizuje terminology.
+- Hard anti-hallucination gates (min_support=3, ≥2 projects, >7d spread, Bonferroni) already in `config/evolve.yaml` — wire them into the cron workflow as workflow-level gates.
+- Outputs land in `$CORTEX_DATA_HOME/insights/proposals/` as PRs (already designed pattern), Steward never auto-merges.
+
+**Effort**: S-M (1-2 days). Mostly workflow yaml + small dispatcher in `bin/cortex-evolve.cjs` + doc rewording. Real code already exists in `prompts/cortex-evolve.md` + `config/evolve.yaml`.
+
+**Why now, not later**: Sprint LR.1 statistical disclaimer in README currently says "framework improves itself" is **designed but not yet measured**. Wiring the cron + capturing one weekly-mining cycle closes that disclaimer with empirical evidence. Also: closes the perception gap vs OpenClaw Dreaming / Anthropic Auto Dream which a reviewer comparing cortex-x will notice within 60 seconds.
+
+**Stolen from**: OpenClaw Dreaming nightly cron, Anthropic Auto Dream natively-shipped primitive, ICLM 2026 NREM+REM consolidation model.
+
+---
+
+### Sprint 2.20 — Memory-system competitor lens in positioning.md (XS effort) — 📋 PROPOSED 2026-05-13
+
+**Status**: 📋 Proposed 2026-05-13. `docs/positioning.md` compares vs Devin/Cursor/Replit/Aider (autonomous-coding lens). Brain-kit research surfaced a second relevant competitor axis (agent-memory category) where reviewers will ask "vs Mem0 / Zep / Letta / MAF+Neo4j / OpenClaw Dreaming". Currently we have no answer.
+
+**Scope**:
+- Second comparison matrix in `docs/positioning.md` (or new `docs/positioning-vs-memory-systems.md`) with rows for: persistent KV memory, structured KG / entity relationships, temporal graph (Zep/Graphiti), MCP-native, atomic-rollback safety, multi-window USD caps, draft-PR human approval, OSS license, typical operator cost.
+- Verdict paragraph: cortex-x is *adjacent* to memory-SaaS category, not competing — Mem0 dominates with 47K★, Zep wins LongMemEval. cortex-x's lane is "maintenance autopilot WITH a memory layer," not "memory-SaaS for agents." Lean on safety primitives that no memory-SaaS ships.
+
+**Effort**: XS (1-2 hours including R1 memo capture from today's brain-kit-landscape research). Pure docs work, no code.
+
+**Why now**: closes a reviewer's first-90-seconds question post-launch. The brain-kit research is already in context — capture it as a reusable research memo + competitor matrix while the synthesis is fresh.
+
+**Stolen from**: today's brain-kit research synthesis (Mem0 / Zep / Letta / Cognee / Supermemory benchmarks, MAF+Neo4j launch).
+
+---
+
+### Sprint 4.9 — Ambient morning-briefing PWA + email-draft surface (M-L effort, ⭐ DEFENSIBLE WHITESPACE) — 📋 PROPOSED 2026-05-13
+
+**Status**: 📋 Proposed 2026-05-13 from brain-kit research synthesis. Lindy.ai (7 AM SMS briefing) is the recognized commercial leader; **no OSS template exists** for "Claude Code morning briefing" / "agentic PWA dashboard". Tier 3 productization defensible whitespace, not a launch-blocker.
+
+**Scope**:
+- PWA frontend (Next.js, installable on iOS/Android home screen, push notifications via Web Push API) — single screen: overnight Steward activity rollup + drafts requiring approval + flagged anomalies + next-action nudge.
+- Steward `morning_briefing` action_kind that compiles journal-entries-since-yesterday + open draft PRs + spec_failures + budget-cap warnings into a single markdown doc + dispatches push notification at operator-configured local time.
+- Email-draft surface (optional): Steward action_kind `email_draft` reading operator-tagged "drafts" inbox folder, drafting reply via OpenRouter, leaving draft in `Drafts/` for human review (never auto-send).
+
+**Effort**: M-L (1-2 sprints). PWA + push infrastructure is the heavy chunk; the action_kinds reuse existing Steward primitives.
+
+**Why this is the right shape**: every component the brain-kit poster described (KG memory, sleep cycles, 24/7 fleet) overlaps something we already have or have planned. The morning briefing PWA is the **one piece that's genuinely novel** in the OSS landscape and would distinguish cortex-x from "yet another maintenance autopilot". Defer to Tier 3 (post v1.0) — not launch-critical.
+
+**Stolen from**: Lindy.ai 7 AM SMS, Cassidy, the brain-kit poster's PWA approach. Differentiator: ours is operator-self-hosted (Vercel/Cloudflare Workers), not vendor SaaS.
+
+---
+
 ### Sprint LR (Launch Readiness) track — 📋 PROPOSED 2026-05-10
 
 **Status**: 📋 Proposed 2026-05-10 from operator brief audit ([`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §1). Distinct track from Tier 1 engineering — these are publish-readiness items that should never block engineering momentum.
@@ -1018,7 +1069,7 @@ PHASE C — DELIVER (deterministic)
 | ID | Item | Effort | Operator-only? | Status |
 |---|---|---|---|---|
 | LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | ✅ pipeline-component baseline shipped 2026-05-12 ([`evals/results/2026-05-12-2802a90-real-baseline.json`](../evals/results/)). Real-LLM smoke flagged operator's OpenRouter key as provisioning-only — full 10-eval manual suite remains operator-paced post-launch. |
-| LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits | 📋 partial — draft in `docs/dogfood/readme-drafts-pending-2026-05-11.md` |
+| LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits | ✅ shipped 2026-05-13 (commit `acec014`). README rewrite 410→175 lines + 5-competitor matrix + "Built by David Rajnoha" attribution + docs/vision.md split for long-form trajectory. |
 | LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now | ✅ shipped (README §Phase 5 disclaimer, refreshed 2026-05-12 to cite both baselines) |
 | LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial | ✅ shipped (`docs/dogfood/launch-checklist.md`) |
 | LR.5 | **Naming decision** (`cortex-x` rename — kolize w/ Cortex Labs et al.) | M | yes — strategic | ✅ resolved 2026-05-12 — operator decided to keep `cortex-x` (personal touch matching Rejnyx_x gamer nick); kolize acknowledged + documented as acceptable. |
@@ -1109,6 +1160,8 @@ PHASE C — DELIVER (deterministic)
 - Per-kind retrieval: `dep_update_patch` queries call sites of breaking symbol, `recommendation` queries importers of mentioned files.
 
 **Re-eval gate**: when LazyGraphRAG hits stable release OR when an action_kind genuinely needs multi-hop code-graph traversal (Sprint 3.3 R1 §5 trade-off T1: graph DB violates zero-deps invariant for Tier 1-2; reconsider only post-Tier 3).
+
+**2026-05-13 update from brain-kit research** ([`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md)): **Microsoft Agent Framework v1.0 ships Neo4j as a first-party memory + GraphRAG provider** ("Neo4j Aura Agent", "Create Context Graph" end-to-end deployment paths). GraphRAG-V benchmark: +11pp recall over vector baselines on MultiHopRAG, indexing cost 10–40× pgvector. Implications: (a) buy-vs-build option C added — adopt Neo4j as external service (violates zero-deps but is now the industry reference impl), (b) cortex-x's "roll-our-own SQLite graph" path remains defensible on zero-deps + cost grounds, (c) when LazyGraphRAG ships, we have a clear A/B to run.
 
 **Interim**: if structural code awareness is needed before LazyGraphRAG ships, evaluate GitNexus MCP as a drop-in (matches Sprint 3.4 External Tool Capability Adapters pattern).
 
