@@ -165,7 +165,15 @@ The chained prompt's own "Phase 6 — Final on_complete" / "Phase 7 — Final on
 
 ## Edge cases
 
-**User invoked `/cortex-init` in cortex-x source repo itself.** Detect by checking whether `$PWD/CLAUDE.md` exists AND its first line says "AI-Agentic-First Claude Code Framework". Tell the user: *"You're inside the cortex-x source repository. `/cortex-init` is for end-user projects, not for hacking on cortex-x itself. Try `/doctor` for installation drift checks, or paste `~/.claude/shared/prompts/cortex-evolve.md` if you want to run the self-improvement loop."*
+**User invoked `/cortex-init` in cortex-x source repo itself.** Detect by checking ANY of these — multiple signals because the CLAUDE.md first line evolves; rely on structure:
+- `$PWD/install.sh` AND `$PWD/install.ps1` BOTH exist (cortex-x ships both)
+- `$PWD/bin/cortex-bootstrap.cjs` exists (uniquely cortex-x)
+- `$PWD/templates/CLAUDE.md.hbs` exists (cortex-x template seed)
+- git remote `origin` URL matches `/cortex-x(\.git)?$/` — `git remote get-url origin 2>/dev/null`
+
+If two or more match: you're inside cortex-x source. Tell the user: *"You're inside the cortex-x source repository. `/cortex-init` is for end-user projects, not for hacking on cortex-x itself. Try `/doctor` for installation drift checks, `cortex-update --check` to compare against origin/main, or paste `~/.claude/shared/prompts/cortex-evolve.md` if you want to run the self-improvement loop."*
+
+**User cloned cortex-x INSIDE their project (e.g., `myapp/cortex-x/`).** If the cortex-x signals above match but `$PWD` is a subdirectory and the parent dir has its own `package.json` / `pyproject.toml` / `Cargo.toml`, then ask: *"You're in a cortex-x clone nested inside `<parent>`. Did you mean to run `/cortex-init` in `<parent>` instead? [s]witch to parent / [c]ontinue here anyway / cancel."* This prevents the most common "blbeček path" — user `git clone`s cortex-x in their project root, then types `/cortex-init` not realizing they're in the wrong dir.
 
 **User invoked `/cortex-init` mid-session in a project that already has CLAUDE.md.** This means they want to ADD cortex-x to a project that previously bootstrapped without it. Default to "Existing project" (deep audit) — the audit is non-destructive and `/retrofit` afterwards is the additive-apply step.
 

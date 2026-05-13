@@ -52,6 +52,16 @@ claude            # opens Claude Code
 
 On first run, `/cortex-init` prints a 3-line manifesto, detects what's in the folder, and chains to the right workflow. You wake up with a real `CLAUDE.md` or `cortex/AUDIT.md` on disk — open it and read.
 
+## Keeping cortex-x up to date
+
+```bash
+cortex-update          # fetch, show what's new, fast-forward, re-run installer
+cortex-update --check  # just look; exit code 10 if updates exist (script-friendly)
+cortex-update --json   # machine-readable status
+```
+
+Mirrors the upgrade UX of `bun upgrade` / `uv self update` / `deno upgrade`. Resolves the source clone from `$CORTEX_SOURCE` → `cortex-source.yaml` → `~/cortex-x`. Safe by default: refuses to run on a dirty tree or detached HEAD; only fast-forwards (never rewrites your history). Aborts cleanly on network failure — your install stays unchanged.
+
 Inside Claude Code (auto-discovered slash commands):
 
 - `/cortex-help` — one-screen menu of every invokable slash command + a "default next" nudge based on detected project state

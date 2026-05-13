@@ -261,6 +261,7 @@ function runChecks() {
   checkFileExists('shared.bin.cortex-export-lessons', path.join(SHARED, 'bin', 'cortex-export-lessons'), 'warning');
   checkFileExists('shared.bin.cortex-doc-audit',      path.join(SHARED, 'bin', 'cortex-doc-audit'),      'warning');
   checkFileExists('shared.bin.cortex-wiki-consolidate', path.join(SHARED, 'bin', 'cortex-wiki-consolidate'), 'warning');
+  checkFileExists('shared.bin.cortex-update',         path.join(SHARED, 'bin', 'cortex-update'),         'warning');
 
   // Cortex-source.yaml integrity (Sprint 1.6 contract)
   checkYamlField('shared.cortex-source.cortex_source', path.join(SHARED, 'cortex-source.yaml'), 'cortex_source');
