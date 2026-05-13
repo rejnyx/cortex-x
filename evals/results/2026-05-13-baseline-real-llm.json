@@ -1,0 +1,70 @@
+{
+  "variant_id": "baseline-real-llm",
+  "captured_at": "2026-05-13T09:19:56.602Z",
+  "trials_per_task": 1,
+  "tasks_count": 3,
+  "trials_total": 3,
+  "train_tasks_count": 3,
+  "validation_tasks_count": 0,
+  "trainScores": [
+    1,
+    1,
+    1
+  ],
+  "validationScores": [],
+  "specPassRateTrain": 1,
+  "specPassRateValidation": 0,
+  "cost_usd_total": 0.001615,
+  "by_task": [
+    {
+      "task_id": "eval-005",
+      "mean_score": 1,
+      "trials": 1,
+      "pass_rate": 1,
+      "spec_pass_rate": 1
+    },
+    {
+      "task_id": "eval-007",
+      "mean_score": 1,
+      "trials": 1,
+      "pass_rate": 1,
+      "spec_pass_rate": 1
+    },
+    {
+      "task_id": "eval-008",
+      "mean_score": 1,
+      "trials": 1,
+      "pass_rate": 1,
+      "spec_pass_rate": 1
+    }
+  ],
+  "rows": [
+    {
+      "task_id": "eval-005",
+      "trial": 0,
+      "score": 1,
+      "spec_pass": true,
+      "duration_ms": 1272,
+      "cost_usd": 0.0005677,
+      "validation": false
+    },
+    {
+      "task_id": "eval-007",
+      "trial": 0,
+      "score": 1,
+      "spec_pass": true,
+      "duration_ms": 714,
+      "cost_usd": 0.00054978,
+      "validation": false
+    },
+    {
+      "task_id": "eval-008",
+      "trial": 0,
+      "score": 1,
+      "spec_pass": true,
+      "duration_ms": 823,
+      "cost_usd": 0.00049756,
+      "validation": false
+    }
+  ]
+}

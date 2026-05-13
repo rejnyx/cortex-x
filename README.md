@@ -27,7 +27,7 @@ Built for the operator who runs **many repos** and wants a maintenance autopilot
 | 15 active nightly cron workflows running on this repo | ✅ shipped — real auto-PRs since 2026-05-09 |
 | Spec-driven verification (6 acceptance-criterion kinds incl. `read_set` coverage proof) | ✅ shipped (Sprint 1.9.0 + 2.18) |
 | Multi-window cost safety (D/W/M USD caps + token velocity + loop detector) | ✅ shipped (Sprint 1.9.1) |
-| Full real-LLM eval suite captured (Sprint LR.1) | ⏳ operator-run, 1 pass pending |
+| Real-LLM eval baseline (Sprint LR.1) | ✅ shipped 2026-05-13 — 3-task smoke baseline via `cortex-evolve-ab` + OpenRouter, $0.0016 total. Full 10-task LLM-as-judge baseline = v2. |
 | Daily "Dreaming" consolidation cron (Phase 5 Phase A, deterministic) | ✅ shipped (Sprint 2.19 v0 — `evolve_daily` action_kind, daily 03:00 UTC). Industry slovník: "Dreaming" (OpenClaw), "Auto Dream" (Anthropic). |
 | Weekly mining + monthly eval (Phase 5 Phase B+C, LLM-driven) | ⏳ designed, awaits enablement |
 | Compound learners + capability marketplace (Tier 2/3) | ⏳ Sprint 3.0+ |

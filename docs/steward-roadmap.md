@@ -1078,7 +1078,7 @@ PHASE C — DELIVER (deterministic)
 
 | ID | Item | Effort | Operator-only? | Status |
 |---|---|---|---|---|
-| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | ✅ pipeline-component baseline shipped 2026-05-12 ([`evals/results/2026-05-12-2802a90-real-baseline.json`](../evals/results/)). Real-LLM smoke flagged operator's OpenRouter key as provisioning-only — full 10-eval manual suite remains operator-paced post-launch. |
+| LR.1 | Real-run eval baseline (5 runs × 3 canonical tasks, ~$0.05) | XS | no — I can run | ✅ shipped 2026-05-13 ([`evals/results/2026-05-13-baseline-real-llm.json`](../evals/results/)). 3 tasks × 1 trial × deepseek-v4-flash via OpenRouter, $0.0016 total cost, 3/3 smoke-passed. Captures the cortex-evolve-ab harness end-to-end against the real LLM — Sprint 3.0 v1 closure. Sprint 3.0 v2 deferred: LLM-as-judge rubric scoring + multi-trial bootstrap CI (N=3 still well below N=400-600 threshold). |
 | LR.2 | README "Built by" + "Why not Devin/Copilot/Replit" comparison | S | partial — operator fills personal bits | ✅ shipped 2026-05-13 (commit `acec014`). README rewrite 410→175 lines + 5-competitor matrix + "Built by David Rajnoha" attribution + docs/vision.md split for long-form trajectory. |
 | LR.3 | Statistical disclaimer in README (Phase 5 evidence empty) | XS | no — 10 min, ship-able now | ✅ shipped (README §Phase 5 disclaimer, refreshed 2026-05-12 to cite both baselines) |
 | LR.4 | launch checklist (now tracked under gitignored `docs/dogfood/`) | XS | partial | ✅ shipped (`docs/dogfood/launch-checklist.md`) |
