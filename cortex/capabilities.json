@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T08:15:01.548Z",
+  "generated_at": "2026-05-13T08:23:35.313Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -229,6 +229,12 @@
       "path": "bin/steward/_lib/lessons.cjs",
       "sprint": "Sprint 1.8.3",
       "description": "Sprint 1.8.3 ReasoningBank-lite memory module"
+    },
+    {
+      "name": "lessons-exporter",
+      "path": "bin/steward/_lib/lessons-exporter.cjs",
+      "sprint": "Sprint 2.8.1",
+      "description": "bin/steward/_lib/lessons-exporter.cjs — Sprint 2.8.1"
     },
     {
       "name": "llm-judge-schema",
@@ -1000,15 +1006,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2091,
+      "unit": 2110,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2255
+    "total": 2274
   },
   "code_volume": {
-    "steward_runtime_loc": 22680,
-    "test_code_loc": 29444
+    "steward_runtime_loc": 23127,
+    "test_code_loc": 29713
   }
 }
