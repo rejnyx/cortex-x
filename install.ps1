@@ -523,6 +523,7 @@ New-DelegateShim "cortex-export-lessons" "cortex-export-lessons.cjs"
 New-DelegateShim "cortex-doc-audit"      "cortex-doc-audit.cjs"
 New-DelegateShim "cortex-wiki-consolidate" "cortex-wiki-consolidate.cjs"
 New-DelegateShim "cortex-update"         "cortex-update.cjs"
+New-DelegateShim "cortex-uninstall"      "cortex-uninstall.cjs"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #

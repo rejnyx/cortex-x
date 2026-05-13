@@ -62,6 +62,17 @@ cortex-update --json   # machine-readable status
 
 Mirrors the upgrade UX of `bun upgrade` / `uv self update` / `deno upgrade`. Resolves the source clone from `$CORTEX_SOURCE` → `cortex-source.yaml` → `~/cortex-x`. Safe by default: refuses to run on a dirty tree or detached HEAD; only fast-forwards (never rewrites your history). Aborts cleanly on network failure — your install stays unchanged.
 
+## Uninstalling
+
+```bash
+cortex-uninstall             # safe default: removes framework, preserves ~/.cortex/ user data
+cortex-uninstall --dry-run   # show plan, no action
+cortex-uninstall --purge     # ALSO remove ~/.cortex/ (months of work — destructive)
+cortex-uninstall --backup --purge   # tarball ~/.cortex/ before removing
+```
+
+Content-hash-aware: files you modified after install are detected and skipped with a warning, never overwritten. Refuses to wipe the source clone if it has uncommitted local work. **Never touches** `~/.claude/CLAUDE.md`, `~/.claude/settings.json`, or `~/.claude/projects/` — cortex-x never wrote those, so cortex-x never removes them.
+
 Inside Claude Code (auto-discovered slash commands):
 
 - `/cortex-help` — one-screen menu of every invokable slash command + a "default next" nudge based on detected project state

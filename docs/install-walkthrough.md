@@ -215,24 +215,21 @@ If Anna pulled `~/cortex-x/` via `git pull` first, she gets the latest framework
 
 ## Uninstall
 
-cortex-x doesn't ship an uninstall script (yet). To remove:
-
 ```bash
-# Remove framework code
-rm -rf ~/cortex-x/
-
-# Remove installed assets
-rm -rf ~/.claude/shared/
-rm -rf ~/.claude/agents/
-rm -rf ~/.claude/skills/cortex-*
-rm -rf ~/.claude/skills/{start,audit,designer,test-audit}/
-rm -rf ~/.claude/cortex/user.yaml
-
-# Keep personal data (recommended) OR remove it
-# rm -rf ~/.cortex/           # ← deletes Anna's per-project entries, insights, journal
-
-# Manually edit ~/.claude/settings.json to remove cortex-x hooks block
+cortex-uninstall             # safe default: removes framework + cortex skills/agents
+                             # + source clone; PRESERVES ~/.cortex/ user data
+cortex-uninstall --dry-run   # show plan, take no action
+cortex-uninstall --purge     # ALSO remove ~/.cortex/ (months of research/journal — destructive)
+cortex-uninstall --backup --purge   # tarball ~/.cortex/ to ~/cortex-data-backup-<ts>.tar.gz first
+cortex-uninstall --keep-source      # keep ~/cortex-x source clone (for later reinstall)
+cortex-uninstall --json      # machine-readable plan + result
 ```
+
+Safety contract:
+- Content-hash check before removing each skill/agent — files Anna modified after install are left in place with a warning, never silently overwritten.
+- Refuses to remove the source clone if it has uncommitted changes (use `--keep-source` to skip or commit/stash first).
+- `~/.cortex/` (Anna's research, projects library, journal, insights) is preserved by default. `--purge` is the destructive flag and prompts for confirmation.
+- **NEVER touches** `~/.claude/CLAUDE.md`, `~/.claude/settings.json`, or `~/.claude/projects/`. If Anna added a cortex-x hooks block to her `settings.json` manually (per `INSTALL_NOTES.md`), she removes it manually — cortex-x never wrote it, so cortex-x never removes it.
 
 ---
 
