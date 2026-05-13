@@ -1319,6 +1319,101 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint LR.9 — Boris-Cherny validation packet + "wisdom over harness" positioning shift (S effort, content) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced [`docs/transcripts/boris-black-vibecoding.md`](transcripts/boris-black-vibecoding.md) — Boris Cherny (creator of Claude Code, currently leading Anthropic Labs round 2 under Mike Krieger) at Sequoia "Why Coding Is Solved" (~24 min). Transcript is **70% third-party validation** of cortex-x's existing direction, **20% strategic-positioning signal**, **10% concrete features already covered**. The strategic signal is the highest-value extractable: as Boris explicitly stated, "**the harness kind of gets less important** [as model improves]... all the safety mechanisms ... will just be less important cuz the model will just do the right thing." This forces a **positioning evolution** for cortex's launch pitch — current pitch leans heavily on harness/safety; future-proof pitch must lead with **institutional wisdom encoding** (the part models cannot grow on their own).
+
+Why this matters NOW (not a Tier 3/4 deferral):
+- LR.8 (launch venues) ships in 2-3 weeks. Landing-page hero copy + Show HN body + Product Hunt tagline are all locked in **this sprint** else they ship with stale framing.
+- Boris quotes are high-leverage social proof — "Father of Claude Code says loops are the future" is the kind of line that converts on Product Hunt + Show HN.
+- The "150 PRs in a day" claim is the **canonical cadence reference** for what's achievable; cortex's "Steward + /goal + parallel sub-agents" stack should be positioned as the path to that cadence for a solo operator.
+
+**Sources**:
+- [`docs/transcripts/boris-black-vibecoding.md`](transcripts/boris-black-vibecoding.md) — full 80-line Sequoia transcript (May 2026)
+- [Boris Cherny on Threads](https://www.threads.net/@boris.cherny) — `--worktree` flag announcement (validated in Sprint 2.30 research)
+- [Anthropic Labs](https://www.anthropic.com/news) — Labs team back together May 2026, Mike Krieger leading
+- [Seven Powers (Hamilton Helmer)](https://7powers.com/) — Boris references for SaaS-apocalypse framing
+- [Acquired Podcast](https://www.acquired.fm/) — Boris referenced as content source
+- [Claude Design](https://claude.com/design) — Boris cited as example of "build for next model" pattern; cortex's own roadmap (Sprint 4.5 dashboard) is the parallel
+
+**Three high-leverage quotes for launch packet**:
+
+1. **"I sort of feel like loops are the future at this point. If you haven't experimented with it, highly highly recommend it."** — Boris, on `/loop`. **Direct validation of Steward + Cloud Routines + Sprint 2.24 `/cortex-goal`.** Launch copy: "Anthropic's Claude Code lead calls loops the future. cortex-x ships the loops you'd build by hand: nightly Steward + plan-first /cortex-goal + cron-templated GitHub Actions."
+
+2. **"In a year, the model will be much better aligned. And so, all the safety mechanisms ... will just be less important cuz the model will just do the right thing."** — Boris, on safety harness depreciation. **Positioning pivot**: cortex's "7-row safety stack" pitch (current) → cortex's "institutional wisdom encoded in markdown" pitch (12-month-stable). Models will surpass harness; lessons-jsonl + projects library + 26 standards + cross-project memory **do not depreciate** because they encode operator-specific context the next model still won't have.
+
+3. **"The best person to write accounting software is a really good accountant... knowing the domain is the hard part."** — Boris, on domain expert → builder shift. **Validation of cortex-x's "operator OS" framing**: cortex's clients (barbershop WaaS, e-commerce chatbot, booking platform per Sprint 4.1) are domain experts using cortex to ship their domain knowledge as software. cortex-skills (Sprint 4.0.1) is the distribution mechanism for that knowledge.
+
+**Scope** (4 stories, S effort each, parallelizable):
+
+**A) Landing-page / README hero refresh** (S effort) — rewrite README hero block + repo description with the "wisdom over harness" frame as primary, safety as secondary:
+   - Old (current hero): leans on "26 standards · 2697 tests · Apache 2.0" feature-list
+   - New: leads with operator-specific value — "cortex-x encodes 6 months of your decisions, lessons, and patterns as markdown your next agent can read. Plus an overnight Steward that closes the daylight gaps."
+   - Embed Boris quote #1 as pull-quote with attribution + transcript link
+   - Keep feature list, demote to second screen
+   - Cross-check with Sprint 2.26 (CLAUDE.md template audit) — same "wisdom not bloat" principle
+
+**B) Show HN body rewrite using Boris quotes** (S effort) — replace Sprint LR.8 V3 draft body with version anchored on Boris validation:
+   - Paragraph 1: cortex-x is the loops + lessons stack a solo dev would build by hand (link Boris quote #1)
+   - Paragraph 2: built over 6 months across 6 operator projects; explicit operator background as social proof
+   - Paragraph 3: honest limitations (v0.3-pre, research preview, single-operator dogfooded)
+   - Paragraph 4: link to repo + demo + transcript
+   - DO NOT lead with safety/harness — Boris-quote-#2 logic — instead lead with persistent memory + nightly Steward
+
+**C) Product Hunt tagline + first-comment refresh** (S effort) — update Sprint LR.8 V1 tagline draft:
+   - Old tagline: "One install. Hooks, safety, skills, nightly autopilot for Claude Code."
+   - New tagline (≤60 chars): **"Persistent memory + overnight autopilot for Claude Code."** (loses "safety" framing, gains durability framing — 51 chars)
+   - First-comment draft: operator story with explicit Boris-quote-#3 framing ("I'm a full-stack + designer, not a researcher. I built cortex because I needed accounting software for my own work and the model doesn't know my projects.")
+
+**D) `docs/positioning-evolution.md` strategic memo** (S effort) — internal-facing 1-pager documenting the harness→wisdom value migration:
+   - Section: **Today (v0.3-pre)** — harness value = ~60% of pitch, wisdom value = ~40%
+   - Section: **12 months out (model-aligned future)** — harness value = ~20%, wisdom value = ~80%
+   - Section: **What cortex doubles down on** — lessons-jsonl (Sprint 2.8.1+), projects library, cross-project pattern detection (Sprint 3.4), wiki consolidate (Sprint 2.8.2), cortex-thinker insights, Steward as wisdom-applier not safety-net
+   - Section: **What cortex deprioritizes** — additional safety hooks, rigid behavior enforcement, deny-list expansion (Sprint 2.28 stays but tier-1 rather than tier-0)
+   - Operator + future contributors consult this when scoping Tier 3+ features
+
+**Acceptance criteria**:
+- README hero pull-quote ships with Boris attribution + transcript line ref
+- Show HN body draft ≤500 words, lead-line uses Boris quote #1
+- Product Hunt tagline locked at ≤60 chars with operator sign-off
+- `docs/positioning-evolution.md` exists and is cross-linked from `docs/steward-roadmap.md` § preamble
+- No new feature code shipped — pure content/positioning sprint
+
+**Out of scope** (defer):
+- Reaching out to Boris/Anthropic for explicit endorsement (deferred; cortex has zero relationship, public quotes are fair-use citation)
+- Translating positioning shift into code changes (e.g. cortex-doctor reporting "wisdom score") — premature; Tier 3 territory
+- A/B testing tagline variants on actual PH/HN traffic (would need analytics infra cortex deliberately doesn't ship — telemetry stance)
+- YouTube launch video script using these quotes (operator's mini-série is gated separately per memory `project_youtube_series_deferred.md`)
+
+**Risks**:
+- Boris quote #2 ("safety mechanisms less important") could be read as cortex saying "safety doesn't matter". Counter: position as "safety as floor, wisdom as ceiling" — cortex still ships hooks + permissions + Steward atomic rollback. Boris quote is about the **delta** depreciating, not safety itself.
+- Quoting Boris without explicit permission is fair-use citation (public Sequoia talk, transcript published), but launch packet should always link to transcript + Sequoia talk source for traceability.
+
+**Cross-references**:
+- Sprint LR.8 (launch venues) — directly affects V1/V3 content, downstream consumer of this sprint
+- Sprint LR.7 (demo asset) — should also lean on wisdom framing (show projects library content, not just install one-liner)
+- Sprint 4.0.1 (agentskills.io ecosystem) — "wisdom over harness" reinforces cortex's "framework + safety + discipline" positioning vs vendor content packs
+- Sprint 2.26 (CLAUDE.md template audit) — same principle, micro-scale: wisdom-dense not feature-bloated
+- Sprint 2.8.1 / 2.8.2 / 3.4 (lessons + wiki consolidate + cross-project patterns) — the assets that **appreciate** as models improve, per Boris quote #2
+
+**Boris-validation table (for memory/reference)** — what the transcript confirms about cortex's existing direction (no new sprints needed, but worth tracking which roadmap items just got third-party validation):
+
+| Boris said | Cortex sprint validated |
+|---|---|
+| "Loops are the future" | Steward (Sprint 1.6-1.9) + Cloud Routines positioning (Sprint 2.26 C) + `/cortex-goal` (Sprint 2.24) |
+| "MCP is the answer" | Profile MCP recommendations (Sprint 2.29) |
+| "Computer use for non-MCP tools" | browser-agent profile + Tirith hook (2026-04-20) |
+| "Generalists across disciplines" | operator persona (engineer + designer + data scientist) — informs Sprint 4.1 WaaS angle |
+| "Anthropic agents talk over Slack" | discord-bridge (Sprint 2.6, currently optional surface) — could elevate priority |
+| "All SQL written by models" | ai-agent profile validates this; no net-new sprint, but `standards/correctness.md` § eval-driven dev applies |
+| "Hill-climb anything (4.7)" | `/cortex-goal` (Sprint 2.24) Ralph-loop framing |
+
+This table is the durable artifact — a memo "what cortex got right per Anthropic Labs' creator". Useful in launch deck + future positioning audits.
+
+---
+
+---
+
 ## 4. Tier 2 — Compound learners (weeks 7-12, Sprint 3.0 → 3.3)
 
 **Goal**: turn cortex-x into a self-evolving system. After Tier 2, prompts/strategies/skills get measurably better every week without operator intervention.
