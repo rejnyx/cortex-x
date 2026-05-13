@@ -141,7 +141,7 @@ async function cmdRun(args) {
     console.log(`  variant=${variantId}  tasks=${result.tasks_count}  trials=${result.trials_total}`);
     console.log(`  spec_pass_rate train=${result.specPassRateTrain.toFixed(3)}  validation=${result.specPassRateValidation.toFixed(3)}`);
     console.log(`  cost_usd_total=${result.cost_usd_total}`);
-    console.log('  ⚠ Sprint 3.0 v0: mock executor produces deterministic harness-validation data, NOT real scores.');
+    console.log('  Note: mock executor — deterministic harness-validation data, not real scores.');
   }
   return 0;
 }

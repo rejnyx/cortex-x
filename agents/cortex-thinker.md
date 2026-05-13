@@ -111,17 +111,18 @@ Example:
 
 ## Output format
 
-When surfacing an insight in-session:
+When surfacing an insight in-session (follow `standards/voice.md` § Citation discipline — Claude is the actor, cortex is the environment):
 
 ```
-📌 Cortex insight:
+[cortex/insight] <specific observation, 1 sentence>
 
-**What:** <specific observation, 1 sentence>
-**Evidence:** <file path:line + project reference>
-**Why it matters:** <transferable context>
-**Action:** <concrete, optional, not pushy>
+— grounded —
+[^c1] evidence: <file:line> · project: <slug> · confidence: <low|medium|high>
 
-(Cortex stays silent if you'd like — just say 'mute' for this session)
+Why it matters: <transferable context>
+Action (optional): <concrete>
+
+(Suppress this session: type 'mute'.)
 ```
 
 When writing to `$CORTEX_DATA_HOME/insights/<date>-<slug>.md`:

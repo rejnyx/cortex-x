@@ -230,7 +230,11 @@ function buildPlan(args) {
 }
 
 function confirmInteractive(promptText) {
-  if (!process.stdin.isTTY) return true;
+  // Non-TTY (CI / piped): refuse silent destructive uninstall. Operator must pass
+  // --yes/-y explicitly to acknowledge in scripted contexts. Sprint 2.17.x audit
+  // closed a piped-destructive gap where `echo y | cortex-uninstall --purge`
+  // would bypass the prompt without explicit consent flag.
+  if (!process.stdin.isTTY) return false;
   process.stdout.write(promptText);
   try {
     const buf = Buffer.alloc(8);

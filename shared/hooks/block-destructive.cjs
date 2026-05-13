@@ -27,6 +27,14 @@ process.stdin.on('end', () => {
       { p: /DROP\s+DATABASE/i, r: 'DROP DATABASE blocked' },
       { p: /TRUNCATE\s+/i, r: 'TRUNCATE blocked' },
       { p: /supabase\s+db\s+reset/i, r: 'Supabase DB reset blocked — use migrations' },
+      // cortex-uninstall --purge — wipes $CORTEX_DATA_HOME (journal/insights/projects/research — months of work).
+      // Anchored to command-start boundary so the pattern doesn't false-positive on commit messages
+      // / heredoc / docstrings that QUOTE the command. Real invocation always starts at command-start.
+      { p: /(?:^|[;&|]|&&|\|\|)\s*cortex-uninstall\b[^"'\n]*?--purge\b/, r: 'cortex-uninstall --purge wipes $CORTEX_DATA_HOME (journal/insights — months of work). Use --backup first or confirm explicitly outside Claude Code.' },
+      // Hook bypass — global CLAUDE.md forbids skipping hooks. Same command-start anchoring rationale.
+      { p: /(?:^|[;&|]|&&|\|\|)\s*git\s+commit\s+[^"'\n]*?--no-verify\b/, r: 'Hook bypass blocked — fix the hook failure, do not skip it.' },
+      // rm long-flag form (packed `-rf` is caught by the rm rule above; this catches reversed long-form variant).
+      { p: /(?:^|[;&|]|&&|\|\|)\s*rm\s+(?:--force\s+--recursive|--recursive\s+--force)\b/, r: 'Recursive force delete blocked (long-flag form)' },
     ];
     for (const { p, r } of blocked) {
       if (p.test(command)) {

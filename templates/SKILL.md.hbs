@@ -2,7 +2,7 @@
 name: {{skill_slug}}
 description: {{description}}
 version: 0.1.0
-platforms: [claude-code{{#if hermes_compat}}, hermes{{/if}}{{#if codex_compat}}, codex{{/if}}]
+platforms: [claude-code{{#if steward_compat}}, steward{{/if}}{{#if codex_compat}}, codex{{/if}}]
 {{#if tags}}tags: [{{#each tags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}]
 {{/if}}---
 

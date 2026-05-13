@@ -89,7 +89,7 @@ try {
     const txt = fs.readFileSync(userYaml, 'utf8');
     const nameMatch = txt.match(/^name:\s*(.+)$/m);
     if (nameMatch && nameMatch[1].trim() && nameMatch[1].trim() !== '""') {
-      ctx.push(`Hello, ${nameMatch[1].trim()}.`);
+      ctx.push(`Operator: ${nameMatch[1].trim()}`);
       ctx.push('');
     }
   }

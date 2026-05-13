@@ -68,11 +68,11 @@ function showInstallHintOnce() {
     fs.writeFileSync(TIRITH_INSTALL_HINT_FLAG, new Date().toISOString(), { mode: 0o600 });
     return [
       '',
-      '💡 **cortex-x tip:** Tirith (context-file injection scanner) is not installed.',
+      '[cortex/tirith] Context-file injection scanner not installed.',
       'Install: `cargo install tirith` or download from https://tirith.sh/',
       'Once installed, `tirith-scan.cjs` hook auto-detects and scans CLAUDE.md / .mcp.json',
       'for prompt-injection signatures before they reach your session.',
-      '(This hint shows once. Delete `~/.claude/.tirith-hint-shown` to see it again.)',
+      '(One-time hint. Delete `~/.claude/.tirith-hint-shown` to surface again.)',
     ].join('\n');
   } catch (_) {
     return '';
@@ -107,7 +107,7 @@ function formatFindings(results) {
   if (withFindings.length === 0) return null;
 
   const lines = [
-    '# ⚠️ cortex-x Tirith scan — context-file prompt-injection findings',
+    '# [cortex/tirith-findings] Context-file prompt-injection signatures detected',
     '',
     'The following context file(s) matched prompt-injection signatures. Review before trusting the loaded context:',
     '',

@@ -2,6 +2,8 @@
 
 Specialized review-pipeline + planning subagents shipped to `~/.claude/agents/` by the installer. Each agent has a narrow lens; you compose them in parallel for code review (typically 6 in parallel after a non-trivial diff).
 
+**Voice charter:** all agents in this directory respect [`standards/voice.md`](../standards/voice.md) when surfacing findings — no emotion words, no greetings, `[cortex/<event>]` structural prefix for load-bearing signals, `[^cN]` footnote citations for any claim grounded in memory. Severity emoji (✅/⚠️/🔴/🟠/🟡/🔵) are allowed as structural status markers in report tables; not as preambles.
+
 ## Review pipeline (parallel)
 
 | Agent | Lens | When to invoke |

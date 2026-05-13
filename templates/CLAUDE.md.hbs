@@ -111,6 +111,13 @@ Automatically active from `~/.claude/shared/hooks/`:
 - `pre-compact` — recovery state before context compact
 - `post-tool-use` — journal traces for cortex-evolve (metadata only)
 
+## Voice & identity
+
+Claude is the actor; cortex is the environment. One voice across `/start`, `/audit`, `/designer`, `/sync`, `/cortex-help`, Steward — no greetings, no emoji, no emotion words, no persona drift. Memory recall ALWAYS cited via `[cortex/recall]` + `[^cN]` footnote with 3-hop trace (project → file → line). When search comes up empty, declare it: `[cortex/no-recall] No prior entries for "<query>" in $CORTEX_DATA_HOME — answering from first principles.`
+
+**Charter:** `~/.claude/shared/standards/voice.md` (full rules + 5 failure-mode templates).
+**First-run sequence:** `~/.claude/shared/prompts/onboarding-first-10min.md`.
+
 ## Web research (default behavior)
 
 cortex defaults to web-researching whenever a task depends on the **current state of an external system** — framework versions, library APIs, CVEs, regulatory thresholds, design trends, a11y standards. You don't have to say "go look it up"; Claude is expected to dispatch a parallel research subagent first, cache the result under `$CORTEX_DATA_HOME/research/`, and cite URLs.

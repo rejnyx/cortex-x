@@ -94,9 +94,9 @@ Options (scaffold):
   --model=<id>              override scaffolder model
   --json                    emit JSON
 
-Sprint 3.1 v0 hard rate limit: \${STEWARD_SKILL_PROPOSAL_RATE} successful
-scaffolds per 7 rolling days (default 1). Promotion to action-kinds.cjs
-remains operator-only — this CLI never modifies it.
+Sprint 3.1 v0 hard rate limit: STEWARD_SKILL_PROPOSAL_RATE env var caps
+successful scaffolds per 7 rolling days (default 1, clamp [0, 10]). Promotion
+to action-kinds.cjs remains operator-only — this CLI never modifies it.
 `);
 }
 

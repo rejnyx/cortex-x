@@ -91,7 +91,7 @@ standards_included:
   - testing
   - observability          # + § Runtime SLOs, circuit breakers, LLM obs stack
   - correctness            # Zod boundaries, property tests, eval-driven dev, mutation, stateful
-  - skills                 # agentskills.io SKILL.md spec — portable across Claude Code / Hermes / Codex
+  - skills                 # agentskills.io SKILL.md spec — portable across Claude Code / Steward / Codex
   - ai-patterns
 
 # Agentic-security MUST patterns — mandatory for this profile.

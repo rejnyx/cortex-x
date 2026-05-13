@@ -94,9 +94,11 @@ The **3 pillars** every scaffolded project respects from day 1:
 4. **[Correctness](./standards/correctness.md)** — Zod at boundaries, property-based tests, eval-driven dev, mutation testing, stateful simulation
 
 ### Rule 3 — Process (should-have)
-Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./standards/ai-patterns.md), [Skills](./standards/skills.md). Review pipeline flag = warning.
+Accessibility, Performance, Error handling, Git workflow, Docs, [AI patterns](./standards/ai-patterns.md), [Skills](./standards/skills.md), [Voice](./standards/voice.md) (cross-skill identity + citation discipline + 5 failure-mode templates), [Web research](./standards/web-research.md). Review pipeline flag = warning.
 
 **Mental model:** Rule 1 guarantees structure. Rule 2 guarantees the code works correctly, securely, observably. Rule 3 is polish. Rule 0 is "can you distribute it at all." Don't flatten — the tier priority matters when budgets are constrained.
+
+**Voice charter applies session-wide.** When working in cortex-x, follow [`standards/voice.md`](./standards/voice.md): no greetings, no emoji, no emotion words, `[cortex/recall]` + `[^cN]` footnote citations when recalling past decisions from memory/journal/insights. See `standards/voice.md` § Failure-mode disclosure templates for the 5 canonical phrasings.
 
 ## Development Workflow
 
