@@ -1617,6 +1617,208 @@ These have duplicate entries, contradicted facts, relative dates ("yesterday", "
 
 ---
 
+### Sprint 2.27 — Verification discipline: self-checking todos + screenshot-loop pattern + 95% confidence prompt (S-M effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` (16-min "32 tricks" walkthrough). Three hacks codify a discipline cortex already endorses informally but doesn't enforce or template:
+
+- **Hack #10 — verification baked into TodoWrite**: every implementation todo gets a follow-up verification todo on the next line. Pattern: build X → next todo is "open the rendered page, screenshot, verify X looks right" or "run the assertion, confirm pass". Quote: "you'd rather have it one-shot 90% of the way there rather than one-shot 60 or 65%".
+- **Hack #20+21 — screenshot self-check + Chrome DevTools loop**: for UI work, build → screenshot → analyze visually → fix → screenshot → repeat. For functional work, Chrome DevTools MCP for click/fill/assert without API contract. Transcript reports "V1 that it gives me is so much better than V1 it used to give me" after 3 build+screenshot passes.
+- **Hack #9 — 95%-confidence prompt baseline**: "continuously ask me questions until you're 95% confident". Reduces 3-4 rounds of corrections to 1.
+
+Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + citation discipline, and Sprint 2.21 augment v2 covers TodoWrite-for-3+-steps. Neither encodes verification-todos or the 95%-confidence baseline. The CLAUDE.md augment block (`bin/cortex-claude-md-augment.cjs`) is the natural carrier — bump BLOCK_VERSION 2 → 3.
+
+**Sources**:
+- [`docs/transcripts/32-tricks-claude-code.md`](transcripts/32-tricks-claude-code.md) §hacks 9, 10, 20, 21
+- [Claude Code Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) — official Anthropic Labs collab
+- [Anthropic agent-design best practices](https://www.anthropic.com/research/building-effective-agents) — pattern: verifier loop
+
+**Scope** (4 stories, parallelizable):
+
+**A) `cortex-claude-md-augment.cjs` BLOCK_VERSION 2 → 3** (S effort) — extend `DISCIPLINE_BLOCK` with new "Verification discipline" section:
+   - "Pair every implementation todo with a verification todo on the next line. Implementation = build/edit. Verification = run the test, open the URL, screenshot, read the log."
+   - "Before commit, the verification todo must be checked off — not just the implementation one."
+   - "If a todo is UI-shaped, the verification is `Chrome DevTools MCP → screenshot → assert` not `npm run build → green`."
+   - Reuse Sprint 2.21.2 orphan-marker + non-UTF8 guards. R2-clean.
+
+**B) `standards/verification-loop.md`** (S effort) — new standard codifying the pattern:
+   - Three failure modes covered: visual drift (UI), functional regression (handlers), data-shape drift (API/DB)
+   - Pattern table: failure mode → which verification primitive (screenshot / DevTools / Zod runtime / spec-verifier kind)
+   - Cross-reference [`standards/correctness.md`](../standards/correctness.md) (eval-driven dev) and [`standards/testing.md`](../standards/testing.md) (5 pillars per test)
+
+**C) `prompts/95-confidence.md`** (S effort) — reusable prompt fragment with the literal "continuously ask me questions until you're 95% confident" phrasing + 3 worked examples (project bootstrap, ambiguous bug report, large refactor scope). Includes citation to transcript hack #9 as origin. Available for `/cortex-init`, `/start`, and operator inline use.
+
+**D) Update `templates/CLAUDE.md.hbs` Conventions section** (S effort) — add 3-line verification-loop reminder under existing Coding Behavior § (don't bloat past Sprint 2.26's 200-line ceiling). Reference `standards/verification-loop.md` for detail.
+
+**Acceptance criteria**:
+- `cortex-claude-md-augment --apply` writes v3 block; `--remove` on v2 still works (backward-compat removal)
+- v2→v3 upgrade path tested (operator with v2 block runs `--apply`, gets v3 with their non-cortex content preserved)
+- New standard cross-linked from `standards/README.md` index
+- Existing tests still pass (2697 baseline + new tests for v3 marker detection)
+
+**Out of scope** (defer):
+- Auto-generating verification todos via skill (Claude already does this when prompted by the augment block; no need for explicit tooling)
+- Chrome DevTools MCP install automation (`shared/skills/cortex-init/SKILL.md` Step 5 can suggest it; install path is `claude mcp add chrome-devtools`)
+- "Screenshot before commit" git hook — too invasive; let augment block + skills suggest
+
+---
+
+### Sprint 2.28 — Safety-floor permissions: `cortex-permissions-register` CLI (S effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hack #30 — "edit permissions for safe autonomy" replaces `--dangerously-skip-permissions` with explicit `allow` + `deny` lists in `~/.claude/settings.json`. Web research confirmed:
+- Schema is `{ "permissions": { "allow": [...], "deny": [...], "ask": [...] } }` with `Tool(pattern)` syntax e.g. `Bash(npm test:*)`
+- **Precedence is `deny > ask > allow > defaultMode`** — documented at [code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings)
+- Settings hierarchy: managed > CLI flags > local > project > user — so a `deny` at user level holds even if project settings widen `allow`
+
+Cortex already ships [`shared/hooks/block-destructive.cjs`](../shared/hooks/block-destructive.cjs) as a runtime kill-switch but that fires AFTER the operator types `y`. A `deny`-list in `~/.claude/settings.json` short-circuits the prompt — user never gets to approve a `git push --force` because Claude Code never asks. This is the **same Principle 1 / opt-in pattern** Sprint 2.21 used for hooks: cortex never auto-writes; CLI asks consent, writes timestamped backup, idempotent merge.
+
+**Sources**:
+- [`docs/transcripts/32-tricks-claude-code.md`](transcripts/32-tricks-claude-code.md) §hack 30
+- [Claude Code settings reference](https://code.claude.com/docs/en/settings) — official schema + precedence
+- Sprint 2.21 (`bin/cortex-hooks-register.cjs`) — established opt-in consent pattern with backup
+
+**Scope** (4 stories):
+
+**A) `bin/cortex-permissions-register.cjs`** (M effort) — new CLI mirroring `cortex-hooks-register` shape:
+   - Reads `~/.claude/settings.json` (creates `{}` if missing)
+   - Merges curated `permissions.deny` floor + `permissions.allow` baseline (operator can extend `allow` per-project; cortex `deny` stays as the floor)
+   - **Curated `deny` floor** (cortex-owned, the safety contract):
+     - `Bash(rm -rf*)`, `Bash(git push --force*)`, `Bash(git push -f*)`, `Bash(git reset --hard*)`, `Bash(git clean -f*)`, `Bash(git checkout .*)`
+     - `Bash(supabase db reset*)`, `Bash(psql*DROP TABLE*)`, `Bash(psql*TRUNCATE*)`
+     - `Bash(npm publish*)` (catches accidental publishes; operator overrides per-package if intentional)
+     - `Bash(*-i*)` (interactive flags — rebase -i, add -i, etc., which hang headless)
+   - **Curated `allow` baseline** (common-safe ops cortex is confident don't need approval):
+     - `Bash(npm test*)`, `Bash(npm run test:*)`, `Bash(npm run build)`, `Bash(npm run lint*)`, `Bash(npm run typecheck)`
+     - `Bash(git status)`, `Bash(git diff*)`, `Bash(git log*)`, `Bash(git branch*)`, `Bash(git show*)`
+     - `Bash(ls*)`, `Bash(pwd)`, `Bash(node --version)`, `Bash(node -v)`
+     - Cortex own CLIs: `Bash(cortex-*)`
+   - **Identity rule** for distinguishing cortex-owned vs user-added entries: cortex entries listed in `CORTEX_PERMISSIONS_MANIFEST` in the CJS file. On `--remove`, cortex prunes only those listed; user-added entries on same Tool() pattern preserved.
+   - Flags: `--apply` (default), `--remove`, `--status`, `--dry-run`, `--yes`, `--json`. Backup before mutate (`settings.json.backup-<ts>`).
+   - Refuses on orphan markers / non-UTF8 (Sprint 2.21.2 R2 hardening reuse).
+
+**B) `install.sh` + `install.ps1`** (S effort) — third opt-in interactive prompt alongside existing `CORTEX_REGISTER_HOOKS` and `CORTEX_AUGMENT_CLAUDE_MD`. New env: `CORTEX_REGISTER_PERMISSIONS=0|1`. Default OFF in CI/non-TTY, prompt in TTY. INSTALL_NOTES.md updated with the resulting `permissions` block.
+
+**C) `bin/cortex-doctor.cjs`** (S effort) — extend health checks:
+   - "Permissions registered" check — true if `~/.claude/settings.json` `permissions.deny` contains cortex floor entries (signature match)
+   - "Dangerous override detected" check — true if `--dangerously-skip-permissions` recently used (look in `~/.claude/logs/` if accessible) or if `permissions.allow` contains `Bash(*)` (wildcard catch-all overrides the floor)
+   - `--fix-suggestions` prints exact `cortex-permissions-register --apply` invocation
+
+**D) `prompts/onboarding-first-10min.md`** (S effort) — add Step "permissions ready" with the rationale: "instead of `--dangerously-skip-permissions`, cortex ships a safety floor — same speed, deny-precedence means you can't accidentally `rm -rf` even if you typo." Reference [Claude Code settings doc](https://code.claude.com/docs/en/settings).
+
+**Acceptance criteria**:
+- Fresh install with `CORTEX_REGISTER_PERMISSIONS=1` writes safety floor + baseline allow to `~/.claude/settings.json` idempotently (re-run = no diff)
+- `cortex-permissions-register --remove` strips only cortex-owned entries; user-added Tool patterns survive
+- `cortex-doctor` flags missing floor as a recommendation (not error — opt-in stays opt-in)
+- `permissions.deny.Bash(rm -rf*)` actually blocks Claude Code from running `rm -rf node_modules` without approval, verified in fresh-VM smoke test
+- 2697-test baseline preserved; new tests added (`tests/unit/cortex-permissions-register.test.cjs` ~15 tests)
+
+**Out of scope** (defer):
+- Project-level `<project>/.claude/settings.json` permissions templating — operator can copy floor manually; cortex `init`/`audit` skills could suggest later (Sprint 3.x)
+- Web-tool / fetch permissions (cortex's WebSearch+WebFetch autoresearch needs `WebFetch(*)` allow — but Claude Code's default already permits this for the agent)
+- Compliance-style audit log of permission grants/denies (Tier 4 territory)
+
+**Risks**:
+- A `Bash(*-i*)` catch-all could false-positive on legitimate single-letter `-i` flags (e.g. `grep -i`). Counter: pattern is `Bash(*-i*)` matching standalone `-i` arg; refine via `\s-i\s` regex if false positives surface. Test pre-ship.
+- `Bash(npm publish*)` blocks cortex's own publish flow if cortex ever ships to npm (Sprint 4.0.1 territory). Counter: cortex's own publish path is `npx skills add` infra-side, not `npm publish` from operator machine.
+
+---
+
+### Sprint 2.29 — Profile-level MCP recommendations + Context7 default for ai-agent / chatbot-platform (S effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hack #32 — Context7 MCP solves the docs-cutoff staleness problem (Claude trained on snapshot N, framework now at N+M with breaking changes; Claude suggests deprecated APIs). Web research verified [upstash/context7](https://github.com/upstash/context7) is active: 55.2k stars, MIT, latest release `ctx7@0.4.2` 2026-05-11. Fetches version-specific docs into the prompt before Claude writes code.
+
+Cortex profiles currently declare `ai_sdk:` (Sprint 2.x) but no `recommended_mcp_servers:` field. For `ai-agent` and `chatbot-platform` profiles where the operator builds against a fast-moving SDK surface (Vercel AI SDK v6, Claude Agent SDK, OpenAI Agents SDK), Context7 is a clear default.
+
+This is **not a runtime dependency** — cortex never invokes Context7. It's a profile recommendation surfaced during `/cortex-init` Step 5 and at `/cortex-doctor` info-severity output. Operator chooses whether to `claude mcp add context7`.
+
+**Sources**:
+- [`docs/transcripts/32-tricks-claude-code.md`](transcripts/32-tricks-claude-code.md) §hack 32
+- [upstash/context7](https://github.com/upstash/context7) — verified active 2026-05-13 (55.2k ★, MIT)
+- [Claude Code MCP install docs](https://code.claude.com/docs/en/mcp) — `claude mcp add` command
+
+**Scope** (3 stories):
+
+**A) Profile YAML schema extension** (S effort) — add optional `recommended_mcp_servers:` array to profile spec. Touched profiles:
+   - `profiles/ai-agent.yaml` → `[{ name: context7, source: '@upstash/context7', purpose: 'live docs for Vercel AI SDK + Claude Agent SDK + OpenAI Agents SDK to dodge training-cutoff drift' }]`
+   - `profiles/chatbot-platform.yaml` → same Context7 entry + (eventual) `supabase-mcp` once cortex validates it
+   - `profiles/nextjs-saas.yaml` → Context7 (Next.js evolves fast)
+   - `profiles/browser-agent.yaml` → Context7 + Playwright MCP (already implied)
+   - `profiles/qa-engineer.yaml` → Context7 (test-framework docs evolve)
+   - `profiles/minimal.yaml`, `profiles/astro-static.yaml` → no recommendations (KISS profiles)
+   - Schema: each entry has `name` (string), `source` (npm package or git URL), `purpose` (one-line rationale), `install_command` (default: `claude mcp add <name>`)
+
+**B) `shared/skills/cortex-init/SKILL.md` Step 5 extension** (S effort) — after current hooks + CLAUDE.md status reminders, add MCP recommendations section. Reads the resolved profile's `recommended_mcp_servers:` and emits per-entry suggestion: "Operator: `claude mcp add context7` would dodge the docs-cutoff issue for [Vercel AI SDK / Claude Agent SDK]. Want me to walk you through it?" Asks Y/n once per session via `~/.cortex/.first-run-mcp-suggested` marker (don't nag every session).
+
+**C) `bin/cortex-doctor.cjs` info-severity MCP check** (S effort) — extend health checks:
+   - "Recommended MCPs detected" — true if resolved profile's recommended servers all appear in `~/.claude/mcp.json` (or wherever Claude Code stores MCP config; verify path)
+   - INFO severity (never warning) — operator preference, not a cortex requirement
+   - `--fix-suggestions` lists the `claude mcp add <name>` invocations
+
+**Acceptance criteria**:
+- Profile YAML schema documented in `standards/profiles.md` (or extend existing `profiles/README.md` if no schema doc)
+- `/cortex-init` mentions Context7 for ai-agent / chatbot-platform / nextjs-saas / browser-agent / qa-engineer profiles only (not minimal/astro-static)
+- `cortex-doctor --json` reports MCP recommendation status without erroring
+- Operator can disable via `CORTEX_SUGGEST_MCP=0` (mirrors existing opt-out patterns)
+
+**Out of scope** (defer):
+- Auto-installing MCP servers (Principle 1: cortex never auto-modifies user globals)
+- Vendoring Context7 as a cortex dependency
+- Building a cortex-owned MCP server (Sprint 4.x territory)
+- Replacing cortex's WebSearch+WebFetch autoresearch with Context7 — they solve different problems (autoresearch = one-shot deep research with citations; Context7 = on-demand docs lookup during coding)
+
+---
+
+### Sprint 2.30 — Worktree-aware Steward + CLAUDE.md augment v3 final polish (plan mode + ultrathink + worktree safety) (S effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hacks #7 (always start in plan mode), #23 (parallel sessions via `claude --worktree`), #29 (`ultrathink` keyword). Web research verified all three are Anthropic-native CLI features as of May 2026:
+- `--worktree <name>` (shorthand `-w`) creates `.claude/worktrees/<name>/` on branch `worktree-<name>`. Announced by Boris Cherny on Threads. Doc: [code.claude.com/docs/en/worktrees](https://code.claude.com/docs/en/worktrees).
+- `ultrathink` triggers ~31,999-token thinking budget (`MAX_THINKING_TOKENS` env). Tiers: `think` 4K → `think hard`/`megathink` 10K → `ultrathink` 32K. CLI-only.
+- Plan mode (`shift+tab` cycle) restricts to read+research without mutation.
+
+Two cortex implications:
+
+1. **Augment v3 should mention these** — operator working in cortex skill auto-gets the discipline. The Sprint 2.27 v3 bump is the natural carrier (consolidate verification-discipline edits + this polish into one BLOCK_VERSION 3 push).
+
+2. **Steward must refuse non-main worktree** — if Steward cron triggers in a worktree directory by accident (e.g. operator forgot to `cd` back to main worktree before sleep), atomic-commit + push could land on `worktree-feat-X` instead of `main`. Single-line pre-flight: `git rev-parse --show-toplevel` vs the source-of-truth worktree; bail if mismatch.
+
+**Sources**:
+- [`docs/transcripts/32-tricks-claude-code.md`](transcripts/32-tricks-claude-code.md) §hacks 7, 23, 29
+- [Claude Code worktrees doc](https://code.claude.com/docs/en/worktrees) — official
+- [ClaudeLog ultrathink FAQ](https://claudelog.com/faqs/what-is-ultrathink/) — token budget reference
+- Sprint 2.21.1 BLOCK_VERSION 2 → Sprint 2.27 v3 carrier
+
+**Scope** (4 stories, parallelizable):
+
+**A) Augment v3 §Operator-mode reminders** (S effort) — extend the Sprint 2.27 v3 block with a short "Claude Code mode hints" subsection:
+   - "For tasks with ≥3 unknowns or cross-system impact: start in plan mode (`shift+tab`). Plan, get operator sign-off, then exit plan and execute."
+   - "For architecture decisions / non-trivial refactors / ambiguous bug reports: prefix the prompt with `ultrathink` (32K thinking-budget tier)."
+   - "Parallel features → `claude --worktree <name>` or `claude -w <name>`. Each gets isolated `.claude/worktrees/<name>/` on branch `worktree-<name>`."
+   - Order matters: keep this AFTER Sprint 2.27 verification block — augment grows additively, no reorder.
+
+**B) `bin/steward/_lib/worktree-guard.cjs`** (S effort) — pre-flight check for `dry-run.cjs` + `execute.cjs`. Reads `git rev-parse --show-toplevel` and `git worktree list --porcelain`; bails with `STEWARD_WORKTREE_DENIED` error code if cwd is in any worktree other than the primary. New env override `STEWARD_ALLOW_WORKTREE=1` for advanced operators who explicitly want to dogfood Steward on a feature branch. Default refuses (safety floor).
+
+**C) `tests/unit/steward-worktree-guard.test.cjs`** (S effort) — 5+ tests: primary worktree allowed, secondary worktree denied, missing git repo gives clean error (not crash), `STEWARD_ALLOW_WORKTREE=1` overrides, denial includes path of detected worktree in error message.
+
+**D) `prompts/onboarding-first-10min.md` worktree section** (S effort) — 5-line addition: "running 2+ features in parallel? Use `claude --worktree <feat>` per terminal. cortex Steward auto-refuses to run in a non-primary worktree (run it from main, or set `STEWARD_ALLOW_WORKTREE=1` if you know what you're doing)."
+
+**Acceptance criteria**:
+- Augment v3 block visibly contains all three mode-hint lines after `cortex-claude-md-augment --apply`
+- Steward dry-run from inside `.claude/worktrees/feat-x/` exits non-zero with `STEWARD_WORKTREE_DENIED`
+- `STEWARD_ALLOW_WORKTREE=1` bypass works as documented
+- 2697-test baseline preserved
+- No new false-positives on the existing 15 Steward GitHub Actions cron workflows (they run from clone-root, not worktree)
+
+**Out of scope** (defer):
+- Worktree-aware `bin/cortex-doctor` health check (worktrees are short-lived; doctor doesn't need to inventory them)
+- Automatic `claude --worktree` launching from cortex skills (operator preference; skills don't need to fork sessions)
+- Reimplementing worktrees (Claude Code is canonical)
+- `ultrathink` triggering automatically when cortex detects "architecture" / "refactor" / "design" intents (too invasive; let operator opt in)
+
+**Cross-references**:
+- Sprint 2.27 — same BLOCK_VERSION 3 bump (consolidate the two augment edits into a single Sprint-2.27+2.30 commit when both ship)
+- Sprint 1.6.20+ Steward hardening backlog — add `STEWARD_WORKTREE_DENIED` to the existing 17-error-code registry
+
+---
+
 ### Sprint 2.24 — `/cortex-goal` wrapper + Ralph-loop plan template + Steward bridge (M effort) — 📋 PLANNED 2026-05-13
 
 **Why**: Operator surfaced [`docs/transcripts/goals-for-claude-code.md`](transcripts/goals-for-claude-code.md) — YouTube walkthrough of the new `/goal` slash command that just shipped in Claude Code + Codex harnesses. Verified live at [`code.claude.com/docs/en/goal`](https://code.claude.com/docs/en/goal): `/goal` is an officially-documented Claude Code feature, NOT third-party. Mechanic: user sets a condition (≤4000 chars), Claude runs each turn, **haiku** (small fast model) evaluates condition vs. conversation transcript after every turn, returns yes/no + reason. "No" continues with reason injected as guidance; "yes" clears the goal. Goal carries across `--resume` / `--continue`. Works headless via `claude -p "/goal ..."`. Officially a wrapper around session-scoped prompt-based Stop hook.
