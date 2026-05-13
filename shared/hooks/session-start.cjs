@@ -433,6 +433,65 @@ try {
   // Marker unreadable — silently skip; bootstrap is augmentation, not blocker.
 }
 
+// Sprint 2.20.1 — first-run discoverability. The operator's most-common
+// blocker is "I installed cortex-x but didn't remember to type /cortex-init."
+// SessionStart hooks can't auto-invoke skills, but they CAN inject a strong
+// imperative context line that pushes Claude to OFFER /cortex-init proactively
+// before answering the user's first prompt.
+//
+// Detection (all must hold):
+//   - $PWD looks like a real project (has .git OR one of the common manifest
+//     files / src dirs) — skip scratch dirs like /tmp/foo where the operator
+//     would not want a setup picker.
+//   - $PWD has no cortex-x footprint: no CLAUDE.md, no cortex/ artifacts,
+//     no .cortex-bootstrap-pending or cortex/.adapt-pending in-progress marker.
+//   - $PWD is NOT the cortex-x source repo itself (≥2 of install.sh,
+//     install.ps1, bin/cortex-bootstrap.cjs, templates/CLAUDE.md.hbs match).
+//
+// Fail-open: any fs probe error → skip the nudge entirely; never noisy.
+try {
+  const claudeMdExists = fs.existsSync(path.join(ROOT, 'CLAUDE.md'));
+  const cortexArtifactsExist = ['AUDIT.md', 'discovery.md', 'proposal.md', 'recommendations.md']
+    .some((f) => fs.existsSync(path.join(ROOT, 'cortex', f)));
+  const bootstrapPending = fs.existsSync(path.join(ROOT, '.cortex-bootstrap-pending'));
+  const adaptPending = fs.existsSync(path.join(ROOT, 'cortex', '.adapt-pending'));
+
+  const realProjectSignals = [
+    '.git', 'package.json', 'pyproject.toml', 'Cargo.toml',
+    'go.mod', 'Gemfile', 'README.md', 'src',
+  ];
+  const isRealProject = realProjectSignals.some((s) => fs.existsSync(path.join(ROOT, s)));
+
+  const cortexSrcSignals = [
+    'install.sh', 'install.ps1', 'bin/cortex-bootstrap.cjs', 'templates/CLAUDE.md.hbs',
+  ];
+  const insideCortexSource = cortexSrcSignals
+    .filter((s) => fs.existsSync(path.join(ROOT, s))).length >= 2;
+
+  if (
+    isRealProject
+    && !claudeMdExists
+    && !cortexArtifactsExist
+    && !bootstrapPending
+    && !adaptPending
+    && !insideCortexSource
+  ) {
+    ctx.push('');
+    ctx.push('=== cortex-x first-run hint ===');
+    ctx.push('This project has no CLAUDE.md, no cortex/ artifacts, and no in-progress');
+    ctx.push('cortex-x flow. The operator installed cortex-x to make this moment frictionless.');
+    ctx.push('Claude: proactively OFFER /cortex-init as the next action before answering');
+    ctx.push('any unrelated question. Do not wait for the operator to recall the command.');
+    ctx.push('Suggested opening (match the language of prior turns; default Czech for this');
+    ctx.push('operator):  "Vidím, že tahle složka ještě nemá cortex-x setup. Spustím');
+    ctx.push('/cortex-init?"  (English: "I see this folder has no cortex-x setup yet. Run');
+    ctx.push('/cortex-init?"). Skip the offer ONLY if the operator immediately starts an');
+    ctx.push('unrelated concrete task — then defer the suggestion to the end of your reply.');
+  }
+} catch {
+  // Probe failed (permissions, race) — non-blocking; skip the nudge silently.
+}
+
 // Sprint 1.7.6 — Steward activation surface. If the project has a
 // recommendations.md (the Steward input file) but no steward.yml workflow
 // AND no halt switch active, surface ONE line nudge so the user discovers

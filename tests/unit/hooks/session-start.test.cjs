@@ -185,3 +185,109 @@ describe('session-start: PII / Dave-path leak guard', () => {
     );
   });
 });
+
+// Sprint 2.20.1 — first-run discoverability nudge.
+// The hook should detect "this looks like a real project with no cortex-x
+// footprint" and inject a strong imperative so Claude offers /cortex-init
+// without the operator having to remember the command name.
+describe('session-start: first-run discoverability nudge', () => {
+  function mkProject(name) {
+    return fs.mkdtempSync(path.join(os.tmpdir(), `cortex-firstrun-${name}-`));
+  }
+  function rmProject(dir) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  }
+
+  test('fires on a real project with no CLAUDE.md / no cortex artifacts', () => {
+    const dir = mkProject('fires');
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"sample"}');
+      fs.writeFileSync(path.join(dir, 'README.md'), '# sample\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      assert.ok(out, 'expected JSON output');
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.match(ctx, /first-run hint/);
+      assert.match(ctx, /\/cortex-init/);
+    } finally { rmProject(dir); }
+  });
+
+  test('does NOT fire when CLAUDE.md already exists', () => {
+    const dir = mkProject('claudemd');
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"sample"}');
+      fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# Project setup\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.doesNotMatch(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+
+  test('does NOT fire when cortex/AUDIT.md exists (project already audited)', () => {
+    const dir = mkProject('audited');
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"sample"}');
+      fs.mkdirSync(path.join(dir, 'cortex'));
+      fs.writeFileSync(path.join(dir, 'cortex', 'AUDIT.md'), '# audit\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.doesNotMatch(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+
+  test('does NOT fire when .cortex-bootstrap-pending in-progress', () => {
+    const dir = mkProject('pending');
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"sample"}');
+      fs.writeFileSync(path.join(dir, '.cortex-bootstrap-pending'), 'mode=new\nat=2026-05-13T20:00:00Z\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.doesNotMatch(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+
+  test('does NOT fire in a scratch dir with no project signals', () => {
+    const dir = mkProject('scratch');
+    try {
+      // Empty dir — no .git, no package.json, no manifests, no src/.
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.doesNotMatch(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+
+  test('does NOT fire inside the cortex-x source repo itself', () => {
+    // Synthetic cortex-x source — 2+ signals match the SKILL.md edge case.
+    const dir = mkProject('cortex-src');
+    try {
+      fs.writeFileSync(path.join(dir, 'install.sh'), '#!/usr/bin/env bash\n');
+      fs.writeFileSync(path.join(dir, 'install.ps1'), '# ps installer\n');
+      fs.mkdirSync(path.join(dir, 'bin'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'bin', 'cortex-bootstrap.cjs'), '// stub\n');
+      fs.mkdirSync(path.join(dir, 'templates'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'templates', 'CLAUDE.md.hbs'), '# tpl\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.doesNotMatch(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+
+  test('fires when only .git is present (newly-init git repo)', () => {
+    const dir = mkProject('gitonly');
+    try {
+      // .git alone is enough to count as a real project — operator just ran
+      // `git init`, hasn't added files yet. Hook should still offer /cortex-init.
+      fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
+      fs.writeFileSync(path.join(dir, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+      const r = runSessionStartIn(dir);
+      const out = parseHookOutput(r.stdout);
+      const ctx = out.hookSpecificOutput.additionalContext;
+      assert.match(ctx, /first-run hint/);
+    } finally { rmProject(dir); }
+  });
+});
