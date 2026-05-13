@@ -36,7 +36,7 @@ The installer is a 600-line bash script. The first thing it does is **clone the 
 ├── agents/                          — 9 review-pipeline subagents
 ├── detectors/                       — auto-profile + auto-stage classifiers
 ├── templates/                       — Handlebars templates for scaffold output
-├── tests/                           — 2339 tests across 8 tier gates
+├── tests/                           — 2697 tests across 8 tier gates
 ├── docs/                            — long-form docs + research memos
 └── install.{sh,ps1}
 ```
@@ -151,7 +151,7 @@ Source:    ~/cortex-x
 Installed: ~/.claude/shared
 Profile:   dev
 Language:  English
-Tests:     2339 pass
+Tests:     2697 pass
 
 Next steps:
   1. (optional) Add to PATH: export PATH="$HOME/.claude/shared/bin:$PATH"
@@ -188,7 +188,7 @@ cortex-x library: no entry for 'random'
 
 cortex-x discovery (tip shown once / 18h):
   • Type /cortex-help inside Claude Code for one-screen capability menu
-  • Machine-readable inventory: cortex/capabilities.md (16 action_kinds, 26 standards, 11 profiles, 7 hooks, 18 workflows)
+  • Machine-readable inventory: cortex/capabilities.md (17 action_kinds, 28 standards, 11 profiles, 7 hooks, 18 workflows)
   • Web research: cortex defaults to dispatching WebSearch+WebFetch on external-state tasks
 ```
 

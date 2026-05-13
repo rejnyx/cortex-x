@@ -19,6 +19,9 @@ CLI entry points shipped to `~/.claude/shared/bin/` (or `~/.cortex/bin/` dependi
 | `cortex-evolve-ab` | _(direct)_ | `cortex-evolve-ab.cjs` | A/B prompt champion-vs-challenger eval harness. Subcmds: `run`, `compare`. |
 | `cortex-export-lessons` | _(direct)_ | `cortex-export-lessons.cjs` | Export top-K lessons to Claude Code auto-memory directory. |
 | `cortex-doc-audit` | _(direct)_ | `cortex-doc-audit.cjs` | Score markdown docs for agent-readability (Sprint 2.8.3 agent-first docs scorer). |
+| `cortex-hooks-register` | _(direct)_ | `cortex-hooks-register.cjs` | Opt-in idempotent JSON merge of cortex hooks into `~/.claude/settings.json` with timestamped backup. Identity rule: entries with `hooks[].command` path under `.claude/shared/hooks/` are cortex-owned; user entries on same event preserved. Flags: `--apply` (default), `--remove`, `--status`, `--dry-run`, `--yes`, `--json`. Sprint 2.21. |
+| `cortex-claude-md-augment` | _(direct)_ | `cortex-claude-md-augment.cjs` | Opt-in BEGIN/END-marker append of cortex discipline block to `~/.claude/CLAUDE.md` (R1+R2+TodoWrite+voice+surgical). v2 block (Sprint 2.21.1). Refuses on orphan markers or non-UTF8 content (Sprint 2.21.2 R2 hardening). Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json`. |
+| `cortex-doctor` | `/cortex-doctor` skill | `cortex-doctor.cjs` | Health-check + drift detection: node version, source clone, data home subdirs, shared/ subdirs, required+recommended skills, agents count, hooks registered, CLAUDE.md block, git remote. Flags: `--json`, `--fix-suggestions`. Exit 0 if no errors, 1 if any. Sprint 2.21. |
 
 ## Subdirectories
 

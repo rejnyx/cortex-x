@@ -34,7 +34,7 @@ When this section becomes relevant, the rules below apply.
 
 1. **Tests pass locally** — run before pushing:
    ```bash
-   npm test                  # full suite (unit + contract + integration), ~27 sec at 2339 tests
+   npm test                  # full suite (unit + contract + integration), ~26 sec at 2697 tests
    npm run test:smoke        # post-install verification (after install.sh has run)
    ```
 2. **Cross-platform sanity** (if your change touches `install.{sh,ps1}`, hooks, or detectors):

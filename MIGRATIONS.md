@@ -1406,3 +1406,66 @@ Picker now finds rec #6 (no `[HUMAN-ONLY]` marker, no `(DONE)` marker). Rec #6 b
 - Sprint 2.2.5 v0 splice primitive: 2026-05-10 commit `09dabb2`
 - Sprint 2.2.5 v1 (str_replace + insert ops + LLM-as-code defense): 2026-05-10 commit `09dabb2`
 - v1 dogfood failure (rec #1 / 6 / 7 marked HUMAN-ONLY): commits `1d46b19` + `6930929`
+
+## Sprint 2.20 → 2.21.2 — Fresh-user wow-parity chain (2026-05-13)
+
+5-commit chain that closed the gap between operator's session experience and fresh-installer experience. **No breaking changes**; all additive. Operators on prior versions: re-run `bash ~/cortex-x/install.sh` (or `~/cortex-x/install.ps1`) to pick up the new opt-in prompts + 4 new CLI shims.
+
+### What landed (5 commits 2026-05-13 afternoon→evening)
+
+| Sprint | Commit | What |
+|---|---|---|
+| 2.20 v0 | `6ff95ac` | `bin/cortex-update.cjs` — fetch source clone, fast-forward, re-run installer. Flags `--check` (exit 10 if behind) / `--reinstall` / `--json`. Plus idiot-proof `/cortex-init` source-repo detection (4-signal structural match instead of single CLAUDE.md grep). |
+| 2.20.1 | `97303c8` | SessionStart hook first-run nudge — Claude proactively offers `/cortex-init` when project has real files, no CLAUDE.md, no cortex artifacts, not inside cortex-x source. |
+| 2.20.2 | `58ed6a6` | `bin/cortex-uninstall.cjs` — content-hash-aware removal. Preserves `$CORTEX_DATA_HOME` by default. Flags `--purge` (DESTRUCTIVE), `--backup`, `--keep-source`, `--dry-run`, `--yes`, `--json`. |
+| 2.20.3 | `7e7dfea` | Natural-language install-discovery in cortex-init + cortex-help. CZ+EN explicit trigger phrases ("nainstaloval jsem cortex", "kde je cortex", "I installed cortex", etc.). Step 0a reads `cortex-source.yaml` to report install state. |
+| 2.21 v0 | `4a67684` | 3 opt-in CLIs + cortex-doctor: **`cortex-hooks-register`** (idempotent JSON merge into ~/.claude/settings.json with timestamped backup; identity rule = `hooks[].command` path under `.claude/shared/hooks/` is cortex-owned); **`cortex-claude-md-augment`** (BEGIN/END-marker append of discipline block to ~/.claude/CLAUDE.md; user content outside markers untouched); **`cortex-doctor`** + `/cortex-doctor` skill (10-check health audit with `--fix-suggestions`). Plus `/cortex-init` Step 3+4+5 = 30-second 3-tier memory briefing + inline Steward offer + hooks/CLAUDE.md status reminder. |
+| 2.21.1 | `7579da8` | Discipline block v2 expansion (TodoWrite proactively + Think before code + Surgical changes + Counts not praise/voice charter) appended to `~/.claude/CLAUDE.md` via cortex-claude-md-augment. Auto-upgrade path: operators with v1 block get v2 in-place on next `cortex-claude-md-augment --apply`. |
+| 2.21.2 | `d7dae13` | R2 hardening — 6 HIGH findings from 6-agent parallel review closed: orphan BEGIN/END markers in CLAUDE.md refused (data-loss guard); non-UTF8 CLAUDE.md refused (silent-corruption guard); `hooks: null` / `[]` / string tolerated (no exit-2 crash); Windows /dev/tty fallback to fs.readSync(0); INSTALL_NOTES.md heredoc aligned with HOOK_SPEC (PreCompact event was missing); RECOMMENDED_SKILLS aligned with install promotion loop. +9 regression tests. |
+
+### Install-side new prompts
+
+`install.sh` and `install.ps1` now ask two opt-in Y/n questions after verification PASSED. Skip via env vars (for CI / unattended):
+
+```bash
+CORTEX_REGISTER_HOOKS=0|1   # 0 = skip prompt + skip register, 1 = register without prompting
+CORTEX_AUGMENT_CLAUDE_MD=0|1  # 0 = skip, 1 = augment without prompting
+```
+
+Both target user-edited globals (`~/.claude/settings.json`, `~/.claude/CLAUDE.md`) — Principle 1 (never auto-touch user globals) is preserved by requiring explicit consent + timestamped backup + idempotent re-run.
+
+### New shims in `~/.claude/shared/bin/` (auto-installed)
+
+- `cortex-update` · `cortex-uninstall` · `cortex-hooks-register` · `cortex-claude-md-augment` · `cortex-doctor` (5 added in this chain; total now 10 user-facing shims)
+
+### Test growth
+
+| Before | After | Delta |
+|---|---|---|
+| 2602 (Sprint 2.20 start) | 2697 (Sprint 2.21.2 close) | +95 tests across 5 new test suites: cortex-update.test.cjs (13) · cortex-uninstall.test.cjs (15) · cortex-hooks-register.test.cjs (20+4) · cortex-claude-md-augment.test.cjs (20+3) · cortex-doctor.test.cjs (11) · session-start.test.cjs +7 (first-run nudge regression) |
+
+### Migration path for existing operators
+
+```bash
+cd ~/cortex-x && git pull --ff-only origin main
+bash install.sh   # or install.ps1 — asks two new Y/n prompts
+```
+
+OR (without prompts, fully consent-explicit):
+
+```bash
+CORTEX_REGISTER_HOOKS=1 CORTEX_AUGMENT_CLAUDE_MD=1 bash install.sh
+```
+
+OR (from inside Claude Code):
+
+```
+cortex-update          # fetches + reinstalls in one step
+cortex-doctor          # health-check the new install
+```
+
+### Reference
+
+- Roadmap entries: `docs/steward-roadmap.md` Sprint 2.20 / 2.21 / 2.21.2 + planned Sprint 2.21.3 (8 MED findings deferred)
+- Memory entries: `~/.claude/projects/c--Users-david-Desktop-APPs-cortex-x/memory/project_cortex_sprint_2_2{0,1}_*.md`
+- 6-agent R2 review pipeline output: see `2.21.2` commit body for triage table

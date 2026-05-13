@@ -38,7 +38,7 @@ See [prompts/cortex-load.md](./prompts/cortex-load.md) for the authoritative men
 
 ## Status
 
-**v0.3-pre, public-ready** (Apache 2.0 relicense 2026-05-12). Tier 0 (Foundation) ✅ shipped. Tier 1 (Verification + multi-agent) ✅ mostly shipped — Sprint 1.9 + 2.0–2.1 + 2.2.5 + 2.3a + 2.5b + 2.6b + 2.11 + 2.18 all landed; Sprint 2.3b mutation-runner integration deferred (operator OK pending). Tier 2/3/4 ⏳ ahead. **2339 tests, 0 failing.** 16 action_kinds in Steward registry (14 shipped, 2 declared-not-shipped). 6 acceptance-criterion kinds in spec-verifier.
+**v0.3-pre, public-ready** (Apache 2.0 relicense 2026-05-12). Tier 0 (Foundation) ✅ shipped. Tier 1 (Verification + multi-agent) ✅ mostly shipped — Sprint 1.9 + 2.0–2.1 + 2.2.5 + 2.3a + 2.5b + 2.6b + 2.11 + 2.18 all landed; Sprint 2.3b mutation-runner integration deferred (operator OK pending). **Sprint 2.20 + 2.21 + 2.21.2 chain shipped 2026-05-13** — fresh-user wow-parity layer: cortex-update / cortex-uninstall / cortex-hooks-register / cortex-claude-md-augment / cortex-doctor CLIs + /cortex-doctor skill + Phase 5.5 onboarding briefing + 6 HIGH R2-review findings closed (orphan-marker / non-UTF8 / hooks-null / Windows-TTY / INSTALL_NOTES-SSOT / RECOMMENDED_SKILLS-SSOT). Tier 2/3/4 ⏳ ahead — Sprint 2.22/2.24/2.25/2.26/LR.8 + 4.0.1 in roadmap, transcript-driven. **2697 tests, 0 failing.** 17 action_kinds in Steward registry. 6 acceptance-criterion kinds in spec-verifier. 10 user-facing CLI shims in `~/.claude/shared/bin/`. 7 user-discoverable slash skills (cortex-init · cortex-help · cortex-doctor · audit · designer · start · test-audit).
 
 ## Tech Stack
 
@@ -130,7 +130,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 
 ## Roadmap
 
-**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-8 QA infrastructure: started at 207 tests 2026-05-07, now 2339 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates) + **QA Retrofit lens shipped 2026-05-09 Sprint 2.10** (`prompts/qa-retrofit.md` + `profiles/qa-engineer.yaml` + `shared/skills/test-audit/SKILL.md` + 2 hbs templates with 3-hop citation traceability; ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM + tsDetect FSE'20 grounded; AI-augmented-tester positioning, not replacement)
+**Phase 1 — Foundation** ✅ shipped (foundation + Tier 0-8 QA infrastructure: started at 207 tests 2026-05-07, now 2697 tests, 5-lane CI matrix, hook contract + prompt regression as hard gates) + **QA Retrofit lens shipped 2026-05-09 Sprint 2.10** (`prompts/qa-retrofit.md` + `profiles/qa-engineer.yaml` + `shared/skills/test-audit/SKILL.md` + 2 hbs templates with 3-hop citation traceability; ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM + tsDetect FSE'20 grounded; AI-augmented-tester positioning, not replacement)
 - Shared hooks (block-destructive, session-start [+ detector integration 2026-04-20], pre-compact, auto-orchestrate, post-tool-use, **tirith-scan** — context-file injection scanner wrapper, optional MIT Rust binary)
 - Templates (CLAUDE.md, PROGRESS.md, MEMORY.md, settings.json, README.md, **SKILL.md** — agentskills.io spec scaffold)
 - Rule 1 standards (SSOT, Modular, Scalable) + Rule 1.5 (Coding Behavior + **Auto-Optimization** wizard philosophy) + Rule 2 Critical (Security, Testing, Observability, **Correctness**, **Self-Correction**) — all added or extended 2026-04-20
@@ -168,6 +168,7 @@ The 8-tier QA architecture (Tier 4 hook contract + Tier 5 prompt regression are 
 - 6-signal scoring for autoDream promotion
 - Graph expansion (2-hop) over memories
 - `DREAMS.md` human-readable consolidation output
+- **Operator-edited memory consolidation slice** — Sprint 2.25 planned (the 4-op consolidator: merge duplicates / remove contradicted / relative→absolute dates / aggressive 200-line prune targeting `MEMORY.md` + `~/.cortex/projects/<slug>.md`; existing `wiki_consolidate` only handles machine-written `lessons.jsonl`)
 
 **Phase 7 — Steward runtime (originally codenamed Hermes)** ✅ v0.5b shipped (2026-05-07) · ⏳ v1 cron triggers pending
 - ✅ All 5 pre-launch RFC gates closed
