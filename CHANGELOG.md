@@ -4,6 +4,26 @@ All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangel
 
 ## [Unreleased]
 
+### Added (2026-05-13 — Sprint 2.19 + 2.20 + 2.8.1 + 3.2 + 3.0 v0/v1 + LR.1 closure)
+
+**5-sprint chain shipped 2026-05-13** (commits `461e9ed` → `ec5457c`). cortex-x crossed into **Tier 2 (Compound learners)** with two first-Tier-2 sprints shipped same day; Phase 5 self-improvement pulled from "designed" → "running"; full memory pipeline (lessons.jsonl → FTS5 + Claude Code auto-memory exporter); first real-LLM eval baseline captured.
+
+**Sprint 2.20** — memory-system competitor lens in `docs/positioning.md` (commit `461e9ed`). Second comparison matrix vs Mem0 / Zep / Letta / MAF+Neo4j / OpenClaw Dreaming / Anthropic Auto Dream; verdict: cortex-x is adjacent to memory-SaaS, not competing — atomic-rollback + multi-window USD caps + draft-PR approval differentiator absent across all named competitors.
+
+**Sprint 2.19** — daily Dreaming consolidation cron (commit `b147ed2`). New `evolve_daily` action_kind + GHA workflow `steward-evolve-daily.yml` (cron `0 3 * * *`). Pure-deterministic Phase A from `prompts/cortex-evolve.md`: journal schema validation + insights/cortex/projects stale-flagging + advisory rollup to `insights/proposals/<date>-evolve-daily.md`. Industry slovník alignment ("Dreaming"/"Auto Dream"/"NREM+REM consolidation") in README + `docs/vision.md`.
+
+**Sprint 2.8.1** — lessons.jsonl → Claude Code auto-memory exporter (commits `fa27d86` → `7b501a2` + `c7e1a11` cross-platform fix). New `bin/cortex-export-lessons.cjs` CLI + library: pure-deterministic export of scored lessons to `~/.claude/projects/<slug>/memory/lessons-<kind>.md` topic files + MEMORY.md index, with frontmatter matching Claude Code auto-memory contract. Per-topic split (one file per `action_kind`), decay-aware top-K (default 10), uni-directional write. Path-traversal hardening per security-auditor R2 findings.
+
+**Sprint 3.2** — FTS5 lessons index (commits `575d16b` → `a05ffab`). **First Tier 2 sprint shipped.** SQLite FTS5 virtual table via Node 22.5+ built-in `node:sqlite`. Zero npm deps. Three search helpers: `searchByText` (bm25-ranked), `searchByActionKind`, `searchByErrorCode`. Operator CLI `bin/cortex-lessons-search.cjs` with build/text/kind/code subcommands. Feature-detected gracefully on Node < 22.5.
+
+**Sprint 3.0 v0 + v1** — AlphaEvolve-style A/B harness (commits `7610cf2` → `ed3d853` + `29015d7`). **Tier 2 moonshot foundation.** Champion-vs-challenger measurement harness: bootstrap CI (mulberry32-seeded for reproducibility), 3-rule promotion decision (point delta + lower-CI gate + validation spec_pass_rate non-regression), pluggable executor with both `mockExecutor` (v0) and real-LLM `openrouterExecutor` (v1) + cost guard. CLI `bin/cortex-evolve-ab.cjs` (`run` + `compare` subcommands). Honest "N=10 << N=400-600" directional-only disclaimer surfaced in CLI output. v2 deferred: LLM-as-judge rubric scoring, population search, real-LLM eval-suite growth.
+
+**Sprint LR.1 closure** — real-LLM eval baseline captured (commit `3014f02` → `ec5457c`). `evals/results/2026-05-13-baseline-real-llm.json`: 3 tasks × 1 trial × deepseek-v4-flash via OpenRouter; $0.0016 total cost; 3/3 smoke-passed; 714–1272 ms per trial. End-to-end proof that OpenRouter auth + model selection + cost capture + harness scoring contract all work against operator's new inference key (rotated 2026-05-13 after prior provisioning key returned AUTH_REJECTED). Full 10-task LLM-as-judge baseline deferred to Sprint 3.0 v2.
+
+**Test growth**: 2349 → 2420 tests (+71 across 5 sprints). **Workflow growth**: 19 → 22 (+3: evolve-daily, key-probe, eval-baseline).
+
+**3 new roadmap sprints added**: 2.19, 2.20, 4.9 (Ambient PWA briefing — defensible whitespace per brain-kit research memo 2026-05-13).
+
 ### Added (2026-05-12 — Sprint LR.1: real-state baseline + Phase 5 disclaimer refresh)
 
 **Commit `b65c19c`**. Closes Sprint LR.1 partially:
