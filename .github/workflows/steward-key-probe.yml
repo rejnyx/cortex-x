@@ -1,0 +1,86 @@
+# steward-key-probe.yml — Sprint 3.0+ operator-paced smoke test.
+#
+# One-off minimal probe of OPENROUTER_API_KEY secret. Confirms the key
+# is INFERENCE (not provisioning) by hitting /v1/chat/completions with
+# a tiny deepseek-v4-flash call. Cost: ~$0.0001/run.
+#
+# Failure modes it surfaces:
+#   - 401 Missing Authentication header  → trailing \n in secret (use
+#     printf %s, not echo)
+#   - 401 Auth rejected / "user not found"  → wrong key entirely
+#   - 401 with "not allowed to call this endpoint"  → PROVISIONING key
+#     (correct shape but only /models, not /chat/completions)
+#   - 200 + content                        → ✅ inference key works
+#
+# Manual trigger only; not on schedule. Operator workflow_dispatch.
+
+name: steward openrouter-key-probe
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: steward openrouter-key-probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+      - name: Probe OpenRouter inference endpoint
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          node -e "
+          (async () => {
+            const key = process.env.OPENROUTER_API_KEY;
+            if (!key) { console.log('FAIL: OPENROUTER_API_KEY secret not set'); process.exit(1); }
+            console.log('Key length:', key.length, 'prefix:', key.slice(0, 8));
+            const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + key,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'deepseek/deepseek-v4-flash',
+                messages: [{ role: 'user', content: 'Reply with the literal string KEY_OK and nothing else.' }],
+                max_tokens: 10,
+              }),
+            });
+            console.log('HTTP', r.status);
+            const text = await r.text();
+            if (r.status >= 200 && r.status < 300) {
+              try {
+                const j = JSON.parse(text);
+                const reply = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+                console.log('Reply:', JSON.stringify(reply));
+                console.log('Usage:', JSON.stringify(j.usage));
+                if (typeof reply === 'string' && reply.length > 0) {
+                  console.log('PROBE_OK: inference key works end-to-end.');
+                  process.exit(0);
+                }
+                console.log('PROBE_DEGRADED: 200 but no content in response.');
+                process.exit(2);
+              } catch (e) {
+                console.log('PROBE_DEGRADED: 200 but body not parseable JSON:', text.slice(0, 200));
+                process.exit(2);
+              }
+            }
+            console.log('Body (first 500 chars):', text.slice(0, 500));
+            if (r.status === 401) {
+              if (/missing.*auth/i.test(text)) console.log('Diagnosis: header empty/malformed (trailing \\n?).');
+              else if (/not.*allowed|provisioning/i.test(text)) console.log('Diagnosis: provisioning key, not inference. Generate inference key from OpenRouter dashboard.');
+              else console.log('Diagnosis: auth rejected. Verify key value.');
+            }
+            console.log('PROBE_FAIL');
+            process.exit(1);
+          })().catch(e => { console.log('ERROR:', e && e.message); process.exit(3); });
+          "
