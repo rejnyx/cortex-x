@@ -1094,7 +1094,16 @@ PHASE C — DELIVER (deterministic)
 
 **Goal**: turn cortex-x into a self-evolving system. After Tier 2, prompts/strategies/skills get measurably better every week without operator intervention.
 
-### Sprint 3.0 — AlphaEvolve-style prompt evolution (L effort, ⭐ MOONSHOT) — ✅ v0 SHIPPED 2026-05-13
+### Sprint 3.0 — AlphaEvolve-style prompt evolution (L effort, ⭐ MOONSHOT) — ✅ v0 + v1 + v2 SHIPPED 2026-05-13
+
+**v2 shipped 2026-05-13** — LLM-as-judge rubric scoring:
+- `bin/steward/_lib/rubric-extractor.cjs` — pure-deterministic parser of eval task `## Expected properties` checklist into structured `{must_have, should_have, must_not_have}` arrays with stable positional ids. `scoreFromRubric()` recomputes final 0..1 score deterministically from judge-returned booleans (judge cannot fudge the math). Refusal short-circuit (refusal_detected:true → score 0).
+- `bin/steward/_lib/eval-judge.cjs` — LLM-as-judge via OpenRouter. Default model `anthropic/claude-sonnet-4.6` (different family from candidates → kills self-preference bias). System prompt enforces CoT-before-booleans + per-item evidence quotes + explicit refusal flag. Deep structural validator (mirrors `llm-judge-schema.cjs` pattern). Soft-fall to v1 smoke on judge failure.
+- `bin/cortex-evolve-ab.cjs` — `--judge` + `--judge-model` flags.
+- 22 tests (`rubric-extractor.test.cjs` + `eval-judge.test.cjs`): extraction shape, score weights (must=1.0, should=0.5, must_not=−1.0), refusal short-circuit, partial-pass scaling, all 5 judge-bias defenses validated.
+- R1 memo: [`docs/research/sprint-3.0-v2-llm-as-judge-2026-05-13.md`](./research/sprint-3.0-v2-llm-as-judge-2026-05-13.md) — Anthropic Sonnet vs DeepSeek judge cost, 5 self-bias defenses, cost ceiling math ($0.68/eval-run, <3% of $25/week cap).
+
+**v0 shipped 2026-05-13** — measurement harness, NOT full evolution engine:
 
 **v0 shipped 2026-05-13** — measurement harness, NOT full evolution engine:
 - `bin/steward/_lib/eval-scorer.cjs` (~210 LoC) — pure-math bootstrap CI (mulberry32-seeded for determinism), 3-rule champion-vs-challenger decision (point delta + lower-CI gate + validation spec_pass_rate non-regression).

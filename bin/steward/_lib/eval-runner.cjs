@@ -105,6 +105,19 @@ function makeOpenRouterExecutor(opts = {}) {
   const endpoint = opts.endpoint || 'https://openrouter.ai/api/v1/chat/completions';
   const variantPromptText = opts.variantPromptText || '';
 
+  // Sprint 3.0 v2 — judge configuration. judgeEnabled=true → rubric-driven
+  // scoring; otherwise smoke (response-length) scoring as in v1.
+  const judgeEnabled = opts.judgeEnabled === true;
+  const judgeModel = opts.judgeModel;
+  const judgeApiKey = opts.judgeApiKey || apiKey;
+  const judgeFetchImpl = opts.judgeFetchImpl || fetchImpl;
+  let evalJudge = null;
+  let rubricExtractor = null;
+  if (judgeEnabled) {
+    evalJudge = require('./eval-judge.cjs');
+    rubricExtractor = require('./rubric-extractor.cjs');
+  }
+
   let cumulativeCost = 0;
 
   async function exec({ variant_id, task_id, trial, task }) {
@@ -173,17 +186,60 @@ function makeOpenRouterExecutor(opts = {}) {
       };
     }
     const responseText = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
-    const cost_usd = (body && body.usage && Number(body.usage.cost)) || 0;
+    // Sprint 3.0 v2 R2 (security-auditor MED): clamp non-negative.
+    const cost_usd = Math.max(0, (body && body.usage && Number(body.usage.cost)) || 0);
     cumulativeCost += cost_usd;
-
-    // Smoke score: 1.0 if non-empty response, 0 otherwise. Sprint 3.0 v2
-    // will replace with LLM-as-judge against rubric checklist.
     const responseStr = typeof responseText === 'string' ? responseText : '';
-    const score = responseStr.trim().length >= 32 ? 1.0 : 0;
-    // spec_pass mirrors the smoke threshold; true rubric-driven spec_pass
-    // lands with v2 LLM-as-judge scoring.
-    const spec_pass = score >= 1.0;
 
+    // Sprint 3.0 v2 — judge-driven rubric scoring (when enabled).
+    // Fall back to smoke (response-length) scoring on any judge failure,
+    // mirroring senior-tester-action.cjs soft-fail pattern.
+    if (judgeEnabled && evalJudge && rubricExtractor) {
+      const rubric = rubricExtractor.extractRubric(task && task.body);
+      const judgeResult = await evalJudge.runJudge({
+        taskId: task_id,
+        candidateResponse: responseStr,
+        rubric,
+        apiKey: judgeApiKey,
+        model: judgeModel,
+        fetchImpl: judgeFetchImpl,
+      });
+      if (judgeResult.ok) {
+        const scored = rubricExtractor.scoreFromRubric(rubric, judgeResult.judge);
+        cumulativeCost += judgeResult.cost_usd;
+        return {
+          score: scored.score,
+          spec_pass: scored.score >= 0.8 && !judgeResult.judge.refusal_detected,
+          duration_ms,
+          cost_usd: cost_usd + judgeResult.cost_usd,
+          response_text: responseStr,
+          cumulative_cost_usd: cumulativeCost,
+          model_used: model,
+          judge_used: judgeResult.model_used,
+          judge_reasoning: judgeResult.judge.reasoning,
+          judge_breakdown: scored.breakdown,
+          refusal_detected: judgeResult.judge.refusal_detected,
+        };
+      }
+      // Judge failed → soft-fall to smoke; capture failure code for debugging.
+      const smokeScore = responseStr.trim().length >= 32 ? 1.0 : 0;
+      return {
+        score: smokeScore,
+        spec_pass: smokeScore >= 1.0,
+        duration_ms,
+        cost_usd,
+        response_text: responseStr,
+        cumulative_cost_usd: cumulativeCost,
+        model_used: model,
+        judge_unavailable: true,
+        judge_error_code: judgeResult.code,
+        judge_error: judgeResult.error,
+      };
+    }
+
+    // v1 smoke score: 1.0 if non-empty response, 0 otherwise.
+    const score = responseStr.trim().length >= 32 ? 1.0 : 0;
+    const spec_pass = score >= 1.0;
     return {
       score,
       spec_pass,

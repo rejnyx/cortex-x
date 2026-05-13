@@ -53,6 +53,10 @@ Options (run):
   --max-tokens=<n>           openrouter max_tokens per call (default 2048)
   --max-cost-usd=<f>         abort run when cumulative cost exceeds
                              (default 1.0 USD)
+  --judge                    enable LLM-as-judge rubric scoring (Sprint 3.0 v2)
+                             default judge model: anthropic/claude-sonnet-4.6
+  --judge-model=<id>         override judge model (e.g. deepseek/deepseek-v4-flash
+                             for self-judging baseline; not recommended per R1)
   --json                     emit JSON summary
 
 Options (compare):
@@ -103,6 +107,8 @@ async function cmdRun(args) {
         maxTokens: flag('max-tokens', args) ? Number(flag('max-tokens', args)) : undefined,
         maxCostUsd: flag('max-cost-usd', args) ? Number(flag('max-cost-usd', args)) : 1.0,
         variantPromptText,
+        judgeEnabled: isFlag('judge', args),
+        judgeModel: flag('judge-model', args),
       });
     } catch (err) {
       process.stderr.write(`Error: ${err.message}\n`);
