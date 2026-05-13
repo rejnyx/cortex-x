@@ -1398,6 +1398,37 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint 4.0.1 — agentskills.io ecosystem participation (S effort, deferred polish) — 📋 PLANNED 2026-05-13
+
+**Why now**: Operator landscape check 2026-05-13 surfaced **`google/skills`** (7,662 ★ in 6 weeks, Apache-2.0, created 2026-03-31) — Google's vendor content packs (Gemini API · BigQuery · Cloud Run · GKE · AlloyDB · Firebase · Cloud SQL · WAF: Security/Reliability/Cost) distributed via `npx skills add google/skills`. They use the **identical** [agentskills.io](https://agentskills.io) SKILL.md spec cortex-x adopted in Sprint 1.x (`standards/skills.md`). 37+ agent products now interop on this spec including Claude Code, Cursor, GitHub Copilot, Gemini CLI, Goose, OpenHands, OpenAI Codex, Mistral Vibe.
+
+This is **validation, not competition**:
+- google/skills = vendor-specific **content packs** (GCP only)
+- cortex-x = **framework + safety + discipline + Steward**
+- Same `~/.claude/skills/` install path, zero name collision (cortex uses `cortex-*`, google uses `gemini-api/alloydb-basics/...`)
+- User can `curl install.sh | bash` (cortex-x) AND `npx skills add google/skills` (GCP packs) on the same machine — complementary coverage
+
+**Scope** (3 actions, S effort each, parallel):
+
+1. **README ecosystem section** (5 min): one paragraph positioning cortex-x as framework + safety, third-party content packs (google/skills, laravel/boost, ...) as complementary. Links to agentskills.io showcase. **Hodnota**: free credibility — "we play with others".
+
+2. **`cortex-doctor` third-party-skill awareness** (30 min): when scanning `~/.claude/skills/`, distinguish cortex-owned (skill names in `bin/cortex-doctor.cjs` REQUIRED_SKILLS + RECOMMENDED_SKILLS) from third-party. Report third-party as info-severity ("3 third-party skills detected: google/skills/gemini-api, …"). Never warn or remove. Tests added to existing `tests/unit/cortex-doctor.test.cjs`.
+
+3. **`Rejnyx/cortex-skills` registry publish** (2-3h): new public repo containing copies of cortex-x's 7 user-discoverable skills (cortex-init, cortex-help, audit, designer, start, test-audit, cortex-doctor) in `npx skills`-compatible structure. Auto-generated from `~/cortex-x/shared/skills/` via a `tools/publish-skills.cjs` script run on tag. Distribution flag: lightweight on-ramp for users who want slash commands without the full framework install.
+
+**Out of scope**: dependency between cortex-x install and `npx skills` runtime (we never call `npx skills` from install.sh — they're independent install paths).
+
+**Dependencies**: `npx skills` CLI must remain stable (it's `skills.sh` infrastructure, externally maintained). Track [agentskills/agentskills](https://github.com/agentskills/agentskills) for spec changes.
+
+**Source signals**:
+- [google/skills](https://github.com/google/skills) — 7,662 ★, Apache-2.0
+- [agentskills.io standard](https://agentskills.io) — Anthropic-originated spec, now multi-vendor
+- [agentskills.io clients showcase](https://agentskills.io/clients) — 37+ adopters
+
+**Hackathon-immediate value**: if next hackathon runs on GCP, `cortex-update && npx skills add google/skills` before kickoff = cortex framework + Google Cloud expertise instantly available. Worth testing in the field before deciding whether to invest in action 3 (registry publish).
+
+---
+
 ### Sprint 4.1 — WaaS angle for clients (M-L effort, $$$ lever)
 
 **Why**: a barbershop WaaS client, an e-commerce chatbot client, a booking-platform client — the operator's existing clients. Each gets own Steward instance. $50/month per client = recurring revenue + tangible AI value-add.
