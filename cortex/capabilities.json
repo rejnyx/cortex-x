@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T13:11:05.582Z",
+  "generated_at": "2026-05-13T13:24:31.347Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -190,6 +190,12 @@
       "path": "bin/steward/_lib/cost-safety.cjs",
       "sprint": "Sprint 1.9.1",
       "description": "Sprint 1.9.1 multi-window cost safety + loop detector"
+    },
+    {
+      "name": "doc-agent-readability",
+      "path": "bin/steward/_lib/doc-agent-readability.cjs",
+      "sprint": "Sprint 2.8.3",
+      "description": "bin/steward/_lib/doc-agent-readability.cjs — Sprint 2.8.3 v0"
     },
     {
       "name": "env",
@@ -732,6 +738,12 @@
   ],
   "prompts": [
     {
+      "name": "agent-first-audit",
+      "path": "prompts/agent-first-audit.md",
+      "title": "Agent-first docs audit — Sprint 2.8.3 v0",
+      "purpose": ""
+    },
+    {
       "name": "auto-review",
       "path": "prompts/auto-review.md",
       "title": "Auto-Review — post-implementation parallel pipeline",
@@ -1100,15 +1112,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2279,
+      "unit": 2300,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2443
+    "total": 2464
   },
   "code_volume": {
-    "steward_runtime_loc": 26299,
-    "test_code_loc": 32043
+    "steward_runtime_loc": 26734,
+    "test_code_loc": 32290
   }
 }

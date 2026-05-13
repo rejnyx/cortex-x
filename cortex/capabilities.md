@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T13:11:05.582Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T13:24:31.347Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 18 |
-| Steward primitives (`bin/steward/_lib/`) | 47 |
+| Steward primitives (`bin/steward/_lib/`) | 48 |
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 27 |
 | Profiles (`profiles/`) | 11 |
-| Prompts (`prompts/`) | 17 |
+| Prompts (`prompts/`) | 18 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2443 (unit 2279 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 26,299 |
-| Test LoC (`tests/`) | 32,043 |
+| Tests total | 2464 (unit 2300 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 26,734 |
+| Test LoC (`tests/`) | 32,290 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -47,7 +47,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (47)
+## 2. Steward primitives (48)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -57,6 +57,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`action-kinds`](../bin/steward/_lib/action-kinds.cjs) | Sprint 1.8.1 | Sprint 1.8.1 typed action_kind registry |
 | [`autoresearch`](../bin/steward/_lib/autoresearch.cjs) | Sprint 2.1 | Sprint 2.1 N-strategy serial autoresearch loop |
 | [`cost-safety`](../bin/steward/_lib/cost-safety.cjs) | Sprint 1.9.1 | Sprint 1.9.1 multi-window cost safety + loop detector |
+| [`doc-agent-readability`](../bin/steward/_lib/doc-agent-readability.cjs) | Sprint 2.8.3 | bin/steward/_lib/doc-agent-readability.cjs — Sprint 2.8.3 v0 |
 | [`env`](../bin/steward/_lib/env.cjs) | — |  |
 | [`eval-judge`](../bin/steward/_lib/eval-judge.cjs) | Sprint 3.0 | bin/steward/_lib/eval-judge.cjs — Sprint 3.0 v2 |
 | [`eval-runner`](../bin/steward/_lib/eval-runner.cjs) | Sprint 3.0 | bin/steward/_lib/eval-runner.cjs — Sprint 3.0 v0 |
@@ -167,12 +168,13 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
 | [`waas-template`](../profiles/waas-template.yaml) | — | vercel # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
 
-## 6. Prompts (17)
+## 6. Prompts (18)
 
 Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-into-session.
 
 | Prompt | Title | Purpose |
 |---|---|---|
+| [`agent-first-audit`](../prompts/agent-first-audit.md) | Agent-first docs audit — Sprint 2.8.3 v0 |  |
 | [`auto-review`](../prompts/auto-review.md) | Auto-Review — post-implementation parallel pipeline |  |
 | [`code-review`](../prompts/code-review.md) | Code Review — Parallel Adversarial Pipeline |  |
 | [`cortex-doctor`](../prompts/cortex-doctor.md) | Cortex Doctor — Self-Healthcheck + Drift Detection |  |
