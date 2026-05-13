@@ -702,6 +702,34 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.19: daily Dreaming / consolidation cron ──────────────────
+  evolve_daily: {
+    description:
+      'Daily consolidation phase ("Dreaming"). Pure-deterministic scan of journal/ + insights/ + cortex/projects/ — schema-validates journal entries, flags stale-candidate files past freshness thresholds, emits advisory rollup to insights/proposals/<date>-evolve-daily.md. Industry slovník: "Dreaming" (OpenClaw), "Auto Dream" (Anthropic), NREM+REM consolidation (ICLM 2026). cortex-x internal name: cortex-evolve Phase A. No LLM. Read-only against source.',
+    requires_llm: false,
+    effort: 'low',
+    source: 'journal/*.jsonl + insights/*.md + cortex/projects/*.md',
+    detector: 'detectors/evolve-daily.cjs',
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // only writes to insights/proposals/ (on auto_improves allow-list)
+    shipped_in: '0.3.0', // Sprint 2.19 v0
+    acceptance_criteria: [
+      {
+        id: 'evolve_daily_rollup_writes_under_proposals',
+        kind: 'file_predicate',
+        description: 'If anything written, it MUST be under insights/proposals/ — never outside.',
+        predicate: 'touchedFiles.every((p) => p === "" || p.startsWith("insights/proposals/"))',
+        severity: 'block',
+      },
+      {
+        id: 'evolve_daily_audit_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN evolve_daily runs THE SYSTEM SHALL only write under insights/proposals/ AND never edit any source file',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:

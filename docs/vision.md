@@ -66,9 +66,11 @@ Prompt-driven scaffold (`prompts/new-project.md`) shipped — three questions, 3
 
 `prompts/new-project.md` Phase 5 dispatches 3–5 parallel research agents. `research-protocol.md` defines the contract. Results cached at `$CORTEX_DATA_HOME/research/<slug>-<date>.md` with per-topic TTL (tech 90d, security 60d, competitive 180d, domain 365d). Three-hop citation traceability mandatory.
 
-### Phase 5 — Self-improvement loop ✅ designed · ⏳ runtime via Phase 7
+### Phase 5 — Self-improvement loop ✅ Phase A daily Dreaming cron shipped Sprint 2.19 · ⏳ Phase B+C runtime via Phase 7
 
-- 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit) specified in `config/evolve.yaml`, not yet cron-wired
+**Industry slovník** (May 2026): the same primitive ships as "Dreaming" in OpenClaw (nightly 3 AM cron), "Auto Dream" in Anthropic's Claude Code Memory, and "NREM+REM consolidation" in ICLM 2026's *Language Models Need Sleep* paper. cortex-x's internal name is `cortex-evolve` — same shape, aligned with industry vocabulary.
+
+- 4-cadence architecture (daily ingest / weekly mining / monthly eval / quarterly audit) specified in `config/evolve.yaml`. **Daily (Phase A) is now cron-wired via `evolve_daily` action_kind (Sprint 2.19); weekly + monthly + quarterly remain manual-trigger pending Phase B LLM runtime.**
 - Hard anti-hallucination gates (`min_support=3`, `≥2 projects`, `>7d spread`, Bonferroni correction, citations required) — enforced when `prompts/cortex-evolve.md` is manually invoked
 - Aider-style eval suite — 10 canonical task rubrics shipped in `evals/`; `evals/results/` empty pending first automated run
 - PR-only mutations — framework never auto-edits its own source of truth, discipline encoded

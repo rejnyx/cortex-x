@@ -1969,6 +1969,25 @@ async function _runExecuteInner(opts, ctx) {
           issue_url: (applyResult.issue && applyResult.issue.url) || null,
         });
       }
+    } else if (plan.action_kind === 'evolve_daily') {
+      // Sprint 2.19 — daily Dreaming / consolidation phase.
+      // Pure-deterministic; emits advisory rollup to insights/proposals/.
+      const evolveAction = require('./_lib/evolve-action.cjs');
+      applyResult = await evolveAction.runEvolveDaily({ repoRoot, slug });
+      if (applyResult.ok) {
+        safeJournal(slug, {
+          ts: new Date().toISOString(),
+          tier: 'T0',
+          event: 'evolve_daily_completed',
+          actor: 'steward',
+          action_kind: 'evolve_daily',
+          outcome: applyResult.no_work ? 'skipped' : 'success',
+          stale_count: applyResult.stale_count || 0,
+          malformed_count: applyResult.malformed_count || 0,
+          journal_files_scanned: applyResult.journal_files_scanned || 0,
+          rollup_path: applyResult.rollup_path || null,
+        });
+      }
     } else if (plan.action_kind === 'tech_debt_audit') {
       // Sprint 2.5 — deterministic tech debt snapshot. No LLM call.
       const techDebtAudit = require('./_lib/tech-debt-audit.cjs');
