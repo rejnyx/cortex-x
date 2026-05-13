@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T16:00:28.473Z",
+  "generated_at": "2026-05-13T16:19:26.267Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -1127,15 +1127,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2415,
+      "unit": 2424,
       "contract": 106,
       "integration": 71,
       "smoke": 0
     },
-    "total": 2592
+    "total": 2601
   },
   "code_volume": {
-    "steward_runtime_loc": 29219,
-    "test_code_loc": 34401
+    "steward_runtime_loc": 29355,
+    "test_code_loc": 34547
   }
 }
