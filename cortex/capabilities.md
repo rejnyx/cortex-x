@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:49:34.640Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T10:00:07.734Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -8,21 +8,21 @@
 
 | Category | Count |
 |---|---|
-| Steward action_kinds | 17 |
-| Steward primitives (`bin/steward/_lib/`) | 44 |
+| Steward action_kinds | 18 |
+| Steward primitives (`bin/steward/_lib/`) | 45 |
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 26 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 16 |
 | Review-pipeline agents (`agents/`) | 10 |
-| GitHub workflows | 21 |
-| Tests total | 2367 (unit 2203 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 24,996 |
-| Test LoC (`tests/`) | 30,976 |
+| GitHub workflows | 22 |
+| Tests total | 2389 (unit 2225 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 25,380 |
+| Test LoC (`tests/`) | 31,336 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
-## 1. Steward action_kinds (17)
+## 1. Steward action_kinds (18)
 
 What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manual, or recommendation harvester.
 
@@ -31,6 +31,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `dep_update_patch` | npm outdated → patch-only diffs → npm test gate → draft PR. Deterministic, no LLM call. |
 | `doc_drift` | Scan exported symbols (function/class/const/type), check mention in README/CLAUDE.md/docs/, file gh issues for undocumented public API surface. Deterministic — no LLM call. |
 | `evolve_daily` | Daily consolidation phase ("Dreaming"). Pure-deterministic scan of journal/ + insights/ + cortex/projects/ — schema-validates journal entries, flags stale-candidate files past freshness thresholds, emits advisory rollup to insights/proposals/<date>-evolve-daily.md. Industry slov… |
+| `evolve_weekly` | Weekly consolidation phase ("Dreaming" Phase B). Mines repeated-mistake candidates from journal/*.jsonl across 14-day window, applies deterministic evidence gates (min_events=3, min_projects=2, min_days_span=7), then LLM-validates each surviving candidate via cortex-thinker-styl… |
 | `flaky_test_repair` | Marker-based quarantine: scan source for `// HERMES-FLAKY: <reason>` markers above test/it/describe declarations, replace with .skip + remove marker + open gh issue. Deterministic, no LLM call. |
 | `lint_fix_shipper` | Run ESLint --fix (auto-fix style + simple violations) + tsc --noEmit (type-check, file issues for non-fixable errors). Deterministic. Capability #8. |
 | `mutation_score_drift` | Run incremental mutation tests on touched modules; write reports/mutation.json snapshot; compute drift vs prior baseline. v1: snapshot-only (no PR opening, no auto-test-generation). Deterministic — no LLM call. Sprint 2.3b will land the executor + detector once vitest migration … |
@@ -46,7 +47,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (44)
+## 2. Steward primitives (45)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -61,6 +62,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`eval-runner`](../bin/steward/_lib/eval-runner.cjs) | Sprint 3.0 | bin/steward/_lib/eval-runner.cjs — Sprint 3.0 v0 |
 | [`eval-scorer`](../bin/steward/_lib/eval-scorer.cjs) | Sprint 3.0 | bin/steward/_lib/eval-scorer.cjs — Sprint 3.0 v0 |
 | [`evolve-action`](../bin/steward/_lib/evolve-action.cjs) | Sprint 2.19 | bin/steward/_lib/evolve-action.cjs — Sprint 2.19 daily Dreaming handler |
+| [`evolve-weekly-action`](../bin/steward/_lib/evolve-weekly-action.cjs) | Sprint 2.19 | bin/steward/_lib/evolve-weekly-action.cjs — Sprint 2.19 v1 |
 | [`gh-ops`](../bin/steward/_lib/gh-ops.cjs) | Sprint 1.6.19 | GitHub CLI wrapper for Steward draft-PR creation (Sprint 1.6.19) |
 | [`git-ops`](../bin/steward/_lib/git-ops.cjs) | — | atomic git operations for Hermes's commit-per-action contract |
 | [`git-trailers`](../bin/steward/_lib/git-trailers.cjs) | — | build commit messages with parseable Git trailers (MUST-H3) |
@@ -202,7 +204,7 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |
 
-## 8. GitHub workflows (21)
+## 8. GitHub workflows (22)
 
 CI + Steward cron workflows in `.github/workflows/`.
 
@@ -216,6 +218,7 @@ CI + Steward cron workflows in `.github/workflows/`.
 | [`steward doc-drift`](../.github/workflows/steward-doc-drift.yml) | cron(0 5 1 * *) · manual | steward-doc-drift.yml — autonomous Steward documentation-drift detector. |
 | [`steward eval-baseline`](../.github/workflows/steward-eval-baseline.yml) | manual | steward-eval-baseline.yml — Sprint 3.0 v1 + LR.1 closure. |
 | [`steward evolve-daily`](../.github/workflows/steward-evolve-daily.yml) | cron(0 3 * * *) · manual | steward-evolve-daily.yml — Sprint 2.19 daily Dreaming / consolidation cron. |
+| [`steward evolve-weekly`](../.github/workflows/steward-evolve-weekly.yml) | cron(0 4 * * 0) · manual | steward-evolve-weekly.yml — Sprint 2.19 v1 weekly Dreaming Phase B. |
 | [`steward flaky-test-repair`](../.github/workflows/steward-flaky-test-repair.yml) | cron(0 7 * * 2) · manual | steward-flaky-test-repair.yml — autonomous Steward flaky-test quarantiner. |
 | [`steward harvest`](../.github/workflows/steward-harvest.yml) | cron(0 3 * * *) · manual | steward-harvest.yml — autonomous Steward recommendation harvester workflow. |
 | [`steward lint-fix`](../.github/workflows/steward-lint-fix.yml) | cron(0 8 * * 3) · manual | steward-lint-fix.yml — autonomous Steward eslint --fix shipper. |

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T09:49:34.640Z",
+  "generated_at": "2026-05-13T10:00:07.734Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -29,6 +29,15 @@
       "effort": "low",
       "blast_radius": "minimal",
       "cost_envelope": "free"
+    },
+    {
+      "name": "evolve_weekly",
+      "description": "Weekly consolidation phase (\"Dreaming\" Phase B). Mines repeated-mistake candidates from journal/*.jsonl across 14-day window, applies deterministic evidence gates (min_events=3, min_projects=2, min_days_span=7), then LLM-validates each surviving candidate via cortex-thinker-style judge. Writes max 3 insight proposals p",
+      "requires_llm": true,
+      "shipped_in": "0.3.0",
+      "effort": "medium",
+      "blast_radius": "minimal",
+      "cost_envelope": "low"
     },
     {
       "name": "flaky_test_repair",
@@ -211,6 +220,12 @@
       "path": "bin/steward/_lib/evolve-action.cjs",
       "sprint": "Sprint 2.19",
       "description": "bin/steward/_lib/evolve-action.cjs — Sprint 2.19 daily Dreaming handler"
+    },
+    {
+      "name": "evolve-weekly-action",
+      "path": "bin/steward/_lib/evolve-weekly-action.cjs",
+      "sprint": "Sprint 2.19",
+      "description": "bin/steward/_lib/evolve-weekly-action.cjs — Sprint 2.19 v1"
     },
     {
       "name": "gh-ops",
@@ -933,6 +948,15 @@
       "description": "steward-evolve-daily.yml — Sprint 2.19 daily Dreaming / consolidation cron."
     },
     {
+      "name": "steward evolve-weekly",
+      "path": ".github/workflows/steward-evolve-weekly.yml",
+      "triggers": [
+        "cron(0 4 * * 0)",
+        "manual"
+      ],
+      "description": "steward-evolve-weekly.yml — Sprint 2.19 v1 weekly Dreaming Phase B."
+    },
+    {
       "name": "steward flaky-test-repair",
       "path": ".github/workflows/steward-flaky-test-repair.yml",
       "triggers": [
@@ -1052,15 +1076,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2203,
+      "unit": 2225,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2367
+    "total": 2389
   },
   "code_volume": {
-    "steward_runtime_loc": 24996,
-    "test_code_loc": 30976
+    "steward_runtime_loc": 25380,
+    "test_code_loc": 31336
   }
 }
