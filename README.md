@@ -168,23 +168,25 @@ See [`docs/vision.md`](./docs/vision.md) for the full four-tier roadmap (Foundat
 </details>
 
 <details>
-<summary><b>Why not Devin / Copilot Coding Agent / Cursor BG / Replit Agent / Aider?</b></summary>
+<summary><b>Why not Devin / Copilot / Cursor / Replit / OpenClaw / Goose / OpenHands / Aider?</b></summary>
 
-cortex-x sits in a slot none of these occupy: **self-hosted, zero-deps, cron-driven, atomic-rollback maintenance autopilot for an operator's existing repos**.
+cortex-x sits in a slot none of these occupy: **self-hosted, zero-deps CJS, cron-driven, atomic-rollback maintenance autopilot with full safety stack (multi-window USD caps + cross-session loop detector + STEWARD_HALT killswitch + 6-kind spec verifier) for an operator's existing repos under Apache 2.0**.
 
-| | Devin | Copilot CA | Cursor BG | Replit Agent | Aider | **cortex-x Steward** |
-|---|---|---|---|---|---|---|
-| Self-host (operator infra) | ❌ | ❌ | ⚠️ IDE only | ❌ | ✅ | ✅ |
-| Cron-driven unattended | ❌ | ⚠️ via Actions | ⚠️ manual | ❌ | ⚠️ OS cron | ✅ first-class |
-| Multi-window USD caps (D/W/M) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Cross-session loop detection | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 5x / 7d |
-| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 6 kinds |
-| File-based killswitch | ❌ | ⚠️ revoke token | ❌ | ❌ | ❌ | ✅ `STEWARD_HALT` |
-| Typical operator cost / run | ~$2 / 15min ACU | credit pool | $0.50–7.50 / Mtok | $0.25 / checkpoint | ~$0.01 / file | **~$0.0008 / run** |
-| License | proprietary | proprietary | proprietary | proprietary | Apache-2 | **Apache-2** |
-| Target | mid-market eng | GitHub orgs | IDE-first devs | builders | terminal solo | **operator w/ many repos** |
+| | Devin | Copilot CA | Cursor BG | Replit | **OpenClaw** | Goose | OpenHands | Aider | **cortex-x Steward** |
+|---|---|---|---|---|---|---|---|---|---|
+| Self-host (operator infra) | ❌ | ❌ | ⚠️ IDE only | ❌ | ✅ | ✅ | ⚠️ MIT+paid | ✅ | ✅ |
+| Cron-driven unattended | ❌ | ⚠️ via Actions | ⚠️ manual | ❌ | ✅ HEARTBEAT.md | ✅ Recipe cron | ✅ RFC #13275 | ⚠️ OS cron | ✅ first-class |
+| Multi-window USD caps (D/W/M) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Cross-session loop detection | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 5x / 7d |
+| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 6 kinds |
+| File-based killswitch | ❌ | ⚠️ revoke token | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ `STEWARD_HALT` |
+| 6-agent parallel review pipeline | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Zero npm/pip deps | n/a | n/a | n/a | n/a | ❌ framework | ❌ Rust + plugins | ❌ Python + UI | ⚠️ npm/pip | ✅ zero-deps CJS |
+| Typical operator cost / run | metered tier | credit pool | $0.50–7.50 / Mtok | Effort-Based | model bill | model bill | model bill | ~$0.01 / file | **~$0.0008 / run** |
+| License | proprietary | proprietary | proprietary | proprietary | Apache-2 | Apache-2 | MIT+paid enterprise | Apache-2 | **Apache-2** |
+| Target | mid-market eng | GitHub orgs | IDE-first devs | builders | hobbyist + dev | Block-style devs | Devin alternative | terminal solo | **operator w/ many repos** |
 
-Full per-competitor profiles + sourcing in [`docs/positioning.md`](./docs/positioning.md).
+**OpenClaw is the closest direct competitor** (April 2026 pivot to "Fix Bugs and Open PRs While You Sleep" + HEARTBEAT.md cron). The 7-row gap in safety mechanics is the cortex-x moat — full breakdown + per-competitor profiles in [`docs/positioning.md`](./docs/positioning.md).
 
 </details>
 

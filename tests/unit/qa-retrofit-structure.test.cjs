@@ -559,20 +559,12 @@ describe('Sprint 2.10.5 — cortex-x self-audit deliverables (eat-our-own-dogfoo
   });
 
   test('docs/qa-tester-onboarding.md tutorial exists for the junior tester', () => {
-    // Sprint LR.A 2026-05-11: the full walkthrough was Czech-only; renamed to
-    // qa-tester-onboarding.cs.md and a short English stub kept at the canonical
-    // qa-tester-onboarding.md path so existing README links + downstream
-    // references still resolve. Both files must exist; Czech tutorial preserves
-    // the original detailed walkthrough until translation lands.
+    // Sprint 2.17.x repo hygiene 2026-05-13: Czech sidecar (`qa-tester-onboarding.cs.md`)
+    // removed in commit 6fbf363 — single-source-of-truth English file is canonical.
+    // The English file must reference /test-audit as the junior tester's entry point.
     assert.equal(exists('docs/qa-tester-onboarding.md'), true);
-    assert.equal(exists('docs/qa-tester-onboarding.cs.md'), true);
-    const englishStub = read('docs/qa-tester-onboarding.md');
-    assert.match(englishStub, /qa-tester-onboarding\.cs\.md/);
-    assert.match(englishStub, /\/test-audit/);
-    const czechTutorial = read('docs/qa-tester-onboarding.cs.md');
-    assert.match(czechTutorial, /Den 1/);
-    assert.match(czechTutorial, /\/test-audit/);
-    assert.match(czechTutorial, /Phase 3/);
+    const onboarding = read('docs/qa-tester-onboarding.md');
+    assert.match(onboarding, /\/test-audit/);
   });
 
   test('README.md mentions qa-tester profile section', () => {

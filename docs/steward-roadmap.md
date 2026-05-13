@@ -1120,6 +1120,39 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint LR.X — Competitive landscape refresh after May 2026 deltas (S effort) — ✅ SHIPPED 2026-05-13 evening
+
+**Status**: ✅ Shipped 2026-05-13 evening after 3 parallel general-purpose research dispatches surfaced three material deltas the morning's positioning doc (`docs/positioning.md`) missed:
+
+1. **OpenClaw April 2026 pivot** — "horizontal personal-assistant cousin" reclassified to **primary direct competitor**. April 2026 update repositioned OpenClaw with explicit pitch *"Fix Bugs and Open PRs While You Sleep"*, HEARTBEAT.md cron, dep-update PRs, issue→PR pipeline, branch+commit+PR+issue GitHub integration, PR-only safety model. cortex-x's safety stack (multi-window USD caps + cross-session loop detector + STEWARD_HALT + spec verifier + 6-agent review pipeline + zero-deps CJS) is the surviving moat — 7 matrix rows where cortex-x ✅ and OpenClaw ❌.
+2. **Block Codename Goose with cron** — `goose serve` background mode + Recipe cron Q1 2026. Apache-2.0, 29K stars, donated to Linux Foundation AAIF. Strongest license-overlap competitor. Different shape — CLI/desktop-first, task-runner-grade scheduling, not GHA-cron-PR.
+3. **OpenHands RFC #13275 cron** — March 2026 added cron-trigger automations. License trap: MIT core but `enterprise/` directory paid-license-after-1-month, making "self-host commercially" non-trivial above scale threshold.
+
+**Pricing refreshes** (all three quadrant-1 SaaS players reshuffled May 2026):
+- **Devin**: Core/Team plans retired → new Free/Pro/Max/Teams/Enterprise ladder, ACU model swapped for USD-metered overage.
+- **Replit**: Effort-Based Pricing replaces $0.25/checkpoint model (new users immediate, Core/Teams rollout July 1).
+- **Cursor**: 5-tier ladder Hobby $0 / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40, Composer 2 input pricing dropped 86% to $0.50/M tokens.
+
+**Memory landscape additions** (refreshed second matrix in positioning.md):
+- **Memori Labs** (2026-05-07 launch) — agent-native memory from agent traces (close to cortex-x `journal/*.jsonl` → `lessons.jsonl` pattern).
+- **Cloudflare Agent Memory** (beta since 2026-04-17) — managed persistent memory on Workers + Durable Objects + Vectorize.
+- **Pinecone Nexus + KnowQL** (May 2026 Launch Week) — Namespaces positioned for per-agent memory isolation at scale.
+- **LangGraph Memory** — MongoDB Store backend added alongside existing PostgresSaver / AsyncSqliteSaver.
+
+**Third lens added** — skill / capability marketplaces (Tessl + ClawHub + 8 registries grew from 1 in Q4 2025). **Snyk ToxicSkills audit found prompt injection in 36% of audited public skills.** This positions cortex-x's Sprint 4.0 capability marketplace deliberately as *signed-and-audited* rather than open-pull-and-run.
+
+**Deliverables**:
+- `docs/positioning.md` — comparison matrix expanded from 7 → 10 columns (added Goose + OpenHands + reclassified OpenClaw); 3 new per-competitor profiles (OpenClaw rewritten, Goose + OpenHands new); memory matrix added Memori Labs row; new "third lens" skill marketplace section.
+- `README.md` "Why not..." comparison table expanded from 5 → 9 competitors with refreshed pricing.
+
+**Operating principles satisfied**:
+- R1 (research-before-implement): 3 parallel web research agents + 2 WebFetch verifications on OpenClaw before promoting it. ~85K total tokens across research.
+- R2 (review pipeline): doc-only sprint, no code changes, no security review needed beyond markdown sanitization.
+
+**Why now, not later**: launch positioning is operator-facing and gets cited in interviews + LinkedIn + hiring conversations. A doc that says "OpenClaw is a personal-assistant cousin" when OpenClaw is now in the exact same slot would be embarrassing in the first 60 seconds of any technical review.
+
+---
+
 ### Sprint 2.20 — Memory-system competitor lens in positioning.md (XS effort) — 📋 PROPOSED 2026-05-13
 
 **Status**: 📋 Proposed 2026-05-13. `docs/positioning.md` compares vs Devin/Cursor/Replit/Aider (autonomous-coding lens). Brain-kit research surfaced a second relevant competitor axis (agent-memory category) where reviewers will ask "vs Mem0 / Zep / Letta / MAF+Neo4j / OpenClaw Dreaming". Currently we have no answer.
