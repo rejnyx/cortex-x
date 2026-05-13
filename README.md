@@ -1,66 +1,16 @@
 # cortex-x
 
-> **AI-agentic-first Claude Code framework.** Bootstrap a new project in 3 minutes with safety + standards + memory baked in. Let **Steward** maintain it autonomously every night — branch, edit, gate on `npm test`, open a draft PR, roll back on failure.
+> Persistent memory and an overnight maintenance agent for [Claude Code](https://claude.com/claude-code). One install gives every project a `CLAUDE.md` Claude will auto-load, a nightly agent that opens draft PRs while you sleep, and 26 senior-engineer standards baked in.
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Tests: 2539](https://img.shields.io/badge/tests-2539_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#status)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Tests: 2539](https://img.shields.io/badge/tests-2539_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#what-runs-today)
 
 ---
 
-## What it does in 30 seconds
-
-1. **Scaffolds** a new project with one of 11 stack profiles (Next.js SaaS, chatbot platform, AI agent, CLI tool, static site, …) — `CLAUDE.md` + `PROGRESS.md` + `.claude/` hooks + memory scaffold + 26 standards, in ~3 minutes.
-2. **Audits** an existing repo across 12 dimensions via 4 parallel subagents, returns a senior-consultant-grade report.
-3. **Maintains** the repo overnight via **Steward** — read `cortex/recommendations.md`, run the LLM, apply edits, gate on tests, open a draft PR. Safety primitives: draft-only PRs, `STEWARD_HALT` killswitch, daily/weekly/monthly USD caps, atomic rollback.
-
-Built for the operator who runs **many repos** and wants a maintenance autopilot on their own infra — not a hosted SaaS junior engineer. Short comparison below; full per-competitor profiles (incl. Sakana DGM and OpenClaw) in [`docs/positioning.md`](./docs/positioning.md).
-
-## Status — what runs today vs what's ahead
-
-| Surface | State |
-|---|---|
-| One-command install (`install.sh` / `install.ps1`) | ✅ shipped, 5-lane CI green |
-| 11 project profiles, 26 standards, 9 review agents, 15 reusable prompts | ✅ shipped |
-| Claude Code hooks (session-start, block-destructive, post-tool-use, …) | ✅ shipped, contract-tested |
-| 6-agent parallel code-review pipeline (`prompts/code-review.md`) | ✅ shipped |
-| Web-research-before-implement default (`standards/web-research.md`) | ✅ shipped |
-| Steward runtime (`bin/steward/execute.cjs`) — atomic commit, rollback, cost ledger | ✅ shipped (v0.5b) |
-| 15 active nightly cron workflows running on this repo | ✅ shipped — real auto-PRs since 2026-05-09 |
-| Spec-driven verification (6 acceptance-criterion kinds incl. `read_set` coverage proof) | ✅ shipped (Sprint 1.9.0 + 2.18) |
-| Multi-window cost safety (D/W/M USD caps + token velocity + loop detector) | ✅ shipped (Sprint 1.9.1) |
-| Real-LLM eval baseline (Sprint LR.1) | ✅ shipped 2026-05-13 — 3-task smoke baseline via `cortex-evolve-ab` + OpenRouter, $0.0016 total. |
-| LLM-as-judge rubric scoring (Sprint 3.0 v2) | ✅ shipped — Sonnet-judge × DeepSeek-candidate, deterministic score recompute from per-property booleans, full bias-defense. |
-| Daily + weekly "Dreaming" consolidation cron (Phase 5 Phase A+B) | ✅ shipped (Sprint 2.19 v0 daily 03:00 UTC + v1 weekly Sunday 04:00 UTC — `evolve_daily` deterministic + `evolve_weekly` LLM-validated). |
-| Action-engine FTS recall (Sprint 3.2 v1) | ✅ shipped — `recallLessonsFTS()` wired at `action-engine.cjs:711`, 3-tier priority ladder + clock-skew defense. Node ≥22.5 only, fail-safe fallback. |
-| External tool capability adapter protocol (Sprint 3.4 v0) | ✅ shipped — SKILL.md frontmatter contract + 4-tier license gate. First adapter: `external-adapter-hyperframes`. |
-| Self-extending capabilities, proposal-only (Sprint 3.1 v0) | ✅ shipped — `cortex-propose-skill list/scaffold` CLI + `skill-experiments/` write-scope. Rate limit ≤1/week. Recursive-self-improvement door closed by filesystem architecture, not prompt. |
-| GraphRAG + lightweight reasoning over journal (Sprint 3.3) | ⏳ deferred pending LazyGraphRAG cost cliff resolution |
-| Capability marketplace + WaaS (Tier 3 productization) | ⏳ Sprint 4.0+ |
-
-**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12, public 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2539-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable.
-
-See [`docs/vision.md`](./docs/vision.md) for the full four-tier roadmap (Foundation → Verification → Compound learners → Productization → Persistent entity).
-
-## Why not Devin / Copilot Coding Agent / Cursor BG / Replit Agent / Aider?
-
-cortex-x sits in a slot none of these occupy: **self-hosted, zero-deps, cron-driven, atomic-rollback maintenance autopilot for an operator's existing repos**.
-
-| | Devin | Copilot CA | Cursor BG | Replit Agent | Aider | **cortex-x Steward** |
-|---|---|---|---|---|---|---|
-| Self-host (operator infra) | ❌ | ❌ | ⚠️ IDE only | ❌ | ✅ | ✅ |
-| Cron-driven unattended | ❌ | ⚠️ via Actions | ⚠️ manual | ❌ | ⚠️ OS cron | ✅ first-class |
-| Multi-window USD caps (D/W/M) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Cross-session loop detection | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 5x / 7d |
-| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 6 kinds |
-| File-based killswitch | ❌ | ⚠️ revoke token | ❌ | ❌ | ❌ | ✅ `STEWARD_HALT` |
-| Typical operator cost / run | ~$2 / 15min ACU | credit pool | $0.50–7.50 / Mtok | $0.25 / checkpoint | ~$0.01 / file | **~$0.0008 / run** |
-| License | proprietary | proprietary | proprietary | proprietary | Apache-2 | **Apache-2** |
-| Target | mid-market eng | GitHub orgs | IDE-first devs | builders | terminal solo | **operator w/ many repos** |
-
-Full per-competitor profiles + sourcing in [`docs/positioning.md`](./docs/positioning.md).
-
 ## Install
 
-**Linux / macOS / WSL / Git Bash:**
+**Requirements:** [Claude Code](https://claude.com/claude-code) installed (it's the host runtime), Node.js 22+, git.
+
+**macOS / Linux / WSL / Git Bash:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash
@@ -72,30 +22,54 @@ curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | b
 iwr https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.ps1 | iex
 ```
 
-Prefer to read first? `git clone https://github.com/Rejnyx/cortex-x ~/cortex-x && ~/cortex-x/install.sh` — the installer is ~600 lines of bash / PowerShell, self-clones to `~/cortex-x`, copies framework assets to `~/.claude/shared/`, never auto-touches your `~/.claude/settings.json` or `~/.claude/CLAUDE.md`. Walkthrough at [`docs/install-walkthrough.md`](./docs/install-walkthrough.md).
+**New to Claude Code?** Install it first: `npm install -g @anthropic-ai/claude-code`, then run `claude` to log in. cortex-x is a layer on top.
+
+<details>
+<summary><b>Prefer to read first?</b> (manual install)</summary>
+
+```bash
+git clone https://github.com/Rejnyx/cortex-x ~/cortex-x
+~/cortex-x/install.sh
+# or on Windows:
+~/cortex-x/install.ps1
+```
+
+The installer is ~600 lines of bash / PowerShell, self-clones to `~/cortex-x`, copies framework assets to `~/.claude/shared/`, never auto-touches your `~/.claude/settings.json` or `~/.claude/CLAUDE.md`. Walkthrough at [`docs/install-walkthrough.md`](./docs/install-walkthrough.md).
 
 ### Profile selection at install time
 
-Pick one of four post-install profiles: `dev` (default) · `qa-tester` · `ai-engineer` · `minimal`. Set via interactive prompt, `CORTEX_PROFILE=...` env, or `--profile=...` flag. The `qa-tester` profile front-loads `/test-audit` (auto-research-per-gap) and is documented in [`docs/qa-tester-onboarding.md`](./docs/qa-tester-onboarding.md). The `ai-engineer` profile emphasizes the `ai-agent` and `chatbot-platform` profiles for new-project bootstrap.
+Pick one of four post-install profiles: `dev` (default) · `qa-tester` · `ai-engineer` · `minimal`. Set via interactive prompt, `CORTEX_PROFILE=...` env, or `--profile=...` flag. The `qa-tester` profile front-loads `/test-audit` (auto-research-per-gap) — see [`docs/qa-tester-onboarding.md`](./docs/qa-tester-onboarding.md). The `ai-engineer` profile emphasizes the `ai-agent` and `chatbot-platform` profiles for new-project bootstrap.
 
-## First three minutes after install
+</details>
+
+## First three minutes
 
 ```bash
 cd ~/your-project
-cortex-bootstrap         # interactive: [N]ew / [E]xisting / [F]ramework
-claude                   # opens Claude Code — auto-primes /start or /audit
+claude            # opens Claude Code
+/cortex-init      # interactive picker — New / Existing / Framework
 ```
 
-Inside Claude Code:
+On first run, `/cortex-init` prints a 3-line manifesto, detects what's in the folder, and chains to the right workflow. You wake up with a real `CLAUDE.md` or `cortex/AUDIT.md` on disk — open it and read.
+
+Inside Claude Code (auto-discovered slash commands):
 
 - `/cortex-help` — one-screen menu of every invokable slash command + a "default next" nudge based on detected project state
 - `/start` — new-project bootstrap (Discover → Research → Architect → Scaffold → Adapt)
 - `/audit` — existing-project deep audit (12 dimensions, 4 parallel agents)
-- `/test-audit` — senior-QA-consultant audit, P0/P1/P2 gap list with research memos (`qa-tester` profile)
-- `/designer` — design flow (intake + library palette + parallel worktree exploration)
+- `/test-audit` — senior-QA-consultant audit, P0/P1/P2 gap list with research memos
+- `/designer` — design flow (intake + library palette + parallel worktree exploration) · `--award` overlay for Awwwards-SOTD-targeted work
 - `/sync` — end-of-session knowledge capture → cortex library
 - `/doctor` — install integrity + drift detection
 - `/cortex-reflect` — deep reflection, grounds insights in file paths
+
+## What you get
+
+1. **Scaffolds** a new project with one of 11 stack profiles (Next.js SaaS, chatbot platform, AI agent, CLI tool, static site, …) — `CLAUDE.md` + `PROGRESS.md` + `.claude/` hooks + memory scaffold + 26 standards, in ~3 minutes.
+2. **Audits** an existing repo across 12 dimensions via 4 parallel subagents, returns a senior-consultant-grade report.
+3. **Maintains** the repo overnight via **Steward** — read `cortex/recommendations.md`, run the LLM, apply edits, gate on tests, open a draft PR. Safety primitives: draft-only PRs, `STEWARD_HALT` killswitch, daily/weekly/monthly USD caps, atomic rollback.
+
+Built for the operator who runs **many repos** and wants a maintenance autopilot on their own infra — not a hosted SaaS junior engineer.
 
 ## Two AI surfaces — Claude Code by day, Steward by night
 
@@ -105,17 +79,15 @@ Inside Claude Code:
 
 Every Steward run: draft PR (never pushes to main) · `STEWARD_HALT` killswitch · daily / weekly / monthly USD caps · 3-failure circuit breaker · atomic rollback on any phase failure. See [`docs/steward-usage.md`](./docs/steward-usage.md) to activate Steward on your repo.
 
-> Steward shipped under the codename **Hermes** through Sprint 1.9.1; renamed in Sprint 4.7 to clear the 139k-star NousResearch/hermes-agent collision before public launch.
-
-## Design principles — 26 standards across 4 tiers
+## Design principles — 26 standards across 5 tiers
 
 | Tier | Examples | Enforced by |
 |---|---|---|
 | **Rule 0 — Distribution gate** | [ship-ready](./standards/ship-ready.md) | install prerequisite check |
 | **Rule 1 — Architectural invariants** | [SSOT](./standards/ssot.md), [Modular](./standards/modular.md), [Scalable](./standards/scalable.md) | `ssot-enforcer` + `blind-hunter` agents — PR-blocking |
 | **Rule 1.5 — Coding behavior** | [coding-behavior](./standards/coding-behavior.md), [auto-optimization](./standards/auto-optimization.md), [self-correction](./standards/self-correction.md) | review-pipeline guideline |
-| **Rule 2 — Critical** | [Security](./standards/security.md) (8-layer + agentic §), [Testing](./standards/testing.md), [Observability](./standards/observability.md), [Correctness](./standards/correctness.md) | `security-auditor` + `correctness-auditor` — PR-blocking |
-| **Rule 3 — Process** | [performance](./standards/performance.md), [a11y](./standards/accessibility.md), [git-workflow](./standards/git-workflow.md), [ai-patterns](./standards/ai-patterns.md), [ai-sdks](./standards/ai-sdks.md), [web-research](./standards/web-research.md), … | warning, not blocker |
+| **Rule 2 — Critical** | [Security](./standards/security.md), [Testing](./standards/testing.md), [Observability](./standards/observability.md), [Correctness](./standards/correctness.md), [Steward policy](./standards/steward-policy.md) | `security-auditor` + `correctness-auditor` — PR-blocking |
+| **Rule 3 — Process** | [voice](./standards/voice.md), [web-research](./standards/web-research.md), [performance](./standards/performance.md), [a11y](./standards/accessibility.md), [git-workflow](./standards/git-workflow.md), [ai-patterns](./standards/ai-patterns.md), [ai-sdks](./standards/ai-sdks.md), [skills](./standards/skills.md), … | warning, not blocker |
 
 Browse the full set at [`standards/README.md`](./standards/README.md).
 
@@ -147,7 +119,7 @@ cortex-x/
 ├── profiles/            11 project profiles (YAML)
 ├── templates/           Handlebars templates (CLAUDE.md, PROGRESS.md, MEMORY.md, …)
 ├── standards/           26 standards (Rule 0/1/1.5/2/3)
-├── prompts/             15 reusable prompts bound to slash commands
+├── prompts/             15+ reusable prompts bound to slash commands
 ├── agents/              9 specialized subagents (review pipeline + planner + thinker)
 ├── shared/hooks/        7 universal Claude Code hooks
 ├── detectors/           Profile + stage classifiers (<100ms, fail-open)
@@ -157,13 +129,64 @@ cortex-x/
 └── install.{sh,ps1}     One-command install to ~/.claude/shared/
 ```
 
-**XDG separation (Sprint 1.6).** The repo holds framework code only. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`).
+**XDG separation.** The repo holds framework code only. Personal data — your project library entries, journal traces, research cache, insights — lives in `$CORTEX_DATA_HOME/projects/` (defaults to `~/.cortex/projects/`).
 
 ## Cross-platform
 
 - `.gitattributes` enforces LF for shell/Node.js, CRLF for PowerShell
 - Hooks use `os.homedir()` and `path.join()` — no hardcoded paths
 - Tested on Windows 11, macOS 14+, Ubuntu 22+ via 5-lane CI matrix
+
+<a id="what-runs-today"></a>
+<details>
+<summary><b>What runs today vs what's ahead</b></summary>
+
+| Surface | State |
+|---|---|
+| One-command install (`install.sh` / `install.ps1`) | ✅ shipped, 5-lane CI green |
+| 11 project profiles, 26 standards, 9 review agents, 15 reusable prompts | ✅ shipped |
+| Claude Code hooks (session-start, block-destructive, post-tool-use, …) | ✅ shipped, contract-tested |
+| 6-agent parallel code-review pipeline (`prompts/code-review.md`) | ✅ shipped |
+| Web-research-before-implement default (`standards/web-research.md`) | ✅ shipped |
+| Steward runtime (`bin/steward/execute.cjs`) — atomic commit, rollback, cost ledger | ✅ shipped (v0.5b) |
+| 15 active nightly cron workflows running on this repo | ✅ shipped — real auto-PRs since 2026-05-09 |
+| Spec-driven verification (6 acceptance-criterion kinds incl. `read_set` coverage proof) | ✅ shipped |
+| Multi-window cost safety (D/W/M USD caps + token velocity + loop detector) | ✅ shipped |
+| Real-LLM eval baseline | ✅ shipped 2026-05-13 — 3-task smoke baseline via `cortex-evolve-ab` + OpenRouter, $0.0016 total |
+| LLM-as-judge rubric scoring | ✅ shipped — Sonnet-judge × DeepSeek-candidate, deterministic score recompute from per-property booleans |
+| Daily + weekly "Dreaming" consolidation cron | ✅ shipped (daily 03:00 UTC `evolve_daily` deterministic + weekly Sunday 04:00 UTC `evolve_weekly` LLM-validated) |
+| Action-engine FTS recall (Node ≥22.5) | ✅ shipped — `recallLessonsFTS()` 3-tier priority ladder + clock-skew defense |
+| External tool capability adapter protocol | ✅ shipped — SKILL.md frontmatter contract + 4-tier license gate |
+| Self-extending capabilities (proposal-only) | ✅ shipped — `cortex-propose-skill list/scaffold` CLI + `skill-experiments/` write-scope, ≤1/week rate limit |
+| GraphRAG + lightweight reasoning over journal | ⏳ deferred pending LazyGraphRAG cost cliff resolution |
+| Capability marketplace + WaaS (Tier 3 productization) | ⏳ Tier 3 roadmap |
+
+**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2539-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable.
+
+See [`docs/vision.md`](./docs/vision.md) for the full four-tier roadmap (Foundation → Verification → Compound learners → Productization → Persistent entity).
+
+</details>
+
+<details>
+<summary><b>Why not Devin / Copilot Coding Agent / Cursor BG / Replit Agent / Aider?</b></summary>
+
+cortex-x sits in a slot none of these occupy: **self-hosted, zero-deps, cron-driven, atomic-rollback maintenance autopilot for an operator's existing repos**.
+
+| | Devin | Copilot CA | Cursor BG | Replit Agent | Aider | **cortex-x Steward** |
+|---|---|---|---|---|---|---|
+| Self-host (operator infra) | ❌ | ❌ | ⚠️ IDE only | ❌ | ✅ | ✅ |
+| Cron-driven unattended | ❌ | ⚠️ via Actions | ⚠️ manual | ❌ | ⚠️ OS cron | ✅ first-class |
+| Multi-window USD caps (D/W/M) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Cross-session loop detection | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 5x / 7d |
+| Per-kind spec verifier | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 6 kinds |
+| File-based killswitch | ❌ | ⚠️ revoke token | ❌ | ❌ | ❌ | ✅ `STEWARD_HALT` |
+| Typical operator cost / run | ~$2 / 15min ACU | credit pool | $0.50–7.50 / Mtok | $0.25 / checkpoint | ~$0.01 / file | **~$0.0008 / run** |
+| License | proprietary | proprietary | proprietary | proprietary | Apache-2 | **Apache-2** |
+| Target | mid-market eng | GitHub orgs | IDE-first devs | builders | terminal solo | **operator w/ many repos** |
+
+Full per-competitor profiles + sourcing in [`docs/positioning.md`](./docs/positioning.md).
+
+</details>
 
 ## Built by
 
