@@ -34,9 +34,9 @@ Commands:
 
 Options:
   --slug=<slug>          (required) project slug
-  --query=<q>            for `text` command — natural-language query
-  --action-kind=<kind>   for `kind` command — exact action_kind to filter
-  --error-code=<code>    for `code` command — error code to find
+  --query=<q>            for \`text\` command — natural-language query
+  --action-kind=<kind>   for \`kind\` command — exact action_kind to filter
+  --error-code=<code>    for \`code\` command — error code to find
   --data-home=<path>     CORTEX_DATA_HOME override
   --limit=<n>            cap result count (default 10/20 by command)
   --json                 emit JSON instead of human-readable text

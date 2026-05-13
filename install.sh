@@ -377,6 +377,42 @@ CAPSHIM
   chmod +x "$CLAUDE_HOME/shared/bin/cortex-capabilities"
 fi
 
+# Sprint 2.8.1 + 3.0 v0/v1/v2 + 3.1 v0 + 3.2 v0/v1 — operator CLIs that ship
+# with the same delegation-shim pattern as cortex-capabilities. SSOT stays in
+# the source repo; the installed shim only resolves cortex_source and execs.
+# Added 2026-05-13 afternoon — without these, operator can only invoke as
+# `node $CORTEX_SOURCE/bin/cortex-*.cjs` rather than as a first-class command.
+emit_delegate_shim() {
+  local SHIM_NAME="$1"
+  local IMPL_FILE="$2"
+  if [ ! -f "$CORTEX_ROOT/bin/$IMPL_FILE" ]; then return 0; fi
+  if ! cat > "$CLAUDE_HOME/shared/bin/$SHIM_NAME" <<EOF
+#!/usr/bin/env bash
+# $SHIM_NAME shim — delegates to \$CORTEX_SOURCE/bin/$IMPL_FILE
+set -e
+SRC_YAML="\$HOME/.claude/shared/cortex-source.yaml"
+if [ ! -f "\$SRC_YAML" ]; then
+  echo "cortex-x not configured (\$SRC_YAML missing). Re-run install.sh." >&2
+  exit 1
+fi
+CORTEX_SOURCE=\$(grep '^cortex_source:' "\$SRC_YAML" | head -1 | sed 's/^cortex_source:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r')
+if [ -z "\$CORTEX_SOURCE" ] || [ ! -d "\$CORTEX_SOURCE" ]; then
+  echo "cortex-x source not found at: \$CORTEX_SOURCE" >&2
+  exit 1
+fi
+exec node "\$CORTEX_SOURCE/bin/$IMPL_FILE" "\$@"
+EOF
+  then
+    echo "  ✗ Failed to write $SHIM_NAME shim — check disk space + perms" >&2
+    exit 1
+  fi
+  chmod +x "$CLAUDE_HOME/shared/bin/$SHIM_NAME"
+}
+emit_delegate_shim cortex-propose-skill    cortex-propose-skill.cjs
+emit_delegate_shim cortex-lessons-search   cortex-lessons-search.cjs
+emit_delegate_shim cortex-evolve-ab        cortex-evolve-ab.cjs
+emit_delegate_shim cortex-export-lessons   cortex-export-lessons.cjs
+
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
 # Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and

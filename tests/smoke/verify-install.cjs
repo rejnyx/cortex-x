@@ -252,6 +252,14 @@ function runChecks() {
   // implementation lives only in the source repo.
   checkFileExists('shared.bin.cortex-capabilities', path.join(SHARED, 'bin', 'cortex-capabilities'), 'warning');
 
+  // Sprint 2.8.1 + 3.0 v0/v1/v2 + 3.1 v0 + 3.2 v0/v1 — operator CLI delegation
+  // shims (added 2026-05-13 afternoon). Same warning severity — these are
+  // operator-facing convenience, not load-bearing for /cortex-help.
+  checkFileExists('shared.bin.cortex-propose-skill',  path.join(SHARED, 'bin', 'cortex-propose-skill'),  'warning');
+  checkFileExists('shared.bin.cortex-lessons-search', path.join(SHARED, 'bin', 'cortex-lessons-search'), 'warning');
+  checkFileExists('shared.bin.cortex-evolve-ab',      path.join(SHARED, 'bin', 'cortex-evolve-ab'),      'warning');
+  checkFileExists('shared.bin.cortex-export-lessons', path.join(SHARED, 'bin', 'cortex-export-lessons'), 'warning');
+
   // Cortex-source.yaml integrity (Sprint 1.6 contract)
   checkYamlField('shared.cortex-source.cortex_source', path.join(SHARED, 'cortex-source.yaml'), 'cortex_source');
   checkYamlField('shared.cortex-source.cortex_data_home', path.join(SHARED, 'cortex-source.yaml'), 'cortex_data_home');

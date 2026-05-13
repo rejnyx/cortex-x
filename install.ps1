@@ -470,6 +470,57 @@ exec node "$CORTEX_SOURCE/bin/cortex-capabilities.cjs" "$@"
 # in a bash script causes `bad interpreter` errors on Git Bash.
 [System.IO.File]::WriteAllText($CapShimBashPath, $CapShimBashContent, (New-Object System.Text.UTF8Encoding($false)))
 
+# Sprint 2.8.1 + 3.0 v0/v1/v2 + 3.1 v0 + 3.2 v0/v1 — operator CLI delegation
+# shims (PowerShell + bash variants for Git Bash on Windows). Same pattern as
+# cortex-capabilities above. Added 2026-05-13 afternoon.
+function New-DelegateShim {
+  param([string]$ShimName, [string]$ImplFile)
+  $ImplPath = Join-Path $CortexRoot "bin\$ImplFile"
+  if (-not (Test-Path $ImplPath)) { return }
+
+  # PowerShell variant
+  $Ps1Path = Join-Path $BinTarget ("$ShimName.ps1")
+  $Ps1Content = @"
+# $ShimName shim — delegates to `$CortexSource\bin\$ImplFile
+`$ErrorActionPreference = "Stop"
+`$SrcYaml = Join-Path `$env:USERPROFILE ".claude\shared\cortex-source.yaml"
+if (-not (Test-Path `$SrcYaml)) {
+  Write-Error "cortex-x not configured (`$SrcYaml missing). Re-run install.ps1."
+  exit 1
+}
+`$line = (Select-String -Path `$SrcYaml -Pattern '^cortex_source:' | Select-Object -First 1).Line
+if (-not `$line) { Write-Error "cortex_source missing in `$SrcYaml"; exit 1 }
+`$CortexSource = (`$line -replace '^cortex_source:\s*', '').Trim().Trim('"').Trim("'")
+if (-not (Test-Path `$CortexSource)) { Write-Error "cortex-x source not found at: `$CortexSource"; exit 1 }
+& node (Join-Path `$CortexSource "bin\$ImplFile") @args
+"@
+  Set-Content -Path $Ps1Path -Value $Ps1Content -Encoding UTF8
+
+  # Bash variant (Git Bash on Windows)
+  $BashPath = Join-Path $BinTarget $ShimName
+  $BashContent = @"
+#!/usr/bin/env bash
+# $ShimName shim — delegates to `$CORTEX_SOURCE/bin/$ImplFile
+set -e
+SRC_YAML="`$HOME/.claude/shared/cortex-source.yaml"
+if [ ! -f "`$SRC_YAML" ]; then
+  echo "cortex-x not configured (`$SRC_YAML missing). Re-run install." >&2
+  exit 1
+fi
+CORTEX_SOURCE=`$(grep '^cortex_source:' "`$SRC_YAML" | head -1 | sed 's/^cortex_source:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r')
+if [ -z "`$CORTEX_SOURCE" ] || [ ! -d "`$CORTEX_SOURCE" ]; then
+  echo "cortex-x source not found at: `$CORTEX_SOURCE" >&2
+  exit 1
+fi
+exec node "`$CORTEX_SOURCE/bin/$ImplFile" "`$@"
+"@
+  [System.IO.File]::WriteAllText($BashPath, $BashContent, (New-Object System.Text.UTF8Encoding($false)))
+}
+New-DelegateShim "cortex-propose-skill"  "cortex-propose-skill.cjs"
+New-DelegateShim "cortex-lessons-search" "cortex-lessons-search.cjs"
+New-DelegateShim "cortex-evolve-ab"      "cortex-evolve-ab.cjs"
+New-DelegateShim "cortex-export-lessons" "cortex-export-lessons.cjs"
+
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
 # Claude Code's agent discovery checks ~/.claude/agents/ (user-level) and

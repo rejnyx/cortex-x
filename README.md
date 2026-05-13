@@ -2,7 +2,7 @@
 
 > **AI-agentic-first Claude Code framework.** Bootstrap a new project in 3 minutes with safety + standards + memory baked in. Let **Steward** maintain it autonomously every night — branch, edit, gate on `npm test`, open a draft PR, roll back on failure.
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Tests: 2339](https://img.shields.io/badge/tests-2339_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#status)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Tests: 2539](https://img.shields.io/badge/tests-2539_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#status)
 
 ---
 
@@ -27,12 +27,16 @@ Built for the operator who runs **many repos** and wants a maintenance autopilot
 | 15 active nightly cron workflows running on this repo | ✅ shipped — real auto-PRs since 2026-05-09 |
 | Spec-driven verification (6 acceptance-criterion kinds incl. `read_set` coverage proof) | ✅ shipped (Sprint 1.9.0 + 2.18) |
 | Multi-window cost safety (D/W/M USD caps + token velocity + loop detector) | ✅ shipped (Sprint 1.9.1) |
-| Real-LLM eval baseline (Sprint LR.1) | ✅ shipped 2026-05-13 — 3-task smoke baseline via `cortex-evolve-ab` + OpenRouter, $0.0016 total. Full 10-task LLM-as-judge baseline = v2. |
-| Daily "Dreaming" consolidation cron (Phase 5 Phase A, deterministic) | ✅ shipped (Sprint 2.19 v0 — `evolve_daily` action_kind, daily 03:00 UTC). Industry slovník: "Dreaming" (OpenClaw), "Auto Dream" (Anthropic). |
-| Weekly mining + monthly eval (Phase 5 Phase B+C, LLM-driven) | ⏳ designed, awaits enablement |
-| Compound learners + capability marketplace (Tier 2/3) | ⏳ Sprint 3.0+ |
+| Real-LLM eval baseline (Sprint LR.1) | ✅ shipped 2026-05-13 — 3-task smoke baseline via `cortex-evolve-ab` + OpenRouter, $0.0016 total. |
+| LLM-as-judge rubric scoring (Sprint 3.0 v2) | ✅ shipped — Sonnet-judge × DeepSeek-candidate, deterministic score recompute from per-property booleans, full bias-defense. |
+| Daily + weekly "Dreaming" consolidation cron (Phase 5 Phase A+B) | ✅ shipped (Sprint 2.19 v0 daily 03:00 UTC + v1 weekly Sunday 04:00 UTC — `evolve_daily` deterministic + `evolve_weekly` LLM-validated). |
+| Action-engine FTS recall (Sprint 3.2 v1) | ✅ shipped — `recallLessonsFTS()` wired at `action-engine.cjs:711`, 3-tier priority ladder + clock-skew defense. Node ≥22.5 only, fail-safe fallback. |
+| External tool capability adapter protocol (Sprint 3.4 v0) | ✅ shipped — SKILL.md frontmatter contract + 4-tier license gate. First adapter: `external-adapter-hyperframes`. |
+| Self-extending capabilities, proposal-only (Sprint 3.1 v0) | ✅ shipped — `cortex-propose-skill list/scaffold` CLI + `skill-experiments/` write-scope. Rate limit ≤1/week. Recursive-self-improvement door closed by filesystem architecture, not prompt. |
+| GraphRAG + lightweight reasoning over journal (Sprint 3.3) | ⏳ deferred pending LazyGraphRAG cost cliff resolution |
+| Capability marketplace + WaaS (Tier 3 productization) | ⏳ Sprint 4.0+ |
 
-**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12, public 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2339-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable.
+**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12, public 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2539-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable.
 
 See [`docs/vision.md`](./docs/vision.md) for the full four-tier roadmap (Foundation → Verification → Compound learners → Productization → Persistent entity).
 
@@ -137,7 +141,8 @@ Each profile is a YAML file in `profiles/` declaring stack defaults, security po
 
 ```
 cortex-x/
-├── bin/                 CLI: cortex-bootstrap, cortex-steward, cortex-capabilities, cortex-gap-report
+├── bin/                 CLI: cortex-bootstrap, cortex-steward, cortex-capabilities, cortex-gap-report,
+│                        cortex-propose-skill, cortex-lessons-search, cortex-evolve-ab, cortex-export-lessons
 │   └── steward/         Autonomous runtime — dry-run + execute + status + _lib/ primitives
 ├── profiles/            11 project profiles (YAML)
 ├── templates/           Handlebars templates (CLAUDE.md, PROGRESS.md, MEMORY.md, …)
@@ -146,7 +151,7 @@ cortex-x/
 ├── agents/              9 specialized subagents (review pipeline + planner + thinker)
 ├── shared/hooks/        7 universal Claude Code hooks
 ├── detectors/           Profile + stage classifiers (<100ms, fail-open)
-├── tests/               2339 tests across 8 tier gates
+├── tests/               2539 tests across 8 tier gates
 ├── evals/               Aider-style eval suite (10 canonical task rubrics)
 ├── docs/                Long-form docs (vision, positioning, install walkthrough, …)
 └── install.{sh,ps1}     One-command install to ~/.claude/shared/
@@ -169,7 +174,7 @@ cortex-x/
 - Bug reports & beta feedback: see [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE/)
 - Security vulnerabilities: **do not file a public issue** — see [`SECURITY.md`](./SECURITY.md) for private disclosure via GitHub Private Vulnerability Reporting
 - Code of conduct: [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
-- Pre-PR gate: `npm test` (~16 sec, 2339 tests across unit + contract + integration)
+- Pre-PR gate: `npm test` (~16 sec, 2539 tests across unit + contract + integration)
 
 ## License
 
