@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T10:13:46.885Z",
+  "generated_at": "2026-05-13T10:29:27.175Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -394,6 +394,12 @@
       "path": "bin/steward/_lib/sibling-reader.cjs",
       "sprint": "Sprint 2.7",
       "description": "Sprint 2.7 — sibling-projects read-only file access helper."
+    },
+    {
+      "name": "skill-scaffolder",
+      "path": "bin/steward/_lib/skill-scaffolder.cjs",
+      "sprint": "Sprint 3.1",
+      "description": "bin/steward/_lib/skill-scaffolder.cjs — Sprint 3.1 v0"
     },
     {
       "name": "snapshot-diff",
@@ -1094,15 +1100,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2253,
+      "unit": 2279,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2417
+    "total": 2443
   },
   "code_volume": {
-    "steward_runtime_loc": 25645,
-    "test_code_loc": 31628
+    "steward_runtime_loc": 26299,
+    "test_code_loc": 32043
   }
 }

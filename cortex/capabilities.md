@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T10:13:46.885Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T10:29:27.175Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 18 |
-| Steward primitives (`bin/steward/_lib/`) | 46 |
+| Steward primitives (`bin/steward/_lib/`) | 47 |
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 27 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 17 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2417 (unit 2253 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 25,645 |
-| Test LoC (`tests/`) | 31,628 |
+| Tests total | 2443 (unit 2279 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 26,299 |
+| Test LoC (`tests/`) | 32,043 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -47,7 +47,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (46)
+## 2. Steward primitives (47)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -91,6 +91,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`senior-tester-action`](../bin/steward/_lib/senior-tester-action.cjs) | Sprint 2.11 | Sprint 2.11 senior_tester_review Phase B + C |
 | [`sibling-manifest`](../bin/steward/_lib/sibling-manifest.cjs) | Sprint 2.7 | Sprint 2.7 — sibling-projects manifest validator. |
 | [`sibling-reader`](../bin/steward/_lib/sibling-reader.cjs) | Sprint 2.7 | Sprint 2.7 — sibling-projects read-only file access helper. |
+| [`skill-scaffolder`](../bin/steward/_lib/skill-scaffolder.cjs) | Sprint 3.1 | bin/steward/_lib/skill-scaffolder.cjs — Sprint 3.1 v0 |
 | [`snapshot-diff`](../bin/steward/_lib/snapshot-diff.cjs) | Sprint 2.5 | Sprint 2.5 — zero-deps JSON snapshot diff helper. |
 | [`spec-verifier`](../bin/steward/_lib/spec-verifier.cjs) | Sprint 1.9.0 | Sprint 1.9.0 spec-driven verification runner |
 | [`splice`](../bin/steward/_lib/splice.cjs) | Sprint 2.2.5 | Sprint 2.2.5 v0+v1: position-aware file edit primitive |
