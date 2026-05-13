@@ -1,5 +1,11 @@
 // detect-flaky-test-repair.test.cjs — Sprint 1.8.5 marker-based detector tests.
 // All tests use mockFiles DI — no real fs scan, fully deterministic.
+//
+// FLAKY-DETECTOR-FIXTURE — sentinel that opts this file out of the live-tree
+// scan inside `detectors/flaky-test-repair.cjs`. The markers below are test
+// fixtures inside template literals, not real annotations on real tests.
+// Without this opt-out, a nightly flaky-test-repair cron run on this repo
+// quarantines the fixture markers and breaks the detector's own test suite.
 
 'use strict';
 

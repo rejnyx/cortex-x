@@ -708,10 +708,16 @@ async function runLintFixAction(plan, opts = {}) {
   const hasErrors = detected.type_errors.length > 0;
 
   if (!hasFixes && !hasErrors) {
+    // 2026-05-13 fix: "no lint fixes + no type errors" is a legitimate
+    // clean-tree outcome, not a failure. Emit skip_commit:true so
+    // execute.cjs treats it as a successful no-op (matches doc_drift /
+    // todo_triage / workflow_hardener behavior on no-findings days).
     return {
-      ok: false,
+      ok: true,
+      skip_commit: true,
+      no_work: true,
       code: 'LINT_FIX_NO_WORK',
-      error: `nothing to ship (eslint_available=${detected.eslint_available}, tsc_available=${detected.tsc_available}, touched=0, errors=0)`,
+      summary: `nothing to ship (eslint_available=${detected.eslint_available}, tsc_available=${detected.tsc_available}, touched=0, errors=0)`,
       touchedFiles: [],
       usage: { cost_usd: 0, tokens_in: 0, tokens_out: 0 },
     };

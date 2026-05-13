@@ -1,5 +1,10 @@
 'use strict';
 
+// FLAKY-DETECTOR-FIXTURE — sentinel that opts this file out of the live-tree
+// scan inside `detectors/flaky-test-repair.cjs`. This file builds tmpRepos
+// containing marker strings as fixtures; the markers are not annotations on
+// real tests in this file.
+
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -1244,6 +1249,10 @@ describe('execute: Sprint 1.8.9 — lint_fix_shipper', () => {
   }
 
   test('runLintFixAction returns LINT_FIX_NO_WORK when nothing to fix', async () => {
+    // 2026-05-13 contract change: no-work is now a skip-commit success
+    // (ok:true + skip_commit:true) instead of a failure (ok:false). The
+    // `code: 'LINT_FIX_NO_WORK'` discriminator stays so callers can
+    // distinguish "ran, found nothing" from "ran and edited".
     const repo = tmpProjectRepo('lint-noop');
     const result = await execute.runLintFixAction(buildLintFixPlan(), {
       repoRoot: repo,
@@ -1251,7 +1260,9 @@ describe('execute: Sprint 1.8.9 — lint_fix_shipper', () => {
       mockTsc: { ran: true, tsc_available: true, type_errors: [] },
       skipGh: true,
     });
-    assert.equal(result.ok, false);
+    assert.equal(result.ok, true);
+    assert.equal(result.skip_commit, true);
+    assert.equal(result.no_work, true);
     assert.equal(result.code, 'LINT_FIX_NO_WORK');
   });
 

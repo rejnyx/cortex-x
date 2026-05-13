@@ -172,6 +172,12 @@ function detectFlakyMarkers({ cwd, mockFiles, maxCandidates } = {}) {
       if (!isTestFilePath(rel)) continue;
       let content;
       try { content = fs.readFileSync(filePath, 'utf8'); } catch { continue; }
+      // 2026-05-13 fix: skip self-test fixture files. A test file that
+      // exercises THIS detector necessarily contains marker strings inside
+      // template literals as test inputs — those are fixtures, not real
+      // annotations. The previous run quarantined them and broke the
+      // detector's own test suite. Files opt out via the sentinel below.
+      if (content.includes('FLAKY-DETECTOR-FIXTURE')) continue;
       const markers = scanContentForMarkers(content);
       for (const m of markers) {
         found.push({ file: rel, ...m });

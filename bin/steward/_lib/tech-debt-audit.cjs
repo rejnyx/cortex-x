@@ -334,19 +334,32 @@ async function runTechDebtAudit(opts = {}) {
   // Probe step (also delegated to detector for dispatch-time check).
   const probe = detector.detect({ repoRoot });
   if (probe.status === 'opted-out') {
-    return { ok: true, skipped: true, skipReason: 'AUDIT_OPTED_OUT', detail: probe.reason };
+    return {
+      ok: true,
+      skip_commit: true,
+      skipped: true,
+      skipReason: 'AUDIT_OPTED_OUT',
+      detail: probe.reason,
+      touchedFiles: [],
+    };
   }
   if (probe.status === 'qlty-missing') {
     // Sprint 2.5 R2 fix (acceptance BLOCKER + ssot BLOCKER): use roadmap-
     // documented error code TECH_DEBT_QLTY_MISSING. skipReason kept for
     // backward-compat with tests that asserted it; new `code` field
     // matches roadmap docs/steward-roadmap.md error-code table.
+    // 2026-05-13 fix: emit skip_commit:true + empty touchedFiles so
+    // execute.cjs's skip-commit branch fires cleanly instead of falling
+    // through to NO_FILES_TOUCHED (which marked the workflow as failed
+    // on every CI runner where qlty isn't preinstalled).
     return {
       ok: true,
+      skip_commit: true,
       skipped: true,
       skipReason: 'QLTY_NOT_INSTALLED',
       code: 'TECH_DEBT_QLTY_MISSING',
       detail: probe.reason,
+      touchedFiles: [],
     };
   }
 
