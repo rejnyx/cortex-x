@@ -81,6 +81,124 @@ function discoverTasks(evalsDir) {
  *
  * Returns {score, spec_pass, duration_ms, cost_usd}.
  */
+// Sprint 3.0 v1 — real-LLM executor via OpenRouter.
+//
+// Single-turn evaluation: variant prompt = system, task.body = user.
+// Response is scored as a **smoke baseline** (Sprint 3.0 v1 honest scope):
+// non-empty content + cost recorded + duration recorded. True
+// rubric-scoring (LLM-as-judge against eval's must-have checklist) is
+// deferred to v2.
+//
+// Requires OPENROUTER_API_KEY in env. Cost-guard via opts.maxCostUsd
+// aborts the run when cumulative cost exceeds the cap.
+function makeOpenRouterExecutor(opts = {}) {
+  const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error('makeOpenRouterExecutor: OPENROUTER_API_KEY required (env or opts.apiKey)');
+  }
+  const model = opts.model || 'deepseek/deepseek-v4-flash';
+  const maxTokens = Number.isFinite(opts.maxTokens) && opts.maxTokens > 0
+    ? Math.floor(opts.maxTokens) : 2048;
+  const maxCostUsd = Number.isFinite(opts.maxCostUsd) && opts.maxCostUsd > 0
+    ? opts.maxCostUsd : 1.0;
+  const fetchImpl = opts.fetchImpl || globalThis.fetch;
+  const endpoint = opts.endpoint || 'https://openrouter.ai/api/v1/chat/completions';
+  const variantPromptText = opts.variantPromptText || '';
+
+  let cumulativeCost = 0;
+
+  async function exec({ variant_id, task_id, trial, task }) {
+    if (cumulativeCost >= maxCostUsd) {
+      return {
+        score: 0,
+        spec_pass: false,
+        duration_ms: 0,
+        cost_usd: 0,
+        skipped: true,
+        skip_reason: 'COST_CAP_REACHED',
+        response_text: '',
+      };
+    }
+
+    const userPrompt = task.body || '';
+    const t0 = Date.now();
+    let resp;
+    try {
+      resp = await fetchImpl(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: variantPromptText || `You are running cortex-x eval task ${task_id}. Read the user message (task input + rubric) and respond as cortex-x's relevant agent would.` },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: maxTokens,
+        }),
+      });
+    } catch (err) {
+      return {
+        score: 0,
+        spec_pass: false,
+        duration_ms: Date.now() - t0,
+        cost_usd: 0,
+        error: `fetch_failed: ${err && err.message}`,
+        response_text: '',
+      };
+    }
+    const duration_ms = Date.now() - t0;
+    const text = await resp.text();
+    if (!resp.ok) {
+      return {
+        score: 0,
+        spec_pass: false,
+        duration_ms,
+        cost_usd: 0,
+        error: `http_${resp.status}: ${text.slice(0, 200)}`,
+        response_text: '',
+      };
+    }
+    let body;
+    try { body = JSON.parse(text); } catch (err) {
+      return {
+        score: 0,
+        spec_pass: false,
+        duration_ms,
+        cost_usd: 0,
+        error: 'json_parse_failed',
+        response_text: text.slice(0, 500),
+      };
+    }
+    const responseText = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
+    const cost_usd = (body && body.usage && Number(body.usage.cost)) || 0;
+    cumulativeCost += cost_usd;
+
+    // Smoke score: 1.0 if non-empty response, 0 otherwise. Sprint 3.0 v2
+    // will replace with LLM-as-judge against rubric checklist.
+    const responseStr = typeof responseText === 'string' ? responseText : '';
+    const score = responseStr.trim().length >= 32 ? 1.0 : 0;
+    // spec_pass mirrors the smoke threshold; true rubric-driven spec_pass
+    // lands with v2 LLM-as-judge scoring.
+    const spec_pass = score >= 1.0;
+
+    return {
+      score,
+      spec_pass,
+      duration_ms,
+      cost_usd,
+      response_text: responseStr,
+      cumulative_cost_usd: cumulativeCost,
+      model_used: model,
+    };
+  }
+
+  exec.getCumulativeCost = () => cumulativeCost;
+  return exec;
+}
+
 function mockExecutor({ variant_id, task_id, trial }) {
   let h = 2166136261;
   const s = `${variant_id}::${task_id}::${trial}`;
@@ -188,5 +306,6 @@ module.exports = {
   runVariant,
   writeVariantResult,
   mockExecutor,
+  makeOpenRouterExecutor,
   parseFrontmatter,
 };

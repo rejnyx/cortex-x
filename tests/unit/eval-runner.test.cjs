@@ -177,3 +177,108 @@ describe('Sprint 3.0 — runVariant integration', () => {
     );
   });
 });
+
+describe('Sprint 3.0 v1 — openrouter executor', () => {
+  test('throws when OPENROUTER_API_KEY missing', () => {
+    const prev = process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    try {
+      assert.throws(
+        () => runner.makeOpenRouterExecutor({}),
+        /OPENROUTER_API_KEY required/,
+      );
+    } finally {
+      if (prev) process.env.OPENROUTER_API_KEY = prev;
+    }
+  });
+
+  test('returns smoke score 1.0 on non-empty response', async () => {
+    const mockFetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [{ message: { content: 'A reasonably long response from the LLM that should clear the smoke threshold easily.' } }],
+        usage: { cost: 0.0001 },
+      }),
+    });
+    const exec = runner.makeOpenRouterExecutor({
+      apiKey: 'sk-or-fake',
+      fetchImpl: mockFetch,
+    });
+    const r = await exec({ variant_id: 'champion', task_id: 'eval-001', trial: 0, task: { body: 'do thing' } });
+    assert.equal(r.score, 1.0);
+    assert.equal(r.spec_pass, true);
+    assert.ok(r.cost_usd > 0);
+    assert.equal(r.response_text.length > 32, true);
+  });
+
+  test('returns score 0 on empty response', async () => {
+    const mockFetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [{ message: { content: '' } }],
+        usage: { cost: 0.0001 },
+      }),
+    });
+    const exec = runner.makeOpenRouterExecutor({
+      apiKey: 'sk-or-fake',
+      fetchImpl: mockFetch,
+    });
+    const r = await exec({ variant_id: 'x', task_id: 'eval-001', trial: 0, task: { body: 'x' } });
+    assert.equal(r.score, 0);
+    assert.equal(r.spec_pass, false);
+  });
+
+  test('returns error on HTTP non-2xx', async () => {
+    const mockFetch = async () => ({
+      ok: false,
+      status: 401,
+      text: async () => 'Auth rejected',
+    });
+    const exec = runner.makeOpenRouterExecutor({
+      apiKey: 'sk-or-fake',
+      fetchImpl: mockFetch,
+    });
+    const r = await exec({ variant_id: 'x', task_id: 'eval-001', trial: 0, task: { body: 'x' } });
+    assert.equal(r.score, 0);
+    assert.match(r.error, /http_401/);
+  });
+
+  test('cost cap aborts further trials', async () => {
+    let calls = 0;
+    const mockFetch = async () => {
+      calls += 1;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          choices: [{ message: { content: 'reasonably long response that clears the smoke threshold' } }],
+          usage: { cost: 0.5 },
+        }),
+      };
+    };
+    const exec = runner.makeOpenRouterExecutor({
+      apiKey: 'sk-or-fake',
+      fetchImpl: mockFetch,
+      maxCostUsd: 0.5,
+    });
+    const r1 = await exec({ variant_id: 'x', task_id: 'eval-001', trial: 0, task: { body: 'x' } });
+    assert.equal(r1.cost_usd, 0.5);
+    const r2 = await exec({ variant_id: 'x', task_id: 'eval-002', trial: 0, task: { body: 'x' } });
+    assert.equal(r2.skipped, true);
+    assert.equal(r2.skip_reason, 'COST_CAP_REACHED');
+    assert.equal(calls, 1); // second call short-circuited
+  });
+
+  test('fetch exception captured as error', async () => {
+    const mockFetch = async () => { throw new Error('net unreachable'); };
+    const exec = runner.makeOpenRouterExecutor({
+      apiKey: 'sk-or-fake',
+      fetchImpl: mockFetch,
+    });
+    const r = await exec({ variant_id: 'x', task_id: 'eval-001', trial: 0, task: { body: 'x' } });
+    assert.equal(r.score, 0);
+    assert.match(r.error, /fetch_failed/);
+  });
+});

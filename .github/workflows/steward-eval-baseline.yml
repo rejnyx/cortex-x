@@ -1,0 +1,77 @@
+# steward-eval-baseline.yml — Sprint 3.0 v1 + LR.1 closure.
+#
+# Manual-trigger workflow that runs cortex-evolve-ab with the
+# openrouter executor against a chosen subset of evals, captures
+# the result JSON as an artifact, and uploads it for the operator
+# to commit into evals/results/.
+#
+# Cost: bounded by --max-cost-usd input (default $0.20 = enough for
+# 3 evals × 1 trial × deepseek-v4-flash at ~$0.0001/call worst-case
+# including reasoning headroom).
+#
+# Default eval subset: eval-005, eval-007, eval-008 — covers
+# code-review + doctor + sprint-status; all are reasonably scoreable
+# in a single LLM call (not multi-turn agentic sessions).
+
+name: steward eval-baseline
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_ids:
+        description: 'Comma-separated eval IDs to run (default: eval-005,eval-007,eval-008)'
+        required: false
+        default: 'eval-005,eval-007,eval-008'
+      trials:
+        description: 'Trials per task'
+        required: false
+        default: '1'
+      max_cost_usd:
+        description: 'Cost cap in USD'
+        required: false
+        default: '0.20'
+      variant_id:
+        description: 'Variant label for the result file'
+        required: false
+        default: 'baseline-real-llm'
+
+jobs:
+  baseline:
+    name: steward eval-baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Run eval-baseline against OpenRouter
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          mkdir -p evals/results
+          node bin/cortex-evolve-ab.cjs run \
+            --variant=${{ github.event.inputs.variant_id }} \
+            --evals-dir=evals \
+            --results-dir=evals/results \
+            --task-ids=${{ github.event.inputs.task_ids }} \
+            --trials=${{ github.event.inputs.trials }} \
+            --executor=openrouter \
+            --max-cost-usd=${{ github.event.inputs.max_cost_usd }} \
+            --json
+          echo "---"
+          ls evals/results/
+      - name: Upload baseline result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: eval-baseline-${{ github.event.inputs.variant_id }}-${{ github.run_id }}
+          path: evals/results/
+          retention-days: 90

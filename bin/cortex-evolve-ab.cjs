@@ -40,13 +40,20 @@ Commands:
   compare                champion-vs-challenger decision rule + bootstrap CI
 
 Options (run):
-  --variant=<id>         (required) variant label (champion / challenger-v2 …)
-  --evals-dir=<path>     (default: ./evals)
-  --results-dir=<path>   (default: <evals-dir>/results)
-  --trials=<n>           N trials per task (default: 5)
-  --task-ids=<csv>       filter to subset (e.g. eval-001,eval-005)
-  --executor=mock        (default v0 — deterministic mock; real LLM in v1)
-  --json                 emit JSON summary
+  --variant=<id>             (required) variant label (champion / challenger-v2 …)
+  --evals-dir=<path>         (default: ./evals)
+  --results-dir=<path>       (default: <evals-dir>/results)
+  --trials=<n>               N trials per task (default: 5)
+  --task-ids=<csv>           filter to subset (e.g. eval-001,eval-005)
+  --executor=mock|openrouter (default mock; openrouter requires
+                             OPENROUTER_API_KEY in env)
+  --variant-prompt-file=<p>  for openrouter — path to prompt template
+                             read as system message (default: empty)
+  --model=<id>               openrouter model (default deepseek/deepseek-v4-flash)
+  --max-tokens=<n>           openrouter max_tokens per call (default 2048)
+  --max-cost-usd=<f>         abort run when cumulative cost exceeds
+                             (default 1.0 USD)
+  --json                     emit JSON summary
 
 Options (compare):
   --champion=<file>      path to champion variant result.json
@@ -76,8 +83,33 @@ async function cmdRun(args) {
   const executorName = flag('executor', args) || 'mock';
   const wantJson = isFlag('json', args);
 
-  if (executorName !== 'mock') {
-    process.stderr.write(`Error: only --executor=mock supported in Sprint 3.0 v0. Real-LLM executor lands in v1.\n`);
+  let executor;
+  if (executorName === 'mock') {
+    executor = runner.mockExecutor;
+  } else if (executorName === 'openrouter') {
+    // Sprint 3.0 v1 — real-LLM executor with cost guard.
+    const variantPromptFile = flag('variant-prompt-file', args);
+    let variantPromptText = '';
+    if (variantPromptFile) {
+      try { variantPromptText = require('node:fs').readFileSync(variantPromptFile, 'utf8'); }
+      catch (err) {
+        process.stderr.write(`Error: cannot read --variant-prompt-file=${variantPromptFile}: ${err.message}\n`);
+        return 2;
+      }
+    }
+    try {
+      executor = runner.makeOpenRouterExecutor({
+        model: flag('model', args),
+        maxTokens: flag('max-tokens', args) ? Number(flag('max-tokens', args)) : undefined,
+        maxCostUsd: flag('max-cost-usd', args) ? Number(flag('max-cost-usd', args)) : 1.0,
+        variantPromptText,
+      });
+    } catch (err) {
+      process.stderr.write(`Error: ${err.message}\n`);
+      return 2;
+    }
+  } else {
+    process.stderr.write(`Error: --executor must be "mock" or "openrouter" (got "${executorName}")\n`);
     return 2;
   }
 
@@ -86,7 +118,7 @@ async function cmdRun(args) {
     evalsDir,
     trials,
     taskIds,
-    executor: runner.mockExecutor,
+    executor,
   });
   const written = runner.writeVariantResult(result, resultsDir);
 
