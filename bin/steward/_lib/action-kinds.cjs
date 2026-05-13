@@ -758,6 +758,34 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.8.2 v0: Karpathy-style wiki layer Phase A ────────────────
+  wiki_consolidate: {
+    description:
+      'Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills + Obsidian conventions (tags, aliases, frontmatter_version, confidence_band, provenance). Phase B (LLM-validated merge with full provenance labels via cross-family judge per Sprint 3.0 v2) deferred to v1. Bridges raw journal (Sprint 1.8.3) + FTS5 lessons (Sprint 3.2 v1) + LLM-validated insights (Sprint 2.19 v1) into the missing "human-readable browse" layer Karpathy described at 2026 dev day.',
+    requires_llm: false, // v0 Phase A is deterministic
+    effort: 'low',
+    source: 'lessons.jsonl + journal/*.jsonl (read-only)',
+    detector: null, // No detector — runs unconditionally, returns no_work if lessons.jsonl empty
+    cost_envelope: 'free',
+    blast_radius: 'minimal', // writes only under $CORTEX_DATA_HOME/wiki/, never under source tree
+    shipped_in: '0.3.0', // Sprint 2.8.2 v0
+    acceptance_criteria: [
+      {
+        id: 'wiki_consolidate_writes_under_data_home_wiki',
+        kind: 'file_predicate',
+        description: 'All articles MUST be written under $CORTEX_DATA_HOME/wiki/<slug>/, never under repo source tree.',
+        predicate: 'touchedFiles.every((p) => p === "" || p.startsWith("wiki/") || p.includes("/wiki/"))',
+        severity: 'block',
+      },
+      {
+        id: 'wiki_consolidate_data_home_only_ears',
+        kind: 'ears_text',
+        ears: 'WHEN wiki_consolidate runs THE SYSTEM SHALL only write under $CORTEX_DATA_HOME/wiki/ AND never edit any source file',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:
