@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:18:46.043Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:41:33.381Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 17 |
-| Steward primitives (`bin/steward/_lib/`) | 42 |
+| Steward primitives (`bin/steward/_lib/`) | 44 |
 | Universal hooks (`shared/hooks/`) | 7 |
 | Standards (rule tiers 0-3) | 26 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 16 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 21 |
-| Tests total | 2324 (unit 2160 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 24,292 |
-| Test LoC (`tests/`) | 30,347 |
+| Tests total | 2362 (unit 2198 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 24,880 |
+| Test LoC (`tests/`) | 30,841 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -46,7 +46,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (42)
+## 2. Steward primitives (44)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -57,6 +57,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`autoresearch`](../bin/steward/_lib/autoresearch.cjs) | Sprint 2.1 | Sprint 2.1 N-strategy serial autoresearch loop |
 | [`cost-safety`](../bin/steward/_lib/cost-safety.cjs) | Sprint 1.9.1 | Sprint 1.9.1 multi-window cost safety + loop detector |
 | [`env`](../bin/steward/_lib/env.cjs) | — |  |
+| [`eval-judge`](../bin/steward/_lib/eval-judge.cjs) | Sprint 3.0 | bin/steward/_lib/eval-judge.cjs — Sprint 3.0 v2 |
 | [`eval-runner`](../bin/steward/_lib/eval-runner.cjs) | Sprint 3.0 | bin/steward/_lib/eval-runner.cjs — Sprint 3.0 v0 |
 | [`eval-scorer`](../bin/steward/_lib/eval-scorer.cjs) | Sprint 3.0 | bin/steward/_lib/eval-scorer.cjs — Sprint 3.0 v0 |
 | [`evolve-action`](../bin/steward/_lib/evolve-action.cjs) | Sprint 2.19 | bin/steward/_lib/evolve-action.cjs — Sprint 2.19 daily Dreaming handler |
@@ -80,6 +81,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`research-trigger`](../bin/steward/_lib/research-trigger.cjs) | Sprint 2.14 | Sprint 2.14 research-when-uncertain rule mechanics |
 | [`routing-policy`](../bin/steward/_lib/routing-policy.cjs) | Sprint 2.0b | Sprint 2.0b per-action USD cap + journal scan |
 | [`routing-table`](../bin/steward/_lib/routing-table.cjs) | Sprint 2.0b | Sprint 2.0b action-kind-based model routing |
+| [`rubric-extractor`](../bin/steward/_lib/rubric-extractor.cjs) | Sprint 3.0 | bin/steward/_lib/rubric-extractor.cjs — Sprint 3.0 v2 |
 | [`safety`](../bin/steward/_lib/safety.cjs) | Sprint 2.5b | Shared SSOT for slug/date guards + markdown sanitization + |
 | [`secret-sweep-action`](../bin/steward/_lib/secret-sweep-action.cjs) | Sprint 2.6b | Sprint 2.6b TruffleHog wrapper |
 | [`self-invocation`](../bin/steward/_lib/self-invocation.cjs) | Sprint 2.13 | Sprint 2.13 self-invocation tracker + 4 hard guardrails |

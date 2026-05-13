@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T09:18:46.043Z",
+  "generated_at": "2026-05-13T09:41:33.381Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -189,6 +189,12 @@
       "description": null
     },
     {
+      "name": "eval-judge",
+      "path": "bin/steward/_lib/eval-judge.cjs",
+      "sprint": "Sprint 3.0",
+      "description": "bin/steward/_lib/eval-judge.cjs — Sprint 3.0 v2"
+    },
+    {
       "name": "eval-runner",
       "path": "bin/steward/_lib/eval-runner.cjs",
       "sprint": "Sprint 3.0",
@@ -325,6 +331,12 @@
       "path": "bin/steward/_lib/routing-table.cjs",
       "sprint": "Sprint 2.0b",
       "description": "Sprint 2.0b action-kind-based model routing"
+    },
+    {
+      "name": "rubric-extractor",
+      "path": "bin/steward/_lib/rubric-extractor.cjs",
+      "sprint": "Sprint 3.0",
+      "description": "bin/steward/_lib/rubric-extractor.cjs — Sprint 3.0 v2"
     },
     {
       "name": "safety",
@@ -1040,15 +1052,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2160,
+      "unit": 2198,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2324
+    "total": 2362
   },
   "code_volume": {
-    "steward_runtime_loc": 24292,
-    "test_code_loc": 30347
+    "steward_runtime_loc": 24880,
+    "test_code_loc": 30841
   }
 }
