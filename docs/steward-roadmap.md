@@ -979,7 +979,17 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 2.8.1 — lessons.jsonl → MEMORY.md exporter (S effort) — 📋 PROPOSED 2026-05-11
+### Sprint 2.8.1 — lessons.jsonl → MEMORY.md exporter (S effort) — ✅ SHIPPED 2026-05-13 (v0)
+
+**v0 shipped 2026-05-13**:
+- `bin/steward/_lib/lessons-exporter.cjs` (~180 LoC) — pure-deterministic exporter: scores lessons via memory-decay.cjs, groups by action_kind, writes top-K per kind to `lessons-<kind>.md` topic files in target memory dir, emits MEMORY.md index.
+- `bin/cortex-export-lessons.cjs` — operator-facing CLI (`--slug`, `--memory-dir`, `--data-home`, `--top-k`, `--min-score`, `--json`, `--dry-run`).
+- 9 tests (tests/unit/lessons-exporter.test.cjs).
+- Default target: `~/.claude/projects/<slug>/memory/` — Claude Code's native auto-memory directory.
+- Topic file frontmatter: `name`, `description`, `type: feedback`, `last_updated` — matches Claude Code auto-memory contract from CLAUDE.md scaffold.
+- v0 design decisions (resolves 3 open questions from original proposal): (a) **per-topic files** (one per action_kind), not single MEMORY.md — better claude-cli auto-load scoping; (b) **decay-aware top-K**, default 10 per kind; (c) **uni-directional write** — claude-cli does not write back (per CLAUDE.md auto-memory spec).
+
+**Original proposal (2026-05-11)**: 📋 Proposed 2026-05-11 as smaller-bite alternative to full Anthropic Memory Tool integration (Sprint 3.X).
 
 **Status**: 📋 Proposed 2026-05-11 as smaller-bite alternative to full Anthropic Memory Tool integration (Sprint 3.X). Decision deferred from autonomous-ship to operator review because schema design needs review.
 
