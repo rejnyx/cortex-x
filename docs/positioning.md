@@ -139,6 +139,35 @@ Every competitor either (a) charges per quarter-hour of agent time at minimum $2
 - **Use Sakana DGM** if you're doing self-improvement research, not production.
 - **Use cortex-x Steward** if you have multiple long-lived repos, an OpenRouter key, a strong "no SaaS for my git history" preference, and you want unsupervised overnight maintenance with atomic rollback + multi-window cost caps + audit trail in your own files.
 
+## Second lens — vs agent-memory systems (Sprint 2.20, 2026-05-13)
+
+The brain-kit / Claude Code Memory category is a second axis where reviewers compare cortex-x. cortex-x is **adjacent** to memory-SaaS, not competing — but reviewers will ask "vs Mem0 / Zep / Letta / MAF+Neo4j" and the answer needs to exist.
+
+> *Note: this matrix drops the autonomous-coding peers (Devin, GH Copilot CA, Replit Agent, Cursor BG, Sakana DGM, Aider) covered in §"Comparison matrix" above, and replaces them with memory-category peers. Different lens, same artifact.*
+
+| Feature | Mem0 | Zep / Graphiti | Letta | MAF + Neo4j | OpenClaw Dreaming | Anthropic Auto Dream | **cortex-x Steward** |
+|---|---|---|---|---|---|---|---|
+| Persistent KV memory | ✅ vector | ✅ temporal graph | ✅ durable state | ✅ KG provider | ✅ daily cron | ✅ native primitive | ✅ MEMORY.md + `~/.cortex` |
+| Structured KG / entity relationships | ⚠️ partial | ✅ Graphiti core | ❌ | ✅ Neo4j first-party | ⚠️ flat | ❌ | ⏸️ Sprint 3.3 deferred |
+| Temporal-graph memory | ❌ | ✅ winner LongMemEval (63.8%) | ❌ | ✅ via Neo4j | ❌ | ❌ | ❌ |
+| Nightly consolidation ("Dreaming" / "Auto Dream") | ❌ | ❌ | ❌ | ❌ | ✅ default 3 AM cron | ✅ native | ⏳ Sprint 2.19 wires this |
+| MCP-native | ✅ | ✅ | ⚠️ partial | ✅ | ✅ via OpenClaw | ✅ via Claude Code | ⚠️ skills, no MCP server yet |
+| Atomic-rollback on bad memory write | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ via Steward execute |
+| Multi-window USD caps (D/W/M) | ❌ tier cap only | ❌ | ❌ | ❌ vendor billing | ❌ | ❌ | ✅ |
+| Draft-PR human approval on memory mutation | ❌ | ❌ | ❌ | ❌ | ⚠️ optional | ❌ | ✅ first-class |
+| OSS license | Apache-2 | Apache-2 | Apache-2 | MIT (MAF), GPL (Neo4j CE) | Apache-2 | proprietary | ✅ Apache-2 |
+| Typical operator cost | $19–249/mo | $0–25/mo | model bill | Neo4j Aura $65+/mo | model bill | bundled in Claude Max | **~$0.0008 / run** |
+| Stars / adoption | 47K★ | 5K★ Graphiti | 14K★ | MAF v1.0 GA Q1 2026 | 350K★ (parent framework) | shipped 2026 | fresh public preview |
+| Target | LLM apps needing recall | apps needing time-aware recall | OSS MemGPT successor | enterprise MAF users | personal-life automation | Claude Code users | **operator w/ many repos doing maintenance** |
+
+Legend: ✅ shipped & first-class · ⚠️ partial / via workaround · ❌ absent · ⏸️ planned/deferred.
+
+**Verdict.** cortex-x's memory layer (MEMORY.md + `~/.cortex` library + Phase 5 dream-cycle, wiring in Sprint 2.19) is functionally similar to Mem0 / Auto Dream / OpenClaw Dreaming. **But that's not the lane.** cortex-x is *maintenance autopilot WITH a memory layer*, not *memory-SaaS for agents*. The differentiator stack — atomic-rollback Steward + spec verifier + multi-window USD caps + draft-PR approval + 9-agent review pipeline — has **zero co-occurrence** in any named memory system above. Use Mem0/Zep for "remembering your conversation across LLM apps." Use cortex-x for "maintaining 30 long-lived repos overnight while sleeping." Different shape, different buyer.
+
+**Don't pivot.** Mem0 dominates with 47K★ + temporal-graph (Zep) wins benchmarks; entering memory-SaaS from behind is a losing fight. Stay in the maintenance-autopilot lane; the memory layer is *infrastructure for it*, not the product.
+
+Sources for this lens: brain-kit landscape memo [`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md), [5-system agent-memory benchmark 2026](https://dev.to/varun_pratapbhardwaj_b13/5-ai-agent-memory-systems-compared-mem0-zep-letta-supermemory-superlocalmemory-2026-benchmark-59p3), [Microsoft Learn Neo4j Memory Provider](https://learn.microsoft.com/en-us/agent-framework/integrations/neo4j-memory), [OpenClaw Dreaming guide](https://dev.to/czmilo/openclaw-dreaming-guide-2026-background-memory-consolidation-for-ai-agents-585e), [Anthropic Auto Dream](https://claudefa.st/blog/guide/mechanics/auto-dream).
+
 ## References
 
 Research dispatch memo: [`docs/research/sprint-lr.6-competitive-landscape-research-2026-05-10.md`](./research/sprint-lr.6-competitive-landscape-research-2026-05-10.md) (25 cited URLs).
