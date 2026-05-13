@@ -39,11 +39,11 @@ If verification fails, the action is marked `tainted` in the journal and Steward
 
 ### MUST-H2 — Branch-per-action with mutex-by-slug
 
-Branch naming: `steward/<YYYY-MM-DD>-<action-slug>-<short-id>` (e.g. `hermes/2026-05-07-bump-zod-a3f2`).
+Branch naming: `steward/<YYYY-MM-DD>-<action-slug>-<short-id>` (e.g. `steward/2026-05-07-bump-zod-a3f2`).
 
 Mutex enforcement: a **lock file** at `cortex/journal/<slug>/.lock` containing `{pid, start_ts, action_id}`. Steward refuses to start action B if the lock is held; on stale-lock detection (`>2× declared action timeout`) it logs `lock_recovered` and proceeds.
 
-**Forbidden:** daily-rolling branches (`hermes/2026-05-07` covering N actions), parallel Steward runs on the same project, multiple open Steward PRs against the same project at the same time.
+**Forbidden:** daily-rolling branches (`steward/2026-05-07` covering N actions), parallel Steward runs on the same project, multiple open Steward PRs against the same project at the same time.
 
 ### MUST-H3 — Git trailers on every commit
 
@@ -76,7 +76,7 @@ const StewardJournalEntry = z.object({
   args_hash: z.string().optional(),
   outcome: z.enum(['success', 'failure', 'skipped', 'halted']).optional(),
   replay_seed: z.string().optional(),
-  actor: z.enum(['hermes', 'investigate-subagent']).default('hermes'),
+  actor: z.enum(['steward', 'investigate-subagent']).default('steward'),
 })
 ```
 
@@ -97,7 +97,7 @@ Presence = immediate clean shutdown, journal entry `{event: "halted_by_sentinel"
 Every Steward PR is opened as **draft** (`gh pr create --draft`). Steward promotes draft → ready only when:
 
 1. All required CI checks green (project's existing branch protection set)
-2. Steward-specific check `hermes/atomic-commit-contract` green:
+2. Steward-specific check `steward/atomic-commit-contract` green:
    - Exactly N commits where N = declared action count
    - Every commit has `Steward-Action-Id` trailer
    - Revert chain intact if reverts present
@@ -112,14 +112,14 @@ When `git pull --rebase` (or equivalent) fails with a merge conflict on Steward'
 - Steward does NOT invoke an LLM to draft a resolution into the action branch
 - Steward journals `{event: "conflict_on_pull", conflict_files: [...]}` and **halts** (T2 ping + pause)
 
-v1+ may opt-in to LLM-drafted resolutions on a **side-branch** (`hermes/<...>-conflict-resolution`) that humans review and merge. v0 is halt-only.
+v1+ may opt-in to LLM-drafted resolutions on a **side-branch** (`steward/<...>-conflict-resolution`) that humans review and merge. v0 is halt-only.
 
 ## 3. Denylist — three-layer defense
 
 Steward layers three independent denylists. They cover different attack surfaces and are intentionally NOT consolidated into one source — defense-in-depth requires that any one layer breaking does not collapse the others.
 
 ### Layer 1 — Engine file-write denylist (`bin/steward/_lib/action-engine.cjs`)
-Enforced inside `applyEditsToFilesystem` over `edit.path`. Blocks **file-WRITE** to: `.env*`, `*.pem`, `*.key`, `secrets/`, `package(-lock).json`, `bin/steward/**`, `bin/cortex-steward*`, `.github/workflows/**`, `standards/hermes-*`, `.git/`, `.ssh/`, `.gnupg/`, **`reports/<everything-except-mutation.json>`**. Source: `HERMES_HARD_DENYLIST` constant.
+Enforced inside `applyEditsToFilesystem` over `edit.path`. Blocks **file-WRITE** to: `.env*`, `*.pem`, `*.key`, `secrets/`, `package(-lock).json`, `bin/steward/**`, `bin/cortex-steward*`, `.github/workflows/**`, `standards/steward-*`, `.git/`, `.ssh/`, `.gnupg/`, **`reports/<everything-except-mutation.json>`**. Source: `STEWARD_HARD_DENYLIST` constant.
 
 > **Sprint 2.3a — mutation testing artifact policy.** `reports/` is owned by the `mutation_score_drift` action_kind. Only `reports/mutation.json` is commit-tracked (drift baseline across PRs); everything else under `reports/` is gitignored per-run scratch. **Two-layer ownership enforcement**: (a) engine HARD_DENYLIST blocks every `reports/<path>` except the canonical `reports/mutation.json` (negative-lookahead regex, prevents hypothetical future kinds that forget the criterion); (b) per-kind acceptance criterion `mutation_audit_only_writes_snapshot` (`touchedFiles.every((p) => p === "reports/mutation.json")`) is the spec-verifier-time safeguard — other action_kinds attempting to land edits in `reports/` will trip `SPEC_VIOLATION`. Cross-layer invariant tested in [`tests/contract/denylist-ssot.test.cjs`](../tests/contract/denylist-ssot.test.cjs) § "reports/ ownership".
 
@@ -132,7 +132,7 @@ Enforced before any tool call. Pattern-matches over flattened args. Blocks **sub
 - Force-push / hard-reset / `rm -rf` (already covered by Ring 2 below; Ring 1 catches first)
 - **Secrets exfiltration** (Sprint pre-2.0 housekeeping): `cat`, `less`, `more`, `tail`, `head`, `Get-Content` against any path containing `.env*`, `*.pem`, `*.key`, `secrets/`, `.ssh/`, `.gnupg/` → `NO_SECRET_READ`. Plus pipe-out variants → `NO_SECRET_PIPE`. The intent is "Steward can never round-trip a key through a subprocess body" (defense against future LLM-authored gh-issue body that quotes a secret).
 
-Source: `HERMES_DENY` array. Cross-layer invariant tested in [`tests/contract/denylist-ssot.test.cjs`](../tests/contract/denylist-ssot.test.cjs).
+Source: `STEWARD_DENY` array. Cross-layer invariant tested in [`tests/contract/denylist-ssot.test.cjs`](../tests/contract/denylist-ssot.test.cjs).
 
 ### Layer 3 — Global block-destructive hook (`shared/hooks/block-destructive.cjs`)
 Pre-existing project-wide hook. Blocks for **the human + any subagent + Steward**: `git push --force`, `git reset --hard`, `git clean -f`, `git branch -D`, `git checkout .`, `git restore .`, `git stash drop|clear`, `rm -rf`, `DROP TABLE`, `DROP DATABASE`, `TRUNCATE`, `supabase db reset`. Steward inherits all of those.
@@ -143,7 +143,7 @@ Engine denylist is path-shaped (`/^\.env(\.|$)/i.test(rel)`), policy-check is co
 
 ## 4. Cost ceilings — loop guards (not bankruptcy protection)
 
-v0 assumes Steward runs on the human's MAX subscription (`CORTEX_BUDGET_DISABLED=1` env var honored). USD ceilings are **runaway-loop blast-radius limits**, not bill-bomb guards. If Steward is ever moved to its own API key (`HERMES_API_KEY` env var set), the same ceilings become hard-meaningful.
+v0 assumes Steward runs on the human's MAX subscription (`CORTEX_BUDGET_DISABLED=1` env var honored). USD ceilings are **runaway-loop blast-radius limits**, not bill-bomb guards. If Steward is ever moved to its own API key (`STEWARD_API_KEY` env var set), the same ceilings become hard-meaningful.
 
 | Bucket | Soft warn | Hard halt |
 |---|---|---|
@@ -153,7 +153,7 @@ v0 assumes Steward runs on the human's MAX subscription (`CORTEX_BUDGET_DISABLED
 | Tool-call retry budget | 3 retries | 5 same-tool-same-args → loop trip |
 | Iterations per session | 15 warn | 25 hard cap |
 
-Defaults override-able in `~/.cortex/hermes.yaml`. Soft-cap = T1 journal flag. Hard-cap = T2 ping + pause.
+Defaults override-able in `~/.cortex/steward.yaml`. Soft-cap = T1 journal flag. Hard-cap = T2 ping + pause.
 
 ## 5. Escalation tiers
 
@@ -235,7 +235,7 @@ explicit operator escape hatch (logged via `steward.routing.source = "cli"`).
 ## 7. Red flags — block on review
 
 - ❌ Steward commits without `Steward-Action-Id` trailer
-- ❌ Branch name `hermes/<date>` (daily-rolling, not action-scoped)
+- ❌ Branch name `steward/<date>` (daily-rolling, not action-scoped)
 - ❌ Multiple commits per action without explicit declaration
 - ❌ Force-push from Steward (any form, even `--force-with-lease`)
 - ❌ Steward calls `gh pr merge` or `git merge main`

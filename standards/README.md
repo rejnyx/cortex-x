@@ -1,18 +1,26 @@
 # cortex-x Standards
 
-> The **12 principles** organized in 3 tiers. **Rule 1 is inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
+> **26 standards** organized in 5 tiers. **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
 
 ## Tier hierarchy
 
 | Tier | Standard | Status | Enforcement |
 |---|---|---|---|
+| **🚢 RULE 0** | [Ship-Ready](./ship-ready.md) | Distribution gate | PII grep + license scan + stranger-reproducible install — precedes everything |
 | **🔒 RULE 1** | [Rule 1 meta-standard](./RULE-1.md) | — | Contract + active enforcement |
 | | &nbsp;&nbsp;[SSOT](./ssot.md) | Inviolable | Scaffold + ssot-enforcer always-on + PR block |
 | | &nbsp;&nbsp;[Modular](./modular.md) | Inviolable | ssot-enforcer + architecture-guard patterns |
 | | &nbsp;&nbsp;[Scalable](./scalable.md) | Inviolable | RLS + indexes + rate-limits from day 1 |
+| **🧠 RULE 1.5** | [Coding behavior](./coding-behavior.md) | Behavioral contract | Think Before Coding · Simplicity First · Surgical Changes — PR guideline |
+| (Behavior) | &nbsp;&nbsp;[Coding examples](./coding-behavior-examples.md) | Supporting | Concrete before/after pairs for coding-behavior |
+| | [Auto-optimization](./auto-optimization.md) | Wizard philosophy | Detect > suggest > auto-apply; reviewer-pipeline guideline |
+| | [Auto-orchestration](./auto-orchestration.md) | Hook trigger | 6-agent parallel review auto-dispatch on non-trivial diffs |
+| | [Self-correction](./self-correction.md) | Pattern | Reflexion + Voyager skill cache + autoDream consolidation |
 | **⚠️ RULE 2** | [Security](./security.md) | Must-have | Review pipeline flag = blocker |
 | (Critical) | [Testing](./testing.md) | Must-have | Review pipeline flag = blocker |
 | | [Observability](./observability.md) | Must-have | Review pipeline flag = blocker |
+| | [Correctness](./correctness.md) | Must-have | Zod boundaries + property tests + mutation testing; blocker |
+| | [Steward policy](./steward-policy.md) | Must-have | Steward runtime safety contract (denylist + caps + actor); blocker for Steward PRs |
 | **📋 RULE 3** | [Performance](./performance.md) | Should-have | Review pipeline flag = warning |
 | (Process) | [Accessibility](./accessibility.md) | Should-have | Review pipeline flag = warning |
 | | [Error handling](./error-handling.md) | Should-have | Review pipeline flag = warning |
@@ -20,7 +28,11 @@
 | | [Documentation](./documentation.md) | Should-have | Review pipeline flag = warning |
 | | [AI Patterns](./ai-patterns.md) | Should-have | Should-have for non-static profiles |
 | | [AI SDKs](./ai-sdks.md) | Should-have | Required `ai_sdk:` key in every profile YAML |
-| | [Voice](./voice.md) | Should-have | Cross-skill identity + citation discipline + failure-mode templates; reviewer flag = warning |
+| | [Web research](./web-research.md) | Should-have | Research-before-implement default + citation discipline; warning |
+| | [Voice](./voice.md) | Should-have | Cross-skill identity + citation discipline + 5 failure-mode templates; warning |
+| | [Skills](./skills.md) | Should-have | agentskills.io SKILL.md spec adoption; required for shared skills |
+| **📚 Supporting** | [Test types catalog](./test-types-catalog.md) | Reference | Catalogue of test kinds (unit/contract/integration/property/mutation/eval) |
+| | [Story sizing](./story-sizing.md) | Reference | Story-sizing heuristic for PROGRESS.md |
 
 ## Why tiered
 
@@ -30,9 +42,11 @@ Security can be added. Testing can be retrofitted. Observability can be layered 
 
 Tier 1 is the only tier you can't fix later.
 
-## Why 11 (not "9")
+## Why 26 (across 5 tiers)
 
-The docs-as-code, git workflow, and error handling are process standards. The first 8 are technical quality. Together they cover the full surface of "professional software development" that most indie projects skip.
+Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
+
+Most indie projects skip ~80% of this surface. cortex-x ships all of it as defaults.
 
 ## How to use
 

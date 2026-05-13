@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// run-hermes-evals.cjs — Sprint 1.6.22 (T1) CLI runner for Hermes eval cases.
+// run-steward-evals.cjs — Sprint 1.6.22 (T1) CLI runner for Steward eval cases.
 //
 // Invokes the same loader logic as tests/integration/steward-evals.test.cjs
 // but produces a human-readable report (plus optional --json for CI) instead
@@ -21,7 +21,7 @@ const execute = require('../bin/steward/execute.cjs');
 const journal = require('../bin/steward/_lib/journal.cjs');
 
 const SLUG = 'steward-dryrun';
-const CASES_DIR = path.join(__dirname, '..', 'evals', 'hermes', 'cases');
+const CASES_DIR = path.join(__dirname, '..', 'evals', 'steward', 'cases');
 
 function arg(name) {
   for (const a of process.argv.slice(2)) {
@@ -46,7 +46,7 @@ function loadCases(filter) {
 }
 
 function tmpEvalRepo(prefix) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `hermes-eval-${prefix}-`));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `steward-eval-${prefix}-`));
   spawnSync('git', ['init', '--initial-branch=main'], { cwd: dir });
   spawnSync('git', ['config', 'user.email', 'eval@test.local'], { cwd: dir });
   spawnSync('git', ['config', 'user.name', 'Eval'], { cwd: dir });
@@ -69,10 +69,10 @@ function buildEvalPlan(plan_overrides = {}) {
     mode: 'dry-run',
     slug: SLUG,
     action: { num: 1, title: 'eval action', action_key: `${SLUG}#week-1` },
-    branch: 'hermes/eval-fixture-branch',
+    branch: 'steward/eval-fixture-branch',
     action_id: '01EVALCASE',
     trigger: 'manual',
-    commit_message: 'feat(eval): demo\n\nBody\n\nHermes-Action-Id: 01EVALCASE\nHermes-Journal-Entry: ~/.cortex/journal/x.jsonl\nHermes-Trigger: manual\nHermes-Recommendation-Source: cortex/recommendations.md#1',
+    commit_message: 'feat(eval): demo\n\nBody\n\nSteward-Action-Id: 01EVALCASE\nSteward-Journal-Entry: ~/.cortex/journal/x.jsonl\nSteward-Trigger: manual\nSteward-Recommendation-Source: cortex/recommendations.md#1',
   };
   if (plan_overrides.action) base.action = { ...base.action, ...plan_overrides.action };
   return base;
@@ -86,14 +86,14 @@ async function runCase(c) {
 
   const prev = {
     CORTEX_DATA_HOME: process.env.CORTEX_DATA_HOME,
-    HERMES_ENGINE: process.env.HERMES_ENGINE,
-    HERMES_MOCK_PLAN: process.env.HERMES_MOCK_PLAN,
-    HERMES_NO_PUSH: process.env.HERMES_NO_PUSH,
+    STEWARD_ENGINE: process.env.STEWARD_ENGINE,
+    STEWARD_MOCK_PLAN: process.env.STEWARD_MOCK_PLAN,
+    STEWARD_NO_PUSH: process.env.STEWARD_NO_PUSH,
   };
   process.env.CORTEX_DATA_HOME = dataHome;
-  process.env.HERMES_ENGINE = 'mock';
-  process.env.HERMES_MOCK_PLAN = JSON.stringify(c.mock_plan);
-  process.env.HERMES_NO_PUSH = '1';
+  process.env.STEWARD_ENGINE = 'mock';
+  process.env.STEWARD_MOCK_PLAN = JSON.stringify(c.mock_plan);
+  process.env.STEWARD_NO_PUSH = '1';
 
   let result;
   const failures = [];
@@ -150,7 +150,7 @@ async function main() {
   }
 
   if (!wantJson) {
-    process.stdout.write(`Running ${cases.length} Hermes eval case(s)...\n\n`);
+    process.stdout.write(`Running ${cases.length} Steward eval case(s)...\n\n`);
   }
 
   const results = [];
@@ -181,6 +181,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  process.stderr.write(`run-hermes-evals crashed: ${err.message}\n${err.stack}\n`);
+  process.stderr.write(`run-steward-evals crashed: ${err.message}\n${err.stack}\n`);
   process.exit(1);
 });

@@ -1,10 +1,12 @@
 ---
 name: start
-description: Bootstrap a NEW project from an empty folder via cortex-x five-phase onboarding (Discover → Research → Architect → Scaffold → Adapt). Saves artifacts to cortex/ at each phase. Auto-primed by SessionStart hook when .cortex-bootstrap-pending marker is present.
+description: Bootstrap a NEW project from an empty folder via cortex-x five-phase onboarding (Discover → Research → Architect → Scaffold → Adapt). Saves artifacts to cortex/ at each phase. Auto-primed by SessionStart hook when .cortex-bootstrap-pending marker is present. Triggers (CZ+EN): "/start", "let's start a new project", "začni nový projekt", "scaffold this", "naskafolduj mi projekt", "založ nový repo", "bootstrap new app".
 disable-model-invocation: false
 ---
 
 # /start — New project bootstrap (cortex-x)
+
+**Voice charter:** see [`standards/voice.md`](../../../standards/voice.md). No greetings, no emoji, no emotion words, counts-not-praise. Honors Rule 1 invariants (`standards/ssot.md`, `standards/scalable.md`) during scaffold.
 
 You are running the cortex-x new-project bootstrap. Read and execute the
 prompt at `~/.claude/shared/prompts/new-project.md` from start to finish.

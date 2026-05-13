@@ -184,3 +184,24 @@ pre-pii-purge-*
 # and added this rule to prevent recurrence.
 /docs/dogfood/
 .last-capability-tip
+
+# === Sprint 2.17.x repo-hygiene audit (2026-05-13) ===
+# Operator's source-material transcripts — personal research drops, not framework docs.
+# docs/transcripts/README.md ships as the convention pointer; data files are personal.
+/docs/transcripts/*.txt
+/docs/transcripts/*.md
+!/docs/transcripts/README.md
+
+# Operator's hand-curated architecture diagrams — personal mental-model captures,
+# not referenced from README or shipped docs.
+/docs/pics/
+
+# Dated implementation briefs / next-up notes — operator working notes,
+# superseded by docs/steward-roadmap.md as the canonical roadmap.
+/docs/next-up-*.md
+/docs/*-pending-*.md
+
+# Czech-language localisation drafts. Public docs ship in English
+# (per ship-ready.md — i18n is NOT a v0 goal).
+/docs/*.cs.md
+

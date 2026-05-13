@@ -1,10 +1,12 @@
 ---
 name: test-audit
-description: Deep QA-focused audit of an EXISTING codebase via cortex-x qa-retrofit prompt (P0 detect → P1 inventory → P2 4-agent ISO 25010:2023 + cortex extras → P3 human gate → P4 QA-specific research → P5 synthesis → P6 sample-test seeding opt-in). Produces senior-QA-consultant-grade testing strategy + prioritized gap backlog. Pairs with /audit (general 12-dim) but with a testing lens.
+description: Deep QA-focused audit of an EXISTING codebase via cortex-x qa-retrofit prompt (P0 detect → P1 inventory → P2 4-agent ISO 25010:2023 + cortex extras → P3 human gate → P4 QA-specific research → P5 synthesis → P6 sample-test seeding opt-in). Produces senior-QA-consultant-grade testing strategy + prioritized gap backlog. Pairs with /audit (general 12-dim) but with a testing lens. Triggers (CZ+EN): "/test-audit", "test strategy review", "ohodnoť testy", "jak na tom jsou testy", "QA audit", "test coverage assessment", "review my tests".
 disable-model-invocation: false
 ---
 
 # /test-audit — Deep QA retrofit (cortex-x)
+
+**Voice charter:** see [`standards/voice.md`](../../../standards/voice.md). No greetings, no emoji, no emotion words, counts-not-praise. Quality model grounded in `standards/testing.md` + `standards/correctness.md`.
 
 You are running the cortex-x QA retrofit. Read and execute the prompt at `~/.claude/shared/prompts/qa-retrofit.md` from start to finish.
 

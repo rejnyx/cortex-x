@@ -6,6 +6,8 @@ disable-model-invocation: false
 
 # /cortex-help — what can cortex-x do right now
 
+**Voice charter:** see [`standards/voice.md`](../../../standards/voice.md). The menu IS the voice surface — no greetings, no emoji, no emotion words. Counts not praise.
+
 You are running the cortex-x help menu. The user wants a one-screen answer to *"what can I type next?"* — NOT a wall of documentation. Print the menu, suggest a sensible default action based on detected project state, stop.
 
 ## Step 1 — language signal
@@ -37,11 +39,13 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 | **`/audit`** | Existing-project deep audit (12 dimensions, 4 parallel agents) | Established codebase, want to know what's there |
 | **`/test-audit`** | Senior-QA-consultant audit → P0/P1/P2 gap list with research memos | Repo needs a testing-strategy review |
 | **`/designer`** | Designer flow — intake + library palette + parallel worktree exploration | Front-end / landing-page / dashboard design session |
-| **`/retrofit`** | Apply cortex-x patterns to an audited project | After `/audit` finishes |
-| **`/sync`** | End-of-session knowledge capture — decisions + lessons → cortex library | After a sprint or notable work session |
-| **`/doctor`** | Healthcheck — cortex install integrity + drift detection | Weekly, or after migration / new machine |
-| **`/cortex-reflect`** | Deep reflection — surfaces grounded cross-project insights | When something feels off, or after big refactor |
+| **`/retrofit`** † | Apply cortex-x patterns to an audited project | After `/audit` finishes |
+| **`/sync`** † | End-of-session knowledge capture — decisions + lessons → cortex library | After a sprint or notable work session |
+| **`/doctor`** † | Healthcheck — cortex install integrity + drift detection | Weekly, or after migration / new machine |
+| **`/cortex-reflect`** † | Deep reflection — surfaces grounded cross-project insights | When something feels off, or after big refactor |
 | **`/cortex-help`** | This menu | Anytime you forget what's available |
+
+† = paste the prompt manually from `~/.claude/shared/prompts/<name>.md` (these are prompts, not slash-skills yet; SKILL.md wrappers planned for Sprint 2.18+).
 
 ### Default behaviors (these run without being asked)
 
@@ -59,9 +63,9 @@ The above are user-facing skills. Underneath, cortex-x ships:
 - **Steward action_kinds** — typed actions the autonomous nightly runtime can execute (`dep_update_patch`, `recommendation`, `pattern_transfer`, `senior_tester_review`, etc.)
 - **Steward primitives** — zero-deps CJS modules implementing safety, dispatch, memory layers
 - **Universal hooks** — block-destructive, session-start, pre-compact, post-tool-use, etc.
-- **Standards** — Rule 0 (Ship-Ready) → Rule 1 (SSOT / Modular / Scalable) → Rule 2 (Security / Testing / Observability / Correctness) → Rule 3 (process incl. web-research)
-- **Profiles** — project-type templates (nextjs-saas, waas-template, chatbot-platform, ai-agent, browser-agent, kiosek, qa-engineer, tauri-desktop, astro-static, cli-tool, minimal)
-- **Review-pipeline agents** — blind-hunter, edge-case-hunter, acceptance-auditor, security-auditor, ssot-enforcer, correctness-auditor, etc.
+- **26 standards** across 5 tiers: Rule 0 Ship-Ready → Rule 1 SSOT/Modular/Scalable → Rule 1.5 Coding Behavior + Self-Correction + Auto-Optimization → Rule 2 Security/Testing/Observability/Correctness → Rule 3 process (Accessibility/Performance/Errors/Git/Docs/AI-Patterns/AI-SDKs/Web-Research/Voice/Skills). **Voice charter** (`standards/voice.md`) governs every skill's tone — no greetings, no emoji, no emotion words, `[cortex/recall]` + `[^cN]` footnotes for memory recall.
+- **11 profiles** — project-type templates (nextjs-saas, waas-template, chatbot-platform, ai-agent, browser-agent, kiosek, qa-engineer, tauri-desktop, astro-static, cli-tool, minimal)
+- **Review-pipeline agents** — blind-hunter, edge-case-hunter, acceptance-auditor, security-auditor, ssot-enforcer, correctness-auditor, cortex-thinker
 - **GitHub workflows** — `steward-*.yml` cron lanes per action_kind
 
 Full machine-readable registry with exact counts + descriptions: [`cortex/capabilities.md`](../../../cortex/capabilities.md) (auto-generated; refresh via `npm run capabilities`).

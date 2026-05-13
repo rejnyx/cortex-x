@@ -1,8 +1,8 @@
 // action-engine.cjs — pluggable interface for "apply this action's edits".
 //
 // v0.5b ships THREE engines (all share applyEditsToFilesystem):
-//   - mock: env-driven (STEWARD_MOCK_PLAN; HERMES_MOCK_PLAN alias honored
-//           through v0.2.0). Writes the listed files. Sync.
+//   - mock: env-driven (STEWARD_MOCK_PLAN). Writes the listed files. Sync.
+//           (Legacy HERMES_MOCK_PLAN alias was dropped post-v0.2.0 rebrand.)
 //   - openrouter: real LLM via OpenRouter's OpenAI-compatible API. Async via
 //                 built-in fetch() (Node ≥18). Zero-deps preserved.
 //   - claude-sdk: NOT YET IMPLEMENTED (alternative to openrouter — would
