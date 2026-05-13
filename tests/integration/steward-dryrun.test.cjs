@@ -189,6 +189,103 @@ describe('steward-dryrun integration: error paths', () => {
       assert.equal(result.code, 'SLUG_MISMATCH');
     });
   });
+
+  test('Sprint LR.Y: placeholder slug (TODO) returns no_actionable_step instead of SLUG_MISMATCH', () => {
+    // Regression for 2026-05-13 04:18 / 05:13 UTC cron failures.
+    // cortex/recommendations.md ships with `slug: TODO` as a fresh-install
+    // scaffold template. Steward crons running unattended must gracefully
+    // no-op, not exit 1 (which the old SLUG_MISMATCH path caused, taking
+    // both `steward harvest` 04:00 UTC and `steward nightly` 05:00 UTC red).
+    const repoRoot = freshFixture('placeholder-todo');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
+    // Overwrite the fixture's recommendations.md with a placeholder slug
+    const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+    const origBody = fs.readFileSync(recsPath, 'utf8');
+    const placeholderBody = origBody.replace(/^slug:.*$/m, 'slug: TODO');
+    fs.writeFileSync(recsPath, placeholderBody);
+
+    withDataHome(dataHome, () => {
+      const result = dryRun.runDryRun({ slug: 'cortex-x', repoRoot, trigger: 'cron' });
+      assert.equal(result.ok, true, `expected ok:true, got: ${JSON.stringify(result)}`);
+      assert.equal(result.mode, 'dry-run');
+      assert.equal(result.no_actionable_step, true);
+      assert.equal(result.reason, 'placeholder_slug_in_recommendations_md');
+      assert.equal(result.file_slug, 'TODO');
+    });
+  });
+
+  // Note: empty slug ('') is caught upstream by parseRecommendations() which
+  // throws "frontmatter missing required field: slug". That falls through to
+  // PARSE_FAILED, which the workflow's `if jq -e '.mode == "dry-run"'` check
+  // already routes to has_action=false → workflow exits 0 cleanly. No
+  // dedicated placeholder path needed for empty slug.
+
+  test('Sprint LR.Y: angle-bracket placeholder (<your project>) also routes to no_actionable_step', () => {
+    const repoRoot = freshFixture('placeholder-bracket');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
+    const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+    const origBody = fs.readFileSync(recsPath, 'utf8');
+    const placeholderBody = origBody.replace(/^slug:.*$/m, 'slug: <your project>');
+    fs.writeFileSync(recsPath, placeholderBody);
+
+    withDataHome(dataHome, () => {
+      const result = dryRun.runDryRun({ slug: 'cortex-x', repoRoot, trigger: 'cron' });
+      assert.equal(result.ok, true);
+      assert.equal(result.no_actionable_step, true);
+      assert.equal(result.file_slug, '<your project>');
+    });
+  });
+
+  test('Sprint LR.Y R2: case-insensitive placeholder match (lowercase "todo")', () => {
+    // R2 edge-case-hunter HIGH #2: operator typo `slug: todo` shouldn't
+    // hit SLUG_MISMATCH — it's the same operator intent as TODO.
+    const repoRoot = freshFixture('placeholder-lowercase');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
+    const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+    const origBody = fs.readFileSync(recsPath, 'utf8');
+    fs.writeFileSync(recsPath, origBody.replace(/^slug:.*$/m, 'slug: todo'));
+
+    withDataHome(dataHome, () => {
+      const result = dryRun.runDryRun({ slug: 'cortex-x', repoRoot, trigger: 'cron' });
+      assert.equal(result.ok, true);
+      assert.equal(result.no_actionable_step, true);
+      assert.equal(result.file_slug, 'todo');
+    });
+  });
+
+  test('Sprint LR.Y R2: extended placeholder set — FIXME / TBD also no-op', () => {
+    // R2 correctness-auditor MED: operator-typed placeholder variants.
+    for (const placeholder of ['FIXME', 'TBD', 'XXX']) {
+      const repoRoot = freshFixture(`placeholder-${placeholder.toLowerCase()}`);
+      const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
+      const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+      const origBody = fs.readFileSync(recsPath, 'utf8');
+      fs.writeFileSync(recsPath, origBody.replace(/^slug:.*$/m, `slug: ${placeholder}`));
+
+      withDataHome(dataHome, () => {
+        const result = dryRun.runDryRun({ slug: 'cortex-x', repoRoot, trigger: 'cron' });
+        assert.equal(result.ok, true, `${placeholder} expected ok:true, got ${JSON.stringify(result)}`);
+        assert.equal(result.no_actionable_step, true);
+      });
+    }
+  });
+
+  test('Sprint LR.Y R2: real slug mismatch (not in placeholder set) STILL returns SLUG_MISMATCH', () => {
+    // Negative regression: an actual cross-project mistake (file has real
+    // slug, CLI has different real slug) must still hard-fail. The fix
+    // only relaxes placeholder-shaped values, not all mismatches.
+    const repoRoot = freshFixture('real-mismatch');
+    const dataHome = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-int-data-'));
+    const recsPath = path.join(repoRoot, 'cortex', 'recommendations.md');
+    const origBody = fs.readFileSync(recsPath, 'utf8');
+    fs.writeFileSync(recsPath, origBody.replace(/^slug:.*$/m, 'slug: other-real-project'));
+
+    withDataHome(dataHome, () => {
+      const result = dryRun.runDryRun({ slug: 'cortex-x', repoRoot, trigger: 'cron' });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'SLUG_MISMATCH');
+    });
+  });
 });
 
 describe('steward-dryrun integration: journal contract', () => {

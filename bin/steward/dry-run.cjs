@@ -262,6 +262,50 @@ function runDryRun(opts = {}) {
       }
 
       if (parsed.frontmatter.slug !== slug) {
+        // Sprint LR.Y 2026-05-13: distinguish "placeholder template ships in
+        // repo, no real recommendations yet" from "wrong project's file."
+        // Placeholder slugs (TODO, <your project>, ...) come from the fresh-
+        // install scaffold template — `cortex/recommendations.md` ships with
+        // these so /cortex-init can populate them. The harvest + nightly crons
+        // running against an un-edited template should gracefully no-op, not
+        // hard-fail. Real mismatches (different real slug) keep SLUG_MISMATCH.
+        //
+        // R2 review pipeline hardening (2026-05-13):
+        //   - case-insensitive + extended placeholder set (TBD, FIXME, XXX)
+        //     per edge-case-hunter HIGH #2 (operator typing `slug: todo` was
+        //     getting SLUG_MISMATCH instead of graceful skip)
+        //   - null/undefined slug treated as placeholder (operator intent:
+        //     "I haven't set this yet" — same as `slug: TODO`)
+        //   - journal outcome:'skipped' for consistency with other no-action
+        //     paths in dry-run.cjs (correctness-auditor MED)
+        //   - file_slug shape unified to null (no '(empty)' string sentinel)
+        const raw = parsed.frontmatter.slug;
+        const fileSlug = String(raw == null ? '' : raw).trim();
+        const PLACEHOLDER_LITERALS = new Set(['TODO', 'TBD', 'FIXME', 'XXX', 'PLACEHOLDER']);
+        const isPlaceholder = raw == null
+          || fileSlug === ''
+          || PLACEHOLDER_LITERALS.has(fileSlug.toUpperCase())
+          || /^<[^>]*>$/.test(fileSlug);
+        if (isPlaceholder) {
+          journal.appendJournal(slug, {
+            ts: new Date().toISOString(),
+            trigger,
+            tier: 'T2',
+            event: 'no_actionable_step',
+            outcome: 'skipped',
+            actor: 'steward',
+            reason: 'placeholder_slug_in_recommendations_md',
+            file_slug: fileSlug || null,
+          });
+          return {
+            ok: true,
+            mode: 'dry-run',
+            no_actionable_step: true,
+            reason: 'placeholder_slug_in_recommendations_md',
+            slug,
+            file_slug: fileSlug || null,
+          };
+        }
         return {
           ok: false,
           error: `slug mismatch: CLI=${slug}, recommendations.md=${parsed.frontmatter.slug}`,
