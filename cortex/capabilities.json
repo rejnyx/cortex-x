@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T10:42:51.310Z",
+  "generated_at": "2026-05-13T12:05:49.989Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
