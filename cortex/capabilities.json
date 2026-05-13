@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T08:31:43.706Z",
+  "generated_at": "2026-05-13T08:39:39.181Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -187,6 +187,18 @@
       "path": "bin/steward/_lib/env.cjs",
       "sprint": null,
       "description": null
+    },
+    {
+      "name": "eval-runner",
+      "path": "bin/steward/_lib/eval-runner.cjs",
+      "sprint": "Sprint 3.0",
+      "description": "bin/steward/_lib/eval-runner.cjs — Sprint 3.0 v0"
+    },
+    {
+      "name": "eval-scorer",
+      "path": "bin/steward/_lib/eval-scorer.cjs",
+      "sprint": "Sprint 3.0",
+      "description": "bin/steward/_lib/eval-scorer.cjs — Sprint 3.0 v0"
     },
     {
       "name": "evolve-action",
@@ -1012,15 +1024,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2125,
+      "unit": 2154,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2289
+    "total": 2318
   },
   "code_volume": {
-    "steward_runtime_loc": 23539,
-    "test_code_loc": 29913
+    "steward_runtime_loc": 24141,
+    "test_code_loc": 30237
   }
 }
