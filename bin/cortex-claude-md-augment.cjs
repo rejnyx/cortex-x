@@ -42,7 +42,7 @@ const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
 
 // Block version — bump when content changes so we can detect outdated blocks
 // and offer to refresh them.
-const BLOCK_VERSION = '1';
+const BLOCK_VERSION = '2';
 const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
 const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
 // Match any version of the block (for removal + version-drift detection).
@@ -52,21 +52,35 @@ const DISCIPLINE_BLOCK = `## cortex-x discipline (auto-loaded — see standards/
 
 You are working in an environment where cortex-x is installed (~/.claude/shared/). Apply these defaults to **every** session, not just inside cortex slash commands:
 
+### Research, review, parallelism
+
 **R1 — research before implementing.** Whenever a task depends on external state (framework versions, library APIs, design trends, CVEs, a11y standards, best practices that change yearly), dispatch parallel web research subagents FIRST. Cite findings with URLs. Cache under \`$CORTEX_DATA_HOME/research/\`. SSOT: \`~/.claude/shared/standards/web-research.md\`. Don't guess from training data on anything dated past your cutoff.
 
 **R2 — review pipeline.** For non-trivial diffs (≥3 files, public API change, security-adjacent, agentic code paths), dispatch the 6-agent parallel review pipeline (\`security-auditor\`, \`correctness-auditor\`, \`acceptance-auditor\`, \`ssot-enforcer\`, \`blind-hunter\`, \`edge-case-hunter\`) BEFORE the user merges. Apply consensus HIGH findings in-commit.
 
 **Parallel by default.** When multiple agent calls are independent (research topics, audit dimensions, file scans), dispatch them in a single message with multiple Agent tool blocks. Sequential calls only when later calls depend on earlier output.
 
+### Execution discipline
+
+**TodoWrite proactively for multi-step work.** Any task with 3+ distinct steps gets a TodoWrite list at start. Exactly ONE task \`in_progress\` at a time. Mark \`completed\` IMMEDIATELY when finished — never batch completions. New discoveries during execution → add as new todos. This is load-bearing for hackathons + sprints — without it long tasks drift.
+
+**Think before code.** State the plan in 1-2 sentences before the first edit. State assumptions you're making. If the plan is wrong, the operator catches it in seconds; if you start coding, the cost is rework.
+
+**Surgical changes.** A bug fix doesn't need surrounding cleanup. A one-shot operation doesn't need a helper. Three similar lines beats a premature abstraction. Don't add features, refactor, or introduce abstractions beyond what the task requires. Don't add error handling, fallbacks, or validation for scenarios that can't happen.
+
+**Counts not praise (voice charter).** No greetings, no emoji, no emotion words ("perfect!", "great!"). State results and decisions directly. End-of-turn summary: one or two sentences. What changed and what's next. SSOT: \`~/.claude/shared/standards/voice.md\`.
+
+### Where things live
+
 **Standards order** (when budgets conflict): Rule 0 Ship-Ready → Rule 1 SSOT/Modular/Scalable → Rule 1.5 Coding Behavior → Rule 2 Security/Testing/Observability/Correctness → Rule 3 process. Browse: \`~/.claude/shared/standards/\` (28 files).
 
-**Discoverability.** Type \`/cortex-help\` to see the slash command menu. \`/cortex-init\` (new project) · \`/audit\` (existing) · \`/test-audit\` (QA lens) · \`/designer\` (UI). For nightly autonomous work: \`steward-setup.md\`.
+**Memory.** Per-project \`MEMORY.md\` (this project). Cross-project library: \`$CORTEX_DATA_HOME/projects/<slug>.md\` (populate via paste \`prompts/cortex-sync.md\` at end of session). Sprint state: \`PROGRESS.md\` (pending/in-progress/done/blocked). Check memory before assumptions; recall, then verify the file/symbol still exists before acting on it.
 
-**Memory.** Per-project \`MEMORY.md\` (this project). Cross-project library: \`$CORTEX_DATA_HOME/projects/<slug>.md\` (populate via paste \`prompts/cortex-sync.md\` at end of session). Sprint state: \`PROGRESS.md\` (pending/in-progress/done/blocked).
+**Discoverability.** Type \`/cortex-help\` to see the slash command menu. \`/cortex-init\` (new project) · \`/audit\` (existing) · \`/test-audit\` (QA lens) · \`/designer\` (UI) · \`/cortex-doctor\` (health check). For nightly autonomous work: \`steward-setup.md\`.
 
-**Safety hooks** are registered in \`~/.claude/settings.json\` if you ran \`cortex-hooks-register\` post-install. Verify: \`cortex-hooks-register --status\`. Without them, you lose block-destructive guard, SessionStart context, and auto-orchestrate parallel-agent nudge.
+**Safety hooks** are registered in \`~/.claude/settings.json\` if you ran \`cortex-hooks-register\` post-install. Verify: \`cortex-doctor --json\`. Without hooks: no block-destructive guard, no SessionStart context, no auto-orchestrate parallel-agent nudge.
 
-**Out-of-date?** This block is auto-generated. Refresh: \`cortex-claude-md-augment --apply\`. Remove: \`cortex-claude-md-augment --remove\`.`;
+**Out-of-date?** This block is auto-generated. Refresh: \`cortex-claude-md-augment --apply\` (upgrades stale versions in place). Remove: \`cortex-claude-md-augment --remove\`. Health audit any time: \`cortex-doctor\`.`;
 
 function parseArgs(argv) {
   const args = { mode: 'apply', yes: false, json: false, help: false, dryRun: false };
