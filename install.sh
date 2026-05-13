@@ -412,6 +412,7 @@ emit_delegate_shim cortex-propose-skill    cortex-propose-skill.cjs
 emit_delegate_shim cortex-lessons-search   cortex-lessons-search.cjs
 emit_delegate_shim cortex-evolve-ab        cortex-evolve-ab.cjs
 emit_delegate_shim cortex-export-lessons   cortex-export-lessons.cjs
+emit_delegate_shim cortex-doc-audit        cortex-doc-audit.cjs
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
