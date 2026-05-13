@@ -1398,6 +1398,71 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint 2.24 — `/cortex-goal` wrapper + Ralph-loop plan template + Steward bridge (M effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced [`docs/transcripts/goals-for-claude-code.md`](transcripts/goals-for-claude-code.md) — YouTube walkthrough of the new `/goal` slash command that just shipped in Claude Code + Codex harnesses. Verified live at [`code.claude.com/docs/en/goal`](https://code.claude.com/docs/en/goal): `/goal` is an officially-documented Claude Code feature, NOT third-party. Mechanic: user sets a condition (≤4000 chars), Claude runs each turn, **haiku** (small fast model) evaluates condition vs. conversation transcript after every turn, returns yes/no + reason. "No" continues with reason injected as guidance; "yes" clears the goal. Goal carries across `--resume` / `--continue`. Works headless via `claude -p "/goal ..."`. Officially a wrapper around session-scoped prompt-based Stop hook.
+
+**Reported field use** (transcript): 14h overnight sessions, 45h sessions, 5-day continuous runs. Originally introduced by Codex ~2 weeks before Anthropic copied. Both harnesses now native. Related: [Ralph Loop plugin](https://claude.com/plugins/ralph-loop) is Anthropic's official ralph-loop implementation; [goalkeeper](https://github.com/itsuzef/goalkeeper) is community contract-driven variant with subagent judge.
+
+**Why this matters for cortex-x specifically**:
+
+1. **Steward and `/goal` are complementary, not overlapping**:
+   - Steward = nightly cron, GitHub Actions runner, reads `cortex/recommendations.md`, opens draft PRs (Sprint 1.6-1.9)
+   - `/goal` = session-scoped, interactive launch, runs locally, returns on DoD
+   - Same operator might use both: Steward overnight + `/goal` during weekday batches before weekly rate-limit reset (operator's Claude Max x20 use case)
+
+2. **cortex already has the verification primitives** that make a great `/goal` condition: `bin/steward/_lib/spec-verifier.cjs` (Sprint 1.9) ships 6 acceptance-criterion kinds — `shell`, `file_predicate`, `regex`, `ears_text`, `llm_judge`, `read_set`. The `llm_judge` kind is the same idea as `/goal`'s haiku evaluator at a different scope (per-action vs. per-turn). Reusing the language gives cortex users criterion-level verifiability inside their `/goal` plans.
+
+3. **Operator's R1+R2 discipline only auto-applies inside cortex skills** (Sprint 2.21.1 discipline block patches this for ad-hoc work). For a 14-hour autonomous `/goal` session, the operator wants research-first + review pipeline embedded INTO the goal condition, otherwise the long-running loop drifts off-discipline.
+
+4. **Plan-first pattern** — transcript best practice: ask Claude to produce a structured plan markdown BEFORE invoking `/goal`. Plan structure: brief · stack · in-scope · out-of-scope · DoD · acceptance criteria (verifiable) · turn budget · risks · open questions · key references. cortex-x's `/start` Phase 1-3 produces something similar but not in `/goal`-ready format.
+
+**Scope** (6 stories, parallelizable):
+
+**A) `templates/cortex-goal-plan.md.hbs`** (S effort) — Handlebars template matching transcript's plan structure. Hydrated from operator answers + project state (detected stack, recent commits, recommendations.md backlog). SSOT for what a cortex `/goal` plan looks like.
+
+**B) `prompts/cortex-goal.md`** (M effort) — interactive plan-first wrapper:
+   - Phase 1: ask 3 questions (goal · scope · budget)
+   - Phase 2: render plan via template A; embed cortex R1+R2 discipline as acceptance-criteria items by default (R1: "research artifacts cached in $CORTEX_DATA_HOME/research/", R2: "review pipeline run on every non-trivial diff before commit")
+   - Phase 3: reference cortex spec-verifier criterion kinds so DoD items are verifiable, not aspirational
+   - Phase 4: write plan to `cortex/goal-<slug>.md`, suggest operator invoke `/goal "execute plan at cortex/goal-<slug>.md until acceptance criteria all pass"`
+   - DOES NOT fire `/goal` itself — that's Claude Code's native command; we just produce the plan
+
+**C) `shared/skills/cortex-goal/SKILL.md`** (S effort) — auto-discovered slash skill wrapping prompt B. Natural-language triggers: "run long task", "autonomous session", "use my unused tokens before reset", "execute this overnight", "vyřeš to autonomně", "dělej dokud nehotovo".
+
+**D) `templates/cortex-goal-plan-frontload.md.hbs`** (S effort) — variant of template A specifically for the transcript's token-frontloading use case: reads `cortex/recommendations.md` P0/P1/P2 backlog, picks N items, generates "execute all P0 items + as many P1 as fit in token budget" as a single goal. Useful pre-weekly-rate-limit-reset.
+
+**E) Update `standards/coding-behavior.md` Rule 1.5 §Goal-Driven Execution** (S effort) — currently mentions "goal-driven execution" generally. Add explicit reference to `/goal` as Claude Code's native mechanic + cortex's plan-template pattern as the wrapper. Link to https://code.claude.com/docs/en/goal.
+
+**F) Steward + goal-plan bridge** (M effort, optional, deferrable) — let `bin/steward/dry-run.cjs` accept `cortex/goal-<slug>.md` as alternative input format alongside `cortex/recommendations.md`. Same plan can then run via either `/goal` session OR Steward cron, depending on operator's situation. New `--input goal` flag on cortex-steward. R2 review pipeline auto-runs on Steward's PR before merge regardless.
+
+**Sources**:
+- [`docs/transcripts/goals-for-claude-code.md`](transcripts/goals-for-claude-code.md) — full 45-line transcript
+- [Claude Code /goal docs](https://code.claude.com/docs/en/goal) — official spec
+- [Ralph Loop plugin](https://claude.com/plugins/ralph-loop) — Anthropic's prior implementation
+- [Ralph Wiggum technique](https://awesomeclaude.ai/ralph-wiggum) — pattern origin
+- [Running Claude Code in a Loop (Fernando de la Rosa)](https://www.jfdelarosa.dev/blog/running-claude-code-in-a-loop/) — community write-up
+- [goalkeeper (itsuzef)](https://github.com/itsuzef/goalkeeper) — alternative contract-driven variant
+- [continuous-claude (AnandChowdhary)](https://github.com/AnandChowdhary/continuous-claude) — Ralph loop with PR automation
+- [Claude Code Ralph Loop overnight builds](https://newsletter.claudecodemasterclass.com/p/claude-code-ralph-loop-from-basic) — long-running session guide
+
+**Acceptance criteria**:
+- Operator can type `/cortex-goal "build the X feature with Y acceptance criteria"` and get a structured plan file produced
+- Plan includes R1 + R2 + cortex standards as default acceptance-criteria items
+- standards/coding-behavior.md explicitly cites `/goal` as the native mechanic
+- (Optional, story F) Same plan markdown works for both `/goal` session AND Steward cron input
+
+**Out of scope** (defer to later sprints):
+- Reimplementing the haiku-evaluator loop ourselves — Claude Code already provides it
+- Cron-scheduling /goal sessions (operator uses Steward for cron, /goal for live sessions)
+- Cost-cap integration with cortex's D/W/M USD caps — `/goal` runs against operator's Claude subscription, not OpenRouter; cap logic is different surface
+
+**Cross-references**:
+- Sprint 2.22 (skill quality tooling) — `/cortex-goal` SKILL.md from story C should pass `cortex-skill-validate` (Sprint 2.22 story A)
+- Sprint 4.0.1 (agentskills.io ecosystem) — `/cortex-goal` is a candidate for the `Rejnyx/cortex-skills` npx-installable bundle
+
+---
+
 ### Sprint 2.22 — Skill quality tooling: validator + eval-driven description optimization (M effort) — 📋 PLANNED 2026-05-13
 
 **Why**: Operator surfaced Anthropic transcript "[Claude Code E25] Creating Custom Skills" (`docs/transcripts/skill-auto-write.md`) which exposed three gaps in cortex-x's current skill discipline (`standards/skills.md` covers spec + progressive disclosure + portability but NOT these):
