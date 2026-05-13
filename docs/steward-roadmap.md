@@ -1398,6 +1398,134 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint 2.25 — Operator-file memory consolidation (the missing AutoDream slice) + `/cortex-insights` usage report (M effort) — 📋 PLANNED 2026-05-13
+
+**Honest precondition check 2026-05-13**: operator asked "haven't we done something AutoDream-like already?" — yes, cortex has MULTIPLE consolidation primitives already shipped/designed. This sprint targets the ONE slice they don't cover. Existing assets:
+
+| Existing | Status | Operates on | Why it doesn't cover the AutoDream slice |
+|---|---|---|---|
+| `bin/cortex-wiki-consolidate.cjs` + action_kind `wiki_consolidate` | ✅ Shipped Sprint 2.8.2 v0 | `$CORTEX_DATA_HOME/lessons.jsonl` (machine-written) | Groups lessons by action_kind into wiki articles. NEVER touches operator-edited files. |
+| `evolve_weekly` action_kind | ✅ Shipped Sprint 2.19 | Steward cost ledger + research cache | Weekly autoresearch with D/W/M cap integration. Not a memory pruner. |
+| `prompts/cortex-evolve.md` | ✅ Designed v1 · ⏳ Cron not wired | Multi-source via 4-cadence | Manual paste; specifies architecture but not the operator-file 4-op consolidation. |
+| `prompts/cortex-reflect.md` | ✅ Shipped | Cross-project mining | Writes new files in `insights/`, doesn't mutate operator memory files. |
+| `prompts/cortex-sync.md` | ✅ Shipped | Per-session capture | Append-only into `projects/<slug>.md`. The opposite of consolidation. |
+| Phase 6 memory upgrades (`CLAUDE.md:167-170`) | ⏳ Designed only, awaits Phase 7 | 6-signal autoDream promotion + 2-hop graph + `DREAMS.md` | Higher-level pattern promotion; doesn't address the day-to-day duplicates/contradictions/stale-dates in operator-edited files. |
+
+**The actual gap = operator-edited files accumulate cruft over months:**
+- `~/.claude/projects/<project>/memory/MEMORY.md` + per-file frontmatter memos
+- `$CORTEX_DATA_HOME/projects/<slug>.md` (cross-project library entry — written by cortex-sync via operator action)
+- Per-project `<repo>/MEMORY.md`
+
+These have duplicate entries, contradicted facts, relative dates ("yesterday", "last week" — meaningless 3 months later), and growth past their 200-line ergonomic limit. None of the 6 existing assets above prune them.
+
+**Why this matters now**: Operator's own MEMORY.md index just crossed 56 entries in this session. Cross-project library `~/.cortex/projects/cortex-x.md` accumulates from every `/sync`. Without pruning, signal-to-noise degrades. This is exactly the file class AutoDream targets — and cortex's 6 existing primitives leave it untouched.
+
+**Why** (original framing): Operator surfaced [`docs/transcripts/levels-of-claude-code.md`](transcripts/levels-of-claude-code.md) — "Every Level of Claude Code Explained" YouTube walkthrough (87 lines, 5 proficiency levels). Two Claude Code features in Levels 4-5 directly augment cortex's existing memory infrastructure without overlap:
+
+**1. AutoDream — automatic memory consolidation** ([Anthropic Code with Claude 2026](https://letsdatascience.com/blog/anthropic-dreaming-claude-managed-agents-self-improving-may-6), [zenvanriel.com guide](https://zenvanriel.com/ai-engineer-blog/claude-code-autodream-memory-consolidation-guide/), [claudefa.st guide](https://claudefa.st/blog/guide/mechanics/auto-dream), [Geeky Gadgets](https://www.geeky-gadgets.com/claude-autodream-memory-files/), community impl: [grandamenium/dream-skill](https://github.com/grandamenium/dream-skill)):
+   - Background sub-agent that consolidates Claude memory between sessions, mimicking REM-sleep memory consolidation
+   - 4 operations: **merge duplicates** (3 sessions noting same deployment quirk → one clean entry) · **remove contradicted facts** · **convert relative→absolute dates** ("yesterday we decided X" → "2026-03-15 we decided X") · **aggressive prune** to keep index ≤200 lines
+   - Triggers: automatic after 24h + ≥5 new sessions, OR manual `/dream`
+   - **Status: research preview, server-side feature flag, NOT every user has access yet**
+   - Observed: consolidated 913 sessions of memory in ~8-9 minutes
+   - **Cortex equivalent gap**: `prompts/cortex-sync.md` is manual *capture*. Cortex has NO consolidation/pruning step. After months, `$CORTEX_DATA_HOME/projects/<slug>.md` entries accumulate contradictions + duplicates + relative dates that need consolidation.
+
+**2. `/insights` monthly usage report** (transcript §4.5):
+   - Reads past month of Claude usage, generates report on patterns
+   - Surfaces: what you do repetitively (→ skill candidates), where you waste tokens, prompts to turn into skills, what to add to CLAUDE.md
+   - "Most people have no data on how they actually use the tool. Run this once a month, it'll tell you exactly which habits to start building."
+   - **Cortex equivalent gap**: cortex HAS the data (`$CORTEX_DATA_HOME/journal/*.jsonl` + `research/*.md` + `insights/*.md`) but no report-generator. Operator's habits, recurring patterns, expensive sessions are all sitting in disk waiting to be mined.
+
+**Scope** (6 stories, parallelizable):
+
+**A) `bin/cortex-dream.cjs`** (M effort) — AutoDream-equivalent consolidator. Zero-dep Node CJS. Reads `$CORTEX_DATA_HOME/projects/<slug>.md` entries + per-project `MEMORY.md` + `$CORTEX_DATA_HOME/journal/*.jsonl`. Applies 4 operations from AutoDream:
+   - **Merge duplicates** via fuzzy text + frontmatter key match (e.g., `key_decisions:` lines that paraphrase same fact)
+   - **Remove contradictions** via LLM judge (haiku-equivalent for cost) — feed pairs of conflicting entries, ask which to keep
+   - **Relative-date normalization** — regex `\b(yesterday|tomorrow|last week|N days ago)\b` → absolute via entry's `last_synced` timestamp
+   - **Aggressive prune** — drop entries older than 90 days with frequency==1 and no `pin: true` frontmatter field
+   - CLI flags: `--dry-run` (print plan, no mutation), `--slug <project>` (single-project mode), `--max-lines 200` (per-file cap), `--yes`, `--json`
+   - Safety: timestamped backup of every mutated file (`<file>.backup-<iso-ts>`); only operates on files under `$CORTEX_DATA_HOME/` and matching cortex frontmatter signature (`name:` + `type:` keys)
+
+**B) `prompts/cortex-dream.md`** + `shared/skills/cortex-dream/SKILL.md` (S effort) — slash skill wrapper. Triggers: "consolidate my memory", "dream", "clean up my projects library", "my memory is bloated", "/cortex-dream". Calls bin/cortex-dream.cjs --dry-run first, shows diff, asks confirm, then `--yes`.
+
+**C) `bin/cortex-insights.cjs`** (M effort) — usage report generator. Reads:
+   - `$CORTEX_DATA_HOME/journal/*.jsonl` last N days (default 30) for tool-call patterns, costs, token velocity
+   - `$CORTEX_DATA_HOME/research/*.md` to find topics researched repeatedly (skill candidates)
+   - `$CORTEX_DATA_HOME/insights/*.md` for prior reflection outputs
+   - `cortex/recommendations.md` of recent projects for incomplete items
+   - Project-level `MEMORY.md` + cortex-sync entries
+   - Computes:
+     - **Top 5 manual patterns** (recurring prompt phrases / tool sequences)
+     - **Top 3 skill candidates** (research topics queried ≥3 times)
+     - **Wasted-token candidates** (sessions where >50% tokens spent on retries / context-compactions)
+     - **CLAUDE.md add-suggestions** (corrections operator made manually in sync entries)
+     - **Stale memory candidates** (entries not touched in >60 days, no `pin: true`)
+   - Output: `$CORTEX_DATA_HOME/insights/usage-report-<YYYY-MM-DD>.md` (markdown report) + `--json` for programmatic consumption
+
+**D) `shared/skills/cortex-insights/SKILL.md`** (S effort) — slash skill wrapper. Triggers: "what should I turn into a skill?", "/cortex-insights", "show me my usage patterns", "kde plýtvám tokeny", "co dělám opakovaně". Calls bin/cortex-insights.cjs, formats output for chat display.
+
+**E) Optional: `cortex-dream` as a Steward action_kind** (S effort) — register `dream` as an action_kind so Steward cron can run consolidation nightly/weekly via existing infra. Reuses `bin/steward/_lib/spec-verifier.cjs` for `read_set` criterion to verify which files were touched. Composition with existing 17 action_kinds.
+
+**F) Tests + docs + memory entry** (S effort) — 15+ tests across cortex-dream + cortex-insights suites. Smoke verifier check for new shims. Update `standards/web-research.md` or new `standards/memory-system.md` documenting cortex's 4-tier memory architecture (PROGRESS / CLAUDE / MEMORY / library) + how cortex-dream + cortex-insights compose with cortex-sync.
+
+**Acceptance criteria**:
+- `cortex-dream --dry-run` on operator's real `$CORTEX_DATA_HOME` reports merge/contradiction/date-normalization/prune candidates without mutating
+- `cortex-insights` produces a useful monthly report from journal+research+insights+library data
+- Both CLIs honor backup-before-mutate + idempotent re-run patterns from Sprint 2.21.2
+- cortex-doctor `--json` includes new health-checks for both CLIs
+
+**Out of scope (defer)**:
+- Real-time memory pruning during sessions (AutoDream is between-session by design)
+- LLM-judge contradictions via OpenRouter (cost concern — defer to v1; v0 uses regex+heuristics)
+- Cross-project pattern detection beyond skill candidates (separate Sprint 3.4-territory work)
+
+---
+
+### Sprint 2.26 — CLAUDE.md template audit + `/output-style` ergonomics + Level 4/5 ecosystem documentation (S effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Same transcript (`docs/transcripts/levels-of-claude-code.md`) surfaced four lighter-touch improvements that don't fit Sprint 2.25's memory theme but cleanly polish operator UX:
+
+**Sources**:
+- [Claude Code Cloud Routines docs](https://code.claude.com/docs/en/routines) — Anthropic's own scheduled-task system, complementary to cortex Steward
+- [Claude Code overnight automation (The New Stack)](https://thenewstack.io/claude-code-can-now-do-your-job-overnight/)
+- [Routines practical guide (Nimbalyst)](https://nimbalyst.com/blog/claude-code-routines-practical-guide/)
+- [Routines pricing analysis (Verdent)](https://www.verdent.ai/guides/claude-code-pricing-2026)
+
+**Scope** (4 stories, S effort each):
+
+**A) `templates/CLAUDE.md.hbs` audit against transcript Level 4 rules** — verify the scaffolded project CLAUDE.md follows Anthropic-team best practices:
+   - **≤200 lines** (transcript: "Claude reads this file on every single conversation. So if it blows up, you're going to be paying more tokens for that consistently.")
+   - **Use `@file-name` references** for on-demand loading instead of inline content
+   - **"Every mistake → update CLAUDE.md"** discipline — explicit section "## Corrections log" template seeded with example
+   - Currently `templates/CLAUDE.md.hbs` is ~134 lines; verify after operator scaffold renders it doesn't balloon past 200 with project-specific content. If it does, refactor sections like "Architecture" to live in `@architecture.md` reference file.
+
+**B) `/output-style` cortex parity** — Claude Code ships `/output-style new` to swap personalities (default, explanatory, learning + custom). Useful for cortex's contexts: "QA mode" (no fluff, dense table), "Designer mode" (visual-first), "Steward review mode" (no greetings, terse fact-only). Implementation options:
+   - **v0** — document the pattern in `standards/voice.md`: cortex's voice charter IS its output-style; operators can extend via `~/.claude/output-styles/<name>.md`
+   - **v1** — ship 3 cortex-flavored output styles as `shared/output-styles/cortex-{default,qa,designer}.md` copied to `~/.claude/output-styles/` during install
+
+**C) Cloud Routines positioning doc** (`docs/steward-vs-routines.md`) — operator already uses Steward (GitHub Actions cron + OpenRouter). Anthropic launched [Cloud Routines](https://code.claude.com/docs/en/routines) Apr 2026 (Pro $20/mo: 5 runs/day · Max $200/mo: 15 runs/day · Team: 25 runs/day) with 3 trigger types (schedule + API + GitHub event). Cortex needs a clear positioning doc:
+   - Routines = native Anthropic, subscription-billed, no DevOps
+   - Steward = operator-owned, OpenRouter-billed, full safety mechanika (D/W/M USD caps, STEWARD_HALT, atomic rollback, 17 typed action_kinds, spec-verifier)
+   - **Composition pattern**: a Cloud Routine can invoke cortex skills (e.g., `/audit`) inside its prompt — cortex skills are auto-discovered in `~/.claude/skills/` regardless of routine vs interactive
+   - **When to pick what**: Routines for "I want it simple, paying $20/mo OK" · Steward for "I want full control, my repos, USD caps, audit trail, $0 infra"
+
+**D) Level 4/5 ecosystem reference card** (`docs/claude-code-ecosystem.md`) — index of Claude Code-native features cortex composes with vs reimplements vs ignores:
+   - **Compose with (cortex enhances)**: SessionStart hooks, skills, sub-agents, `/goal`, MCP, plan mode, work trees, Cloud Routines
+   - **Cortex equivalent exists (use cortex's version)**: review pipeline (cortex's 6-agent parallel > sub-agent serial chain), memory layers (cortex's 4-tier > built-in single-file), discipline enforcement (cortex's R1/R2 > none)
+   - **Explicit NOT-do (already documented elsewhere)**: reimplement `/goal` loop (Sprint 2.24), reimplement haiku verifier, cron-schedule `/goal`
+   - **Worth installing alongside**: Claude Design (separate Anthropic Labs product), Ralph Loop plugin, anthropics/skills examples
+
+**Acceptance criteria**:
+- `templates/CLAUDE.md.hbs` measurably under 200 lines after typical scaffold
+- New `docs/steward-vs-routines.md` resolves the "do I need cortex if Anthropic ships routines?" question
+- New `docs/claude-code-ecosystem.md` is the canonical reference when operator asks "should cortex add feature X?"
+
+**Out of scope**:
+- Implementing `/output-style` as a slash skill (Claude Code's own `/output-style new` covers it)
+- Replicating Cloud Routines as a cortex feature (different value prop; Steward serves operator-owned use case)
+
+---
+
 ### Sprint 2.24 — `/cortex-goal` wrapper + Ralph-loop plan template + Steward bridge (M effort) — 📋 PLANNED 2026-05-13
 
 **Why**: Operator surfaced [`docs/transcripts/goals-for-claude-code.md`](transcripts/goals-for-claude-code.md) — YouTube walkthrough of the new `/goal` slash command that just shipped in Claude Code + Codex harnesses. Verified live at [`code.claude.com/docs/en/goal`](https://code.claude.com/docs/en/goal): `/goal` is an officially-documented Claude Code feature, NOT third-party. Mechanic: user sets a condition (≤4000 chars), Claude runs each turn, **haiku** (small fast model) evaluates condition vs. conversation transcript after every turn, returns yes/no + reason. "No" continues with reason injected as guidance; "yes" clears the goal. Goal carries across `--resume` / `--continue`. Works headless via `claude -p "/goal ..."`. Officially a wrapper around session-scoped prompt-based Stop hook.
