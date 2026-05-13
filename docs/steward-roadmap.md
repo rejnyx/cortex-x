@@ -1226,6 +1226,97 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 **Sequencing**: LR.1/LR.3/LR.4/LR.5/LR.6 all shipped 2026-05-10 → 2026-05-12. **LR.2 (README compare table) + LR.7 (demo asset) remain** — both operator-side. Public-launch blockers cleared.
 
+### Sprint LR.8 — Launch venue strategy: Product Hunt + GitHub Trending + awesome-lists distribution (S-M effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Operator surfaced the distribution question: "could cortex go to one of those best-repo-of-the-day competitions?" Web research 2026-05-13 confirms a multi-venue playbook exists. Cortex's WOW pitch — "one-line install gives you everything: hooks + safety + skills + nightly autopilot + 26 standards" — matches the venue profile (self-hostable, Apache-2.0, dev-tool category). LR.1–LR.7 cleared the blockers; LR.8 is the **how-to-actually-launch** plan.
+
+**Sources**:
+- [Product Hunt Open Source topic](https://www.producthunt.com/topics/open-source) — dedicated discovery surface
+- [Product Hunt Developer Tools topic](https://www.producthunt.com/topics/developer-tools)
+- [How to launch a developer tool on Product Hunt 2026 (Flo Merian)](https://hackmamba.io/developer-marketing/how-to-launch-on-product-hunt/) — best-practices guide
+- [Open Source Product Hunt launch guide (Papermark)](https://www.papermark.com/blog/product-hunt-launch)
+- [awesome-product-hunt repo](https://github.com/fmerian/awesome-product-hunt) — dev tools that launched there
+- [DevHunt](https://www.producthunt.com/products/devhunt-2) — alternative dev-tool launchpad
+- [awesome-ai-agents-2026 (caramaschiHG)](https://github.com/caramaschiHG/awesome-ai-agents-2026) — 300+ entries, monthly updates
+- [awesome-ai-agents-2026 (ARUNAGIRINATHAN-K)](https://github.com/ARUNAGIRINATHAN-K/awesome-ai-agents-2026) — alternative list, comparison guides
+- [GitHub Trending Weekly recap 2026-04-22](https://www.shareuhack.com/en/posts/github-trending-weekly-2026-04-22) — what's actually trending (Goose, Dify, Langflow, Flowise — visual builders dominate)
+- [Best of Product Hunt April 21 2026](https://www.producthunt.com/leaderboard/daily/2026/4/21) — recent dev-tool winners (Kimi K2.6, LiveDemo)
+- [agentskills.io clients showcase](https://agentskills.io/clients) — 37+ adopters listed; cortex-x is candidate
+
+**Scope** (5 venues, each independent, parallelizable):
+
+**V1) Product Hunt launch** (M effort, gated by LR.7 demo asset)
+   - Profile: **"Product of the Day"** = primary goal. Top-voted product in 24h window gets auto-promotion to weekly/monthly leaderboards.
+   - Best-practice prep checklist (Flo Merian):
+     - **Gallery carries the explanation** — first 3 images must convey "what is this" without text. Show: 1) terminal screencast of install one-liner → /cortex-init flow, 2) `cortex-doctor` output table (safety/health), 3) Steward draft PR opened overnight
+     - **Tagline ≤60 chars** — pitch the WOW. Draft: *"One install. Hooks, safety, skills, nightly autopilot for Claude Code."*
+     - **Description ≤260 chars + 1 image** — feature list. Draft: 7 slash commands · /cortex-doctor health check · Steward nightly autopilot · 26 standards · Apache 2.0 · 2697 tests
+     - **First comment** (your own) — story behind, why you built it, what's next. Operator's voice: "I run X projects, was tired of pasting same prompts, built cortex over 6 months..."
+     - **Hunter** — Product Hunt account with high karma is a strong signal. Either operator builds his own (longer ramp), or asks an existing high-karma hunter to launch it (network outreach).
+   - Timing: **Tuesday 12:01 AM PST** is the canonical-best launch slot (max 24h window into US business day). Avoid Mondays (weekend backlog) + Fridays (engagement drop).
+   - Prep work day-of: pre-recruit 10-20 "first 4 hours" upvoters from operator's network (LinkedIn, AI-engineer Discords, Twitter/X following). PH algorithm weighs early-window engagement heavily.
+   - Budget: **$0 paid** (PH is free). Time: ~8h prep + launch-day-presence-in-thread.
+
+**V2) GitHub Trending optimization** (S effort, ongoing)
+   - Profile: trending page is **algorithm-based** (recent star velocity), not editorial. Can't directly apply but can game timing.
+   - 2026 trending patterns: visual builders (Langflow 146k★, Dify 136k★) + local model runners + browser agents + skills ecosystem. cortex's "framework + Steward" pitch fits the "skills ecosystem" wave (transcript Sprint 2.8.1 noted skills explosion April 2026).
+   - Tactics:
+     - Push README polish + demo GIF in same week as PH launch — star burst from PH crosspoll-inates trending
+     - Add `Topics`: `claude-code`, `agent-skills`, `autonomous-agents`, `ai-agents-2026`, `apache-2`, `developer-tools` (GitHub uses these for discovery)
+     - Tag a `v0.4.0` release with release notes the day-of-launch — trending recognizes versioned activity
+   - Result: not a single "win" event; sustained presence on `Trending This Week` for Apache-2.0 AI repos.
+
+**V3) Show HN (Hacker News)** (S effort, one-shot)
+   - Profile: text-only post on news.ycombinator.com. **Hit-or-miss** but huge if front-page.
+   - Title format: `Show HN: cortex-x – persistent memory + nightly autopilot for Claude Code`
+   - Body: 4-paragraph max. (1) what it is, (2) why I built it, (3) honest limitations (research preview, v0.3-pre), (4) link to repo + demo. NO marketing language. HN smells SaaS pitches and downvotes them.
+   - Timing: **Tuesday-Thursday 8-11 AM PST** is HN's peak engagement window
+   - Prep: have 2-3 friends ready to post genuine technical questions in the thread within first hour (algorithm boost). DO NOT ask for upvotes (vote rings are detected and shadow-banned).
+   - Realistic expectation: 20% probability of front-page given dev-tool category. Even on second-page, sends quality traffic.
+
+**V4) Awesome-list inclusion** (S effort each, sustained-visibility ROI)
+   - High-priority lists:
+     - [`awesome-ai-agents-2026` (caramaschiHG)](https://github.com/caramaschiHG/awesome-ai-agents-2026) — 300+ entries, monthly updates, category "Agent Frameworks"
+     - [`awesome-ai-agents-2026` (ARUNAGIRINATHAN-K)](https://github.com/ARUNAGIRINATHAN-K/awesome-ai-agents-2026) — comparison guides + benchmarks
+     - `awesome-claude-code` (search GitHub for current best one) — focused on Claude Code ecosystem
+     - `awesome-agent-skills` (if exists by then; agentskills.io community is growing)
+     - `awesome-cli` and `awesome-developer-tools` — broader category lists
+   - Process: small PR adding one-line entry with link. Maintainers review weekly. Once accepted = permanent listing, sustained referral traffic for months.
+   - Effort: ~30 min per list (write entry → fork → PR → wait).
+
+**V5) agentskills.io client showcase** (XS effort, gated by agentskills.io spec compliance verified via Sprint 2.22 validator)
+   - [agentskills.io/clients](https://agentskills.io/clients) lists 37+ adopters of the SKILL.md spec (Claude Code, Cursor, Goose, Codex, GitHub Copilot, Junie, ...)
+   - cortex-x adopted the spec in Sprint 1.x. Once Sprint 2.22 ships `cortex-skill-validate` proving every cortex SKILL.md passes the validator, cortex qualifies as a client.
+   - Process: open issue on [agentskills/agentskills](https://github.com/agentskills/agentskills) requesting client showcase listing with logo + tagline + link to docs.
+   - Reward: cortex appears in the carousel on agentskills.io homepage alongside Claude Code, Cursor, Anthropic — heavyweight visual association.
+
+**Cross-venue prep work** (do once, use everywhere):
+- **OG image** (1200×630px) — README banner, also PH gallery + Show HN preview. cortex's voice charter constrains: counts not praise, no greetings. Bold typography, terminal-style background, "26 standards · 2697 tests · Apache 2.0" overlay.
+- **Demo asset** (LR.7 — already tracked) — 60-second MP4 + 30-second GIF + asciinema cast. Same source serves PH gallery, GitHub README, awesome-list entries.
+- **Tagline + 30-second pitch** — same line everywhere. Draft: *"Persistent memory and an overnight maintenance agent for Claude Code. One install gives every project safety hooks, slash commands, and 26 senior-engineer standards baked in."* (currently in README — ratify as cross-venue SSOT)
+
+**Sequencing**:
+1. **Pre-launch**: LR.7 demo asset + Sprint 2.22 validator green for V5
+2. **Soft launch (week 1)**: V4 awesome-list PRs (sustained-visibility floor)
+3. **Big day (week 2-3)**: V1 Product Hunt + V3 Show HN same week, V2 trending tactics
+4. **Sustained (month 2+)**: V5 agentskills.io showcase + ongoing community engagement (Reddit r/programming/r/SideProject/r/OpenSource, dev.to write-up, Console.dev newsletter pitch)
+
+**Acceptance criteria**:
+- Product Hunt launch executed with prep playbook above
+- ≥3 awesome-list inclusions accepted
+- Show HN submitted (front-page outcome NOT acceptance gate — execution is)
+- agentskills.io client showcase application submitted (post-Sprint 2.22)
+
+**Out of scope** (deferred to post-launch):
+- Paid acquisition (Twitter/X ads, Google Ads) — Tier 3 productization territory (Sprint 4.1+)
+- YouTube launch video — operator's already-deferred mini-série (memory: `project_youtube_series_deferred.md`)
+- Conference talks (NeurIPS / DevTools Hackathons) — much later
+
+**Cross-references**:
+- LR.7 (demo asset) blocks V1 + V3 + V4 entries
+- Sprint 2.22 (skill-validate) blocks V5
+- LR.5 + LR.6 already resolved (naming + license) — no further blockers
+
 ---
 
 ## 4. Tier 2 — Compound learners (weeks 7-12, Sprint 3.0 → 3.3)
