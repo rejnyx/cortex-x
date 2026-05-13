@@ -1120,6 +1120,30 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint LR.Z — OpenClaw architectural deep-dive memo (S effort, doc-only) — ✅ SHIPPED 2026-05-13 late evening
+
+**Status**: ✅ Shipped 2026-05-13 late evening. Follow-up to Sprint LR.X positioning refresh — verifies the "OpenClaw is primary competitor" claim against OpenClaw's shipped reality with citation-grounded feature-gap matrix.
+
+**Deliverable**: [`docs/research/openclaw-architecture-2026-05-13.md`](./research/openclaw-architecture-2026-05-13.md) — 29 cited sources, 10 topic sections.
+
+**Key findings**:
+- OpenClaw is **breadth-first** (250K stars, MIT, ClawHub plugin ecosystem with 5.7K+ skills, OAuth-over-HTTP for paid Codex, TaskFlow SQLite checkpointing, Memory Wiki). **Safety-thin** — ships zero of cortex-x's 7-row safety-stack moat.
+- **Security incidents shipped 2026-H1**: CVE-2026-25253 RCE (NVD record), Snyk ToxicSkills found prompt-injection payloads in 36% of 3,984 audited skills (≈1,434), ClawHavoc follow-up audit reports ≈800 malicious skills (~20% of registry), 7-hour service outage (Issue #34990), single-command backdoor supply-chain vector (VentureBeat).
+- **Third-party safety harnesses emerging** because OpenClaw core lacks them: Jentic Mini, OpenClaw Firewall.
+- **Documentation lags release notes** on HEARTBEAT.md schema, Memory Wiki 4-origin taxonomy, TaskFlow internals.
+
+**4 action items for cortex-x positioning** (derived from memo):
+1. Add hedged disclaimer to `docs/positioning.md` (Sprint LR.X already shipped this).
+2. Lean into the published security-incident numbers in README "Why not OpenClaw?" section.
+3. Sprint 4.0 capability marketplace must ship as **signed-and-audited** (cryptographic signing + audit before any open-pull) — OpenClaw lesson: unmoderated marketplace = CVE waiting to happen.
+4. Don't compete on breadth. Compete on production-grade safety stack.
+
+**Operating principles satisfied**:
+- R1 (research-before-implement): single deep general-purpose agent dispatch with WebFetch verification on 2 high-stakes claims (HEARTBEAT.md format, blink.new pitch).
+- R2 (review pipeline): 2-agent doc-review (acceptance-auditor + security-auditor) closed 5 findings before publication — hedged "0 CVEs" to "as of 2026-05-13", recomputed Snyk arithmetic (36% × 3,984 = 1,434 not 1,467), split Snyk vs ClawHavoc attribution, softened "SECURITY CRISIS IN PROGRESS" header to "Security incidents 2026-H1", added NVD primary citation for CVE-2026-25253.
+
+---
+
 ### Sprint LR.X — Competitive landscape refresh after May 2026 deltas (S effort) — ✅ SHIPPED 2026-05-13 evening
 
 **Status**: ✅ Shipped 2026-05-13 evening after 3 parallel general-purpose research dispatches surfaced three material deltas the morning's positioning doc (`docs/positioning.md`) missed:
