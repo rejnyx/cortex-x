@@ -137,6 +137,7 @@ describe('Sprint 2.8.1 — exportLessons integration', () => {
       slug: 'nonexistent',
       memoryDir: md,
       dataHome: dh,
+      allowOutsideHome: true,
       now: new Date('2026-05-13T12:00:00Z'),
     });
     assert.equal(result.ok, true);
@@ -197,12 +198,16 @@ describe('Sprint 2.8.1 R2 — security hardening', () => {
   });
 
   test('assertMemoryDirSafe rejects path outside home by default', () => {
+    // Use a path that resolves outside home on the current platform.
+    // On Linux: /etc/cron.d is absolute and outside home.
+    // On Windows: an absolute path on a different drive root works
+    //   (we can't hardcode C:\Windows because on Linux it parses as
+    //   a relative path under cwd).
+    const outside = process.platform === 'win32'
+      ? path.join(path.parse(os.tmpdir()).root, 'Windows', 'System32')
+      : '/etc/cron.d';
     assert.throws(
-      () => exporter.assertMemoryDirSafe('/etc/cron.d'),
-      /outside operator home/,
-    );
-    assert.throws(
-      () => exporter.assertMemoryDirSafe('C:\\Windows\\System32'),
+      () => exporter.assertMemoryDirSafe(outside),
       /outside operator home/,
     );
   });
