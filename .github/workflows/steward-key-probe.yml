@@ -52,7 +52,7 @@ jobs:
               body: JSON.stringify({
                 model: 'deepseek/deepseek-v4-flash',
                 messages: [{ role: 'user', content: 'Reply with the literal string KEY_OK and nothing else.' }],
-                max_tokens: 10,
+                max_tokens: 256,
               }),
             });
             console.log('HTTP', r.status);
