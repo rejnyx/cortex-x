@@ -914,7 +914,26 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 3.4 — External tool capability adapters (M effort, ⭐ ECOSYSTEM) — 📋 PROPOSED 2026-05-11 · R1 ✅ DONE
+### Sprint 3.4 — External tool capability adapters (M effort, ⭐ ECOSYSTEM) — ✅ v0 SHIPPED 2026-05-13 · R1 ✅ DONE
+
+**v0 shipped 2026-05-13** — invocation contract + first adapter scaffold:
+- `bin/steward/_lib/external-adapter.cjs` (~230 LoC) — pure-deterministic SKILL.md `external_dependency` frontmatter parser + 4-tier license gate. Validators: HTTPS-only repo URL, install_cmd allowlist (shell metachars rejected), version semver-constraint regex, adapter_slug + secret_env constraints. `probeAdapter(skillDir)` returns frozen adapter descriptor or structured error.
+- `shared/skills/external-adapter-hyperframes/SKILL.md` — first adapter scaffold (Hyperframes, Apache-2.0, oss-permissive tier). v0 ships frontmatter contract only — Docker sandbox + actual render call is v1.
+- 28 tests covering: frontmatter parse, schema validation (8 failure paths), license gate per-tier (5 tiers × 2 paths), workspace path resolution, integration with Hyperframes SKILL.md.
+- **R2 (security-auditor) closed 2 HIGH contract-debt findings in-commit**:
+  - **Finding 4 (slug spoofing, CWE-345)**: malicious skill could declare `adapter_slug: hyperframes` in its frontmatter and inherit Hyperframes' STEWARD_LICENSE_AUTHORIZED grant + cache-poison its workspace. Fix: directory name is authoritative; frontmatter `adapter_slug` must match dir or be omitted; `EXTERNAL_DEP_SLUG_MISMATCH` rejection.
+  - **Finding 2 (install_cmd shell injection, CWE-78)**: install_cmd was length-bounded only. v1 executor (`child_process`) would inherit shell-injection exposure. Fix: `INSTALL_CMD_RE` allowlist rejecting `; & | $ \` ( ) { } < > ' " newline`. Accepts typical npm/pip/cargo invocations + flags.
+- v0/v1 boundary explicit: this commit ships the **invocation contract**; v1 ships the **executor** (git clone + Docker sandbox + Hyperframes render call + Remotion adapter for license_required tier).
+
+**Deferred to Sprint 3.4 v1+**:
+- Docker-per-action sandbox executor (matches existing `bin/steward/execute.cjs` mutex model)
+- git clone + install_cmd execution (with `spawn` shell:false + arg array, per R2 lethal-trifecta blueprint)
+- Hyperframes end-to-end render smoke test (Linux CI + Win11 dogfood)
+- Second adapter: Remotion (proves `per_invocation_metered` tier + `$100/mo floor`)
+- Cost attribution rollup into journal with `license_tier` annotation
+- Acceptance criteria for v1: SKILL.md schema lint via `bin/cortex-capabilities.cjs`, R2 Finding 1 (skillDir trusted-root check) + Finding 5 (CORTEX_DATA_HOME normalize)
+
+
 
 **Status**: 📋 Proposed 2026-05-11. R1 research dispatch completed same day — [`docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`](research/sprint-3.4-external-adapters-research-2026-05-11.md). Formalizes the architectural shape for "cortex-x knows how to drive external repos" — Hyperframes (HTML → video, agent-native), Remotion (React programmatic video, licensed), Lottie generators, Figma plugins, Playwright codegen, etc. Gated on Sprint 2.8 Memory Foundation (so adapter usage records into lessons.jsonl) and complementary to Sprint 3.1 (self-extending capabilities — adapters are first-class skill targets).
 
