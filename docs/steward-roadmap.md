@@ -1094,7 +1094,18 @@ PHASE C — DELIVER (deterministic)
 
 **Goal**: turn cortex-x into a self-evolving system. After Tier 2, prompts/strategies/skills get measurably better every week without operator intervention.
 
-### Sprint 3.0 — AlphaEvolve-style prompt evolution (L effort, ⭐ MOONSHOT)
+### Sprint 3.0 — AlphaEvolve-style prompt evolution (L effort, ⭐ MOONSHOT) — ✅ v0 SHIPPED 2026-05-13
+
+**v0 shipped 2026-05-13** — measurement harness, NOT full evolution engine:
+- `bin/steward/_lib/eval-scorer.cjs` (~210 LoC) — pure-math bootstrap CI (mulberry32-seeded for determinism), 3-rule champion-vs-challenger decision (point delta + lower-CI gate + validation spec_pass_rate non-regression).
+- `bin/steward/_lib/eval-runner.cjs` (~170 LoC) — eval-task discovery via frontmatter parse, pluggable executor (mock + future real-LLM), train/validation split via `validation: true` frontmatter, results JSON writer.
+- `bin/cortex-evolve-ab.cjs` — operator CLI with `run` (execute variant) + `compare` (apply decision rule) subcommands.
+- 29 tests (`tests/unit/eval-scorer.test.cjs` + `tests/unit/eval-runner.test.cjs`).
+- **Honest disclaimer baked into CLI output**: N=10 << N=400-600 published threshold for 5% delta at 95% confidence; v0 results are directional, not statistical verdict.
+
+**Deferred to v1+** (operator decision): population search + island models (OpenEvolve pattern), real-LLM executor wiring (operator-paced cost ceiling), cross-action_kind generalization, DSPy MIPROv2 integration, eval-suite growth toward N=400.
+
+**R1 memo**: [`docs/research/sprint-3.0-prompt-evolution-2026-05-13.md`](./research/sprint-3.0-prompt-evolution-2026-05-13.md) — AlphaEvolve May 2026 impact, Sakana DGM state, DSPy / Langfuse production patterns, eval-suite-size statistical thresholds, mode-collapse + metric-overfit defense.
 
 **Why**: this is the only direction that compounds. After 50 generations, Steward prompts will beat your hand-tuned baselines by measurable margin — and you didn't write any of them.
 
