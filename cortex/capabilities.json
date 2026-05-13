@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T09:10:42.530Z",
+  "generated_at": "2026-05-13T09:18:46.043Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -904,6 +904,14 @@
       "description": "steward-doc-drift.yml — autonomous Steward documentation-drift detector."
     },
     {
+      "name": "steward eval-baseline",
+      "path": ".github/workflows/steward-eval-baseline.yml",
+      "triggers": [
+        "manual"
+      ],
+      "description": "steward-eval-baseline.yml — Sprint 3.0 v1 + LR.1 closure."
+    },
+    {
       "name": "steward evolve-daily",
       "path": ".github/workflows/steward-evolve-daily.yml",
       "triggers": [
@@ -1032,15 +1040,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2154,
+      "unit": 2160,
       "contract": 106,
       "integration": 58,
       "smoke": 0
     },
-    "total": 2318
+    "total": 2324
   },
   "code_volume": {
-    "steward_runtime_loc": 24141,
-    "test_code_loc": 30242
+    "steward_runtime_loc": 24292,
+    "test_code_loc": 30347
   }
 }

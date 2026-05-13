@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:10:42.530Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-13T09:18:46.043Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -15,10 +15,10 @@
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 16 |
 | Review-pipeline agents (`agents/`) | 10 |
-| GitHub workflows | 20 |
-| Tests total | 2318 (unit 2154 · contract 106 · integration 58 · smoke 0) |
-| Runtime LoC (`bin/`) | 24,141 |
-| Test LoC (`tests/`) | 30,242 |
+| GitHub workflows | 21 |
+| Tests total | 2324 (unit 2160 · contract 106 · integration 58 · smoke 0) |
+| Runtime LoC (`bin/`) | 24,292 |
+| Test LoC (`tests/`) | 30,347 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -200,7 +200,7 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |
 
-## 8. GitHub workflows (20)
+## 8. GitHub workflows (21)
 
 CI + Steward cron workflows in `.github/workflows/`.
 
@@ -212,6 +212,7 @@ CI + Steward cron workflows in `.github/workflows/`.
 | [`steward autoresearch (weekly Sunday)`](../.github/workflows/steward-autoresearch.yml) | cron(0 2 * * 0) · manual | steward-autoresearch.example.yml — Sprint 2.1 weekly autoresearch overnight |
 | [`steward dep-patch`](../.github/workflows/steward-dep-patch.yml) | cron(0 4 * * 0) · manual | steward-dep-patch.yml — autonomous Steward patch-only dep updater workflow. |
 | [`steward doc-drift`](../.github/workflows/steward-doc-drift.yml) | cron(0 5 1 * *) · manual | steward-doc-drift.yml — autonomous Steward documentation-drift detector. |
+| [`steward eval-baseline`](../.github/workflows/steward-eval-baseline.yml) | manual | steward-eval-baseline.yml — Sprint 3.0 v1 + LR.1 closure. |
 | [`steward evolve-daily`](../.github/workflows/steward-evolve-daily.yml) | cron(0 3 * * *) · manual | steward-evolve-daily.yml — Sprint 2.19 daily Dreaming / consolidation cron. |
 | [`steward flaky-test-repair`](../.github/workflows/steward-flaky-test-repair.yml) | cron(0 7 * * 2) · manual | steward-flaky-test-repair.yml — autonomous Steward flaky-test quarantiner. |
 | [`steward harvest`](../.github/workflows/steward-harvest.yml) | cron(0 3 * * *) · manual | steward-harvest.yml — autonomous Steward recommendation harvester workflow. |
