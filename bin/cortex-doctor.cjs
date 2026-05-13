@@ -40,8 +40,17 @@ const SETTINGS_PATH = path.join(CLAUDE_HOME, 'settings.json');
 const CLAUDE_MD_PATH = path.join(CLAUDE_HOME, 'CLAUDE.md');
 const SOURCE_YAML = path.join(SHARED, 'cortex-source.yaml');
 
+// SSOT for skill discovery audit. Keep aligned with install.{sh,ps1}'s
+// per-profile skill-promotion loop: `audit, designer, start, cortex-doctor`
+// for all profiles + `test-audit` for the qa-tester profile.
+// Sprint 2.21.2 R2 hardening (SSOT-enforcer finding #3): cortex-doctor was
+// installed unconditionally but missing from this list, causing the doctor
+// to not self-verify; test-audit was here but only installed on qa-tester,
+// causing spurious "info: not installed" on dev/ai-engineer/minimal profiles.
 const REQUIRED_SKILLS = ['cortex-init', 'cortex-help'];
-const RECOMMENDED_SKILLS = ['audit', 'designer', 'start', 'test-audit'];
+const RECOMMENDED_SKILLS = ['audit', 'designer', 'start', 'cortex-doctor'];
+// Profile-specific (not always installed; doctor reports as info when absent).
+const PROFILE_SKILLS = ['test-audit'];
 
 function parseArgs(argv) {
   const args = { json: false, fix: false, help: false };
@@ -324,4 +333,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { runChecks, parseArgs, REQUIRED_SKILLS, RECOMMENDED_SKILLS };
+module.exports = { runChecks, parseArgs, REQUIRED_SKILLS, RECOMMENDED_SKILLS, PROFILE_SKILLS };

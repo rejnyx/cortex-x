@@ -1398,6 +1398,32 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
+### Sprint 2.21.3 — R2 hardening follow-up: MEDs from 6-agent review (S effort) — 📋 PLANNED 2026-05-13
+
+**Why**: Sprint 2.21 R2 review (6-agent parallel pipeline) surfaced 6 HIGH findings (closed in Sprint 2.21.2 commit) + 8 MED findings (deferred — non-ship-blocking but want the polish before launch).
+
+**MED scope** (each ~S effort, independent):
+
+1. **TOCTOU symlink safety on backup + tmp paths** — `cortex-hooks-register.cjs:138,150` + `cortex-claude-md-augment.cjs:139,153`. Open tmp + backup with `'wx'` flag so symlink/pre-existing file aborts. Defense-in-depth; target dir is user-owned so practical risk is low.
+
+2. **Backup file permissions `0o600` (mode-secret-leak)** — settings.json may contain stashed API keys/OAuth tokens; backups inherit `0644` default. Set `{ mode: 0o600 }` on backup writes for both CLIs. Add retention cap (keep N most recent, prune older).
+
+3. **CRLF preservation** — `cortex-claude-md-augment.cjs:165-167` injects `\n` separators unconditionally. On Windows CRLF files, this produces mixed-EOL output → noisy git diffs. Sniff input EOL, preserve on write.
+
+4. **Markers inside fenced code blocks** — `CORTEX_BLOCK_RE` matches anywhere. A user documenting cortex itself in `~/.claude/CLAUDE.md` (e.g. inside ` ``` ` fence) would have the example stripped on `--remove` or re-`--apply`. Require markers at line-start AND not preceded by an unclosed code fence.
+
+5. **Concurrent-mutate lockfile** — both CLIs lack mutex. `~/.cortex/.cortex-mutate.lock` with PID + acquire-or-fail. Prevents the race where two `--apply` invocations interleave reads and only the last write survives.
+
+6. **`replace(/\n{3,}/g, ...)` on --remove mutates user whitespace** — `cortex-claude-md-augment.cjs:202`. Outside the markers should be byte-identical except for the block region. Apply the collapse only to the stripped-block region, not the whole file.
+
+7. **Property tests on pure reducers** — `computePlan` (hooks-register) + `computeNext` (claude-md-augment) are reducers with strong invariants (idempotency, user-content preservation, roundtrip). Add `fast-check` property tests per `standards/correctness.md` Practice 2.
+
+8. **Install partial-failure rollback hint** — `install.sh:649-706`: if hook step succeeds but augment fails, no compensating action documented. Print explicit "partial-install state — rollback with `cortex-hooks-register --remove`" on inter-step error.
+
+**Source**: 6-agent review on Sprint 2.21 diff (2026-05-13 evening). Findings from `correctness-auditor`, `security-auditor`, `blind-hunter`, `edge-case-hunter`, `ssot-enforcer`. `acceptance-auditor` reported APPROVED no findings to defer.
+
+---
+
 ### Sprint 4.0.1 — agentskills.io ecosystem participation (S effort, deferred polish) — 📋 PLANNED 2026-05-13
 
 **Why now**: Operator landscape check 2026-05-13 surfaced **`google/skills`** (7,662 ★ in 6 weeks, Apache-2.0, created 2026-03-31) — Google's vendor content packs (Gemini API · BigQuery · Cloud Run · GKE · AlloyDB · Firebase · Cloud SQL · WAF: Security/Reliability/Cost) distributed via `npx skills add google/skills`. They use the **identical** [agentskills.io](https://agentskills.io) SKILL.md spec cortex-x adopted in Sprint 1.x (`standards/skills.md`). 37+ agent products now interop on this spec including Claude Code, Cursor, GitHub Copilot, Gemini CLI, Goose, OpenHands, OpenAI Codex, Mistral Vibe.

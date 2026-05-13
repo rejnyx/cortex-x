@@ -298,3 +298,61 @@ describe('cortex-hooks-register — CLI end-to-end (fake $HOME)', () => {
     } finally { tryRm(home); }
   });
 });
+
+// Sprint 2.21.2 R2 hardening — null/array hook field tolerance.
+describe('cortex-hooks-register — R2 hardening (Sprint 2.21.2)', () => {
+  test('HIGH#3 hooks: null → no crash, treated as empty', () => {
+    const home = mkFakeHome({ permissions: {}, hooks: null });
+    try {
+      const r = runCli(['--status', '--json'], home);
+      assert.strictEqual(r.status, 0, 'must not crash with exit 2');
+      const report = JSON.parse(r.stdout);
+      assert.strictEqual(report.ok, true);
+      assert.strictEqual(report.cortex_entries_total, 0);
+    } finally { tryRm(home); }
+  });
+
+  test('HIGH#3 hooks: [] (array) → no crash, treated as empty for apply', () => {
+    const home = mkFakeHome({ permissions: {}, hooks: [] });
+    try {
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      const settings = readSettingsFromHome(home);
+      // After apply, hooks should be a proper object with cortex events.
+      assert.ok(typeof settings.hooks === 'object' && !Array.isArray(settings.hooks));
+      assert.ok(settings.hooks.SessionStart);
+    } finally { tryRm(home); }
+  });
+
+  test('HIGH#3 hooks: "string" → no crash, treated as empty', () => {
+    const home = mkFakeHome({ hooks: 'not-a-hooks-block' });
+    try {
+      const r = runCli(['--status', '--json'], home);
+      assert.strictEqual(r.status, 0);
+    } finally { tryRm(home); }
+  });
+
+  test('HIGH#5 HOOK_SPEC SSOT alignment with install.{sh,ps1} INSTALL_NOTES', () => {
+    // Defense against the SSOT drift the enforcer flagged (Sprint 2.21.2):
+    // HOOK_SPEC must enumerate every hook script that install.{sh,ps1}
+    // documents in the INSTALL_NOTES.md heredoc. We verify by reading
+    // install.sh and confirming each HOOK_SPEC event + script name appears
+    // in the heredoc text.
+    const installShPath = path.join(REPO_ROOT, 'install.sh');
+    const installSh = fs.readFileSync(installShPath, 'utf8');
+    for (const [event, entries] of Object.entries(HOOK_SPEC)) {
+      // Locate the "$event": [ ... ] block in the install.sh heredoc.
+      const eventRegex = new RegExp(`"${event}":\\s*\\[`);
+      assert.ok(eventRegex.test(installSh), `install.sh INSTALL_NOTES missing event "${event}"`);
+      // For each cortex hook script referenced, verify install.sh mentions it.
+      for (const entry of entries) {
+        for (const h of entry.hooks) {
+          const m = h.command.match(/hooks\/([\w-]+\.cjs)/);
+          if (!m) continue;
+          const scriptName = m[1];
+          assert.ok(installSh.includes(scriptName), `install.sh INSTALL_NOTES missing hook script "${scriptName}" for event "${event}"`);
+        }
+      }
+    }
+  });
+});

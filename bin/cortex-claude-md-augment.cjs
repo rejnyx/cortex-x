@@ -118,19 +118,59 @@ function printHelp() {
   console.log('is touched. User content outside the markers is preserved verbatim.');
 }
 
+// Sprint 2.21.2 R2 hardening: read as Buffer, sniff for invalid UTF-8 BEFORE
+// committing to a utf8 string view. fs.readFileSync(path, 'utf8') silently
+// replaces invalid bytes with U+FFFD, which would round-trip back to disk on
+// write and permanently corrupt non-UTF8 user content (rare but real for
+// legacy latin1-edited globals). We refuse to mutate non-UTF8 files.
+function isWellFormedUtf8(buffer) {
+  // Node ≥18 has TextDecoder with `fatal: true` that throws on invalid bytes.
+  try {
+    new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(buffer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function readCurrent() {
-  if (!fs.existsSync(CLAUDE_MD_PATH)) return { exists: false, content: '' };
-  const raw = fs.readFileSync(CLAUDE_MD_PATH, 'utf8');
-  const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
-  return { exists: true, content: cleaned };
+  if (!fs.existsSync(CLAUDE_MD_PATH)) return { exists: false, content: '', wellFormed: true };
+  const buf = fs.readFileSync(CLAUDE_MD_PATH);
+  if (!isWellFormedUtf8(buf)) {
+    return { exists: true, content: null, wellFormed: false };
+  }
+  let raw = buf.toString('utf8');
+  if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+  return { exists: true, content: raw, wellFormed: true };
+}
+
+// Sprint 2.21.2 R2 hardening: detect orphan markers (BEGIN without END or
+// END without BEGIN) — these indicate the user manually edited the cortex
+// block and removed a marker. If we proceed with --apply on an orphan, the
+// next --apply matches the new END against the orphan BEGIN and DELETES all
+// user content between them. Refuse loudly instead.
+const CORTEX_BEGIN_RE = /<!-- BEGIN cortex-x discipline \(v\d+\) — managed by cortex-claude-md-augment -->/g;
+const CORTEX_END_RE = /<!-- END cortex-x discipline -->/g;
+
+function countMarkers(content) {
+  // Reset both regexes (safe even if already 0 — defensive).
+  CORTEX_BEGIN_RE.lastIndex = 0;
+  CORTEX_END_RE.lastIndex = 0;
+  const begins = (content.match(CORTEX_BEGIN_RE) || []).length;
+  const ends = (content.match(CORTEX_END_RE) || []).length;
+  return { begins, ends };
 }
 
 // Scan content for any existing cortex block(s) and return:
-//   { present: bool, version: '1' | '2' | ..., count: number }
+//   { present: bool, version: '1' | '2' | ..., count: number, orphan: 'begin'|'end'|null }
 function detectBlock(content) {
+  const { begins, ends } = countMarkers(content);
+  // Reset the multi-pair regex too.
+  CORTEX_BLOCK_RE.lastIndex = 0;
   const matches = [...content.matchAll(CORTEX_BLOCK_RE)];
-  if (matches.length === 0) return { present: false, version: null, count: 0 };
-  return { present: true, version: matches[0][1], count: matches.length };
+  const orphan = begins > matches.length ? 'begin' : (ends > matches.length ? 'end' : null);
+  if (matches.length === 0) return { present: false, version: null, count: 0, orphan };
+  return { present: true, version: matches[0][1], count: matches.length, orphan };
 }
 
 function backupFile(rawContent) {
@@ -167,15 +207,36 @@ function computeNext(currentContent, mode) {
   return (base.length > 0 ? base + '\n\n' : '') + fullBlock + '\n';
 }
 
+// Sprint 2.21.2 R2 hardening: cross-platform interactive prompt.
+// /dev/tty is Unix-only; on Windows it throws ENOENT and the prompt silently
+// auto-declines. Fall back to reading from process.stdin (works on Windows
+// when stdin is a TTY) before giving up. If both fail, default to false so
+// the caller knows to require --yes for unattended use.
 function confirmInteractive(promptText) {
   if (!process.stdin.isTTY) return false;
   process.stdout.write(promptText);
+  // Path 1 — POSIX /dev/tty (preferred: works even when stdin is piped to
+  // a TTY emulator like Git Bash on Windows).
+  if (process.platform !== 'win32') {
+    try {
+      const buf = Buffer.alloc(64);
+      const fd = fs.openSync('/dev/tty', 'r');
+      let n = 0;
+      try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
+      fs.closeSync(fd);
+      const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
+      return reply === '' || reply === 'y' || reply === 'yes';
+    } catch {
+      /* fall through to stdin path */
+    }
+  }
+  // Path 2 — Windows (no /dev/tty) or POSIX fallback: read directly from
+  // stdin. Synchronous read via fs.readSync on fd 0. Works on Windows native
+  // when launched from a console host.
   try {
-    const buf = Buffer.alloc(8);
-    const fd = fs.openSync('/dev/tty', 'r');
+    const buf = Buffer.alloc(64);
     let n = 0;
-    try { n = fs.readSync(fd, buf, 0, 8, null); } catch { /* fall through */ }
-    fs.closeSync(fd);
+    try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
     const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
     return reply === '' || reply === 'y' || reply === 'yes';
   } catch {
@@ -188,6 +249,22 @@ function main() {
   if (args.help) { printHelp(); return 0; }
 
   const current = readCurrent();
+
+  // Sprint 2.21.2 R2 hardening: refuse to mutate a non-UTF8 CLAUDE.md.
+  // readFileSync('utf8') would silently replace invalid bytes with U+FFFD,
+  // and we'd write the corruption back permanently. Status mode can still
+  // report (best-effort) but apply/remove abort cleanly.
+  if (current.exists && !current.wellFormed) {
+    const msg = `${CLAUDE_MD_PATH} is not valid UTF-8 — refusing to mutate to avoid corrupting your content`;
+    if (args.json) {
+      console.log(JSON.stringify({ ok: false, error: msg, code: 'NOT_UTF8' }, null, 2));
+    } else {
+      console.error(`cortex-claude-md-augment: ${msg}`);
+      console.error('  Convert to UTF-8 (e.g. iconv -f latin1 -t utf-8 < file > tmp && mv tmp file) and retry.');
+    }
+    return 1;
+  }
+
   const detected = detectBlock(current.content);
 
   if (args.mode === 'status') {
@@ -197,6 +274,7 @@ function main() {
       cortex_block_version: detected.version,
       cortex_block_current_version: BLOCK_VERSION,
       duplicate_blocks: detected.count > 1 ? detected.count : 0,
+      orphan_marker: detected.orphan,
       claude_md_path: CLAUDE_MD_PATH,
       stale: detected.present && detected.version !== BLOCK_VERSION,
     };
@@ -208,9 +286,29 @@ function main() {
       console.log(`  cortex block: ${detected.present ? `present (v${detected.version})` : '(absent)'}`);
       if (report.stale) console.log(`  ↳ STALE — current version is v${BLOCK_VERSION}, run --apply to refresh`);
       if (report.duplicate_blocks > 0) console.log(`  ↳ WARNING: ${report.duplicate_blocks} duplicate blocks — run --apply to dedupe`);
+      if (detected.orphan) console.log(`  ↳ WARNING: orphan ${detected.orphan.toUpperCase()} marker — apply/remove will refuse until manually fixed`);
       if (!detected.present) console.log(`  → run \`cortex-claude-md-augment\` to add`);
     }
     return 0;
+  }
+
+  // Sprint 2.21.2 R2 hardening: orphan markers indicate manual edit that
+  // removed one half of a BEGIN/END pair. Proceeding with --apply would
+  // pair the new END with the orphan BEGIN on next run and delete user
+  // content between them. Refuse loudly with manual-fix instructions.
+  // --remove is also unsafe (would not cleanly strip the orphan).
+  if (detected.orphan) {
+    const msg = `${CLAUDE_MD_PATH} has an orphan ${detected.orphan.toUpperCase()} marker — manual edit required first`;
+    if (args.json) {
+      console.log(JSON.stringify({ ok: false, error: msg, code: 'ORPHAN_MARKER', orphan: detected.orphan }, null, 2));
+    } else {
+      console.error(`cortex-claude-md-augment: ${msg}`);
+      console.error(`  Cause: a previous edit removed one side of the BEGIN/END pair.`);
+      console.error(`  Fix: open ${CLAUDE_MD_PATH} and either complete the pair (re-add the missing`);
+      console.error(`       marker) or delete the orphan, then re-run cortex-claude-md-augment.`);
+      console.error(`  Refusing to mutate to avoid permanent data loss on your user content.`);
+    }
+    return 1;
   }
 
   const nextContent = computeNext(current.content, args.mode);
@@ -308,8 +406,12 @@ module.exports = {
   CORTEX_BLOCK_START,
   CORTEX_BLOCK_END,
   CORTEX_BLOCK_RE,
+  CORTEX_BEGIN_RE,
+  CORTEX_END_RE,
   DISCIPLINE_BLOCK,
   parseArgs,
   detectBlock,
   computeNext,
+  countMarkers,
+  isWellFormedUtf8,
 };

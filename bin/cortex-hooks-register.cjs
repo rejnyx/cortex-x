@@ -195,15 +195,28 @@ function computePlan(currentHooks, mode) {
   return { next, summary };
 }
 
+// Sprint 2.21.2 R2 hardening: cross-platform interactive prompt with
+// Windows /dev/tty fallback. Mirrors the same fix in cortex-claude-md-augment.
 function confirmInteractive(promptText) {
   if (!process.stdin.isTTY) return false; // explicit non-TTY → require --yes
   process.stdout.write(promptText);
+  if (process.platform !== 'win32') {
+    try {
+      const buf = Buffer.alloc(64);
+      const fd = fs.openSync('/dev/tty', 'r');
+      let n = 0;
+      try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
+      fs.closeSync(fd);
+      const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
+      return reply === '' || reply === 'y' || reply === 'yes';
+    } catch {
+      /* fall through to stdin path */
+    }
+  }
   try {
-    const buf = Buffer.alloc(8);
-    const fd = fs.openSync('/dev/tty', 'r');
+    const buf = Buffer.alloc(64);
     let n = 0;
-    try { n = fs.readSync(fd, buf, 0, 8, null); } catch { /* fall through */ }
-    fs.closeSync(fd);
+    try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
     const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
     return reply === '' || reply === 'y' || reply === 'yes';
   } catch {
@@ -211,8 +224,19 @@ function confirmInteractive(promptText) {
   }
 }
 
+// Sprint 2.21.2 R2 hardening: tolerate `"hooks": null` and `"hooks": []`
+// in settings.json. Both are valid JSON but neither is a usable hooks block.
+// Without this guard, Object.entries(null) throws and exits 2 ("internal
+// bug"); Object.entries([]) silently drops the array contents on write.
+function normalizeHooksField(value) {
+  if (value === null || value === undefined) return {};
+  if (Array.isArray(value)) return {};
+  if (typeof value !== 'object') return {};
+  return value;
+}
+
 function statusReport(json) {
-  const hooks = json && json.hooks ? json.hooks : {};
+  const hooks = normalizeHooksField(json && json.hooks);
   const present = {};
   let totalCortexEntries = 0;
   for (const [event, entries] of Object.entries(hooks)) {
@@ -261,7 +285,7 @@ function main() {
     return 0;
   }
 
-  const currentHooks = settings.json.hooks && typeof settings.json.hooks === 'object' ? settings.json.hooks : {};
+  const currentHooks = normalizeHooksField(settings.json.hooks);
   const { next, summary } = computePlan(currentHooks, args.mode);
 
   const noChange = summary.added.length === 0 && summary.removed.length === 0;
@@ -357,4 +381,5 @@ module.exports = {
   computePlan,
   parseArgs,
   statusReport,
+  normalizeHooksField,
 };

@@ -256,3 +256,72 @@ describe('cortex-claude-md-augment — CLI end-to-end', () => {
     } finally { tryRm(home); }
   });
 });
+
+// Sprint 2.21.2 R2 hardening — regression tests for 3 HIGH findings.
+describe('cortex-claude-md-augment — R2 hardening (Sprint 2.21.2)', () => {
+  function mkProject(name) {
+    return fs.mkdtempSync(path.join(os.tmpdir(), `cortex-cmda-r2-${name}-`));
+  }
+  function rmProject(dir) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  }
+  function mkFakeHomeLocal(content) {
+    const home = mkProject('home');
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.claude', 'CLAUDE.md'), content, 'utf8');
+    return home;
+  }
+
+  test('HIGH#1 orphan BEGIN marker → refuses to mutate (data-loss guard)', () => {
+    const home = mkFakeHomeLocal('# Dave\n<!-- BEGIN cortex-x discipline (v1) — managed by cortex-claude-md-augment -->\nuser writes about cortex\n');
+    try {
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 1, 'must refuse with exit 1');
+      const result = JSON.parse(r.stdout);
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.code, 'ORPHAN_MARKER');
+      assert.strictEqual(result.orphan, 'begin');
+      // Critically: file must be unchanged.
+      const md = fs.readFileSync(path.join(home, '.claude', 'CLAUDE.md'), 'utf8');
+      assert.match(md, /user writes about cortex/);
+    } finally { rmProject(home); }
+  });
+
+  test('HIGH#1 orphan END marker → refuses to mutate', () => {
+    const home = mkFakeHomeLocal('# Dave\n<!-- END cortex-x discipline -->\nstray end\n');
+    try {
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 1);
+      const result = JSON.parse(r.stdout);
+      assert.strictEqual(result.code, 'ORPHAN_MARKER');
+      assert.strictEqual(result.orphan, 'end');
+    } finally { rmProject(home); }
+  });
+
+  test('HIGH#1 --status reports orphan_marker field', () => {
+    const home = mkFakeHomeLocal('<!-- BEGIN cortex-x discipline (v2) — managed by cortex-claude-md-augment -->\nno end\n');
+    try {
+      const r = runCli(['--status', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      const report = JSON.parse(r.stdout);
+      assert.strictEqual(report.orphan_marker, 'begin');
+    } finally { rmProject(home); }
+  });
+
+  test('HIGH#2 non-UTF8 CLAUDE.md → refuses to mutate (corruption guard)', () => {
+    const home = mkProject('utf8');
+    try {
+      fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+      // Write latin1 bytes (0xe9 = é in latin1, invalid mid-sequence in utf8)
+      const invalidUtf8 = Buffer.from([0x23, 0x20, 0xe9, 0x6e, 0xe9, 0x0a]); // "# énén\n" in latin1
+      fs.writeFileSync(path.join(home, '.claude', 'CLAUDE.md'), invalidUtf8);
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 1);
+      const result = JSON.parse(r.stdout);
+      assert.strictEqual(result.code, 'NOT_UTF8');
+      // File untouched (still latin1 bytes).
+      const onDisk = fs.readFileSync(path.join(home, '.claude', 'CLAUDE.md'));
+      assert.strictEqual(onDisk[2], 0xe9, 'invalid bytes must remain');
+    } finally { rmProject(home); }
+  });
+});

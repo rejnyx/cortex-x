@@ -35,9 +35,28 @@ describe('cortex-doctor — exports', () => {
     assert.ok(REQUIRED_SKILLS.includes('cortex-help'));
   });
 
-  test('RECOMMENDED_SKILLS covers the 4 main entry points', () => {
-    for (const s of ['audit', 'designer', 'start', 'test-audit']) {
+  test('RECOMMENDED_SKILLS covers the 4 entry points install promotes for all profiles', () => {
+    // Sprint 2.21.2: aligned with install.{sh,ps1}'s per-profile loop —
+    // audit, designer, start, cortex-doctor are installed for ALL profiles.
+    // test-audit moved to PROFILE_SKILLS (only qa-tester profile).
+    for (const s of ['audit', 'designer', 'start', 'cortex-doctor']) {
       assert.ok(RECOMMENDED_SKILLS.includes(s), `missing recommended skill: ${s}`);
+    }
+  });
+
+  test('RECOMMENDED_SKILLS matches install.{sh,ps1} per-profile loop (SSOT alignment)', () => {
+    // Defense against the SSOT drift the enforcer flagged. install.sh has
+    // `for SKILL_NAME in <list>; do` and install.ps1 has `foreach ($SkillName
+    // in @(<list>))`. Both must enumerate the same skills as
+    // RECOMMENDED_SKILLS for cortex-doctor to give consistent verdicts.
+    const installSh = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', '..', 'install.sh'), 'utf8'
+    );
+    const m = installSh.match(/for SKILL_NAME in ([\w\- ]+); do/);
+    assert.ok(m, 'could not locate skill-promotion loop in install.sh');
+    const listed = m[1].trim().split(/\s+/);
+    for (const skill of RECOMMENDED_SKILLS) {
+      assert.ok(listed.includes(skill), `install.sh skill loop missing "${skill}" (RECOMMENDED_SKILLS in cortex-doctor.cjs)`);
     }
   });
 
