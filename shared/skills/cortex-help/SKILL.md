@@ -1,6 +1,6 @@
 ---
 name: cortex-help
-description: One-screen menu of what cortex-x can do right now — list of invokable slash commands (cortex-init, audit, start, test-audit, designer, sync, evolve, doctor), a 1-line summary of what each does, and a count of underlying capabilities (action_kinds, profiles, standards). Auto-discovered after install.{sh,ps1} sync. Invoke as "/cortex-help", "what can cortex do?", or when the user asks "co umíš?" / "jaké jsou skills?" / "ukaž mi capabilities". NOTE: namespaced as cortex-help because /help is reserved as a Claude Code built-in slash command. Defers full machine-readable registry to cortex/capabilities.md.
+description: One-screen menu of what cortex-x can do right now — list of invokable slash commands (cortex-init, cortex-help, cortex-doctor, audit, designer, start, test-audit) + operator-facing terminal CLIs (cortex-update, cortex-uninstall, cortex-hooks-register, cortex-claude-md-augment, cortex-doctor), a 1-line summary of what each does, and a count of underlying capabilities (action_kinds, profiles, standards). Auto-discovered after install.{sh,ps1} sync. Invoke as "/cortex-help", "what can cortex do?", or when the user asks "co umíš?" / "jaké jsou skills?" / "ukaž mi capabilities". NOTE: namespaced as cortex-help because /help is reserved as a Claude Code built-in slash command. Defers full machine-readable registry to cortex/capabilities.md.
 disable-model-invocation: false
 ---
 
@@ -49,13 +49,27 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 | **`/audit`** | Existing-project deep audit (12 dimensions, 4 parallel agents) | Established codebase, want to know what's there |
 | **`/test-audit`** | Senior-QA-consultant audit → P0/P1/P2 gap list with research memos | Repo needs a testing-strategy review |
 | **`/designer`** | Designer flow — intake + library palette + parallel worktree exploration | Front-end / landing-page / dashboard design session |
+| **`/cortex-doctor`** | Healthcheck — cortex install integrity + drift detection (Sprint 2.21) | Weekly, after migration, or new machine |
 | **`/retrofit`** † | Apply cortex-x patterns to an audited project | After `/audit` finishes |
 | **`/sync`** † | End-of-session knowledge capture — decisions + lessons → cortex library | After a sprint or notable work session |
-| **`/doctor`** † | Healthcheck — cortex install integrity + drift detection | Weekly, or after migration / new machine |
 | **`/cortex-reflect`** † | Deep reflection — surfaces grounded cross-project insights | When something feels off, or after big refactor |
 | **`/cortex-help`** | This menu | Anytime you forget what's available |
 
 † = paste the prompt manually from `~/.claude/shared/prompts/<name>.md` (these are prompts, not slash-skills yet; SKILL.md wrappers planned for Sprint 2.18+).
+
+### Terminal CLIs — run in shell, outside Claude Code
+
+These are operator-facing maintenance tools shipped under `~/.claude/shared/bin/` (add to PATH or invoke directly). Run them in a normal terminal, not inside the Claude Code chat surface.
+
+| Command | What it does | When to use |
+|---|---|---|
+| **`cortex-update`** | Fast-forward source clone + re-run installer. Flags: `--check`, `--reinstall`, `--json` | Bump framework to latest |
+| **`cortex-uninstall`** | Conservative removal — preserves `$CORTEX_DATA_HOME` by default. Flags: `--dry-run`, `--purge`, `--backup`, `--keep-source`, `--yes` | Removing cortex-x from machine |
+| **`cortex-doctor`** | Same checks as `/cortex-doctor` slash skill but headless. Flags: `--json`, `--fix-suggestions`. Exit 0/1 | CI / scripted health audit |
+| **`cortex-hooks-register`** | Opt-in idempotent merge of cortex hooks into `~/.claude/settings.json` with timestamped backup. Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json` | Manual hooks wiring if install consent declined |
+| **`cortex-claude-md-augment`** | Opt-in BEGIN/END-marker append of discipline block to `~/.claude/CLAUDE.md` (R1+R2+TodoWrite+voice+surgical). Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json` | Manual global-CLAUDE wiring if install consent declined |
+
+Full CLI roster (14 tools incl. internal Steward + lessons + propose-skill + evolve-ab + wiki-consolidate + doc-audit): see [`bin/README.md`](../../../bin/README.md).
 
 ### Default behaviors (these run without being asked)
 
