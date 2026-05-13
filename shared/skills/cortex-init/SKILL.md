@@ -8,6 +8,42 @@ disable-model-invocation: false
 
 You are running the cortex-x initialization flow. The user has installed cortex-x and pasted `/cortex-init` (or invoked it implicitly via "let's start"). Your job: pick a mode, persist the marker, and chain to the correct workflow — all in this session.
 
+**Voice charter:** see [`standards/voice.md`](../../../standards/voice.md). No greetings, no emoji, no emotion words, counts-not-praise.
+
+## Step 0 — First-run detection (one-shot manifesto)
+
+Before Step 1 detection, read `$CORTEX_DATA_HOME/state.json` (resolves to `~/.cortex/state.json` by default). Two branches:
+
+**A) Marker absent OR `firstRunCompletedAt` missing → FIRST RUN.** Print this **3-line manifesto** above the AskUserQuestion picker that Step 2 will show. Read the language signal from prior turns; if operator wrote Czech, use the Czech version:
+
+English:
+```
+cortex-x is institutional memory for Claude Code sessions.
+Today: scaffold + audit + nightly Steward agent.
+In 6 months: a CLAUDE.md that compounds with every commit.
+```
+
+Czech:
+```
+cortex-x je institucionální paměť pro Claude Code sessions.
+Dnes: scaffold + audit + noční Steward agent.
+Za 6 měsíců: CLAUDE.md který se nabaluje s každým commitem.
+```
+
+Three lines. Declarative present-tense. No emoji, no "revolutionary", no superlatives. **Show once, ever.** Then proceed directly to Step 1.
+
+**B) Marker present + `firstRunCompletedAt` set → RETURNING USER.** Skip manifesto, jump to Step 1. If `lastSyncedAt` is more than 30 days old, print ONE line above AskUserQuestion in Step 2:
+
+```
+cortex-x has N new capabilities since last init — /cortex-help to view.
+```
+
+Compute N from `cortex/capabilities.md` (the auto-generated registry) — count of entries added/changed since last marker timestamp. If unable to compute, skip the nudge silently.
+
+**Fail-open:** if reading state.json fails (permission, missing dir), treat as first-run. Better to over-show manifesto than crash init.
+
+Full design: [`prompts/onboarding-first-10min.md`](../../../prompts/onboarding-first-10min.md).
+
 ## Step 1 — Detect existing context
 
 Before asking, do a quick read-only scan of `$PWD`:
@@ -27,6 +63,28 @@ Use the `AskUserQuestion` tool (it gives Claude Code's native UI with arrow-key 
 | **Framework only** | I'll paste prompts manually as needed. No auto-flow. |
 
 The default-highlighted choice should match what Step 1 detected. Make the question Czech if user's earlier turns were Czech, English otherwise (read the language signal — don't ask explicitly).
+
+## Step 2.5 — Aider-style status line (before chaining)
+
+Immediately after AskUserQuestion resolves, BEFORE reading the chained prompt, print ONE concrete status line that names what was detected + plan summary. Counts, no praise. Examples:
+
+**Existing project:**
+```
+Detected: Next.js 16 · 1,847 files · 23 routes · Supabase · no CLAUDE.md
+Plan: 12-dimension audit, 4 parallel agents, ~5 min.
+```
+
+**New project:**
+```
+Detected: empty folder. Plan: 6-question discover, 3-4 parallel research agents, scaffold, adapt. ~3 min.
+```
+
+**Framework only:**
+```
+Detected: framework-only mode. Plan: list 8 available prompts and exit.
+```
+
+This is the "plan first" pattern (Replit Agent precedent). Operator sees cortex thinking before cortex acts. Skip ONLY if first-run manifesto was just shown AND mode is "Framework only" (redundant).
 
 ## Step 3 — Branch on the choice
 
@@ -72,9 +130,38 @@ Then exit `/cortex-init`. Do not continue with stale assets.
 
 The chained prompt (`new-project.md` Phase 5 §5.5 / `existing-project-audit.md` final section) is responsible for deleting `.cortex-bootstrap-pending` on completion. You do NOT delete it from `/cortex-init` itself — the marker has to survive across phase boundaries inside the chained prompt.
 
-## Step 5 — On_complete
+## Step 5 — On_complete + marker write
 
-After the chained workflow finishes (Phase 5 finalize / Phase 7 audit final), the chained prompt prints its own closing instructions. `/cortex-init` is done after Step 3 has handed control to the chained prompt; you do NOT need to print anything else.
+After the chained workflow finishes (Phase 5 finalize / Phase 7 audit final), do two things:
+
+1. **Write the first-run marker.** Use the `Write` tool to create/update `$CORTEX_DATA_HOME/state.json` (default `~/.cortex/state.json`). Schema:
+
+   ```json
+   {
+     "version": 1,
+     "firstRunCompletedAt": "<ISO 8601 timestamp of THIS completion>",
+     "mode": "<new|existing|framework>",
+     "lastSyncedAt": "<ISO 8601 timestamp of THIS completion>"
+   }
+   ```
+
+   If the file already exists (returning user), **preserve `firstRunCompletedAt`** and only update `lastSyncedAt` + `mode`. The marker write is idempotent. Fail-open on write errors (don't block the user's session over a marker write).
+
+2. **Print the minute-10 nudge** (single line, no feature list):
+
+   ```
+   Done. Next Claude session in this folder will auto-load CLAUDE.md.
+   What compounds next: /cortex-help · /sync at end of session · /designer for UI work.
+   ```
+
+   Czech variant:
+
+   ```
+   Hotovo. Příští session v této složce auto-loaduje CLAUDE.md.
+   Co se nabaluje dál: /cortex-help · /sync na konci sezení · /designer pro UI práci.
+   ```
+
+The chained prompt's own "Phase 6 — Final on_complete" / "Phase 7 — Final on_complete" block runs BEFORE this; the marker write + nudge here is `/cortex-init`'s outer cleanup. **Don't repeat the chained prompt's "Co dál?" block.**
 
 ## Edge cases
 

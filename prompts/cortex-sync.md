@@ -1,6 +1,8 @@
 # Cortex Sync Prompt
 
 > **How to use:** Paste this at the END of a work session when something notable happened (major decision, failed experiment, pattern worth remembering). Claude will update `$CORTEX_DATA_HOME/projects/<slug>.md` with the fresh insight.
+>
+> **Voice charter:** see [`standards/voice.md`](standards/voice.md). When writing entries, use `[cortex/recall]` prefix + `[^cN]` footnote citations for past-decision references. No emotion words, no "I feel", no praise. Failure-mode templates (don't-know / uncertain-but-acting / memory-conflict) apply when sync surfaces conflicts with prior entries.
 
 ---
 

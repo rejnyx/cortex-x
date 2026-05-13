@@ -20,6 +20,7 @@
 | | [Documentation](./documentation.md) | Should-have | Review pipeline flag = warning |
 | | [AI Patterns](./ai-patterns.md) | Should-have | Should-have for non-static profiles |
 | | [AI SDKs](./ai-sdks.md) | Should-have | Required `ai_sdk:` key in every profile YAML |
+| | [Voice](./voice.md) | Should-have | Cross-skill identity + citation discipline + failure-mode templates; reviewer flag = warning |
 
 ## Why tiered
 

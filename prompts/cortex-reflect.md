@@ -1,6 +1,8 @@
 # Cortex Reflect Prompt — Manual Deep Reflection
 
 > **How to use:** Paste this when you want cortex-x to deeply analyze current state and propose insights. Use Fridays, end of sprints, after incidents, or when feeling "something's off".
+>
+> **Voice charter:** see [`standards/voice.md`](standards/voice.md). Section 1 "What's working" + Section 2 "What I noticed" outputs MUST use `[cortex/recall]` prefix + `[^cN]` footnote citations to ground each insight in `journal/`, `insights/`, or `projects/` files. Use `[cortex/no-recall]` honest signal when reflection found no prior evidence (Notion AI pattern). No emotion words; the memory speaks, Claude reports it.
 
 ---
 

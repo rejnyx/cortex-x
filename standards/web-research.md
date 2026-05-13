@@ -78,6 +78,7 @@ Severity: **HIGH** when the audit catches a missing research dispatch on a touch
 
 ## Related
 
+- **Citation rendering convention:** [`voice.md`](./voice.md) §Citation discipline — three-hop pattern (claim → finding ID → source URL) extends to `[cortex/recall]` prefix + `[^cN]` footnote markers for memory recall, and `[cortex/no-recall]` honest signal when search came up empty
 - Original motivation memo: `docs/research/sprint-research-self-invoking-and-research-default-2026-05-10.md`
 - Protocol details: `shared/research-protocol.md`
 - Trigger detector library: `bin/steward/_lib/research-trigger.cjs`
