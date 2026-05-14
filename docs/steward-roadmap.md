@@ -255,9 +255,9 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.3 — Mutation testing as fitness signal (S-M effort) — R1 ✅ DONE 2026-05-09
+### Sprint 2.3 — Mutation testing as fitness signal (S-M effort) — ✅ SHIPPED v0 2026-05-14 (measure-only baseline phase)
 
-**Status**: 📋 R1 research complete 2026-05-09 (autonomous evening session). Implementation awaiting operator approval. R1 memo: [`docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md`](research/sprint-2.3-mutation-testing-fitness-2026-05-09.md) — 10 sources cited.
+**Status**: ✅ v0 shipped 2026-05-14. Three R1 memos (2026-05-09 original + 2026-05-10 refresh + 2026-05-14 fresh) converge on Stryker 9.6.1 + measure-only `break: null` posture. Ships: `package.json` devDep `@stryker-mutator/core ^9.6.1` + `stryker.conf.json` (6-file auth-tier hard-gate scope: splice / spec-verifier / halt-check / cost-safety / recommendations / policy-check) + `.github/workflows/stryker.yml` (weekly Sun 03:00 UTC full + per-push incremental + workflow_dispatch manual) + `standards/mutation-testing.md` Rule 2 reference + `npm run test:mutation[:incremental]` scripts. Conservative defaults: command testRunner (`npm test`), 50% concurrency, public-repo free GHA tier (no self-hosting), 2-week observation period before ratchet activation. v1 deferred: `mutation_score` criterion kind in spec-verifier (needs baseline first), `mutation_score_drift` action_kind, per-directory matrix.
 
 **Why round out Tier 1**: makes verification *more* rigorous than just "tests pass". If LLM patch passes tests but mutation score regresses, reject — the existing tests aren't actually exercising the diff.
 
