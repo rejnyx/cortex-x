@@ -99,11 +99,33 @@ const TOXIC_PATTERNS = [
 // (per memory feedback_no_internal_jargon_in_user_prompts)
 const CORTEX_JARGON = ['action_kind', 'spec-verifier', 'STEWARD_HALT', 'edit_ops', 'EX_TEMPFAIL'];
 
+// Reserved frontmatter keys that must remain strings — never coerce to bool.
+const STRING_ONLY_KEYS = new Set(['name', 'description', 'when_to_use']);
+
+// R2 security HIGH-1: per-line length guard for ToxicSkills scan to prevent
+// ReDoS on pathological inputs. Lines beyond this are skipped (security scan
+// is warn-only by design; missing a payload buried in a 5KB single line is
+// acceptable vs stalling the validator on adversarial input).
+const SCAN_LINE_BYTES = 4096;
+
+// R2 edge-case HIGH-2: distinguish absent (undefined) from empty value (null).
+// Lets main() reject `--min-score=` (empty) as a typo instead of silently 0.
+// Also warns on duplicate flags so an operator typing `--target=spec --target=cc` knows the second wins.
 function flag(name, args) {
-  const idx = args.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
-  if (idx === -1) return undefined;
+  const matches = [];
+  args.forEach((a, i) => {
+    if (a === `--${name}` || a.startsWith(`--${name}=`)) matches.push(i);
+  });
+  if (matches.length === 0) return undefined;
+  if (matches.length > 1) {
+    process.stderr.write(`Warning: --${name} specified ${matches.length} times; using last\n`);
+  }
+  const idx = matches[matches.length - 1];
   const eq = args[idx].indexOf('=');
-  if (eq >= 0) return args[idx].slice(eq + 1);
+  if (eq >= 0) {
+    const value = args[idx].slice(eq + 1);
+    return value === '' ? null : value;
+  }
   const next = args[idx + 1];
   if (next === undefined || next.startsWith('--')) return undefined;
   return next;
@@ -112,26 +134,55 @@ function flag(name, args) {
 function parseFrontmatter(content) {
   // Minimal YAML-block parser — only top-level scalar key: value pairs.
   // SKILL.md frontmatter never needs nested structures per agentskills.io spec.
-  if (!content.startsWith('---')) return { ok: false, error: 'NO_FRONTMATTER_FENCE' };
-  const endIdx = content.indexOf('\n---', 4);
+  // R2 HIGH-2 (correctness): normalize BOM + CRLF first so Windows-authored
+  // skills aren't silently rejected. R2 MED-2 (security): require fence
+  // terminator on its own line via `\n---\n` lookup (still tolerate the
+  // file-end form).
+  if (typeof content !== 'string') return { ok: false, error: 'CONTENT_NOT_STRING' };
+  const normalized = content.replace(/^﻿/, '').replace(/\r\n/g, '\n');
+  if (!normalized.startsWith('---\n') && normalized !== '---') return { ok: false, error: 'NO_FRONTMATTER_FENCE' };
+  // Find closing fence: must be on its own line (start of string after a \n,
+  // followed by either \n or end-of-content).
+  let endIdx = -1;
+  let bodyStart = -1;
+  const fenceRe = /\n---(?=\n|$)/g;
+  fenceRe.lastIndex = 4;
+  const m = fenceRe.exec(normalized);
+  if (m) {
+    endIdx = m.index;
+    bodyStart = m.index + 4;
+  }
   if (endIdx === -1) return { ok: false, error: 'UNCLOSED_FRONTMATTER' };
-  const block = content.slice(4, endIdx);
+  const block = normalized.slice(4, endIdx);
   const fields = {};
+  const seenKeys = new Set();
   for (const rawLine of block.split('\n')) {
-    const line = rawLine.replace(/\r$/, '');
+    const line = rawLine;
     if (line.trim().length === 0) continue;
     if (line.startsWith('#')) continue;
-    const m = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
-    if (!m) continue;
-    let value = m[2].trim();
+    const km = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
+    if (!km) continue;
+    let value = km[2].trim();
+    // R2 correctness MED: reject YAML block-scalar markers we can't parse.
+    if (value === '>' || value === '|' || value === '>-' || value === '|-') {
+      return { ok: false, error: 'BLOCK_SCALAR_UNSUPPORTED' };
+    }
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
-    if (value === 'true') value = true;
-    else if (value === 'false') value = false;
-    fields[m[1]] = value;
+    // R2 edge-case HIGH-1: skip boolean coercion for reserved string keys.
+    // `description: true` was crashing `validateTierC` via `.trim()` on boolean.
+    if (!STRING_ONLY_KEYS.has(km[1])) {
+      if (value === 'true') value = true;
+      else if (value === 'false') value = false;
+    }
+    if (seenKeys.has(km[1])) {
+      return { ok: false, error: 'DUPLICATE_KEY' };
+    }
+    seenKeys.add(km[1]);
+    fields[km[1]] = value;
   }
-  return { ok: true, fields, body: content.slice(endIdx + 4).replace(/^\n/, '') };
+  return { ok: true, fields, body: normalized.slice(bodyStart).replace(/^\n/, '') };
 }
 
 function isSafeRel(root, rel) {
@@ -188,7 +239,15 @@ function validateTierA(skillFile, parsed, dirName) {
     if (lineCount > MAX_BODY_LINES) {
       findings.push({ tier: 'A', severity: 'fail', id: 'SPEC_BODY_TOO_LONG', msg: `body line count ${lineCount} > ${MAX_BODY_LINES}`, cite });
     }
-    if (/[\\][^\\\s]/.test(body) && /^[a-zA-Z]+\\[^\\]/.test(body.split('\n').find((l) => /[a-zA-Z]+\\[a-zA-Z]/.test(l)) || '')) {
+    // R2 blind-hunter HIGH: prior regex matched markdown escapes (\*, \_, \`, \[).
+    // Replace with TWO disjoint shapes that markdown escapes cannot satisfy:
+    //   A) Drive letter form `C:\path\segments`
+    //   B) Path-with-file-extension form `word\(word\)+file.ext` — requires
+    //      at least one `word\` segment leading to a `name.ext` tail.
+    // Markdown escapes like `\*`, `\_` lack a preceding word char before the
+    // backslash, so they cannot match the `(?:[A-Za-z0-9._-]+\\)+` prefix.
+    const winPathRe = /(?:[A-Za-z]:\\[A-Za-z0-9_.\\-]+|(?:[A-Za-z0-9._-]+\\)+[A-Za-z0-9._-]+\.[A-Za-z]{1,8}\b)/m;
+    if (winPathRe.test(body)) {
       findings.push({ tier: 'A', severity: 'fail', id: 'SPEC_WINDOWS_PATH', msg: 'body contains Windows-style backslash path (use forward slashes only)', cite });
     }
   }
@@ -221,19 +280,15 @@ function validateTierB(parsed, target) {
   if (typeof desc === 'string' && /^(I\s|i\s|my\s|You\s|you\s|your\s)/.test(desc)) {
     findings.push({ tier: 'B', severity: 'warn', id: 'CC_DESCRIPTION_PERSON', msg: 'description should be 3rd-person ("Validates X..." not "I validate X..." or "You validate X...")', cite });
   }
-  if (body) {
-    const naked = body.match(/(?<![:\w])(?:WebSearch|Glob|Grep|Bash|Read|Edit|Write|TodoWrite)\b(?![:\w])/g);
-    if (naked && naked.length > 0) {
-      // Heuristic — only flag if the body looks like MCP-style tool refs are expected
-      // (i.e. references appear in non-prose contexts). Soft warning.
-    }
-  }
   return findings;
 }
 
 function validateTierC(parsed) {
   // Tier C — cortex-opinion, scored. Each issue subtracts from baseline 100.
-  if (!parsed.ok) return { score: 0, issues: [] };
+  // R2 correctness HIGH-1: score=null on parse failure to disambiguate from
+  // genuine low-quality skills. Caller treats null as "not scored", excludes
+  // from --min-score gate.
+  if (!parsed.ok) return { score: null, issues: [] };
   const issues = [];
   const cite = 'docs/research/sprint-2.22-skill-quality-2026-05-14.md';
   const { fields } = parsed;
@@ -270,32 +325,78 @@ function validateTierC(parsed) {
 
 function scanSecurity(content) {
   // ToxicSkills payload scan. Warn-only — false positives high.
+  // R2 security HIGH-1: split on \n + per-line length cap to prevent ReDoS
+  // on adversarial inputs (the `[^\n]*` quantifiers in TOXIC_OUTBOUND_EXFIL +
+  // TOXIC_SETTINGS_TAMPER could stall on a 256KB single line).
   const findings = [];
-  for (const pattern of TOXIC_PATTERNS) {
-    const m = content.match(pattern.re);
-    if (m) {
-      findings.push({
-        severity: 'warn',
-        id: pattern.id,
-        msg: pattern.why,
-        match: m[0].slice(0, 80),
-        cite: pattern.cite,
-      });
+  const lines = String(content || '').split('\n');
+  const seen = new Set();
+  for (const line of lines) {
+    if (line.length > SCAN_LINE_BYTES) continue;
+    for (const pattern of TOXIC_PATTERNS) {
+      if (seen.has(pattern.id)) continue;
+      const m = line.match(pattern.re);
+      if (m) {
+        seen.add(pattern.id);
+        // Strip ANSI/control chars from echoed match (R2 security LOW-1).
+        const safe = m[0].slice(0, 80).replace(/[\x00-\x1f\x7f]/g, '?');
+        findings.push({
+          severity: 'warn',
+          id: pattern.id,
+          msg: pattern.why,
+          match: safe,
+          cite: pattern.cite,
+        });
+      }
     }
   }
   return findings;
 }
 
 function validateSkill(skillFile, opts) {
+  const dirName = path.basename(path.dirname(skillFile));
   let stat;
   try { stat = fs.statSync(skillFile); }
-  catch (e) { return { path: skillFile, ok: false, error: 'FILE_MISSING', findings: [] }; }
-  if (stat.size > MAX_FILE_BYTES) {
-    return { path: skillFile, ok: false, error: 'TOO_LARGE', findings: [{ tier: 'A', severity: 'fail', id: 'FILE_OVERSIZE', msg: `${stat.size} bytes > ${MAX_FILE_BYTES}`, cite: 'https://agentskills.io/specification' }] };
+  catch (e) {
+    // R2 edge-case HIGH-3: preserve e.code so EACCES/EBUSY/EMFILE/ELOOP aren't
+    // misreported as ENOENT/FILE_MISSING.
+    const id = e && e.code === 'ENOENT' ? 'FILE_MISSING' : `FILE_${(e && e.code) || 'UNKNOWN'}`;
+    return {
+      path: skillFile,
+      ok: false,
+      dir: dirName,
+      error: id,
+      score: null,
+      findings: [{ tier: 'A', severity: 'fail', id, msg: (e && e.message) || 'stat failed', cite: 'https://agentskills.io/specification' }],
+      security: [],
+    };
   }
-  const content = fs.readFileSync(skillFile, 'utf8');
+  if (stat.size > MAX_FILE_BYTES) {
+    return {
+      path: skillFile,
+      ok: false,
+      dir: dirName,
+      error: 'TOO_LARGE',
+      score: null,
+      findings: [{ tier: 'A', severity: 'fail', id: 'FILE_OVERSIZE', msg: `${stat.size} bytes > ${MAX_FILE_BYTES}`, cite: 'https://agentskills.io/specification' }],
+      security: [],
+    };
+  }
+  let content;
+  try { content = fs.readFileSync(skillFile, 'utf8'); }
+  catch (e) {
+    const id = `FILE_${(e && e.code) || 'READ_FAIL'}`;
+    return {
+      path: skillFile,
+      ok: false,
+      dir: dirName,
+      error: id,
+      score: null,
+      findings: [{ tier: 'A', severity: 'fail', id, msg: (e && e.message) || 'read failed', cite: 'https://agentskills.io/specification' }],
+      security: [],
+    };
+  }
   const parsed = parseFrontmatter(content);
-  const dirName = path.basename(path.dirname(skillFile));
   const tierA = validateTierA(skillFile, parsed, dirName);
   const tierB = validateTierB(parsed, opts.target);
   const tierC = validateTierC(parsed);
@@ -341,21 +442,31 @@ Citations:
 }
 
 function emitHuman(results, minScore) {
-  results.sort((a, b) => a.score - b.score);
+  // R2 correctness MED: sort by failing-first, then score asc. NaN/null handled.
+  results.sort((a, b) => {
+    if (a.ok !== b.ok) return a.ok ? 1 : -1;
+    const as = typeof a.score === 'number' ? a.score : 101;
+    const bs = typeof b.score === 'number' ? b.score : 101;
+    return as - bs;
+  });
   console.log(`cortex-skill-validate — ${results.length} skill(s) checked\n`);
   console.log('  score  status  skill');
   console.log('  ─────  ──────  ─────');
   for (const r of results) {
     const failing = !r.ok;
-    const lowScore = r.score < minScore;
+    const scoreNull = r.score === null || r.score === undefined;
+    const lowScore = !scoreNull && r.score < minScore;
     const marker = failing ? 'FAIL' : (lowScore ? 'low ' : ' ok ');
-    const scoreStr = String(r.score).padStart(3);
-    console.log(`  ${scoreStr}    ${marker}    ${r.dir || r.path}`);
+    const scoreStr = scoreNull ? '  —' : String(r.score).padStart(3);
+    // Strip ANSI/control chars from dir name (R2 security LOW-1).
+    const skillLabel = String(r.dir || r.path).replace(/[\x00-\x1f\x7f]/g, '?');
+    console.log(`  ${scoreStr}    ${marker}    ${skillLabel}`);
   }
   console.log('');
   for (const r of results) {
     if (r.findings.length === 0 && r.security.length === 0) continue;
-    console.log(`  ${r.dir || r.path} (score=${r.score}):`);
+    const scoreLabel = r.score === null || r.score === undefined ? '—' : r.score;
+    console.log(`  ${r.dir || r.path} (score=${scoreLabel}):`);
     for (const f of r.findings) {
       const tag = `[${f.tier}/${f.severity}/${f.id}]`;
       console.log(`    ${tag} ${f.msg}`);
@@ -385,13 +496,32 @@ function main(argv) {
   const security = args.includes('--security');
   const wantJson = args.includes('--json');
   const minScoreRaw = flag('min-score', args);
-  const minScore = Number.isFinite(Number(minScoreRaw))
-    ? Math.max(0, Math.min(100, Math.floor(Number(minScoreRaw))))
-    : 0;
+  // R2 edge-case HIGH-2: distinguish absent (undefined) from empty (null).
+  // Reject `--min-score=` with no value rather than silently 0.
+  if (minScoreRaw === null) {
+    process.stderr.write('Error: --min-score requires a value (e.g. --min-score=80)\n');
+    return 2;
+  }
+  const minScoreNum = Number(minScoreRaw);
+  if (minScoreRaw !== undefined && !Number.isFinite(minScoreNum)) {
+    process.stderr.write(`Error: --min-score must be numeric (got "${minScoreRaw}")\n`);
+    return 2;
+  }
+  const minScoreRequested = Math.max(0, Math.min(100, Math.floor(minScoreNum || 0)));
+  if (minScoreNum > 100) {
+    process.stderr.write(`Note: --min-score capped at 100 (you passed ${minScoreNum})\n`);
+  }
+  const minScore = minScoreRequested;
 
   const opts = { target, security };
   const skillFiles = [];
   if (dirOnly) {
+    // R2 security MED-1: reject NUL-injected paths; absolute paths are
+    // operator-trusted (this is a local CLI), so we don't sandbox to cwd.
+    if (typeof dirOnly !== 'string' || dirOnly.includes('\0')) {
+      process.stderr.write('Error: --dir contains invalid characters\n');
+      return 2;
+    }
     const candidate = path.resolve(dirOnly, 'SKILL.md');
     if (!fs.existsSync(candidate)) {
       if (wantJson) console.log(JSON.stringify({ ok: false, error: 'SKILL_NOT_FOUND', path: candidate }));
@@ -417,7 +547,9 @@ function main(argv) {
     emitHuman(results, minScore);
   }
 
-  const anyFailing = results.some((r) => !r.ok || r.score < minScore);
+  // R2 correctness HIGH-1: null score (parse failure) is already a Tier A FAIL
+  // and `r.ok === false`; don't double-fail it on min-score gate.
+  const anyFailing = results.some((r) => !r.ok || (typeof r.score === 'number' && r.score < minScore));
   return anyFailing ? 1 : 0;
 }
 
