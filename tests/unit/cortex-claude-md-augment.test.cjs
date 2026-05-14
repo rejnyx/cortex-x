@@ -338,6 +338,83 @@ describe('cortex-claude-md-augment — R2 hardening (Sprint 2.21.2)', () => {
 // must persist in this CLI. Without these assertions, a future re-inline of
 // the legacy "reply === '' || ..." semantics would pass _lib/confirm tests
 // but break the user contract here.
+describe('cortex-claude-md-augment — Sprint 2.21.3 R2 MED hardening', () => {
+  // MED #3 — CRLF preservation. Windows-cloned CLAUDE.md often arrives with
+  // CRLF; the original computeNext injected LF separators producing mixed
+  // EOL output and noisy git diffs.
+  test('CRLF input → CRLF output, no mixed EOL', () => {
+    const crlfBefore = 'My doc\r\n\r\nSome content\r\n';
+    const after = computeNext(crlfBefore, 'apply');
+    assert.ok(after.includes('\r\n'), 'output preserves CRLF');
+    // No bare LF that isn't preceded by CR (would indicate mixed EOL).
+    for (let i = 0; i < after.length; i++) {
+      if (after[i] === '\n' && (i === 0 || after[i - 1] !== '\r')) {
+        assert.fail(`mixed EOL at position ${i}: ${JSON.stringify(after.slice(Math.max(0, i - 5), i + 5))}`);
+      }
+    }
+  });
+
+  test('LF input → LF output, no spurious CR', () => {
+    const lfBefore = 'My doc\n\nSome content\n';
+    const after = computeNext(lfBefore, 'apply');
+    assert.ok(!after.includes('\r'), 'output stays LF-only');
+  });
+
+  // MED #4 — Cortex BEGIN/END markers inside Markdown code fences must NOT
+  // be stripped on --remove or re-applied with --apply.
+  test('block inside ``` fence is preserved on remove', () => {
+    const docWithFencedExample =
+      'User docs\n\n```markdown\n' +
+      CORTEX_BLOCK_START + '\n' +
+      'example block\n' +
+      CORTEX_BLOCK_END + '\n' +
+      '```\n\nMore user content\n';
+    const after = computeNext(docWithFencedExample, 'remove');
+    assert.ok(after.includes(CORTEX_BLOCK_START), 'fenced BEGIN preserved');
+    assert.ok(after.includes(CORTEX_BLOCK_END), 'fenced END preserved');
+    assert.ok(after.includes('example block'), 'fenced example body preserved');
+  });
+
+  test('block OUTSIDE fence is stripped; block INSIDE fence is preserved', () => {
+    const mixed =
+      'User content\n\n' +
+      CORTEX_BLOCK_START + '\n' +
+      'real block to strip\n' +
+      CORTEX_BLOCK_END + '\n\n' +
+      '```\n' +
+      CORTEX_BLOCK_START + '\n' +
+      'example to preserve\n' +
+      CORTEX_BLOCK_END + '\n' +
+      '```\n';
+    const after = computeNext(mixed, 'remove');
+    assert.ok(!after.includes('real block to strip'), 'real block stripped');
+    assert.ok(after.includes('example to preserve'), 'fenced example survives');
+    assert.ok(after.includes('User content'), 'user content survives');
+  });
+
+  // MED #6 — `\n{3,}` whitespace collapse must NOT mutate user-intentional
+  // multi-blank-line regions outside the stripped block site.
+  test('user triple-newlines outside block region are preserved', () => {
+    const userContent = 'paragraph A\n\n\n\nparagraph B (3 blank lines intentional)\n';
+    // No cortex block present — stripCortexBlocks returns input unchanged,
+    // computeNext --remove only trimEnd. The 4-newline gap must survive.
+    const after = computeNext(userContent, 'remove');
+    assert.ok(after.includes('\n\n\n\n'), 'user-intentional whitespace preserved');
+  });
+
+  test('only the block-removal site collapses whitespace, not whole file', () => {
+    const doc =
+      'top\n\n\n\nlots-of-blanks-on-purpose\n\n' +
+      CORTEX_BLOCK_START + '\n' +
+      'block content\n' +
+      CORTEX_BLOCK_END + '\n\nbottom\n';
+    const after = computeNext(doc, 'remove');
+    assert.ok(after.includes('\n\n\n\nlots-of-blanks-on-purpose'),
+      'distant whitespace preserved');
+    assert.ok(!after.includes('block content'), 'block stripped');
+  });
+});
+
 describe('cortex-claude-md-augment — Sprint 2.28.3 confirm-contract regression', () => {
   test('parseConfirmReply is re-exported from this CLI', () => {
     assert.equal(typeof parseConfirmReply, 'function');

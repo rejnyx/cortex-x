@@ -183,16 +183,76 @@ function writeContent(content) {
   writeFileAtomic(CLAUDE_MD_PATH, content);
 }
 
+// Sprint 2.21.3 MED #4 R2 hardening: detect whether a position falls inside
+// an unclosed Markdown code fence. Triple-backtick fences toggle on/off; an
+// odd count of fence-opens before the position means we're inside one.
+function isInsideCodeFence(content, position) {
+  const before = content.slice(0, position);
+  const fences = before.match(/^```/gm);
+  return fences ? fences.length % 2 === 1 : false;
+}
+
+// Sprint 2.21.3 MED #3 + #6 R2 hardening: replace cortex blocks with a
+// scoped pass that (a) preserves the input file's EOL convention (LF vs
+// CRLF — Windows operator on Git Bash often has CRLF CLAUDE.md), (b) skips
+// matches inside Markdown code fences (a user documenting cortex itself
+// with the example BEGIN/END markers inside ``` should not have their docs
+// stripped), and (c) only collapses whitespace at the SITE of the removed
+// block, never elsewhere in the file (user's intentional triple-newlines
+// outside the block region are preserved).
+function stripCortexBlocks(currentContent) {
+  CORTEX_BLOCK_RE.lastIndex = 0;
+  const matches = [...currentContent.matchAll(CORTEX_BLOCK_RE)];
+  if (matches.length === 0) return currentContent;
+  // Build the stripped string by slicing around matches, skipping those
+  // inside fences. For each removed match, also consume one preceding +
+  // one following blank line if present, so the local whitespace doesn't
+  // leave a double-gap. The rest of the file is byte-preserved.
+  let result = '';
+  let cursor = 0;
+  for (const m of matches) {
+    if (isInsideCodeFence(currentContent, m.index)) continue;
+    // Extend the consumed range to one trailing blank line and one leading
+    // blank line if present, capping at content boundary.
+    let start = m.index;
+    let end = m.index + m[0].length;
+    // trailing newlines after block
+    while (end < currentContent.length && (currentContent[end] === '\n' || currentContent[end] === '\r')) {
+      end++;
+    }
+    // leading blank line BEFORE the block (\n\n or \r\n\r\n)
+    if (start >= 2 && currentContent[start - 1] === '\n') {
+      // walk back over one blank line
+      let lookback = start - 1;
+      if (lookback > 0 && currentContent[lookback - 1] === '\r') lookback--;
+      if (lookback > 0 && currentContent[lookback - 1] === '\n') {
+        start = lookback;
+      }
+    }
+    result += currentContent.slice(cursor, start);
+    cursor = end;
+  }
+  result += currentContent.slice(cursor);
+  return result;
+}
+
 // Compute the new content after applying mode. Pure function.
 function computeNext(currentContent, mode) {
-  const stripped = currentContent.replace(CORTEX_BLOCK_RE, '').replace(/\n{3,}/g, '\n\n');
+  // EOL detection: if file contains any CRLF, treat as CRLF file. New
+  // separators inserted by `apply` use the same convention, and the
+  // DISCIPLINE_BLOCK body (template literal with bare LF) is normalized
+  // to the same EOL before insertion to prevent mixed-EOL output.
+  const eol = /\r\n/.test(currentContent) ? '\r\n' : '\n';
+  const stripped = stripCortexBlocks(currentContent);
   if (mode === 'remove') {
-    return stripped.trimEnd() + '\n';
+    return stripped.trimEnd() + eol;
   }
-  // apply: strip any existing block first, then append fresh.
-  const fullBlock = `${CORTEX_BLOCK_START}\n${DISCIPLINE_BLOCK}\n${CORTEX_BLOCK_END}`;
+  // apply: strip any existing block first, then append fresh with eol-
+  // normalized body.
+  const blockBody = eol === '\n' ? DISCIPLINE_BLOCK : DISCIPLINE_BLOCK.replace(/\r?\n/g, eol);
+  const fullBlock = `${CORTEX_BLOCK_START}${eol}${blockBody}${eol}${CORTEX_BLOCK_END}`;
   const base = stripped.trimEnd();
-  return (base.length > 0 ? base + '\n\n' : '') + fullBlock + '\n';
+  return (base.length > 0 ? base + eol + eol : '') + fullBlock + eol;
 }
 
 // Sprint 2.28.3 parity backport: confirmInteractive + parseConfirmReply

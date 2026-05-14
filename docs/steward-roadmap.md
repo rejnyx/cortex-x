@@ -2110,7 +2110,7 @@ Two cortex implications:
 
 ---
 
-### Sprint 2.21.3 — R2 hardening follow-up: MEDs from 6-agent review (S effort) — 📋 PLANNED 2026-05-13
+### Sprint 2.21.3 — R2 hardening follow-up: MEDs from 6-agent review (S effort) — ✅ SHIPPED 2026-05-14
 
 **Why**: Sprint 2.21 R2 review (6-agent parallel pipeline) surfaced 6 HIGH findings (closed in Sprint 2.21.2 commit) + 8 MED findings (deferred — non-ship-blocking but want the polish before launch).
 

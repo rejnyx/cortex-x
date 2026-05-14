@@ -678,6 +678,13 @@ fi
 # CORTEX_REGISTER_HOOKS=0 → skip without prompting
 # (unset, TTY)            → interactive Y/n
 # (unset, non-TTY)        → skip silently
+# Sprint 2.21.3 MED #8 R2 hardening: track per-step success/failure so we
+# can print a partial-state warning + rollback hint if some succeed and
+# others fail. Empty = skipped; 'y' = applied OK; 'n' = applied-failed.
+REGISTER_STATUS_HOOKS=''
+REGISTER_STATUS_AUGMENT=''
+REGISTER_STATUS_PERMISSIONS=''
+
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" ]; then
   # Show benefits paragraph BEFORE the prompt (only on TTY without env-var override).
   CORTEX_REGISTER_HOOKS_NORM="$(normalize_consent_var "${CORTEX_REGISTER_HOOKS:-}")"
@@ -691,8 +698,9 @@ if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-hooks-regis
   REGISTER_HOOKS_DECISION="$(consent_prompt_decision "${CORTEX_REGISTER_HOOKS:-}" "  Register cortex hooks now? [y/N]: ")"
   if [ "$REGISTER_HOOKS_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" --apply --yes; then
-      :
+      REGISTER_STATUS_HOOKS='y'
     else
+      REGISTER_STATUS_HOOKS='n'
       echo "  warning: hook registration failed (settings.json untouched per safety contract)." >&2
       echo "  manual: paste the block from $INSTALL_NOTES under '## Register hooks in ~/.claude/settings.json'." >&2
     fi
@@ -723,8 +731,9 @@ if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-claude-md-a
   AUGMENT_CLAUDE_MD_DECISION="$(consent_prompt_decision "${CORTEX_AUGMENT_CLAUDE_MD:-}" "  Append cortex discipline block to global CLAUDE.md? [y/N]: ")"
   if [ "$AUGMENT_CLAUDE_MD_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" --apply --yes; then
-      :
+      REGISTER_STATUS_AUGMENT='y'
     else
+      REGISTER_STATUS_AUGMENT='n'
       echo "  warning: CLAUDE.md augment failed (file untouched per safety contract)." >&2
       echo "  manual: cortex-claude-md-augment --apply" >&2
     fi
@@ -757,8 +766,9 @@ if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-permissions
   REGISTER_PERMISSIONS_DECISION="$(consent_prompt_decision "${CORTEX_REGISTER_PERMISSIONS:-}" "  Register cortex safety-floor permissions? [y/N]: ")"
   if [ "$REGISTER_PERMISSIONS_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" --apply --yes; then
-      :
+      REGISTER_STATUS_PERMISSIONS='y'
     else
+      REGISTER_STATUS_PERMISSIONS='n'
       echo "  warning: permissions registration failed (settings.json untouched per safety contract)." >&2
       echo "  manual: cortex-permissions-register --apply" >&2
     fi
@@ -766,6 +776,30 @@ if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-permissions
     if [ -t 0 ]; then
       echo "  ↳ Skipped. Re-run anytime: cortex-permissions-register"
     fi
+  fi
+fi
+
+# Sprint 2.21.3 MED #8 R2 hardening — partial-failure rollback hint.
+# If at least one register step succeeded AND at least one failed, the user
+# is in a partial-install state. Print explicit recovery hint so they don't
+# discover the mixed state via debugging later.
+if [ -n "$REGISTER_STATUS_HOOKS" ] || [ -n "$REGISTER_STATUS_AUGMENT" ] || [ -n "$REGISTER_STATUS_PERMISSIONS" ]; then
+  ANY_SUCCESS=''
+  ANY_FAIL=''
+  for s in "$REGISTER_STATUS_HOOKS" "$REGISTER_STATUS_AUGMENT" "$REGISTER_STATUS_PERMISSIONS"; do
+    [ "$s" = "y" ] && ANY_SUCCESS='y'
+    [ "$s" = "n" ] && ANY_FAIL='y'
+  done
+  if [ -n "$ANY_SUCCESS" ] && [ -n "$ANY_FAIL" ]; then
+    echo
+    echo "  warning: PARTIAL install state — some register steps succeeded, others failed:" >&2
+    [ "$REGISTER_STATUS_HOOKS" = "y" ]       && echo "    hooks:       APPLIED (rollback: cortex-hooks-register --remove)" >&2
+    [ "$REGISTER_STATUS_HOOKS" = "n" ]       && echo "    hooks:       FAILED (settings.json untouched)" >&2
+    [ "$REGISTER_STATUS_AUGMENT" = "y" ]     && echo "    CLAUDE.md:   APPLIED (rollback: cortex-claude-md-augment --remove)" >&2
+    [ "$REGISTER_STATUS_AUGMENT" = "n" ]     && echo "    CLAUDE.md:   FAILED (file untouched)" >&2
+    [ "$REGISTER_STATUS_PERMISSIONS" = "y" ] && echo "    permissions: APPLIED (rollback: cortex-permissions-register --remove)" >&2
+    [ "$REGISTER_STATUS_PERMISSIONS" = "n" ] && echo "    permissions: FAILED (settings.json untouched)" >&2
+    echo "  Retry the failed step manually, or roll back the applied ones for a clean slate." >&2
   fi
 fi
 
