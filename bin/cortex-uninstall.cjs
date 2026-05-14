@@ -45,9 +45,18 @@ const SKILLS_DIR = path.join(CLAUDE_HOME, 'skills');
 const CORTEX_USER_YAML = path.join(CLAUDE_HOME, 'cortex', 'user.yaml');
 
 // Skill names cortex-x installs (stable, hardcoded — names rarely change).
-// Matches install.sh emit_* blocks. We content-check each before removing
-// so we never trash a user-written skill that happens to share a name.
-const CORTEX_SKILLS = ['cortex-init', 'cortex-help', 'audit', 'designer', 'start', 'test-audit'];
+// Matches install.{sh,ps1} skill-promotion for-loop. We content-check each
+// before removing so we never trash a user-written skill that happens to
+// share a name.
+// SSOT alignment: keep in sync with `cortex-doctor.cjs RECOMMENDED_SKILLS`
+// (plus 'cortex-init' + 'cortex-help' which are unconditional) + `test-audit`
+// which is profile-gated to qa-tester. Sprint 2.24 added cortex-goal;
+// v0.3.0 close-chapter added cortex-update + cortex-uninstall.
+const CORTEX_SKILLS = [
+  'cortex-init', 'cortex-help', 'cortex-doctor', 'cortex-goal',
+  'cortex-update', 'cortex-uninstall',
+  'audit', 'designer', 'start', 'test-audit',
+];
 
 function readYamlBomSafe(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');

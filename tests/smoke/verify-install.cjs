@@ -248,6 +248,11 @@ function runChecks() {
   checkFileExists('user.skills.start', path.join(CLAUDE_HOME, 'skills', 'start', 'SKILL.md'));
   // Sprint 2.24 — /cortex-goal slash-skill (plan-first wrapper for native /goal).
   checkFileExists('user.skills.cortex-goal', path.join(CLAUDE_HOME, 'skills', 'cortex-goal', 'SKILL.md'), 'warning');
+  // v0.3.0 close-chapter — /cortex-update + /cortex-uninstall slash wrappers
+  // around the existing same-name CLIs. Without these in ~/.claude/skills/
+  // they are not discoverable in the slash-command palette.
+  checkFileExists('user.skills.cortex-update', path.join(CLAUDE_HOME, 'skills', 'cortex-update', 'SKILL.md'), 'warning');
+  checkFileExists('user.skills.cortex-uninstall', path.join(CLAUDE_HOME, 'skills', 'cortex-uninstall', 'SKILL.md'), 'warning');
 
   // Sprint LR.B+ — cortex-capabilities CLI shim. Without this, /cortex-help
   // can't surface the registry on a stranger's machine because the
