@@ -32,11 +32,11 @@ The installer is a 600-line bash script. The first thing it does is **clone the 
 ├── shared/                          — hooks, skills, agents stage
 ├── standards/                       — 26 standards docs (SSOT, security, testing, ...)
 ├── profiles/                        — 11 project archetypes
-├── prompts/                         — 16 reusable prompts
+├── prompts/                         — 18 reusable prompts
 ├── agents/                          — 9 review-pipeline subagents
 ├── detectors/                       — auto-profile + auto-stage classifiers
 ├── templates/                       — Handlebars templates for scaffold output
-├── tests/                           — 2697 tests across 8 tier gates
+├── tests/                           — 2955 tests across 8 tier gates
 ├── docs/                            — long-form docs + research memos
 └── install.{sh,ps1}
 ```
@@ -151,7 +151,7 @@ Source:    ~/cortex-x
 Installed: ~/.claude/shared
 Profile:   dev
 Language:  English
-Tests:     2697 pass
+Tests:     2955 pass
 
 Next steps:
   1. (optional) Add to PATH: export PATH="$HOME/.claude/shared/bin:$PATH"

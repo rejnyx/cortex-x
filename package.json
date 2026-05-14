@@ -1,6 +1,6 @@
 {
   "name": "cortex-x",
-  "version": "0.3.0-pre",
+  "version": "0.3.0",
   "private": true,
   "description": "AI-agentic-first Claude Code framework. Distributed via git + install.sh / install.ps1 — this package.json exists ONLY for the development test suite, not for npm distribution.",
   "license": "Apache-2.0",

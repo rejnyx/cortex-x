@@ -37,22 +37,24 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 | **R5** | **No human-only edits become Steward-able.** `standards/`, `prompts/`, `profiles/`, `agents/`, top-level `CLAUDE.md`/`README.md`/`module.yaml` are human-only forever. Any sprint extending Steward capability that wants to relax this is automatically rejected. | `bin/steward/_lib/policy-check.cjs` HUMAN_ONLY_PATH + HUMAN_ONLY_TOPLEVEL rules. |
 | **R6** | **Backward-compatible by default.** Existing 9 action_kinds keep working through every sprint. New capabilities are additive. Breaking changes are reserved for explicit `vN.0.0` major bumps. | `MIGRATIONS.md` entry per sprint + tests for all 9 existing kinds stay green. |
 
-## 2. Current state (post Sprint 1.8.13)
+## 2. Current state (post v0.3.0 ship — 2026-05-14)
 
 | Layer | Status |
 |---|---|
-| 9-kind action palette | ✅ shipped (v0.8) |
-| Safety: halt-check + lock + journal + denylist + policy-check | ✅ shipped |
+| 18-kind action palette (incl. `recommendation_harvest_parallel` registry-only) | ✅ shipped (v0.3.0) |
+| Safety: halt-check + lock + journal + denylist + policy-check + multi-window USD caps + loop detector | ✅ shipped |
 | Pre-LLM defenses: apiKey trim + KEY_MALFORMED reject | ✅ Sprint 1.8.12b |
 | Post-LLM defenses: AUTH_REJECTED distinct + content-preservation | ✅ Sprint 1.8.12c + 1.8.13 |
-| Verification: `npm test` boolean gate | ⚠️ insufficient (proven by Sprint 1.8.13 incidents) |
-| Multi-agent: parallel workers / supervisor | ❌ single-agent only |
-| Self-improvement: ReasoningBank-lite via lessons.jsonl | ⚠️ lessons recorded but not used as training signal |
-| Observability: file-based journal + status CLI | ⚠️ no dashboards / regression diffs |
-| Cron coverage | ✅ daily 03:00 harvester + 04:00 recommendation, weekly Sunday dep-patch, monthly 1st todo-triage |
-| Auto-PR creation | ✅ verified (PR #5, 2026-05-08) |
-| Tests | 790/790 ✅ |
-| CI grid | test ✅ install-smoke ✅ no-pii ✅ |
+| Spec-driven verification (6 criterion kinds: shell · file_predicate · regex · ears_text · llm_judge · read_set) | ✅ Sprint 1.9 + 2.18 |
+| Mutation-testing fitness signal (Stryker measure-only baseline) | ✅ Sprint 2.3 v0 — ratchet activates after 2-week baseline |
+| Multi-agent: foundation utilities (topology.cjs canonicalize/budget/Fisher-Yates/validateTopologySafe) | ✅ Sprint 2.2 v0 — spawner deferred to Sprint 2.2.1 |
+| Self-improvement: lessons.jsonl + FTS5 index + daily/weekly Dreaming + AlphaEvolve A/B + LLM-as-judge | ✅ Sprint 2.8 + 2.19 + 3.0 + 3.2 |
+| Observability: Phoenix OTLP traces + file-based journal + status CLI + cost ledger | ✅ Sprint 2.0 |
+| Cron coverage | ✅ 15 active workflows incl. daily Dreaming + weekly Dreaming + Stryker Sun 03:00 |
+| Auto-PR creation | ✅ real auto-PRs since 2026-05-09 |
+| Tests | **2955** ✅ (0 fail, 2 pre-existing skips) |
+| CI grid | test ✅ install-smoke ✅ no-pii ✅ stryker (measure-only) ✅ |
+| Anthropic Memory Tool integration | 📋 Sprint 3.X deferred — 3 of 4 blockers active (claude-cli engine collision + value/ceremony ratio + OpenRouter beta-header) |
 
 ## 3. Tier 1 — Foundation for v1.0 (next 6 weeks, Sprint 1.9 → 2.3)
 
@@ -1268,7 +1270,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
    - Best-practice prep checklist (Flo Merian):
      - **Gallery carries the explanation** — first 3 images must convey "what is this" without text. Show: 1) terminal screencast of install one-liner → /cortex-init flow, 2) `cortex-doctor` output table (safety/health), 3) Steward draft PR opened overnight
      - **Tagline ≤60 chars** — pitch the WOW. Draft: *"One install. Hooks, safety, skills, nightly autopilot for Claude Code."*
-     - **Description ≤260 chars + 1 image** — feature list. Draft: 7 slash commands · /cortex-doctor health check · Steward nightly autopilot · 26 standards · Apache 2.0 · 2697 tests
+     - **Description ≤260 chars + 1 image** — feature list. Draft: 8 slash commands · /cortex-doctor health check · Steward nightly autopilot · 28 standards · Apache 2.0 · 2955 tests
      - **First comment** (your own) — story behind, why you built it, what's next. Operator's voice: "I run X projects, was tired of pasting same prompts, built cortex over 6 months..."
      - **Hunter** — Product Hunt account with high karma is a strong signal. Either operator builds his own (longer ramp), or asks an existing high-karma hunter to launch it (network outreach).
    - Timing: **Tuesday 12:01 AM PST** is the canonical-best launch slot (max 24h window into US business day). Avoid Mondays (weekend backlog) + Fridays (engagement drop).
@@ -1309,7 +1311,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
    - Reward: cortex appears in the carousel on agentskills.io homepage alongside Claude Code, Cursor, Anthropic — heavyweight visual association.
 
 **Cross-venue prep work** (do once, use everywhere):
-- **OG image** (1200×630px) — README banner, also PH gallery + Show HN preview. cortex's voice charter constrains: counts not praise, no greetings. Bold typography, terminal-style background, "26 standards · 2697 tests · Apache 2.0" overlay.
+- **OG image** (1200×630px) — README banner, also PH gallery + Show HN preview. cortex's voice charter constrains: counts not praise, no greetings. Bold typography, terminal-style background, "28 standards · 2955 tests · Apache 2.0" overlay.
 - **Demo asset** (LR.7 — already tracked) — 60-second MP4 + 30-second GIF + asciinema cast. Same source serves PH gallery, GitHub README, awesome-list entries.
 - **Tagline + 30-second pitch** — same line everywhere. Draft: *"Persistent memory and an overnight maintenance agent for Claude Code. One install gives every project safety hooks, slash commands, and 26 senior-engineer standards baked in."* (currently in README — ratify as cross-venue SSOT)
 
@@ -1365,7 +1367,7 @@ Why this matters NOW (not a Tier 3/4 deferral):
 **Scope** (4 stories, S effort each, parallelizable):
 
 **A) Landing-page / README hero refresh** (S effort) — rewrite README hero block + repo description with the "wisdom over harness" frame as primary, safety as secondary:
-   - Old (current hero): leans on "26 standards · 2697 tests · Apache 2.0" feature-list
+   - Old (current hero): leans on "28 standards · 2955 tests · Apache 2.0" feature-list
    - New: leads with operator-specific value — "cortex-x encodes 6 months of your decisions, lessons, and patterns as markdown your next agent can read. Plus an overnight Steward that closes the daylight gaps."
    - Embed Boris quote #1 as pull-quote with attribution + transcript link
    - Keep feature list, demote to second screen

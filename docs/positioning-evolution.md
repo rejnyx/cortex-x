@@ -24,7 +24,7 @@ Full transcript: [`docs/transcripts/boris-black-vibecoding.md`](transcripts/bori
 | **Harness / safety pitch share** | ~60% of perceived value | ~20% of perceived value | Models close the "they'll do the right thing" gap; static verifiers, permission modes, prompt-injection defenses still matter but diminishingly |
 | **Wisdom / institutional-memory pitch share** | ~40% of perceived value | ~80% of perceived value | What cortex remembers about THIS operator + THESE projects is not in pretraining data; the gap is operator-specific and can never close from inside the model |
 | **Operator-time spent on cortex** | Reviewing draft PRs + tuning recommendations.md | Curating lessons + reading insights + sharing wisdom with their own team's agents | Active interaction shifts from "is it safe to autopatch?" to "what did I just learn that future-me should know?" |
-| **Launch copy lead-line** | "26 standards · 2697 tests · Apache 2.0" feature listing | "Persistent memory across your projects. Plus the loops Boris told you to build." | Feature lists depreciate; outcome framing + third-party authority appreciate |
+| **Launch copy lead-line** | "28 standards · 2955 tests · Apache 2.0" feature listing | "Persistent memory across your projects. Plus the loops Boris told you to build." | Feature lists depreciate; outcome framing + third-party authority appreciate |
 
 ## Three failure modes the migration prevents
 
@@ -56,7 +56,7 @@ Tier 2 work explicitly hardens this layer:
 
 ### 3. Pitching with metrics that age out
 
-"2697 tests · 26 standards · 19 action_kinds" reads like a feature list. Feature lists invite comparison shopping ("but Goose has 30 standards..."). They also rot: cortex will have 3000 tests next month, 30 standards next quarter — and so will every competitor. The numbers stop differentiating.
+"2955 tests · 28 standards · 18 action_kinds" reads like a feature list. Feature lists invite comparison shopping ("but Goose has 30 standards..."). They also rot: cortex will have 3000 tests next month, 30 standards next quarter — and so will every competitor. The numbers stop differentiating.
 
 Outcome framing ages better: "your next agent should know what 6 months of your work taught it" is true regardless of test count. Boris quote leverage ("loops are the future" — anchor: [`docs/transcripts/boris-black-vibecoding.md`](transcripts/boris-black-vibecoding.md)) compounds with Anthropic's own product trajectory.
 

@@ -47,14 +47,15 @@ const SOURCE_YAML = path.join(SHARED, 'cortex-source.yaml');
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
 // SSOT for skill discovery audit. Keep aligned with install.{sh,ps1}'s
-// per-profile skill-promotion loop: `audit, designer, start, cortex-doctor`
-// for all profiles + `test-audit` for the qa-tester profile.
+// per-profile skill-promotion loop: `audit, designer, start, cortex-doctor,
+// cortex-goal` for all profiles + `test-audit` for the qa-tester profile.
 // Sprint 2.21.2 R2 hardening (SSOT-enforcer finding #3): cortex-doctor was
 // installed unconditionally but missing from this list, causing the doctor
 // to not self-verify; test-audit was here but only installed on qa-tester,
 // causing spurious "info: not installed" on dev/ai-engineer/minimal profiles.
+// Sprint 2.24 added cortex-goal (plan-first wrapper for native /goal).
 const REQUIRED_SKILLS = ['cortex-init', 'cortex-help'];
-const RECOMMENDED_SKILLS = ['audit', 'designer', 'start', 'cortex-doctor'];
+const RECOMMENDED_SKILLS = ['audit', 'designer', 'start', 'cortex-doctor', 'cortex-goal'];
 // Profile-specific (not always installed; doctor reports as info when absent).
 const PROFILE_SKILLS = ['test-audit'];
 

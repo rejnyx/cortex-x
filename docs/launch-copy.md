@@ -38,7 +38,7 @@ These three appear in nearly every launch surface; lock them once, reuse everywh
 |---|---|
 | "The only framework you need for Claude Code." | Defensive pitch; invites comparison shopping; reads AI-slop generated |
 | "Claude Code minus the amnesia." | Funny and viral on X but too cute for Product Hunt's serious-tooling audience |
-| "26 standards · 2697 tests · Apache 2.0" feature list | Per positioning memo § "Pitching with metrics that age out" — feature counts depreciate |
+| "28 standards · 2955 tests · Apache 2.0" feature list | Per positioning memo § "Pitching with metrics that age out" — feature counts depreciate |
 | "Loops are the future. cortex-x is your loops + memory for Claude Code." | Strong only if Boris attribution is preserved; PH tagline format strips citation |
 
 ## Product Hunt launch packet

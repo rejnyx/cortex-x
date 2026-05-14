@@ -1,6 +1,6 @@
 {
   "name": "cortex-x",
-  "version": "0.1.0-pre",
+  "version": "0.3.0",
   "description": "Opinionated infrastructure for AI-agentic Claude Code workflows: scaffolds new projects with safety + standards, audits existing ones across 12 dimensions, and ships an autonomous overnight maintenance agent (Steward) with atomic commits + draft PRs.",
   "author": {
     "name": "Rejnyx",
@@ -58,5 +58,5 @@
     "node": ">=22.0.0"
   },
   "experimental": true,
-  "stability": "closed-beta"
+  "stability": "public-preview"
 }

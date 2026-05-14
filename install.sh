@@ -471,6 +471,12 @@ emit_delegate_shim cortex-hooks-register      cortex-hooks-register.cjs
 emit_delegate_shim cortex-claude-md-augment   cortex-claude-md-augment.cjs
 emit_delegate_shim cortex-permissions-register cortex-permissions-register.cjs
 emit_delegate_shim cortex-doctor           cortex-doctor.cjs
+# Sprint 2.22 / 2.25 / 2.22.1 — three CLIs shipped 2026-05-14. Without these
+# shims, fresh-install operator can invoke them only as
+# `node $CORTEX_SOURCE/bin/cortex-{skill-validate,dream,insights}.cjs`.
+emit_delegate_shim cortex-skill-validate   cortex-skill-validate.cjs
+emit_delegate_shim cortex-dream            cortex-dream.cjs
+emit_delegate_shim cortex-insights         cortex-insights.cjs
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
@@ -525,7 +531,7 @@ fi
 # they're discoverable as slash commands (Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/).
 # Without this, /audit, /designer, /start are invisible.
-for SKILL_NAME in audit designer start cortex-doctor; do
+for SKILL_NAME in audit designer start cortex-doctor cortex-goal; do
   SRC_SKILL="$CORTEX_ROOT/shared/skills/$SKILL_NAME/SKILL.md"
   if [ -f "$SRC_SKILL" ]; then
     mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
