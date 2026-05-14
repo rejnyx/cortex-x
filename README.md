@@ -1,8 +1,10 @@
 # cortex-x
 
-> Persistent memory and an overnight maintenance agent for [Claude Code](https://claude.com/claude-code). One install gives every project a `CLAUDE.md` Claude will auto-load, a nightly agent that opens draft PRs while you sleep, and 26 senior-engineer standards baked in.
+> **Persistent memory across all your projects + an overnight maintenance agent that opens draft PRs while you sleep.** A [Claude Code](https://claude.com/claude-code) framework. Every new session reads what your last one ended with — your decisions, your lessons, your project history — so your next agent starts from where you actually are, not from zero.
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Tests: 2697](https://img.shields.io/badge/tests-2697_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#what-runs-today)
+> *"I sort of feel like loops are the future at this point. If you haven't experimented with it, highly highly recommend it."* — Boris Cherny, creator of Claude Code, Sequoia "Why Coding Is Solved" May 2026 ([transcript excerpt](./docs/transcripts/boris-black-vibecoding.md))
+
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#what-runs-today) [![Tests: 2697](https://img.shields.io/badge/tests-2697_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/)
 
 ---
 
