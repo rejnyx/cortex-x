@@ -37,6 +37,8 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { parseConfirmReply, confirmInteractive } = require('./_lib/confirm.cjs');
+const { backupFile, writeFileAtomic } = require('./_lib/atomic-write.cjs');
 
 const HOME = os.homedir();
 const SETTINGS_PATH = path.join(HOME, '.claude', 'settings.json');
@@ -133,30 +135,13 @@ function readSettings() {
 }
 
 function backupSettings(raw) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const backupPath = `${SETTINGS_PATH}.backup-${ts}`;
-  // Mode 0o600 (owner read+write only) — settings.json may contain OAuth tokens
-  // or API keys; backup must not leak them to other local users via umask default.
-  fs.writeFileSync(backupPath, raw, { encoding: 'utf8', mode: 0o600 });
-  return backupPath;
+  return backupFile(SETTINGS_PATH, raw);
 }
 
 function writeSettings(json) {
-  // Atomic write: tmp + rename. Pretty-print with 2-space indent matches
-  // Claude Code's own settings.json convention.
+  // Pretty-print with 2-space indent matches Claude Code's settings.json convention.
   const out = JSON.stringify(json, null, 2) + '\n';
-  const tmp = SETTINGS_PATH + '.tmp';
-  let renamed = false;
-  try {
-    fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fs.writeFileSync(tmp, out, 'utf8');
-    fs.renameSync(tmp, SETTINGS_PATH);
-    renamed = true;
-  } finally {
-    if (!renamed) {
-      try { fs.unlinkSync(tmp); } catch {}
-    }
-  }
+  writeFileAtomic(SETTINGS_PATH, out);
 }
 
 // Compute the planned state given current settings.hooks and the requested mode.
@@ -197,34 +182,11 @@ function computePlan(currentHooks, mode) {
   return { next, summary };
 }
 
-// Sprint 2.21.2 R2 hardening: cross-platform interactive prompt with
-// Windows /dev/tty fallback. Mirrors the same fix in cortex-claude-md-augment.
-function confirmInteractive(promptText) {
-  if (!process.stdin.isTTY) return false; // explicit non-TTY → require --yes
-  process.stdout.write(promptText);
-  if (process.platform !== 'win32') {
-    try {
-      const buf = Buffer.alloc(64);
-      const fd = fs.openSync('/dev/tty', 'r');
-      let n = 0;
-      try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
-      fs.closeSync(fd);
-      const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-      return reply === '' || reply === 'y' || reply === 'yes';
-    } catch {
-      /* fall through to stdin path */
-    }
-  }
-  try {
-    const buf = Buffer.alloc(64);
-    let n = 0;
-    try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
-    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === '' || reply === 'y' || reply === 'yes';
-  } catch {
-    return false;
-  }
-}
+// Sprint 2.28.3 parity backport: confirmInteractive + parseConfirmReply
+// moved to bin/_lib/confirm.cjs. Semantics changed from "empty=yes" (Sprint
+// 2.21.2) to "empty=abort" (Sprint 2.28.1 edge HIGH #11). Same threat model
+// as cortex-permissions-register: writes settings.json, closed stdin must
+// not auto-confirm. Helpers imported at top of file.
 
 // Sprint 2.21.2 R2 hardening: tolerate `"hooks": null` and `"hooks": []`
 // in settings.json. Both are valid JSON but neither is a usable hooks block.
@@ -320,7 +282,7 @@ function main() {
       `  add:    ${[...new Set(summary.added)].join(', ') || '(none)'}\n` +
       `  remove: ${[...new Set(summary.removed)].join(', ') || '(none)'}\n` +
       `  (user-owned entries are left untouched.)\n` +
-      `Proceed? [Y/n] `;
+      `Proceed? [y/N] `;
     if (!confirmInteractive(promptText)) {
       if (args.json) {
         console.log(JSON.stringify({ ok: true, aborted: true }, null, 2));
@@ -384,4 +346,5 @@ module.exports = {
   parseArgs,
   statusReport,
   normalizeHooksField,
+  parseConfirmReply,
 };

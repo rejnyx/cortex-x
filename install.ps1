@@ -117,6 +117,43 @@ $ClaudeHome   = Join-Path $HOME ".claude"
 $SharedTarget = Join-Path $ClaudeHome "shared"
 $Channel      = if ($env:CORTEX_CHANNEL) { $env:CORTEX_CHANNEL } else { "beta" }
 
+# Sprint 2.28.3 SSOT extract — Rule-of-Three on 3 consent gates below.
+# Single source for env-var normalization + interactive-consent decision.
+function Get-NormalizedConsent {
+    param([string]$EnvVarName)
+    $raw = [Environment]::GetEnvironmentVariable($EnvVarName)
+    if ($null -eq $raw) { return $null }
+    $trimmed = $raw.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) { return $null }
+    return $trimmed.ToLowerInvariant()
+}
+
+# Get-ConsentDecision: reads env var $EnvVarName, prompts on TTY when unset.
+# Returns 'y' or 'n'. Settings-mutating prompts use abort-on-empty
+# (Sprint 2.28.3 item #5 MED — align install.ps1 with CLI's Sprint 2.28.1
+# edge HIGH #11 fix).
+function Get-ConsentDecision {
+    param(
+        [string]$EnvVarName,
+        [string]$PromptText
+    )
+    $norm = Get-NormalizedConsent -EnvVarName $EnvVarName
+    if ($norm -match '^(1|y|yes|true)$') { return 'y' }
+    if ($norm -match '^(0|n|no|false)$') { return 'n' }
+    if ([Environment]::UserInteractive) {
+        $reply = Read-Host $PromptText
+        # H-6 R2 hardening: trim + lower-invariant so "Yes", " y ", "YES" all
+        # accept consistently with CJS parseConfirmReply contract.
+        # Without this, install.ps1 accepted only literal y/Y/yes/YES while
+        # CJS accepted any case + whitespace — cross-platform parity gap.
+        if ($null -eq $reply) { return 'n' }
+        $normReply = $reply.Trim().ToLowerInvariant()
+        if ($normReply -eq 'y' -or $normReply -eq 'yes') { return 'y' }
+        return 'n'
+    }
+    return 'n'
+}
+
 # Language preference — interactive prompt unless $env:CORTEX_LANGUAGE is set.
 $Language = $env:CORTEX_LANGUAGE
 if (-not $Language -and [Environment]::UserInteractive) {
@@ -737,29 +774,15 @@ if ($LASTEXITCODE -ne 0) {
 #   unset, non-interactive      → skip silently
 $HooksRegisterScript = Join-Path $CortexRoot "bin\cortex-hooks-register.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $HooksRegisterScript)) {
-    $RegisterDecision = $null
-    # Sprint 2.28.2 R2 hardening (ssot-enforcer #3): trim whitespace before
-    # anchored regex match. Backported from 2.28.1 permissions-register block.
-    $EnvDecision = if ($null -ne $env:CORTEX_REGISTER_HOOKS) { $env:CORTEX_REGISTER_HOOKS.Trim() } else { $null }
-    if ($EnvDecision -match '^(1|y|yes|true)$') {
-        $RegisterDecision = 'y'
-    } elseif ($EnvDecision -match '^(0|n|no|false)$') {
-        $RegisterDecision = 'n'
-    } elseif ([Environment]::UserInteractive) {
+    $NormHooks = Get-NormalizedConsent -EnvVarName 'CORTEX_REGISTER_HOOKS'
+    if ($null -eq $NormHooks -and [Environment]::UserInteractive) {
         Write-Host ""
         Write-Host "  Cortex hooks (block-destructive safety, SessionStart context, auto-orchestrate)"
         Write-Host "  are NOT active until registered in ~/.claude/settings.json."
         Write-Host "  Without them, you lose ~50% of cortex-x value — but settings.json is yours,"
         Write-Host "  so the choice is explicit. A timestamped backup is written before any change."
-        $Reply = Read-Host "  Register cortex hooks now? [Y/n]"
-        if ([string]::IsNullOrWhiteSpace($Reply) -or $Reply -match '^(y|Y|yes|YES)$') {
-            $RegisterDecision = 'y'
-        } else {
-            $RegisterDecision = 'n'
-        }
-    } else {
-        $RegisterDecision = 'n'
     }
+    $RegisterDecision = Get-ConsentDecision -EnvVarName 'CORTEX_REGISTER_HOOKS' -PromptText "  Register cortex hooks now? [y/N]"
     if ($RegisterDecision -eq 'y') {
         & node $HooksRegisterScript --apply --yes
         if ($LASTEXITCODE -ne 0) {
@@ -774,29 +797,15 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $HooksRegis
 # Sprint 2.21 — opt-in CLAUDE.md discipline block (mirror install.sh logic).
 $AugmentScript = Join-Path $CortexRoot "bin\cortex-claude-md-augment.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScript)) {
-    $AugmentDecision = $null
-    # Sprint 2.28.2 R2 hardening (ssot-enforcer #3): trim whitespace before
-    # anchored regex match. Backported from 2.28.1 permissions-register block.
-    $EnvAugment = if ($null -ne $env:CORTEX_AUGMENT_CLAUDE_MD) { $env:CORTEX_AUGMENT_CLAUDE_MD.Trim() } else { $null }
-    if ($EnvAugment -match '^(1|y|yes|true)$') {
-        $AugmentDecision = 'y'
-    } elseif ($EnvAugment -match '^(0|n|no|false)$') {
-        $AugmentDecision = 'n'
-    } elseif ([Environment]::UserInteractive) {
+    $NormAugment = Get-NormalizedConsent -EnvVarName 'CORTEX_AUGMENT_CLAUDE_MD'
+    if ($null -eq $NormAugment -and [Environment]::UserInteractive) {
         Write-Host ""
         Write-Host "  Cortex discipline block (R1 research-first, R2 review pipeline, parallel agents"
         Write-Host "  by default) can be appended to your global ~/.claude/CLAUDE.md. This biases EVERY"
         Write-Host "  Claude Code session — not just cortex slash commands — toward cortex behavior."
         Write-Host "  Bracketed by BEGIN/END markers — your existing CLAUDE.md content is preserved."
-        $AugmentReply = Read-Host "  Append cortex discipline block to global CLAUDE.md? [Y/n]"
-        if ([string]::IsNullOrWhiteSpace($AugmentReply) -or $AugmentReply -match '^(y|Y|yes|YES)$') {
-            $AugmentDecision = 'y'
-        } else {
-            $AugmentDecision = 'n'
-        }
-    } else {
-        $AugmentDecision = 'n'
     }
+    $AugmentDecision = Get-ConsentDecision -EnvVarName 'CORTEX_AUGMENT_CLAUDE_MD' -PromptText "  Append cortex discipline block to global CLAUDE.md? [y/N]"
     if ($AugmentDecision -eq 'y') {
         & node $AugmentScript --apply --yes
         if ($LASTEXITCODE -ne 0) {
@@ -811,30 +820,15 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScr
 # Sprint 2.28 — opt-in safety-floor permissions registration (mirror install.sh logic).
 $PermissionsScript = Join-Path $CortexRoot "bin\cortex-permissions-register.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $PermissionsScript)) {
-    $PermissionsDecision = $null
-    # Sprint 2.28.1 R2 hardening (blind-hunter MED #2): trim whitespace
-    # before regex match — "  1  " and " yes\n" both legitimate values
-    # from CI configs would otherwise fail the anchored regex.
-    $EnvPerms = if ($null -ne $env:CORTEX_REGISTER_PERMISSIONS) { $env:CORTEX_REGISTER_PERMISSIONS.Trim() } else { $null }
-    if ($EnvPerms -match '^(1|y|yes|true)$') {
-        $PermissionsDecision = 'y'
-    } elseif ($EnvPerms -match '^(0|n|no|false)$') {
-        $PermissionsDecision = 'n'
-    } elseif ([Environment]::UserInteractive) {
+    $NormPerms = Get-NormalizedConsent -EnvVarName 'CORTEX_REGISTER_PERMISSIONS'
+    if ($null -eq $NormPerms -and [Environment]::UserInteractive) {
         Write-Host ""
         Write-Host "  Cortex safety-floor permissions can be registered in ~/.claude/settings.json:"
         Write-Host "  a deny list blocking destructive operations + an allow baseline skipping"
         Write-Host "  approval prompts on common-safe ops (npm test, git status, ls, cortex CLIs)."
         Write-Host "  Replaces --dangerously-skip-permissions: same speed, deny-precedence floor."
-        $PermsReply = Read-Host "  Register cortex safety-floor permissions? [Y/n]"
-        if ([string]::IsNullOrWhiteSpace($PermsReply) -or $PermsReply -match '^(y|Y|yes|YES)$') {
-            $PermissionsDecision = 'y'
-        } else {
-            $PermissionsDecision = 'n'
-        }
-    } else {
-        $PermissionsDecision = 'n'
     }
+    $PermissionsDecision = Get-ConsentDecision -EnvVarName 'CORTEX_REGISTER_PERMISSIONS' -PromptText "  Register cortex safety-floor permissions? [y/N]"
     if ($PermissionsDecision -eq 'y') {
         & node $PermissionsScript --apply --yes
         if ($LASTEXITCODE -ne 0) {

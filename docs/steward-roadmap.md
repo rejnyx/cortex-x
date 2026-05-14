@@ -1757,7 +1757,7 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
-### Sprint 2.28.3 — Final R2 hardening follow-up: parity drift + Rule-of-Three + polish (S-M effort) — 📋 PLANNED 2026-05-14
+### Sprint 2.28.3 — Final R2 hardening follow-up: parity drift + Rule-of-Three + polish (S-M effort) — ✅ SHIPPED 2026-05-14
 
 **Why**: Sprint 2.28 chain (initial → 2.28.1 → 2.28.2) ran 3 R2 rounds and closed 17 ship-blockers. Operator refined cadence rule 2026-05-14: *"R2 stačí dát celou review pipeline jednou, nemusíš několikrát. to žere tokeny"*. Remaining round-3 findings backlogged here as a single deferred sprint per the refined rule.
 
@@ -1811,7 +1811,26 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
-### Sprint 2.28 — Safety-floor permissions: `cortex-permissions-register` CLI (S effort) — 📋 PLANNED 2026-05-13
+### Sprint 2.28.4 — Backlog from 2.28.3 R2 hardening (S effort, defer) — 📋 PROPOSED 2026-05-14
+
+**Why**: Sprint 2.28.3 R2 (6-agent review) surfaced 2 HIGH findings deemed real but defer-eligible (operator scenario rare + non-trivial fix scope). Captured here so they don't disappear.
+
+1. **HIGH (edge-case-hunter H-9) — `writeFileAtomic` symlink follow** (S, ~30 min): if `~/.claude/settings.json` is a symlink (operator dotfile-managed setup), `fs.renameSync(tmp, target)` destroys the symlink and stows orphan source. Fix: `fs.lstatSync(targetPath)` → if symlink, `fs.realpathSync` pre-resolve → write to real target. Add regression test with symlink fixture. Threat model: low (operator self-inflicted), but easy fix.
+   [src: Sprint 2.28.3 R2 edge-case-hunter H-3]
+
+2. **HIGH (edge-case-hunter H-10 + security M-2) — TOCTOU race between read+backup+write across concurrent CLIs** (S, ~45 min): two `cortex-*-register --apply` runs in parallel both read snapshot, both backup, both write — second clobbers first. Fix: file-lock via existing `bin/steward/_lib/lock.cjs` primitive around read→compute→write in all 3 CLIs. Likely add `bin/_lib/settings-lock.cjs` SSOT.
+   [src: Sprint 2.28.3 R2 edge-case-hunter H-4 + security-auditor M-2]
+
+3. **LOW backlog absorbed from 2.28.3**:
+   - Item 9 deferred property tests on pure reducers (`parseConfirmReply`, `normalizePermissionsField`, `normalizeKindList`, allow-list invariant) — overlap with Sprint 2.21.3 #7 was partial; extend 2.21.3 #7 scope OR add here.
+   - L-1 stderr warning on orphan-tmp cleanup failure (advisory only).
+   - Test cleanup: `tests/unit/cortex-permissions-register.test.cjs:459-478` parseConfirmReply contract duplicated with `_lib-confirm.test.cjs` — keep helper as canonical, drop duplicate at CLI test layer (ssot-enforcer M1).
+
+**Out of scope** (per convergence rule): no new R2 dispatch on 2.28.4 itself unless operator overrides.
+
+---
+
+### Sprint 2.28 — Safety-floor permissions: `cortex-permissions-register` CLI (S effort) — ✅ SHIPPED 2026-05-14 (chain 2.28 → 2.28.1 → 2.28.2 → 2.28.3)
 
 **Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hack #30 — "edit permissions for safe autonomy" replaces `--dangerously-skip-permissions` with explicit `allow` + `deny` lists in `~/.claude/settings.json`. Web research confirmed:
 - Schema is `{ "permissions": { "allow": [...], "deny": [...], "ask": [...] } }` with `Tool(pattern)` syntax e.g. `Bash(npm test:*)`
