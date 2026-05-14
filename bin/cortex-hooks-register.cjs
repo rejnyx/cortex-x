@@ -135,7 +135,9 @@ function readSettings() {
 function backupSettings(raw) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const backupPath = `${SETTINGS_PATH}.backup-${ts}`;
-  fs.writeFileSync(backupPath, raw, 'utf8');
+  // Mode 0o600 (owner read+write only) — settings.json may contain OAuth tokens
+  // or API keys; backup must not leak them to other local users via umask default.
+  fs.writeFileSync(backupPath, raw, { encoding: 'utf8', mode: 0o600 });
   return backupPath;
 }
 

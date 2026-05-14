@@ -240,6 +240,14 @@ describe('cortex-claude-md-augment — CLI end-to-end', () => {
       const backupContent = fs.readFileSync(result.backup_path, 'utf8');
       assert.ok(!backupContent.includes(CORTEX_BLOCK_START));
       assert.ok(backupContent.includes('Original content'));
+      // Mode 0o600 — CLAUDE.md may contain operator notes about credentials,
+      // internal URLs, or sensitive context; backup must be owner-readable
+      // only. Windows mode bits do not honor Unix octal mode exactly, so
+      // skip the assertion there.
+      if (process.platform !== 'win32') {
+        const stat = fs.statSync(result.backup_path);
+        assert.strictEqual(stat.mode & 0o777, 0o600, 'backup must be mode 0o600 (owner read+write only)');
+      }
     } finally { tryRm(home); }
   });
 

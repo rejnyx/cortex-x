@@ -176,7 +176,10 @@ function detectBlock(content) {
 function backupFile(rawContent) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const backupPath = `${CLAUDE_MD_PATH}.backup-${ts}`;
-  fs.writeFileSync(backupPath, rawContent, 'utf8');
+  // Mode 0o600 (owner read+write only) — CLAUDE.md may contain operator notes
+  // about credentials, internal URLs, or other sensitive context; backup must
+  // not leak them to other local users via umask default.
+  fs.writeFileSync(backupPath, rawContent, { encoding: 'utf8', mode: 0o600 });
   return backupPath;
 }
 

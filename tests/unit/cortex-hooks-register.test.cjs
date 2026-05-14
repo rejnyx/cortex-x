@@ -284,6 +284,13 @@ describe('cortex-hooks-register — CLI end-to-end (fake $HOME)', () => {
       const backupContents = JSON.parse(fs.readFileSync(result.backup_path, 'utf8'));
       assert.strictEqual(backupContents.existing, 'content');
       assert.ok(!backupContents.hooks, 'backup must reflect pre-mutation state');
+      // Mode 0o600 — settings.json may contain OAuth tokens / API keys;
+      // backup must be owner-readable only. Windows mode bits do not honor
+      // Unix octal mode exactly, so skip the assertion there.
+      if (process.platform !== 'win32') {
+        const stat = fs.statSync(result.backup_path);
+        assert.strictEqual(stat.mode & 0o777, 0o600, 'backup must be mode 0o600 (owner read+write only)');
+      }
     } finally { tryRm(home); }
   });
 
