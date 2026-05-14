@@ -243,3 +243,177 @@ test('constants: loop detector window + threshold', () => {
   assert.equal(LOOP_DETECTOR_WINDOW_HOURS, 24);
   assert.equal(LOOP_DETECTOR_THRESHOLD, 3);
 });
+
+// === R2 2.2.1 HARDENING REGRESSION TESTS ===
+
+const fc = require('fast-check');
+
+test('R2 security HIGH-1: canonicalize rejects non-plain objects', () => {
+  class Foo {}
+  assert.throws(() => canonicalize(new Foo()), /non-plain object/);
+});
+
+test('R2 security HIGH-1: canonicalize tag-encodes Date so they do not collide', () => {
+  const a = canonicalize(new Date('2026-05-14T00:00:00Z'));
+  const b = canonicalize(new Date('2026-05-15T00:00:00Z'));
+  const empty = canonicalize({});
+  assert.notEqual(a, b);
+  assert.notEqual(a, empty);
+});
+
+test('R2 security HIGH-1: canonicalize tag-encodes Buffer', () => {
+  const a = canonicalize(Buffer.from('abc'));
+  const b = canonicalize(Buffer.from('def'));
+  assert.notEqual(a, b);
+  assert.match(a, /^B:/);
+});
+
+test('R2 security HIGH-1: canonicalize tag-encodes Map + Set + RegExp', () => {
+  assert.match(canonicalize(new Map([['k', 'v']])), /^M:/);
+  assert.match(canonicalize(new Set([1, 2, 3])), /^S:/);
+  assert.match(canonicalize(/abc/i), /^R:/);
+});
+
+test('R2 security HIGH-1: canonicalize strips own __proto__/constructor/prototype keys', () => {
+  // Own property "__proto__" (via JSON.parse, which doesn't treat the key as
+  // [[Prototype]] setter) must be stripped — otherwise an attacker-supplied
+  // plan could include phantom keys in the fingerprint.
+  const polluted = JSON.parse('{"x": 1, "__proto__": "evil"}');
+  const clean = { x: 1 };
+  assert.equal(canonicalize(polluted), canonicalize(clean));
+});
+
+test('R2 security HIGH-1: canonicalize throws on symbol + function', () => {
+  assert.throws(() => canonicalize(Symbol('x')));
+  assert.throws(() => canonicalize(() => 1));
+});
+
+test('R2 edge-case HIGH-1: canonicalize detects circular references (no stack overflow)', () => {
+  const a = {};
+  a.self = a;
+  assert.throws(() => canonicalize(a), /circular/);
+});
+
+test('R2 edge-case HIGH-1: canonicalize detects circular references in arrays', () => {
+  const a = [];
+  a.push(a);
+  assert.throws(() => canonicalize(a), /circular/);
+});
+
+test('R2 edge-case HIGH-2: randomizeJudgeOrder handles rng() returning 1.0 (out-of-bounds defense)', () => {
+  const rng = () => 1.0;
+  const r = randomizeJudgeOrder(['a', 'b', 'c'], rng);
+  // No undefined slots; permutation must be a valid permutation
+  assert.equal(r.shuffled.length, 3);
+  assert.ok(r.shuffled.every((v) => v !== undefined));
+  assert.deepEqual([...r.shuffled].sort(), ['a', 'b', 'c']);
+});
+
+test('R2 edge-case HIGH-2: randomizeJudgeOrder handles rng() returning NaN (defense)', () => {
+  const rng = () => NaN;
+  const r = randomizeJudgeOrder(['a', 'b', 'c'], rng);
+  assert.equal(r.shuffled.length, 3);
+  assert.ok(r.shuffled.every((v) => v !== undefined));
+});
+
+test('R2 edge-case HIGH-2: randomizeJudgeOrder handles rng() returning negative (defense)', () => {
+  const rng = () => -0.5;
+  const r = randomizeJudgeOrder(['a', 'b', 'c'], rng);
+  assert.equal(r.shuffled.length, 3);
+  assert.ok(r.shuffled.every((v) => v !== undefined));
+});
+
+test('R2 edge-case HIGH-3: VALID_TOPOLOGIES is frozen (no runtime mutation)', () => {
+  assert.ok(Object.isFrozen(VALID_TOPOLOGIES));
+  assert.throws(() => {
+    VALID_TOPOLOGIES.push('distributed');
+  }, TypeError);
+  // Confirm validateTopologySafe still rejects after attempted mutation
+  const r = validateTopologySafe('test', { topology_safe: 'distributed' });
+  assert.equal(r.ok, false);
+});
+
+test('R2 security HIGH-4: validateTopologySafe uses hasOwnProperty (prototype-pollution defense)', () => {
+  // Simulate Object.prototype.topology_safe = 'parallel' pollution
+  const origDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, 'topology_safe');
+  Object.prototype.topology_safe = 'parallel';  // eslint-disable-line no-extend-native
+  try {
+    const r = validateTopologySafe('test', {});
+    assert.equal(r.ok, true);
+    assert.equal(r.topology, 'serial');   // back-compat default, NOT polluted 'parallel'
+  } finally {
+    if (origDescriptor) Object.defineProperty(Object.prototype, 'topology_safe', origDescriptor);
+    else delete Object.prototype.topology_safe;
+  }
+});
+
+// === Property tests (R2 correctness HIGH + MED) ===
+
+test('property: randomizeJudgeOrder shuffled is a permutation of input (multiset equality)', () => {
+  fc.assert(fc.property(
+    fc.array(fc.string(), { minLength: 0, maxLength: 10 }),
+    (arr) => {
+      const r = randomizeJudgeOrder(arr);
+      return r.shuffled.length === arr.length &&
+        [...r.shuffled].sort().join('|') === [...arr].sort().join('|');
+    }
+  ), { numRuns: 50 });
+});
+
+test('property: randomizeJudgeOrder originalIndexAt maps shuffled back to input', () => {
+  fc.assert(fc.property(
+    fc.array(fc.string(), { minLength: 1, maxLength: 10 }),
+    (arr) => {
+      const r = randomizeJudgeOrder(arr);
+      for (let i = 0; i < r.shuffled.length; i += 1) {
+        if (r.shuffled[i] !== arr[r.originalIndexAt[i]]) return false;
+      }
+      return true;
+    }
+  ), { numRuns: 50 });
+});
+
+test('property: Fisher-Yates uniformity over n=4 (chi-squared smoke)', () => {
+  // 24 permutations of [0,1,2,3]; with 2400 trials, each cell expects 100.
+  // Chi-squared on 23 df, p=0.001 critical ≈ 49.7. Generous bound: max < 200.
+  const counts = new Map();
+  const trials = 2400;
+  for (let t = 0; t < trials; t += 1) {
+    const r = randomizeJudgeOrder([0, 1, 2, 3]);
+    const key = r.shuffled.join(',');
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  let chi2 = 0;
+  const expected = trials / 24;
+  for (const [, cnt] of counts) {
+    chi2 += ((cnt - expected) ** 2) / expected;
+  }
+  // Generous bound — uniform RNG should easily clear this; biased shuffles fail badly.
+  assert.ok(chi2 < 100, `chi-squared ${chi2.toFixed(2)} too high (suggest non-uniform shuffle)`);
+});
+
+test('property: parseTreeBudgetCap always returns value in [MIN, MAX]', () => {
+  fc.assert(fc.property(
+    fc.oneof(fc.string(), fc.double(), fc.integer(), fc.constant(null), fc.constant(undefined)),
+    (v) => {
+      const r = parseTreeBudgetCap({ STEWARD_TREE_USD_CAP: v });
+      return r >= 0.10 && r <= 10.0 && Number.isFinite(r);
+    }
+  ), { numRuns: 50 });
+});
+
+test('property: canonicalizeWorkerInput key-order invariance', () => {
+  fc.assert(fc.property(
+    fc.dictionary(fc.string({ minLength: 1, maxLength: 10 }), fc.oneof(fc.string(), fc.integer(), fc.boolean())),
+    fc.string({ minLength: 1, maxLength: 30 }),
+    (plan, criterionId) => {
+      const fp1 = canonicalizeWorkerInput(plan, criterionId);
+      // Shuffle keys to a new object
+      const keys = Object.keys(plan).sort();
+      const shuffled = {};
+      for (let i = keys.length - 1; i >= 0; i -= 1) shuffled[keys[i]] = plan[keys[i]];
+      const fp2 = canonicalizeWorkerInput(shuffled, criterionId);
+      return fp1 === fp2;
+    }
+  ), { numRuns: 30 });
+});

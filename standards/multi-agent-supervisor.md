@@ -62,9 +62,15 @@ When the v1 spawner ships, it MUST respect these contracts:
 
 The supervisor computes `cap = parseTreeBudgetCap(process.env)`. Before each worker spawn, supervisor checks `currentSpend + estimatedNextSpend <= cap`. If exceeded, abort spawn with `STEWARD_TREE_CAP_EXCEEDED`. Workers themselves don't trust their own self-reported spend — supervisor is the truth.
 
-### S2 — Workers cannot spawn workers
+### S2 — Workers cannot spawn workers (process-level + tool-list, both required)
 
-Claude Agent SDK enforces depth-cap=2 natively (per fresh R1 §1: "subagents cannot spawn subagents"). cortex-x's spawner MUST omit `Agent` / spawn primitives from the worker's allowed-tools list. Belt + suspenders.
+Claude Agent SDK enforces depth-cap=2 natively (per fresh R1 §1: "subagents cannot spawn subagents"). cortex-x's spawner MUST omit `Agent` / spawn primitives from the worker's allowed-tools list. **R2 security HIGH-3 (2026-05-14) amendment**: tool-list omission alone is INSUFFICIENT — any MCP server the worker can reach may expose a `spawn`-equivalent (shell, write-file → systemd unit, http-fetch → external orchestrator); Bash with `--allowed-tools Bash` lets a worker `npx claude-code` recursively. Required additional controls:
+
+1. **Explicit MCP allow-list per worker** — no inheritance from supervisor's MCP config; worker receives an explicitly-named subset (or empty list) of MCP servers.
+2. **Bash/Shell tool stripped or denylist-wrapped** — if Bash is granted, wrap it with a denylist refusing `claude`/`claude-code`/`npx`/`anthropic` substring matches.
+3. **Process-level enforcement** — supervisor sets `STEWARD_WORKER_DEPTH=1` env on every spawned worker; worker's pre-tool-use hook reads this env and refuses ANY spawn-shaped call when depth ≥ 1.
+
+Without **all three** layers, S2 is documentation, not a control.
 
 ### S3 — Judge LLM input is order-randomized + carries rationale
 
@@ -73,9 +79,13 @@ Judge prompts MUST:
 - Include each worker's stated rationale + per-worker spec-verifier result + per-worker token spend.
 - Use SAME-TIER model as workers (Sonnet judge over Sonnet workers, NOT haiku-as-judge). R1 fresh memo §4: smaller-as-judge for code selection is unvalidated; same-tier is safer.
 
+**R2 security HIGH-2 (2026-05-14) amendment**: the `rng` parameter to `randomizeJudgeOrder` is a **test-only injection seam**. In production, callers MUST omit it (default Math.random) OR provide a `crypto.randomInt`-based RNG. A caller passing `rng = () => 0.999999` defeats the bias mitigation invisibly (every unit test still passes). The v1 spawner MUST refuse to invoke the judge if the supervisor's runtime detects a non-default RNG outside of test environments. Sprint 2.2.1 will add the production guard: throw when `rng` provided and `process.env.NODE_ENV !== 'test'`.
+
 ### S4 — Cross-tree loop detector writes STEWARD_HALT, not just logs
 
 Three-strikes window: `(criterionId, sha256)` repeat 3× in `LOOP_DETECTOR_WINDOW_HOURS` (24h) triggers `STEWARD_HALT` sentinel write — same mechanism as Sprint 1.9.1 single-agent loop detector. Operator-cleared only.
+
+**R2 security caveat (2026-05-14)**: this primitive catches *identical-input ping-pong* (e.g. agent A asks "fix X" repeatedly). It does NOT catch *delta-accumulating ping-pong* where two agents alternate with shifting prompt context — each iteration's canonical input is distinct so fingerprints diverge. For that class, Sprint 2.2.1+ should add a near-duplicate mode (Jaccard or simhash over plan diff) as a follow-up; v0 documents this limitation here so the operator can decide when the gap matters.
 
 ### S5 — Orphan worktrees cleaned up on every supervisor exit
 
