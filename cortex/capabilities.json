@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-14T11:30:14.576Z",
+  "generated_at": "2026-05-14T11:37:06.843Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -630,6 +630,12 @@
       "description": "Anything a stranger would never need to know about the maintainer must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes:"
     },
     {
+      "name": "skill-validate",
+      "path": "standards/skill-validate.md",
+      "title": "Skill validation — 3-tier model + ToxicSkills baseline",
+      "description": "cortex does NOT reimplement broad spec-conformance lint. `agnix` (npm, 414 rules) already covers that surface well. `cortex-skill-validate` runs AFTER `agnix` and adds three cortex-opinionated layers — spec-driven failure mode, Claude-Code-"
+    },
+    {
       "name": "skills",
       "path": "standards/skills.md",
       "title": "Skills — Portable, Progressive-Disclosure Agent Instructions",
@@ -1151,15 +1157,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2513,
+      "unit": 2545,
       "contract": 106,
       "integration": 71,
       "smoke": 0
     },
-    "total": 2690
+    "total": 2722
   },
   "code_volume": {
-    "steward_runtime_loc": 30267,
-    "test_code_loc": 35934
+    "steward_runtime_loc": 30716,
+    "test_code_loc": 36296
   }
 }
