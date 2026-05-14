@@ -73,6 +73,18 @@ TODO: Architecture description — how it works end-to-end. Which modules, which
 - Validation: {{conventions.form_validation}}
 {{/if}}
 
+**Verification discipline** — pair every implementation todo with a verification todo. For UI: build → screenshot → assert (Chrome DevTools MCP). For handlers: build → run the test, read the log. Verification todo must be checked off before commit, not just the implementation one. Detail: `~/.claude/shared/standards/verification-loop.md`.
+
+## Corrections log
+
+Append-only record. Every time Claude makes a mistake the operator catches, capture it here so the next session reads the fix before repeating the bug.
+
+```
+- 2026-XX-XX — Claude attempted X. Operator corrected: use Y instead because Z. Root cause: missing constraint Z in section "<section name>".
+```
+
+> Pattern: **mistake → discipline → CLAUDE.md update** (Anthropic team standard practice). Five-minute updates compound across sessions.
+
 ## Development
 
 ```bash
