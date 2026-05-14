@@ -1055,9 +1055,11 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
-### Sprint 2.8.3 — Agent-first docs audit + retrofit (S effort, fast win) — 📋 PROPOSED 2026-05-13
+### Sprint 2.8.3 — Agent-first docs audit + retrofit (S effort, fast win) — ✅ SHIPPED v0 2026-05-14
 
-**Status**: 📋 Roadmap-add 2026-05-13 from [Karpathy transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
+**Status**: ✅ Shipped v0 — `prompts/agent-first-audit.md` skill + `bin/cortex-doc-audit.cjs` scorer + persistent snapshot at `docs/agent-first-audit.md` (2026-05-14). All 7 user-facing docs score 90-100, no critical retrofit needed (README install at line 18 = 100/100 satisfies "lead with copy-paste-to-agent" without aggressive retrofit that would harm informativeness). 4 v1 candidates backlogged in the snapshot (frontmatter completion, anchor TOC for vision.md, code-block examples for troubleshooting.md, ALL_CAPS reframing for steward-usage.md). Install-smoke matrix unaffected (no doc rewrites in v0).
+
+**Original spec source**: [Karpathy transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
 > "Why are people still telling me what to do? I don't want to do anything. What is the thing I should copy paste to my agent? ... every time I'm told go to this URL or something, it's just ahhh."
 
 **Why**: cortex-x docs are mostly already agent-first (`CLAUDE.md`, `prompts/*.md`, `standards/*.md` all directly readable by Claude). But some surfaces remain human-first — install instructions ("download Node 22+"), `docs/install-walkthrough.md`, README install block, `docs/steward-usage.md`. **Karpathy's test**: can the operator copy-paste a single block into any agent and have the agent do the whole setup without manual URL navigation? Today: partly. Target: yes.
