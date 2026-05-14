@@ -100,6 +100,36 @@ skills:
   - browser-credential-scanner     # scans captured screenshots for password/2FA/payment-field leakage
   - cdp-primitive-review           # if using browser-harness helpers.py / helpers.ts, reviews tool-layer PRs
 
+# Sprint 2.29 — Playwright MCP (primary), plus Context7 + Supabase.
+recommended_mcp_servers:
+  - name: playwright
+    purpose: Browser automation via Playwright accessibility tree
+    install: |
+      claude mcp add playwright npx @playwright/mcp@latest
+    severity: recommended
+    caveats:
+      - "Playwright MCP is NOT a security boundary (verbatim from upstream README)"
+      - "v0.0.75 (pre-1.0) — expect breaking changes"
+      - "File access restricted to workspace roots by default; verify origin/host allowlist for network requests"
+      - "Docker deployments require --no-sandbox flag"
+  - name: context7
+    purpose: Up-to-date library documentation injected on demand
+    install: |
+      claude mcp add --transport http context7 https://mcp.context7.com/mcp \
+        --header "CONTEXT7_API_KEY: $CONTEXT7_API_KEY"
+    severity: recommended
+    caveats:
+      - "Free tier cut to ~1,000 req/month in Jan 2026; production needs paid tier"
+      - "ContextCrush vuln patched 2026-02-23"
+  - name: supabase
+    purpose: Database introspection + query (read-only by default)
+    install: |
+      claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?read_only=true"
+    severity: optional
+    caveats:
+      - "Pre-1.0 (v0.8.1) — expect breaking changes"
+      - "NEVER connect to production data; use dev/staging projects only"
+
 standards_included:
   - ssot
   - modular

@@ -310,7 +310,40 @@ function runChecks() {
     findings.push(check('claude_md_block', 'info', 'cortex-claude-md-augment script not found — skipping check'));
   }
 
-  // 12. git remote reachability (optional, only if source clone is git).
+  // 12. Sprint 2.29 — MCP recommendations (info-severity, opt-out via
+  // CORTEX_SUGGEST_MCP=0). MCP config lives at ~/.claude.json (a single file
+  // at $HOME, NOT ~/.claude/mcp.json — corrected per R1 memo
+  // sprint-2.29-mcp-recommendations-2026-05-14.md citation [^c6]).
+  // We read the manifest, parse `mcpServers` object, and just COUNT present
+  // entries vs what cortex-init Step 5 may have suggested. No write actions,
+  // no auto-install — cortex never auto-modifies user globals.
+  if (process.env.CORTEX_SUGGEST_MCP !== '0') {
+    const claudeManifestPath = path.join(os.homedir(), '.claude.json');
+    if (fs.existsSync(claudeManifestPath)) {
+      try {
+        const raw = fs.readFileSync(claudeManifestPath, 'utf8');
+        const parsed = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
+        const mcps = parsed && typeof parsed === 'object' && parsed.mcpServers
+          && typeof parsed.mcpServers === 'object' ? Object.keys(parsed.mcpServers) : [];
+        if (mcps.length > 0) {
+          findings.push(check('mcp_servers', 'info',
+            `${mcps.length} MCP server(s) registered: ${mcps.slice(0, 6).join(', ')}${mcps.length > 6 ? ' …' : ''}`));
+        } else {
+          findings.push(check('mcp_servers', 'info',
+            'no MCP servers registered (profile may recommend Context7, Supabase, Playwright)',
+            'claude mcp list (current state) — run cortex-init Step 5 to see profile recommendations'));
+        }
+      } catch {
+        findings.push(check('mcp_servers', 'info',
+          `could not parse ${claudeManifestPath} — skipping MCP check`));
+      }
+    } else {
+      findings.push(check('mcp_servers', 'info',
+        'no ~/.claude.json present — MCP servers not configured (optional)'));
+    }
+  }
+
+  // 13. git remote reachability (optional, only if source clone is git).
   if (sourceDir && fs.existsSync(path.join(sourceDir, '.git'))) {
     try {
       const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {

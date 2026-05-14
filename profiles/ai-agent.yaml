@@ -83,6 +83,30 @@ skills:
   - prompt-injection-test  # golden set of injection attempts + expected refusals
   - trifecta-check         # architectural scan: private-data + untrusted + egress combinations
 
+# Sprint 2.29 — profile-level MCP recommendations. cortex never auto-installs;
+# /cortex-init Step 5 surfaces these, cortex-doctor info-severity reports their
+# presence. R1 grounding: docs/research/sprint-2.29-mcp-recommendations-2026-05-14.md
+recommended_mcp_servers:
+  - name: context7
+    purpose: Up-to-date library documentation injected on demand (dodges training-cutoff drift)
+    install: |
+      claude mcp add --transport http context7 https://mcp.context7.com/mcp \
+        --header "CONTEXT7_API_KEY: $CONTEXT7_API_KEY"
+    severity: recommended
+    caveats:
+      - "Free tier cut to ~1,000 req/month in Jan 2026; production needs paid tier"
+      - "ContextCrush vuln patched 2026-02-23; community-registry architecture remains structural attack surface"
+      - "Apply outbound network filtering per Stacklok ToolHive guide"
+  - name: supabase
+    purpose: Database introspection + query (read-only by default)
+    install: |
+      claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?read_only=true"
+    severity: recommended
+    caveats:
+      - "Pre-1.0 (v0.8.1) — expect breaking changes"
+      - "NEVER connect to production data; use dev/staging projects only"
+      - "read_only=true is mandatory in the example; advanced users may remove at their own risk"
+
 standards_included:
   - ssot
   - modular

@@ -115,6 +115,34 @@ skills:
   - review-pipeline
   - memory-consolidate
 
+# Sprint 2.29 — Context7 + Supabase, plus optional Playwright for E2E projects.
+recommended_mcp_servers:
+  - name: context7
+    purpose: Up-to-date library documentation injected on demand (Next.js evolves fast)
+    install: |
+      claude mcp add --transport http context7 https://mcp.context7.com/mcp \
+        --header "CONTEXT7_API_KEY: $CONTEXT7_API_KEY"
+    severity: recommended
+    caveats:
+      - "Free tier cut to ~1,000 req/month in Jan 2026; production needs paid tier"
+      - "ContextCrush vuln patched 2026-02-23"
+  - name: supabase
+    purpose: Database introspection + query (read-only by default)
+    install: |
+      claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?read_only=true"
+    severity: recommended
+    caveats:
+      - "Pre-1.0 (v0.8.1) — expect breaking changes"
+      - "NEVER connect to production data; use dev/staging projects only"
+  - name: playwright
+    purpose: Browser automation for E2E test scaffolding + bug repro
+    install: |
+      claude mcp add playwright npx @playwright/mcp@latest
+    severity: optional
+    caveats:
+      - "v0.0.75 (pre-1.0) — expect breaking changes"
+      - "Playwright MCP is NOT a security boundary (verbatim from upstream README)"
+
 standards_included:
   - ssot
   - modular
