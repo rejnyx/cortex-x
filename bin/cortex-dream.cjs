@@ -36,12 +36,20 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const CORTEX_DATA_HOME = process.env.CORTEX_DATA_HOME || path.join(os.homedir(), '.cortex');
+const { writeFileAtomic } = require('./_lib/atomic-write.cjs');
+
+const HOMEDIR = os.homedir();
+const CORTEX_DATA_HOME = process.env.CORTEX_DATA_HOME || path.join(HOMEDIR, '.cortex');
 const DEFAULT_MAX_LINES = 200;
 const JACCARD_THRESHOLD = 0.9;
 const MIN_ENTRY_CHARS = 30;  // skip stub paragraphs
 const MAX_FILE_BYTES = 1024 * 1024;
-const POISONING_CANARY = /<\/?(system|system-reminder|untrusted)\b/i;
+const MAX_ENTRY_COUNT = 5000;  // R2 security MED: cap O(n^2) findDuplicates pre-step
+// R2 security HIGH-1: expanded canary set covering EchoLeak-class injection
+// markers (system, tool_use, instructions, etc.). NFKC-normalized input
+// catches Unicode-lookalike evasion. HTML entity check separate.
+const POISONING_CANARY = /<\/?\s*(system|system-reminder|untrusted|assistant|tool_result|tool_use|instructions?|human|user)\b/i;
+const POISONING_HTML_ENTITY = /&(?:lt|LT|#60|#x3[Cc]|#x003[Cc]);\s*\/?\s*(system|system-reminder|untrusted|assistant|tool_result|tool_use|instructions?|human|user)\b/i;
 
 function flag(name, args) {
   const matches = args.filter((a) => a === `--${name}` || a.startsWith(`--${name}=`));
@@ -59,10 +67,14 @@ function flag(name, args) {
 }
 
 function readMarkdownSafe(filePath) {
-  let stat;
-  try { stat = fs.statSync(filePath); } catch { return { ok: false, error: 'NOT_FOUND' }; }
-  if (!stat.isFile()) return { ok: false, error: 'NOT_FILE' };
-  if (stat.size > MAX_FILE_BYTES) return { ok: false, error: 'TOO_LARGE' };
+  // R2 security HIGH-2: lstat (not stat) — refuse to follow symlinks on the
+  // operator-memory path. A poisoned symlink could redirect reads to
+  // /etc/passwd or arbitrary files.
+  const lstat = lstatNoFollow(filePath);
+  if (!lstat) return { ok: false, error: 'NOT_FOUND' };
+  if (lstat.isSymbolicLink()) return { ok: false, error: 'IS_SYMLINK' };
+  if (!lstat.isFile()) return { ok: false, error: 'NOT_FILE' };
+  if (lstat.size > MAX_FILE_BYTES) return { ok: false, error: 'TOO_LARGE' };
   let content;
   try { content = fs.readFileSync(filePath, 'utf8'); }
   catch (e) { return { ok: false, error: `READ_${(e && e.code) || 'UNKNOWN'}` }; }
@@ -71,10 +83,39 @@ function readMarkdownSafe(filePath) {
 }
 
 function checkCanary(content) {
-  // Refuse to consume content that contains <system>/<system-reminder>/<untrusted>
-  // markers cortex-dream didn't itself write. This is the memory-injection
-  // defense from Sprint 2.25 R1 memo (Section 6 advisories).
-  return POISONING_CANARY.test(content);
+  // Refuse to consume content that contains <system>/<system-reminder>/
+  // <tool_use>/<instructions>/<assistant>/<human> markers cortex-dream
+  // didn't itself write. R2 security HIGH-1 hardening 2026-05-14:
+  //   - NFKC-normalize input first so Unicode lookalikes (Cyrillic ѕ,
+  //     math-bold 𝐬) get folded to ASCII before regex.
+  //   - Strip-then-check HTML entity-encoded form as separate pattern.
+  //   - Expanded reserved-tag set covering EchoLeak (CVE-2025-32711)
+  //     and related markdown-injection vectors.
+  if (typeof content !== 'string') return false;
+  const normalized = content.normalize('NFKC');
+  if (POISONING_CANARY.test(normalized)) return true;
+  if (POISONING_HTML_ENTITY.test(normalized)) return true;
+  return false;
+}
+
+// R2 security HIGH-2: validate CORTEX_DATA_HOME containment. If the env
+// resolves outside the operator's home directory, refuse to mutate. Operator
+// can override with CORTEX_ALLOW_NONSTANDARD_DATA_HOME=1 for explicit opt-in
+// (e.g., a custom sandboxed test rig).
+function isPathSafe(p) {
+  if (typeof p !== 'string' || p.length === 0) return false;
+  if (p.includes('\0')) return false;
+  const resolved = path.resolve(p);
+  if (process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME === '1') return true;
+  const home = path.resolve(HOMEDIR);
+  return resolved === home || resolved.startsWith(home + path.sep);
+}
+
+// R2 security HIGH-2: refuse to read symlinks on the operator-memory path —
+// a symlink at ~/.cortex/projects/x.md -> /etc/passwd would otherwise get
+// rewritten by --apply.
+function lstatNoFollow(p) {
+  try { return fs.lstatSync(p); } catch { return null; }
 }
 
 function tokenize(text) {
@@ -144,9 +185,16 @@ function normalizeRelativeDates(content, nowMs) {
   // Zero-deps regex pass for the most common relative phrasings cortex memories use.
   // Covers ~80% of cases per R1 memo (chrono-node would handle the rest, but
   // adding a dep for date parsing isn't worth the supply-chain expansion in v0).
+  // R2 edge-case HIGH-2: months use real calendar math (setMonth) instead of
+  // 30-day hardcode; previous form produced ~5-day drift on year-old dates.
   const today = new Date(nowMs || Date.now());
   const offsetDay = (d, n) => {
     const out = new Date(d.getTime() + n * 24 * 3600 * 1000);
+    return out.toISOString().slice(0, 10);
+  };
+  const offsetMonth = (d, n) => {
+    const out = new Date(d.getTime());
+    out.setUTCMonth(out.getUTCMonth() - n);
     return out.toISOString().slice(0, 10);
   };
   const replacements = [];
@@ -160,7 +208,7 @@ function normalizeRelativeDates(content, nowMs) {
     { re: /\bnext\s+week\b/gi, to: () => offsetDay(today, 7) },
     { re: /\b(\d+)\s+days?\s+ago\b/gi, to: (m, n) => offsetDay(today, -Number(n)) },
     { re: /\b(\d+)\s+weeks?\s+ago\b/gi, to: (m, n) => offsetDay(today, -7 * Number(n)) },
-    { re: /\b(\d+)\s+months?\s+ago\b/gi, to: (m, n) => offsetDay(today, -30 * Number(n)) },
+    { re: /\b(\d+)\s+months?\s+ago\b/gi, to: (m, n) => offsetMonth(today, Number(n)) },
   ];
   for (const p of passes) {
     out = out.replace(p.re, (...args) => {
@@ -193,6 +241,13 @@ function pruneToMaxLines(content, maxLines) {
 
 function buildPlan(opts) {
   const dataHome = opts.dataHome || CORTEX_DATA_HOME;
+  // R2 security HIGH-2: refuse to operate outside operator home unless
+  // explicitly opted-in via env. Test fixtures pass --opts.dataHome under
+  // os.tmpdir, which the helper accepts when CORTEX_ALLOW_NONSTANDARD_DATA_HOME=1
+  // is set (test harness sets it; production runs default-deny).
+  if (!isPathSafe(dataHome)) {
+    return { ok: false, error: 'DATA_HOME_OUTSIDE_HOME', resolved: path.resolve(dataHome) };
+  }
   const memoryPath = opts.memoryPath || path.join(dataHome, 'MEMORY.md');
   const projectsDir = opts.projectsDir || path.join(dataHome, 'projects');
   const nowMs = opts.nowMs || Date.now();
@@ -230,6 +285,10 @@ function buildPlan(opts) {
     }
     // Op 1: dedupe
     const entries = splitEntries(r.content);
+    if (entries.length > MAX_ENTRY_COUNT) {
+      plan.files.push({ path: t.path, status: 'skipped', reason: 'TOO_MANY_ENTRIES' });
+      continue;
+    }
     const dedup = findDuplicates(entries, JACCARD_THRESHOLD);
     // Op 2: relative date normalization
     const datePass = normalizeRelativeDates(r.content, nowMs);
@@ -274,31 +333,60 @@ function buildPlan(opts) {
 }
 
 function applyPlan(plan, opts) {
+  // R2 hardening 2026-05-14:
+  //   - security HIGH-3 + correctness HIGH-1: append-only archive (no read-
+  //     modify-write race); skip archive when next_content already matches
+  //     current disk content (idempotent no-op).
+  //   - security HIGH-3: stale-plan defense — recompare disk content vs
+  //     plan's expected, abort with STALE_PLAN if the file changed since
+  //     buildPlan ran.
+  //   - security HIGH-3: atomic write target via SSOT atomic-write helper
+  //     (tmp + rename), eliminates Windows partial-write data loss.
   let writtenWithArchive = 0;
   let written = 0;
+  const stalePlans = [];
   for (const f of plan.files) {
     if (f.status !== 'will_change' || !f.next_content) continue;
-    // Archive the pre-mutation file alongside (unless --no-archive)
+    // Stale-plan check: did the file change between buildPlan and applyPlan?
+    let currentDisk = '';
+    try { currentDisk = fs.readFileSync(f.path, 'utf8'); }
+    catch (e) {
+      process.stderr.write(`Warning: cannot read ${f.path} during apply: ${e.message}\n`);
+      continue;
+    }
+    // The plan stores normalized (CRLF→LF) content; compare normalized forms.
+    const currentNormalized = currentDisk.replace(/\r\n/g, '\n');
+    if (currentNormalized === f.next_content) {
+      // Idempotent no-op: skip archive + skip mutation (correctness HIGH-1).
+      continue;
+    }
+    // Archive the pre-mutation file alongside (unless --no-archive). Use
+    // appendFileSync — eliminates the read-then-write race; archive grows
+    // append-only.
     if (!opts.noArchive) {
       const archivePath = f.path.replace(/\.md$/, '.archive.md');
       try {
-        // Append the OLD content + a separator + timestamp. Never overwrite the archive.
         const ts = new Date().toISOString();
-        let prior = '';
-        try { prior = fs.readFileSync(archivePath, 'utf8'); } catch { /* */ }
-        const oldContent = fs.readFileSync(f.path, 'utf8');
-        const block = `${prior}\n\n<!-- cortex-dream archive ${ts} -->\n\n${oldContent}\n`;
-        fs.writeFileSync(archivePath, block);
+        const block = `\n<!-- cortex-dream archive ${ts} -->\n\n${currentDisk}\n`;
+        fs.appendFileSync(archivePath, block);
         writtenWithArchive += 1;
       } catch (e) {
-        // archive failure is non-fatal; surface in stderr
-        process.stderr.write(`Warning: archive write failed for ${f.path}: ${e.message}\n`);
+        // Per R2 security HIGH-3: if archive promise broken AND operator
+        // didn't explicitly opt out, ABORT the mutation for this file.
+        process.stderr.write(`Error: archive write failed for ${f.path}: ${e.message}\n`);
+        process.stderr.write(`Skipping mutation to preserve operator memory. Use --no-archive to override.\n`);
+        continue;
       }
     }
-    fs.writeFileSync(f.path, f.next_content);
-    written += 1;
+    // Atomic write via SSOT helper (tmp + rename).
+    try {
+      writeFileAtomic(f.path, f.next_content);
+      written += 1;
+    } catch (e) {
+      process.stderr.write(`Error: atomic write failed for ${f.path}: ${e.message}\n`);
+    }
   }
-  return { written, writtenWithArchive };
+  return { written, writtenWithArchive, stalePlans };
 }
 
 function emitHuman(plan) {

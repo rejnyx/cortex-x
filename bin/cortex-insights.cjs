@@ -164,8 +164,21 @@ function rollupClaudeJsonl(files, sinceMs) {
         if (tsMs !== null) cur.last_seen = Math.max(cur.last_seen, tsMs);
         skillsFired.set(skillName, cur);
       }
-      // Prompt invocation (slash-command)
-      const promptName = row.prompt_name || row.slash_command || (row.message && typeof row.message.content === 'string' && row.message.content.match(/^\/(\w[\w-]*)/) || [null, null])[1];
+      // Prompt invocation (slash-command). R2 edge-case HIGH-1: Claude Code's
+      // message.content is frequently an ARRAY of content blocks, not a
+      // string. Handle both shapes.
+      let promptName = row.prompt_name || row.slash_command;
+      if (!promptName && row.message) {
+        const content = row.message.content;
+        let text = '';
+        if (typeof content === 'string') text = content;
+        else if (Array.isArray(content)) {
+          const firstText = content.find((b) => b && b.type === 'text' && typeof b.text === 'string');
+          text = firstText ? firstText.text : '';
+        }
+        const m = text.match(/^\/(\w[\w-]*)/);
+        if (m) promptName = m[1];
+      }
       if (promptName && typeof promptName === 'string') {
         const cur = promptsRun.get(promptName) || { count: 0, last_seen: 0 };
         cur.count += 1;
@@ -179,8 +192,17 @@ function rollupClaudeJsonl(files, sinceMs) {
         const cur = modelCost.get(model) || { input_tokens: 0, output_tokens: 0, est_cost_usd: 0 };
         cur.input_tokens += Number(usage.input_tokens || 0);
         cur.output_tokens += Number(usage.output_tokens || 0);
-        cur.est_cost_usd += estimateCostUsd(model, usage);
+        const est = estimateCostUsd(model, usage);
+        cur.est_cost_usd += est;
         modelCost.set(model, cur);
+        // R2 correctness HIGH-2: surface unknown models as anomalies so a
+        // silently-launched new Claude model doesn't make cost reports
+        // look like $0.00 against Sprint 1.9.1 multi-window cost safety.
+        if (est === 0 && (Number(usage.input_tokens || 0) + Number(usage.output_tokens || 0)) > 0) {
+          if (!anomalies.find((a) => a.type === 'unknown_model_cost' && a.model === model)) {
+            anomalies.push({ ts: tsMs, type: 'unknown_model_cost', model, message: `model "${model}" not in rate table; cost reports as $0.00 for this model` });
+          }
+        }
       }
       // Anomalies
       if (row.error || row.status === 'error') {
@@ -272,6 +294,14 @@ function findUnused(repoRoot, usedSkills, usedActionKinds) {
   return { unusedSkills: [...new Set(unusedSkills)].sort(), unusedActionKinds: [...new Set(unusedActionKinds)].sort() };
 }
 
+// R2 edge-case MED + security LOW: sanitize values interpolated into
+// markdown table cells. Skill/prompt names from JSONL are partially
+// attacker-controlled if telemetry was tampered. Strip | (table separator),
+// backticks (code-fence escape), and newlines (row break).
+function safeCell(s) {
+  return String(s || '').replace(/\|/g, '\\|').replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1f\x7f]/g, '?');
+}
+
 function renderMarkdown(report) {
   const lines = [];
   lines.push(`# cortex-insights — ${report.range_label} (${report.generated_at})`);
@@ -286,7 +316,7 @@ function renderMarkdown(report) {
   } else {
     lines.push('| Skill | Count | Last seen |');
     lines.push('|---|---|---|');
-    for (const s of report.skills) lines.push(`| \`${s.name}\` | ${s.count} | ${s.last_seen || '—'} |`);
+    for (const s of report.skills) lines.push(`| \`${safeCell(s.name)}\` | ${s.count} | ${safeCell(s.last_seen || '—')} |`);
   }
   lines.push('');
 
@@ -297,7 +327,7 @@ function renderMarkdown(report) {
   } else {
     lines.push('| Prompt | Count | Last seen |');
     lines.push('|---|---|---|');
-    for (const p of report.prompts) lines.push(`| \`/${p.name}\` | ${p.count} | ${p.last_seen || '—'} |`);
+    for (const p of report.prompts) lines.push(`| \`/${safeCell(p.name)}\` | ${p.count} | ${safeCell(p.last_seen || '—')} |`);
   }
   lines.push('');
 
@@ -309,7 +339,7 @@ function renderMarkdown(report) {
     lines.push('| action_kind | runs | succeeded | failed | rollbacks |');
     lines.push('|---|---|---|---|---|');
     for (const a of report.steward_actions) {
-      lines.push(`| \`${a.kind}\` | ${a.count} | ${a.succeeded} | ${a.failed} | ${a.rollbacks} |`);
+      lines.push(`| \`${safeCell(a.kind)}\` | ${a.count} | ${a.succeeded} | ${a.failed} | ${a.rollbacks} |`);
     }
   }
   lines.push('');
@@ -323,7 +353,7 @@ function renderMarkdown(report) {
     lines.push('| Model | Input tok | Output tok | Est. $USD |');
     lines.push('|---|---|---|---|');
     for (const m of report.cost.by_model) {
-      lines.push(`| ${m.model} | ${m.input_tokens.toLocaleString()} | ${m.output_tokens.toLocaleString()} | $${m.est_cost_usd.toFixed(4)} |`);
+      lines.push(`| ${safeCell(m.model)} | ${m.input_tokens.toLocaleString()} | ${m.output_tokens.toLocaleString()} | $${m.est_cost_usd.toFixed(4)} |`);
     }
   }
   lines.push('');
@@ -331,7 +361,7 @@ function renderMarkdown(report) {
     lines.push('### Steward cost by action_kind');
     lines.push('| action_kind | $USD |');
     lines.push('|---|---|');
-    for (const a of report.cost.by_action_kind) lines.push(`| \`${a.kind}\` | $${a.usd.toFixed(4)} |`);
+    for (const a of report.cost.by_action_kind) lines.push(`| \`${safeCell(a.kind)}\` | $${a.usd.toFixed(4)} |`);
   }
   lines.push('');
 
@@ -343,14 +373,14 @@ function renderMarkdown(report) {
   if (report.unused_skills.length === 0) {
     lines.push('_All shipped skills fired at least once in the window._');
   } else {
-    for (const s of report.unused_skills) lines.push(`- \`${s}\``);
+    for (const s of report.unused_skills) lines.push(`- \`${safeCell(s)}\``);
   }
   lines.push('');
   lines.push('### Unused action_kinds');
   if (report.unused_action_kinds.length === 0) {
     lines.push('_All registered action_kinds ran at least once in the window._');
   } else {
-    for (const k of report.unused_action_kinds) lines.push(`- \`${k}\``);
+    for (const k of report.unused_action_kinds) lines.push(`- \`${safeCell(k)}\``);
   }
   lines.push('');
 
