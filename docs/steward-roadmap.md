@@ -202,7 +202,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ---
 
-### Sprint 2.2 — Worktree supervisor + agent-as-judge ensemble (L effort)
+### Sprint 2.2 — Worktree supervisor + agent-as-judge ensemble (L effort) — ✅ FOUNDATION v0 SHIPPED 2026-05-14, spawner v1 (Sprint 2.2.1) deferred
 
 **REFINED 2026-05-08 (anthill R1 memo)** — see [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md). Operator's "anthill" intuition is real (+90.2% on Anthropic research evals via role-routed sub-agents) but comes with three hard constraints: **15× token overhead, multi-agent is wrong for shared-context coding tasks** (so ~6 of our 9 capability kinds stay single-process), and the **DeepMind Dec-2025 finding shows unstructured agent networks amplify errors up to 17.2×** vs single-agent baseline. The memo's verdict: **verifier > spawner**. Our 1.9.0 spec-verifier is the architectural moat. Sprint 2.2 ships **MVP only** — 1 supervisor + 1 spawned worker, **`recommendation_harvest_parallel` only** (breadth-first kind, ideal shape) — not "all 9 kinds become multi-agent."
 
@@ -1079,11 +1079,25 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
-### Sprint 3.X — Anthropic-native context plane (Memory Tool + context-editing) — 📋 ROADMAP 2026-05-11
+### Sprint 3.X — Anthropic-native context plane (Memory Tool + context-editing) — 📋 STILL DEFERRED (verified 2026-05-14, 3 of 4 blockers active)
 
 **Status**: 📋 Roadmap-add 2026-05-11. Deferred from autonomous-ship after R1 research dispatch identified three blockers. Gated on Sprint 2.8 Memory Foundation schema work.
 
-**Why deferred** (3 blockers from [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md)):
+**Why STILL deferred 2026-05-14** — fresh R1 dispatch (memo: [`docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md`](./research/sprint-3.x-anthropic-memory-tool-2026-05-14.md)) confirmed 3 of 4 blockers remain ACTIVE:
+
+1. **claude-cli engine collision — STILL BLOCKING + policy worsened.** Anthropic's 2026-04-04 cutoff explicitly excludes third-party harnesses from Max-OAuth subscription quota. cortex-x is a third-party harness. `total_cost_usd === 0` detector is mechanically correct but policy meaning shifted from "free path" to "borderline-compliant operator-opt-in."
+2. **Sprint 2.8 Memory Foundation gate — RESOLVED.** Sprint 2.8 v0 + 2.8.1 + 2.8.2 all shipped 2026-05-09 → 2026-05-14. ReasoningBank schema in place.
+3. **Value/ceremony ratio — STILL GATED.** The 39% perf claim is Anthropic-internal multi-turn agentic search eval; Steward's short-context actions don't benefit yet. Becomes applicable when `/cortex-goal` (Sprint 2.24, shipped 2026-05-14) sees long-running session usage OR autoresearch-v2 ships.
+4. **NEW BLOCKER (2026-05-14): OpenRouter does NOT forward `anthropic-beta: context-management-2025-06-27`.** Per `OpenRouterTeam/ai-sdk-provider#111`, arbitrary anthropic-beta headers are silently dropped. Memory Tool today requires a fourth engine path (`STEWARD_ENGINE=anthropic`) with API-key billing — a new architectural decision.
+
+**New security signal from fresh R1**: CVE-2026-41686 / GHSA-p7fg-763f-g4gf on Anthropic's official `BetaLocalFilesystemMemoryTool` (TS SDK) — default `0o666`/`0o777` perms world-readable/writable. When/if `memory-store-fs.cjs` lands, MUST set `{mode: 0o600}` files + `{mode: 0o700}` dirs explicitly. Pre-write acceptance criterion now.
+
+**Unblock triggers** (any one):
+- (A) Direct-Anthropic-API engine ships independently (new engine-strategy sprint).
+- (B) OpenRouter publicly adds `context-management-*` beta pass-through.
+- (C) cortex-x long-context action class ships (`/cortex-goal` reaches multi-hour usage OR autoresearch v2 Sprint 2.1+) — at which point the 39% claim actually applies to our workload.
+
+**Original 2026-05-11 deferral context** (3 blockers from [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md)):
 1. **claude-cli engine collision** — Memory Tool requires direct `/v1/messages` HTTP with `betas: ["context-management-2025-06-27"]`. claude-cli bills against Max subscription via OAuth — using Memory Tool would re-introduce API-key cost line, reversing Sprint 2.4's cost pivot.
 2. **Sprint 2.8 Memory Foundation schema gate** — adding Anthropic Memory Tool before deciding durable schema risks design drift.
 3. **Value/ceremony ratio** — the 84% token / +39% perf wins come from Memory Tool + `clear_tool_uses_20250919` context-editing **combined**, not Memory Tool alone. Doing both at once (Sprint 3.X) gets full upside.

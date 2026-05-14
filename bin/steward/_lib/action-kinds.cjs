@@ -213,6 +213,7 @@ const ACTION_KINDS = {
     detector: 'detectors/recommendation-harvest.cjs', // Sprint 1.8.2a
     cost_envelope: 'free', // no LLM call
     blast_radius: 'minimal', // appends to recommendations.md only
+    topology_safe: 'serial', // Sprint 2.2: single-process per anthill memo §10
     shipped_in: '0.1.0', // Sprint 1.8.2c — executor wired in execute.cjs runHarvestAction
     acceptance_criteria: [
       // Harvester ALWAYS appends to recommendations.md. The file must remain
@@ -230,6 +231,31 @@ const ACTION_KINDS = {
         id: 'harvester_appends_only_ears',
         kind: 'ears_text',
         ears: 'WHEN the harvester runs THE SYSTEM SHALL only append to cortex/recommendations.md and never shrink it',
+        severity: 'block',
+      },
+    ],
+  },
+
+  recommendation_harvest_parallel: {
+    description:
+      'Sprint 2.2 multi-agent variant of recommendation_harvest. Supervisor spawns N=2 workers in git worktrees, each proposes alternative recommendation sets; same-tier judge LLM picks best by rubric. Foundation v0 (Sprint 2.2) ships utilities only — spawner/worker/judge are Sprint 2.2.1.',
+    requires_llm: true,
+    source: 'supervisor input: cortex/recommendations.md + journal/ context',
+    detector: null, // operator-invoked or scheduled by Sprint 2.2.1 cron
+    cost_envelope: 'normal', // 2 workers @ ~$0.001 ea + judge ~$0.0005 = ~$0.0025/run; per-tree STEWARD_TREE_USD_CAP ($1.50 default) is supervisor-enforced ceiling
+    effort: 'medium', // 2-worker breadth + judge; not exhaustive reasoning per worker
+    blast_radius: 'minimal', // writes to recommendations.md (same as serial variant)
+    topology_safe: 'parallel', // FIRST + ONLY parallel kind in v0 — gain regime per DeepMind 2512.08296
+    shipped_in: null, // Sprint 2.2 v0 ships REGISTRY ENTRY ONLY; executor v1 in Sprint 2.2.1
+    acceptance_criteria: [
+      // Topology constraint: this action_kind MUST go through the supervisor;
+      // direct serial invocation should error. Enforced once spawner ships.
+      {
+        id: 'recommendations_md_grows_or_stable',
+        kind: 'file_predicate',
+        description: 'Parallel harvester only appends; recommendations.md must not shrink.',
+        predicate:
+          'touchedFiles.every((p) => p !== "cortex/recommendations.md" || fileSize(p) >= prevSize(p))',
         severity: 'block',
       },
     ],

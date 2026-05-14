@@ -72,6 +72,26 @@ const ROUTING_TABLE = {
     },
   },
 
+  // Sprint 2.2 v0 foundation: parallel variant of recommendation_harvest.
+  // Same model selection as recommendation; ensemble shape is the
+  // natural fit (each worker spawned in its own git worktree, judge
+  // selects best). Spawner not yet shipped — registry entry stabilizes
+  // contract for Sprint 2.2.1 wiring.
+  recommendation_harvest_parallel: {
+    cheap: 'google/gemini-3.1-flash-lite-preview',
+    balanced: 'deepseek/deepseek-v4-flash',
+    premium: 'anthropic/claude-sonnet-4.6',
+    ensemble: {
+      workers: [
+        'anthropic/claude-sonnet-4.6',
+        'anthropic/claude-sonnet-4.6',
+      ],
+      // Same-tier Sonnet judge per Sprint 2.2 R1 fresh memo §4 —
+      // smaller-as-judge unvalidated for code selection.
+      judge: 'anthropic/claude-sonnet-4.6',
+    },
+  },
+
   // ── Future LLM kinds (declared early so dispatcher contract is stable) ─
   architecture_review: {
     cheap: 'deepseek/deepseek-v4-flash',
