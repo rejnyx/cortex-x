@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-14T09:54:07.617Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-14T11:23:37.591Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 19 |
-| Steward primitives (`bin/steward/_lib/`) | 49 |
+| Steward primitives (`bin/steward/_lib/`) | 50 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 27 |
+| Standards (rule tiers 0-3) | 28 |
 | Profiles (`profiles/`) | 11 |
-| Prompts (`prompts/`) | 18 |
+| Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2637 (unit 2460 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 29,921 |
-| Test LoC (`tests/`) | 35,089 |
+| Tests total | 2690 (unit 2513 · contract 106 · integration 71 · smoke 0) |
+| Runtime LoC (`bin/`) | 30 267 |
+| Test LoC (`tests/`) | 35 934 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -48,7 +48,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `wiki_consolidate` | Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills… |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (49)
+## 2. Steward primitives (50)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -103,6 +103,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`verifier`](../bin/steward/_lib/verifier.cjs) | — | runs the project's verification commands (`npm test` and |
 | [`wiki-consolidate`](../bin/steward/_lib/wiki-consolidate.cjs) | Sprint 2.8.2 | bin/steward/_lib/wiki-consolidate.cjs — Sprint 2.8.2 v0 (Phase A only) |
 | [`workflow-hardener-action`](../bin/steward/_lib/workflow-hardener-action.cjs) | Sprint 2.5b | Sprint 2.5b advisory analyzer |
+| [`worktree-guard`](../bin/steward/_lib/worktree-guard.cjs) | Sprint 2.30 | Sprint 2.30 — refuse to run Steward in a non-primary |
 
 ## 3. Universal hooks (7)
 
@@ -118,7 +119,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (27)
+## 4. Standards (28)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -149,6 +150,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`story-sizing`](../standards/story-sizing.md) | Story Sizing — Rule 3 | Cortex-x scaffolds projects whose recommendation backlogs are consumed by autonomous agents (Steward, manual `/audit`, Ralph-style loops). Action items must be sized so an LLM can complete one in a single context window without losing track |
 | [`test-types-catalog`](../standards/test-types-catalog.md) | Test Types — Exhaustive 2026 Catalog (SSOT) | **For the audit (Phase 5 selection oracle):** |
 | [`testing`](../standards/testing.md) | Testing — Confidence Through Layered Coverage | Without tests: |
+| [`verification-loop`](../standards/verification-loop.md) | Verification loop | Every implementation step must be paired with a verification step. Building proves the code compiles; verification proves the code does what was asked. |
 | [`voice`](../standards/voice.md) | Voice — cortex-x identity & tone charter | The framework is invisible by default. **Claude is the actor, cortex is the environment.** This document is what cortex sounds like across all skills, so the operator hears one coherent agent — not eleven different bots wearing the cortex h |
 | [`web-research`](../standards/web-research.md) | Web Research — Rule 3 standard | cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple |
 
@@ -161,8 +163,8 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`ai-agent`](../profiles/ai-agent.yaml) | — | claude-agent # autonomy tier: filesystem/shell, Skills, MCP, subagents | Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration |
 | [`astro-static`](../profiles/astro-static.yaml) | — | none | Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default |
 | [`browser-agent`](../profiles/browser-agent.yaml) | — | — | Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling. |
-| [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
 | [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
+| [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
 | [`kiosek`](../profiles/kiosek.yaml) | — | none | Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout |
 | [`minimal`](../profiles/minimal.yaml) | — | none | Minimal scaffold for quick prototypes and experiments — no heavy architecture |
 | [`nextjs-saas`](../profiles/nextjs-saas.yaml) | ✅ | vercel # web tier: streaming UI, provider-agnostic, Next.js-native | Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor. |
@@ -170,17 +172,19 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`tauri-desktop`](../profiles/tauri-desktop.yaml) | — | vercel # webview frontend; works well for embedded chat UIs | Cross-platform desktop app — Tauri 2 (Rust backend + Web frontend), 3MB binary, iOS/Android targets |
 | [`waas-template`](../profiles/waas-template.yaml) | — | vercel # ready for per-tenant AI features (chatbots, copy gen) | Website-as-a-Service template — multi-tenant website with design system, style presets, per-client customization |
 
-## 6. Prompts (18)
+## 6. Prompts (20)
 
 Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-into-session.
 
 | Prompt | Title | Purpose |
 |---|---|---|
+| [`95-confidence`](../prompts/95-confidence.md) | 95% confidence prompt fragment |  |
 | [`agent-first-audit`](../prompts/agent-first-audit.md) | Agent-first docs audit — Sprint 2.8.3 v0 |  |
 | [`auto-review`](../prompts/auto-review.md) | Auto-Review — post-implementation parallel pipeline |  |
 | [`code-review`](../prompts/code-review.md) | Code Review — Parallel Adversarial Pipeline |  |
 | [`cortex-doctor`](../prompts/cortex-doctor.md) | Cortex Doctor — Self-Healthcheck + Drift Detection |  |
 | [`cortex-evolve`](../prompts/cortex-evolve.md) | Cortex Evolve — Self-Improvement Loop | Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč uživatelovými projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, uživatel reviewuje. |
+| [`cortex-goal`](../prompts/cortex-goal.md) | /cortex-goal — plan-first wrapper for Claude Code's native `/goal` |  |
 | [`cortex-load`](../prompts/cortex-load.md) | Cortex Load — The Mental Model |  |
 | [`cortex-reflect`](../prompts/cortex-reflect.md) | Cortex Reflect Prompt — Manual Deep Reflection |  |
 | [`cortex-sync`](../prompts/cortex-sync.md) | Cortex Sync Prompt |  |

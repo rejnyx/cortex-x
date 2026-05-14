@@ -10,6 +10,7 @@ These map 1:1 to a skill registered under `~/.claude/skills/`:
 |---|---|---|
 | [`new-project.md`](prompts/new-project.md) | `/start` (via `/cortex-init`) | Bootstrap a new project (Discover → Research → Architect → Scaffold → Adapt). |
 | [`existing-project-audit.md`](prompts/existing-project-audit.md) | `/audit` (via `/cortex-init`) | Deep 12-dimension audit, 4 parallel agents, recommendations.md output. |
+| [`cortex-goal.md`](prompts/cortex-goal.md) | `/cortex-goal` | Plan-first wrapper for Claude Code's native `/goal` — produces a cortex-disciplined plan with R1+R2 embedded as DoD acceptance criteria. Does NOT reimplement the haiku loop. |
 | [`retrofit.md`](prompts/retrofit.md) | `/retrofit` (post-audit) | Install cortex-x scaffolding on an existing repo without overwriting. |
 | [`qa-retrofit.md`](prompts/qa-retrofit.md) | `/test-audit` (qa-engineer profile only) | ISO 25010 + OWASP ASVS + Bach HTSM grounded test-suite audit. |
 | [`onboarding-first-10min.md`](prompts/onboarding-first-10min.md) | _(consumed by `/cortex-init`)_ | Canonical first-10-minutes spec — first-run marker schema, manifesto, mode picker, Aider-style status line, minute-10 nudge. |

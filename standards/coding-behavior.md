@@ -62,6 +62,10 @@ Transform any ambiguous task into a test-first loop: write a failing test that c
 
 **Anti-pattern:** "Fix the auth bug" → modifying auth code without first writing a reproduction. Correct: `npm test -- auth.login.invalid-password` fails reproducibly → fix → test passes.
 
+**Native Claude Code mechanic — `/goal`**: Claude Code 2.x ships [`/goal`](https://code.claude.com/docs/en/goal) — operator sets a verifiable condition (≤4000 chars), Claude runs each turn, a **haiku** verifier model re-evaluates the condition against the conversation transcript after every turn, returns yes/no + reason. "No" continues with the reason injected as guidance; "yes" clears the goal. Goal survives `--resume` / `--continue`. Headless via `claude -p "/goal ..."`. Reported field use: 14h overnight sessions, 45h sessions, 5-day continuous runs.
+
+**Cortex's wrapper — `/cortex-goal`**: cortex doesn't reimplement the haiku loop (Claude Code owns that). Instead, [`prompts/cortex-goal.md`](../prompts/cortex-goal.md) produces a **plan-first** structured markdown that embeds cortex's R1 (research-before-implement) + R2 (review pipeline) discipline as default DoD acceptance criteria. The plan mirrors cortex's [`spec-verifier`](../bin/steward/_lib/spec-verifier.cjs) 6 criterion kinds (`shell` · `file_predicate` · `regex` · `ears_text` · `llm_judge` · `read_set`) so each DoD item is verifiable by either the haiku evaluator or a future Steward run. Composition pattern, not replacement — cortex authors the plan, Claude Code drives the loop. See [`docs/claude-code-ecosystem.md`](../docs/claude-code-ecosystem.md) for the broader "Compose with vs reimplement" rationale.
+
 ---
 
 ## Enforcement (cortex-x lifecycle)

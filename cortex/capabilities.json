@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-14T09:54:07.617Z",
+  "generated_at": "2026-05-14T11:23:37.591Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -469,6 +469,12 @@
       "path": "bin/steward/_lib/workflow-hardener-action.cjs",
       "sprint": "Sprint 2.5b",
       "description": "Sprint 2.5b advisory analyzer"
+    },
+    {
+      "name": "worktree-guard",
+      "path": "bin/steward/_lib/worktree-guard.cjs",
+      "sprint": "Sprint 2.30",
+      "description": "Sprint 2.30 — refuse to run Steward in a non-primary"
     }
   ],
   "hooks": [
@@ -660,6 +666,12 @@
       "description": "Without tests:"
     },
     {
+      "name": "verification-loop",
+      "path": "standards/verification-loop.md",
+      "title": "Verification loop",
+      "description": "Every implementation step must be paired with a verification step. Building proves the code compiles; verification proves the code does what was asked."
+    },
+    {
       "name": "voice",
       "path": "standards/voice.md",
       "title": "Voice — cortex-x identity & tone charter",
@@ -695,18 +707,18 @@
       "ai_sdk": null
     },
     {
-      "name": "chatbot-platform",
-      "path": "profiles/chatbot-platform.yaml",
-      "description": "Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator",
-      "agentic_ready": false,
-      "ai_sdk": "vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility"
-    },
-    {
       "name": "cli-tool",
       "path": "profiles/cli-tool.yaml",
       "description": "Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform",
       "agentic_ready": false,
       "ai_sdk": "none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs."
+    },
+    {
+      "name": "chatbot-platform",
+      "path": "profiles/chatbot-platform.yaml",
+      "description": "Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator",
+      "agentic_ready": false,
+      "ai_sdk": "vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility"
     },
     {
       "name": "kiosek",
@@ -753,6 +765,12 @@
   ],
   "prompts": [
     {
+      "name": "95-confidence",
+      "path": "prompts/95-confidence.md",
+      "title": "95% confidence prompt fragment",
+      "purpose": ""
+    },
+    {
       "name": "agent-first-audit",
       "path": "prompts/agent-first-audit.md",
       "title": "Agent-first docs audit — Sprint 2.8.3 v0",
@@ -781,6 +799,12 @@
       "path": "prompts/cortex-evolve.md",
       "title": "Cortex Evolve — Self-Improvement Loop",
       "purpose": "Účel:** cortex-x se sám zlepšuje z akumulovaných dat napříč uživatelovými projekty. Weekly consolidation + monthly refinement. **Nikdy nepřepisuje sám sebe** — vždy otevře PR, uživatel reviewuje."
+    },
+    {
+      "name": "cortex-goal",
+      "path": "prompts/cortex-goal.md",
+      "title": "/cortex-goal — plan-first wrapper for Claude Code's native `/goal`",
+      "purpose": ""
     },
     {
       "name": "cortex-load",
@@ -1127,15 +1151,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2460,
+      "unit": 2513,
       "contract": 106,
       "integration": 71,
       "smoke": 0
     },
-    "total": 2637
+    "total": 2690
   },
   "code_volume": {
-    "steward_runtime_loc": 29921,
-    "test_code_loc": 35089
+    "steward_runtime_loc": 30267,
+    "test_code_loc": 35934
   }
 }
