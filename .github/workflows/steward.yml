@@ -97,8 +97,12 @@ jobs:
             echo "Steward dry-run did not produce valid JSON — failing loudly"
             exit 1
           fi
-          # Set step output: has_action=true iff dry-run produced an actionable plan
-          if jq -e '.mode == "dry-run"' /tmp/steward-plan.json > /dev/null; then
+          # Set step output: has_action=true iff dry-run produced an actionable plan.
+          # Gate on execute() contract (execute.cjs:145) — `.action.action_key` and `.action_id`
+          # must both be present. The older `.mode == "dry-run"` check let no_actionable_step
+          # plans (placeholder slug, exhausted recs.md) through to execute and fail with
+          # PLAN_INCOMPLETE.
+          if jq -e '(.action.action_key // null) != null and (.action_id // null) != null' /tmp/steward-plan.json > /dev/null; then
             echo "has_action=true"  >> $GITHUB_OUTPUT
           else
             echo "has_action=false" >> $GITHUB_OUTPUT

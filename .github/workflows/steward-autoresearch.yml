@@ -86,7 +86,7 @@ jobs:
             echo "Steward dry-run did not produce valid JSON — failing loudly"
             exit 1
           fi
-          if jq -e '.mode == "dry-run"' /tmp/steward-plan.json > /dev/null; then
+          if jq -e '(.action.action_key // null) != null and (.action_id // null) != null' /tmp/steward-plan.json > /dev/null; then
             echo "has_action=true"  >> $GITHUB_OUTPUT
           else
             echo "has_action=false" >> $GITHUB_OUTPUT
