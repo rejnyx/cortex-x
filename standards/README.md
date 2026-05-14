@@ -32,6 +32,7 @@
 | | [Web research](./web-research.md) | Should-have | Research-before-implement default + citation discipline; warning |
 | | [Voice](./voice.md) | Should-have | Cross-skill identity + citation discipline + 5 failure-mode templates; warning |
 | | [Skills](./skills.md) | Should-have | agentskills.io SKILL.md spec adoption; required for shared skills |
+| | [Skill validation](./skill-validate.md) | Should-have | 3-tier validator (spec / Claude Code / cortex opinion) + ToxicSkills security regex pass; Sprint 2.22 v0 |
 | **📚 Supporting** | [Test types catalog](./test-types-catalog.md) | Reference | Catalogue of test kinds (unit/contract/integration/property/mutation/eval) |
 | | [Story sizing](./story-sizing.md) | Reference | Story-sizing heuristic for PROGRESS.md |
 

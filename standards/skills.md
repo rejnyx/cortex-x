@@ -162,10 +162,27 @@ Skills written to the agentskills.io spec run in:
 
 Rule of three: if you've paste-walked Claude through the same 5+ step procedure **three times**, it's a skill. If you've done it twice, it's ad-hoc. If it's a one-off, it's a prompt or a manual edit.
 
+## Quality validation
+
+cortex ships [`bin/cortex-skill-validate.cjs`](../bin/cortex-skill-validate.cjs) — a 3-tier validator that checks every shared SKILL.md against:
+
+- **Tier A (FAIL)** — agentskills.io spec violations (name regex, length caps, body ≤ 500 lines, forward-slash paths)
+- **Tier B (WARN)** — Claude-Code-only constraints (combined `description + when_to_use` ≤ 1536 chars listing budget, reserved-token bans on `anthropic`/`claude`, no XML tags, 3rd-person heuristic)
+- **Tier C (SCORE)** — cortex opinion (verb-first description, trigger-last surface, no internal jargon, sufficient density)
+
+Plus optional `--security` mode regex-grepping for ToxicSkills payload classes (credential exfiltration, base64-decode-and-exec, password-protected archives, `eval $(curl …)`). Citation in every rule message; details in [`standards/skill-validate.md`](./skill-validate.md).
+
+cortex does NOT reimplement broad spec lint — that's `agnix` (npm, 414 rules). Run `agnix` first, then cortex-skill-validate adds the opinion layer.
+
 ## Cross-references
 
 - agentskills.io spec: https://agentskills.io/specification
 - Anthropic Agent Skills GitHub: https://github.com/anthropics/skills
+- Anthropic skill authoring guide: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+- Anthropic Skill Creator: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+- agnix (broad spec lint): https://github.com/agent-sh/agnix
+- ToxicSkills audit (Snyk Feb 2026): https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/
 - Hermes Agent skill system: https://hermes-agent.nousresearch.com/docs/user-guide/features/skills
 - cortex-x template: `~/.claude/shared/templates/SKILL.md.hbs`
+- cortex-x validator: `~/.claude/shared/bin/cortex-skill-validate.cjs`
 - Skill scaffold prompt: `~/.claude/shared/prompts/new-skill.md` (future)

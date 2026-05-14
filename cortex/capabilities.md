@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-14T11:30:14.576Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-14T11:37:06.843Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -11,14 +11,14 @@
 | Steward action_kinds | 19 |
 | Steward primitives (`bin/steward/_lib/`) | 50 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 28 |
+| Standards (rule tiers 0-3) | 29 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 22 |
-| Tests total | 2690 (unit 2513 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 30 267 |
-| Test LoC (`tests/`) | 35 934 |
+| Tests total | 2722 (unit 2545 · contract 106 · integration 71 · smoke 0) |
+| Runtime LoC (`bin/`) | 30 716 |
+| Test LoC (`tests/`) | 36 296 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -119,7 +119,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (28)
+## 4. Standards (29)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -144,6 +144,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`security`](../standards/security.md) | Security — Layered Defense from Day One | 1. **No secrets in git.** `.env` in `.gitignore` from first commit. Pre-commit hook blocks accidental commits. |
 | [`self-correction`](../standards/self-correction.md) | Self-Correction — What Actually Works in 2026 | **Rule 2 (Critical).** Alongside Correctness — this standard prevents adopting patterns that measurably degrade agent quality. |
 | [`ship-ready`](../standards/ship-ready.md) | Ship-Ready — Governance Invariants for Distribution | Anything a stranger would never need to know about the maintainer must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes: |
+| [`skill-validate`](../standards/skill-validate.md) | Skill validation — 3-tier model + ToxicSkills baseline | cortex does NOT reimplement broad spec-conformance lint. `agnix` (npm, 414 rules) already covers that surface well. `cortex-skill-validate` runs AFTER `agnix` and adds three cortex-opinionated layers — spec-driven failure mode, Claude-Code- |
 | [`skills`](../standards/skills.md) | Skills — Portable, Progressive-Disclosure Agent Instructions | **Rule 3 (Process)** — should-have convention. Skills are optional for trivial projects but deliver large leverage when you have repeatable procedures. |
 | [`ssot`](../standards/ssot.md) | SSOT — Single Source of Truth | Duplicated knowledge drifts. Labels in 3 files become 3 slightly different labels. Constants in 5 places become 5 different values after one hasty edit. Bug fixes get applied to 4 of 5 copies. Entropy wins. |
 | [`steward-policy`](../standards/steward-policy.md) | Steward Policy — Refusal List, Denylist, MUST patterns | Steward refuses the following at the tool-wrapper layer, **not via system prompt**. Promptword-only enforcement fails under prompt injection (Replit Agent prod-DB wipe, July 2025, is the canonical incident). All seven refusals are encoded i |
