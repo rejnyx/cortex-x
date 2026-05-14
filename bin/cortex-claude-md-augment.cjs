@@ -184,12 +184,29 @@ function writeContent(content) {
 }
 
 // Sprint 2.21.3 MED #4 R2 hardening: detect whether a position falls inside
-// an unclosed Markdown code fence. Triple-backtick fences toggle on/off; an
-// odd count of fence-opens before the position means we're inside one.
+// an unclosed Markdown code fence per CommonMark §4.5.
+//
+// R2 round-2 fix (correctness HIGH): naive regex parity-count failed on
+// fences nested by length. CommonMark: an N-backtick fence is closed only
+// by a line of ≥N backticks. Shorter backtick runs inside are literal
+// content. Walk line-by-line maintaining the currently-open fence length;
+// position is "inside" iff openLen > 0 when we reach it.
+const FENCE_LINE_RE = /^(`{3,})/;
 function isInsideCodeFence(content, position) {
   const before = content.slice(0, position);
-  const fences = before.match(/^```/gm);
-  return fences ? fences.length % 2 === 1 : false;
+  const lines = before.split(/\r?\n/);
+  let openLen = 0;
+  for (const line of lines) {
+    const m = line.match(FENCE_LINE_RE);
+    if (!m) continue;
+    const n = m[1].length;
+    if (openLen === 0) {
+      openLen = n;
+    } else if (n >= openLen) {
+      openLen = 0;
+    }
+  }
+  return openLen > 0;
 }
 
 // Sprint 2.21.3 MED #3 + #6 R2 hardening: replace cortex blocks with a
@@ -220,12 +237,17 @@ function stripCortexBlocks(currentContent) {
     while (end < currentContent.length && (currentContent[end] === '\n' || currentContent[end] === '\r')) {
       end++;
     }
-    // leading blank line BEFORE the block (\n\n or \r\n\r\n)
+    // Leading blank line BEFORE the block (\n\n on LF files, \r\n\r\n on CRLF).
+    // R2 round-2 fix (blind HIGH + edge MED): the old walk consumed `\n`,
+    // optional `\r`, `\n` — three chars of `\r\n\r\n` — leaving a stray `\r`
+    // at the consumed boundary. New walk consumes the full second EOL pair
+    // including its leading `\r` when present.
     if (start >= 2 && currentContent[start - 1] === '\n') {
-      // walk back over one blank line
       let lookback = start - 1;
       if (lookback > 0 && currentContent[lookback - 1] === '\r') lookback--;
       if (lookback > 0 && currentContent[lookback - 1] === '\n') {
+        lookback--;
+        if (lookback > 0 && currentContent[lookback - 1] === '\r') lookback--;
         start = lookback;
       }
     }
@@ -236,13 +258,26 @@ function stripCortexBlocks(currentContent) {
   return result;
 }
 
+// Detect the file's dominant line-ending convention. Counts CRLF pairs vs
+// bare-LF lines (LF that is not part of a CRLF). Majority wins; ties favor
+// LF (the Unix default + the DISCIPLINE_BLOCK template's native EOL).
+// R2 round-2 fix (edge HIGH): the previous `/\r\n/.test()` flipped the
+// entire output to CRLF on a SINGLE accidental CRLF in a mostly-LF file.
+function detectEol(content) {
+  const crlfMatches = content.match(/\r\n/g);
+  const allLfMatches = content.match(/\n/g);
+  const crlf = crlfMatches ? crlfMatches.length : 0;
+  const totalLf = allLfMatches ? allLfMatches.length : 0;
+  const bareLf = totalLf - crlf;
+  return crlf > bareLf ? '\r\n' : '\n';
+}
+
 // Compute the new content after applying mode. Pure function.
 function computeNext(currentContent, mode) {
-  // EOL detection: if file contains any CRLF, treat as CRLF file. New
-  // separators inserted by `apply` use the same convention, and the
-  // DISCIPLINE_BLOCK body (template literal with bare LF) is normalized
-  // to the same EOL before insertion to prevent mixed-EOL output.
-  const eol = /\r\n/.test(currentContent) ? '\r\n' : '\n';
+  // EOL detection: dominant convention (majority count). The DISCIPLINE_BLOCK
+  // body (template literal with bare LF) is normalized to the detected EOL
+  // before insertion. User content outside the block is byte-preserved.
+  const eol = detectEol(currentContent);
   const stripped = stripCortexBlocks(currentContent);
   if (mode === 'remove') {
     return stripped.trimEnd() + eol;

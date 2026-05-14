@@ -402,6 +402,65 @@ describe('cortex-claude-md-augment — Sprint 2.21.3 R2 MED hardening', () => {
     assert.ok(after.includes('\n\n\n\n'), 'user-intentional whitespace preserved');
   });
 
+  // R2 round-2 HIGH: 4+ backtick fence parity. A user wrapping a cortex
+  // example in a 4-backtick fence (to allow embedded 3-backtick content)
+  // would previously flip the toggle to "inside" incorrectly.
+  test('R2 round-2 HIGH: 4-backtick fence does not corrupt parity', () => {
+    const docWithQuadFence =
+      '````markdown\n' +
+      '```\n' +
+      'inner triple-backtick (legitimate prose content)\n' +
+      '```\n' +
+      CORTEX_BLOCK_START + '\n' +
+      'example marker inside quad fence\n' +
+      CORTEX_BLOCK_END + '\n' +
+      '````\n' +
+      '\nUser tail\n';
+    const after = computeNext(docWithQuadFence, 'remove');
+    assert.ok(after.includes('example marker inside quad fence'),
+      'quad-fence-wrapped example marker stripped — fence parity regression');
+  });
+
+  // R2 round-2 HIGH: CRLF leading-blank-line lookback must consume the full
+  // `\r\n\r\n` blank pair before the block, not just `\n\r\n` (stray \r).
+  test('R2 round-2 HIGH: CRLF leading blank consumed cleanly on strip', () => {
+    const crlfDoc =
+      'User intro\r\n\r\n' +
+      CORTEX_BLOCK_START + '\r\n' +
+      'block body\r\n' +
+      CORTEX_BLOCK_END + '\r\nbottom\r\n';
+    const after = computeNext(crlfDoc, 'remove');
+    // No stray \r left at boundary.
+    assert.ok(!/\r(?!\n)/.test(after),
+      `stray bare-CR in output: ${JSON.stringify(after)}`);
+    assert.ok(!after.includes('block body'), 'block stripped');
+  });
+
+  // R2 round-2 HIGH: EOL detection uses majority count, not "any-match".
+  // A single accidental CRLF in a mostly-LF file should NOT force the
+  // injected block to CRLF.
+  test('R2 round-2 HIGH: single CRLF in LF file → block uses LF (majority wins)', () => {
+    const lfHeavyWithOneCrlf =
+      'line1\nline2\nline3\nline4\nline5\nline6\r\nline7\nline8\nline9\nline10\n';
+    const after = computeNext(lfHeavyWithOneCrlf, 'apply');
+    // The cortex block separators we inject should be LF (majority).
+    assert.ok(after.includes(CORTEX_BLOCK_START + '\n'),
+      'block uses LF separator (majority wins)');
+    // But also: never produce a NEW CRLF where the user didn't have one.
+    const beforeCrlf = (lfHeavyWithOneCrlf.match(/\r\n/g) || []).length;
+    const afterCrlf = (after.match(/\r\n/g) || []).length;
+    assert.equal(afterCrlf, beforeCrlf,
+      'CRLF count must not grow on LF-majority input');
+  });
+
+  test('R2 round-2: CRLF-majority file produces CRLF block', () => {
+    const crlfHeavy =
+      'l1\r\nl2\r\nl3\r\nl4\r\nl5\r\nl6\nl7\r\nl8\r\nl9\r\nl10\r\n';
+    const after = computeNext(crlfHeavy, 'apply');
+    assert.ok(after.includes(CORTEX_BLOCK_START + '\r\n'),
+      'block uses CRLF separator (majority wins)');
+  });
+
   test('only the block-removal site collapses whitespace, not whole file', () => {
     const doc =
       'top\n\n\n\nlots-of-blanks-on-purpose\n\n' +
