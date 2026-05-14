@@ -1757,6 +1757,60 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
+### Sprint 2.28.3 — Final R2 hardening follow-up: parity drift + Rule-of-Three + polish (S-M effort) — 📋 PLANNED 2026-05-14
+
+**Why**: Sprint 2.28 chain (initial → 2.28.1 → 2.28.2) ran 3 R2 rounds and closed 17 ship-blockers. Operator refined cadence rule 2026-05-14: *"R2 stačí dát celou review pipeline jednou, nemusíš několikrát. to žere tokeny"*. Remaining round-3 findings backlogged here as a single deferred sprint per the refined rule.
+
+**Convergence note**: Sprint 2.28 chain hit no-new-HIGH at round 2 → 2.28.2 fixes. Round 3 R2 surfaced one HIGH parity gap + several MED polish items + LOW nitpicks. None are ship-blockers; all are defer-eligible. Operator can pick any subset of 2.28.3 when ready.
+
+**Sources**: Sprint 2.28.2 R2 round 3 reports (acceptance + blind + correctness + edge + security + ssot, all 2026-05-14).
+
+**Scope (10 items, S each, fully independent):**
+
+1. **HIGH correctness parity drift — sister CLI hardening backport** (S, ~30 min). The Sprint 2.28.1 + 2.28.2 fixes (tmp file mode `0o600` + `parseConfirmReply` empty-stdin = abort) shipped only into `bin/cortex-permissions-register.cjs`. Sister CLIs `bin/cortex-hooks-register.cjs` (line 152 tmp + line 213/222 confirmInteractive) and `bin/cortex-claude-md-augment.cjs` (line 191 tmp + line 231/244 confirmInteractive) carry the OLD behavior — same threat model (writes user `settings.json` / `CLAUDE.md`), different verdict. Either copy fixes verbatim into both files OR extract `bin/_lib/confirm.cjs` (`parseConfirmReply` + `confirmInteractive`) + `bin/_lib/atomic-write.cjs` (`backupFile` + `writeFile` with mode 0o600) and import from all three. Add parity tests asserting empty-stdin = abort + tmp mode 0o600 for hooks-register + augment.
+   [src: Sprint 2.28.2 correctness-auditor round 3 finding HIGH, parity matrix]
+
+2. **HIGH SSOT Rule-of-Three: extract `normalize_consent_var()` helper in install.sh** (S, ~15 min). The `tr '[:upper:]' '[:lower:]' | tr -d '[:space:]'` pipeline now triplicates across 3 consent gates (hooks line 635, augment line 685, permissions line 737). Rule of Three fires. Declare helper near install.sh top, call from all 3 sites.
+   [src: Sprint 2.28.2 ssot-enforcer round 3 H1]
+
+3. **HIGH SSOT Rule-of-Three: extract `Get-NormalizedConsent` helper in install.ps1** (S, ~15 min). Same pattern: `.Trim()` + null-guard ternary triplicated across 3 consent gates (hooks line 743, augment line 780, permissions line 818). PowerShell function with `param([string]$EnvVarName)`.
+   [src: Sprint 2.28.2 ssot-enforcer round 3 H2]
+
+4. **MED SSOT prompt-literal duplication**: prompt text `[y/N]` / `[Y/n]` triplicated across each installer (6 sites + cortex-permissions-register CLI). Hoist per-script consent-prompt helper that takes `(message, default-yes-bool)`.
+   [src: Sprint 2.28.2 ssot-enforcer round 3 M1]
+
+5. **MED SSOT install.sh + install.ps1 default-confirm asymmetry**: install.sh `[Y/n]` (line 648, default y) vs CLI `[y/N]` (default abort). Operator running `./install.sh` in half-broken TTY (closed stdin mid-prompt) silently gets `y` and a settings.json mutation. The CLI's Sprint 2.28.1 edge HIGH #11 fix explicitly hardened against this. Align install scripts to abort-on-empty for settings-mutating prompts.
+   [src: Sprint 2.28.2 blind-hunter round 3 minor #1]
+
+6. **MED docs drift: `CLAUDE.md:41` test count stale** (2697 → 2733 actual). Refresh during next docs-sync commit. Also `docs/steward-roadmap.md § Sprint 2.28*` still shows `📋 PLANNED` for Sprint 2.28; mark as `✅ SHIPPED 2026-05-14` once chain converges.
+   [src: Sprint 2.28.2 ssot-enforcer round 3 M2 + M3]
+
+7. **MED security: deny-list completeness gaps** (deferred from Sprint 2.28.1 round 2 + verified in round 3 not regressed): add `Bash(sudo*)`, `Bash(chmod -R*)`, `Bash(chown -R*)`, `Bash(find *-delete*)`, `Bash(find *-exec rm*)`, `Bash(dd *of=/dev*)`, `Bash(xargs rm*)`, `Bash(pip uninstall -y*)`, `Bash(cargo clean*)`, `Bash(git push *--mirror*)`, `Bash(git branch -D*)`, `Bash(git tag -d*)`. `sudo` is highest-priority (negates every other floor entry).
+   [src: Sprint 2.28 security-auditor MED-2, persisted across rounds]
+
+8. **MED edge: `tr '[:upper:]'` locale dependence in install.sh** — Turkish locale `LC_ALL=tr_TR.UTF-8` could produce dotless-i for any future consent token containing `I`. Defense-in-depth: prefix with `LC_ALL=C tr '[:upper:]' '[:lower:]'` for determinism.
+   [src: Sprint 2.28.2 edge-case-hunter round 3 MED]
+
+9. **MED correctness: 5 fast-check property tests on pure reducers** (deferred from round 2): `parseConfirmReply`, `computePlan`, `normalizePermissionsField`, `normalizeKindList`, allow-list invariant. `fast-check@4` already in devDeps. Estimated 3-4 hours for full property suite across hooks + augment + permissions CLIs.
+   [src: Sprint 2.28.1 + 2.28.2 correctness-auditor across rounds]
+
+10. **LOW: pre-existing `// 10.` comment numbering bug in bin/cortex-doctor.cjs** (lines 281 + 313 both labeled `// 10.`). Pre-existing, surfaced by blind-hunter round 3. Renumber to `// 10.` and `// 11.`.
+    [src: Sprint 2.28.2 blind-hunter round 3 minor #2]
+
+**Acceptance criteria**:
+- All 3 settings-mutating CLIs have parity on tmp mode 0o600 + parseConfirmReply empty-stdin = abort (Item 1 critical)
+- install.sh + install.ps1 use the extracted consent helper (Items 2 + 3)
+- 2697-test baseline preserved (currently at 2733); new tests added for parity assertions
+
+**Out of scope** (kept in further-deferred backlog):
+- Pattern matcher integration test (requires Claude Code matcher reverse-engineering)
+- stderr preview length-cap on `normalizeKindList` warning (purely cosmetic)
+- Buffer-input rejection in `parseConfirmReply` (internal callers always string-decode)
+
+**Convergence**: this is the FINAL Sprint 2.28 chain entry per operator's "R2 once per sprint" rule (memory `feedback_r2_review_pipeline_cadence.md` 2026-05-14). After 2.28.3 ships, do NOT dispatch another R2 round — backlog any new findings to Sprint 2.28.4 if they arise organically.
+
+---
+
 ### Sprint 2.28 — Safety-floor permissions: `cortex-permissions-register` CLI (S effort) — 📋 PLANNED 2026-05-13
 
 **Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hack #30 — "edit permissions for safe autonomy" replaces `--dangerously-skip-permissions` with explicit `allow` + `deny` lists in `~/.claude/settings.json`. Web research confirmed:
