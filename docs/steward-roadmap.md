@@ -1890,7 +1890,7 @@ Cortex already ships [`shared/hooks/block-destructive.cjs`](../shared/hooks/bloc
 
 ---
 
-### Sprint 2.29 — Profile-level MCP recommendations + Context7 default for ai-agent / chatbot-platform (S effort) — 📋 PLANNED 2026-05-13
+### Sprint 2.29 — Profile-level MCP recommendations + Context7 default for ai-agent / chatbot-platform (S effort) — ✅ SHIPPED 2026-05-14
 
 **Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hack #32 — Context7 MCP solves the docs-cutoff staleness problem (Claude trained on snapshot N, framework now at N+M with breaking changes; Claude suggests deprecated APIs). Web research verified [upstash/context7](https://github.com/upstash/context7) is active: 55.2k stars, MIT, latest release `ctx7@0.4.2` 2026-05-11. Fetches version-specific docs into the prompt before Claude writes code.
 
@@ -1917,7 +1917,7 @@ This is **not a runtime dependency** — cortex never invokes Context7. It's a p
 **B) `shared/skills/cortex-init/SKILL.md` Step 5 extension** (S effort) — after current hooks + CLAUDE.md status reminders, add MCP recommendations section. Reads the resolved profile's `recommended_mcp_servers:` and emits per-entry suggestion: "Operator: `claude mcp add context7` would dodge the docs-cutoff issue for [Vercel AI SDK / Claude Agent SDK]. Want me to walk you through it?" Asks Y/n once per session via `~/.cortex/.first-run-mcp-suggested` marker (don't nag every session).
 
 **C) `bin/cortex-doctor.cjs` info-severity MCP check** (S effort) — extend health checks:
-   - "Recommended MCPs detected" — true if resolved profile's recommended servers all appear in `~/.claude/mcp.json` (or wherever Claude Code stores MCP config; verify path)
+   - "Recommended MCPs detected" — true if resolved profile's recommended servers all appear in `~/.claude.json` (single config file at home — corrected per Sprint 2.29 R1 memo, NOT the older `~/.claude/mcp.json` form)
    - INFO severity (never warning) — operator preference, not a cortex requirement
    - `--fix-suggestions` lists the `claude mcp add <name>` invocations
 

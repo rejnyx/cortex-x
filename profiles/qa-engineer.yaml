@@ -122,6 +122,24 @@ skills:
   - test-audit
   - cortex-init
 
+# Sprint 2.29 — Context7 only. Test-framework MCPs intentionally NOT
+# recommended — ecosystem too fragmented as of 2026-05; senior_tester_review
+# capability is load-bearing instead.
+recommended_mcp_servers:
+  - name: context7
+    purpose: Library docs (testing framework reference — Vitest / Jest / Playwright APIs evolve fast)
+    install: |
+      claude mcp add --transport http context7 https://mcp.context7.com/mcp \
+        --header "CONTEXT7_API_KEY: $CONTEXT7_API_KEY"
+    severity: recommended
+
+not_recommended_mcp_servers:
+  - name: any-test-framework-mcp
+    reason: |
+      As of 2026-05-14, no upstream-blessed test-framework MCP exists. Community options
+      (djankies/vitest-mcp, mcp-jest, testing-mcp-vitest) are experimental and not
+      Vitest/Jest team-maintained. cortex's senior_tester_review capability is load-bearing instead.
+
 standards_included:
   - testing
   - correctness

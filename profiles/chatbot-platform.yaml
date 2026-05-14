@@ -83,6 +83,27 @@ skills:
   - adapter-audit       # checks all channels use canonical pattern
   - rls-audit           # validates RLS on every tenant table
 
+# Sprint 2.29 — same MCP recs as ai-agent (Context7 + Supabase read-only).
+# No generic RAG MCP recommended — chatbot projects use Supabase pgvector natively.
+recommended_mcp_servers:
+  - name: context7
+    purpose: Up-to-date library documentation injected on demand
+    install: |
+      claude mcp add --transport http context7 https://mcp.context7.com/mcp \
+        --header "CONTEXT7_API_KEY: $CONTEXT7_API_KEY"
+    severity: recommended
+    caveats:
+      - "Free tier cut to ~1,000 req/month in Jan 2026; production needs paid tier"
+      - "ContextCrush vuln patched 2026-02-23; community-registry remains structural attack surface"
+  - name: supabase
+    purpose: Database introspection + query (read-only by default)
+    install: |
+      claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?read_only=true"
+    severity: recommended
+    caveats:
+      - "Pre-1.0 (v0.8.1) — expect breaking changes"
+      - "NEVER connect to production data; use dev/staging projects only"
+
 standards_included:
   - ssot
   - modular

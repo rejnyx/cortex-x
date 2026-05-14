@@ -230,6 +230,17 @@ After the chained workflow finishes (Phase 5 finalize / Phase 7 audit final), do
 
    Czech: *"Cortex hooks nejsou registrované — block-destructive + SessionStart + auto-orchestrate jsou neaktivní. Aktivuj: `cortex-hooks-register`."*
 
+6. **Sprint 2.29 — Profile MCP recommendations** (skip if `CORTEX_SUGGEST_MCP=0` or if `~/.cortex/.first-run-mcp-suggested` exists). After hooks status:
+
+   - Resolve the project's profile (from `cortex/cortex-source.yaml` or last-known scaffold profile).
+   - If profile YAML has a `recommended_mcp_servers:` block, surface ONE consolidated suggestion per server with its install command + caveats.
+   - Ask `AskUserQuestion` "Want to walk through MCP setup?" — Yes → print each server's install line individually + the caveats; No → write `~/.cortex/.first-run-mcp-suggested` marker so we don't nag again.
+
+   Example output (ai-agent profile, Czech):
+   > *Profile `ai-agent` doporučuje 2 MCP servers: `context7` (live docs, dodge training-cutoff drift) + `supabase` (read-only DB introspection). Free-tier Context7 je od 1/2026 cut na ~1,000 req/měsíc; Supabase MCP je pre-1.0 — never connect to production. Procházet setup? [y/N]*
+
+   Source: `docs/research/sprint-2.29-mcp-recommendations-2026-05-14.md`. Note MCP config path is `~/.claude.json` (single file at home), NOT `~/.claude/mcp.json`.
+
 The chained prompt's own "Phase 6 — Final on_complete" / "Phase 7 — Final on_complete" block runs BEFORE this; the marker write + nudge here is `/cortex-init`'s outer cleanup. **Don't repeat the chained prompt's "Co dál?" block.**
 
 ## Edge cases
