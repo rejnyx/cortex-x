@@ -1177,9 +1177,9 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ---
 
-### Sprint 2.20 — Memory-system competitor lens in positioning.md (XS effort) — 📋 PROPOSED 2026-05-13
+### Sprint 2.20 — Memory-system competitor lens in positioning.md (XS effort) — ✅ SHIPPED 2026-05-13 (verified 2026-05-14)
 
-**Status**: 📋 Proposed 2026-05-13. `docs/positioning.md` compares vs Devin/Cursor/Replit/Aider (autonomous-coding lens). Brain-kit research surfaced a second relevant competitor axis (agent-memory category) where reviewers will ask "vs Mem0 / Zep / Letta / MAF+Neo4j / OpenClaw Dreaming". Currently we have no answer.
+**Status**: ✅ Shipped — `docs/positioning.md` §"Second lens — vs agent-memory systems (Sprint 2.20, 2026-05-13)" lines 188-216 ships the 8-column comparison matrix (Mem0 · Zep/Graphiti · Letta · MAF+Neo4j · OpenClaw Dreaming · Anthropic Auto Dream · Memori Labs · cortex-x Steward) + verdict paragraph + don't-pivot guidance + 6 cited sources. Status flipped from 📋 PROPOSED → ✅ SHIPPED during Sprint 2.26 verification sweep.
 
 **Scope**:
 - Second comparison matrix in `docs/positioning.md` (or new `docs/positioning-vs-memory-systems.md`) with rows for: persistent KV memory, structured KG / entity relationships, temporal graph (Zep/Graphiti), MCP-native, atomic-rollback safety, multi-window USD caps, draft-PR human approval, OSS license, typical operator cost.
