@@ -33,7 +33,7 @@
     "test:mutation:incremental": "stryker run --since=HEAD~1"
   },
   "devDependencies": {
-    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/core": "9.6.1",
     "c8": "^10.1.3",
     "fast-check": "^4.7.0"
   }

@@ -64,6 +64,17 @@ After each Stryker run, three artifacts are uploaded to the GH Actions artifact 
 - If the surviving mutant is on a happy-path branch — add a test that would catch it.
 - If on an error-handler that's hard to provoke — file under "acceptable" per [eferro Nov 2025](https://www.eferro.net/2025/11/mutation-testing-when-good-enough-tests.html) "exception-handler survivor" pattern.
 
+## R2 hardening shipped 2026-05-14 (Sprint 2.3.1)
+
+After Sprint 2.3 v0 shipped, a security R2 dispatch surfaced 4 HIGH supply-chain findings. All closed before main reaches the workflow:
+
+- **HIGH-1 supply chain**: `@stryker-mutator/core` now pinned to exact `9.6.1` (no caret); `npm ci --ignore-scripts` in the CI workflow prevents transitive `preinstall`/`postinstall` RCE.
+- **HIGH-2 cache poisoning**: cache write/read scope locked to `main`-prefixed keys only. A feature/* push cannot poison the incremental baseline that main consumes (cross-branch fallback removed; `actions: read` permission lock keeps cache-write capability scoped to main).
+- **HIGH-3 binary integrity**: `npx --no-install stryker` refuses to fetch the binary on the fly. A lockfile-presence guard runs before `npm ci`.
+- **HIGH-4 inline node -e injection**: the score-summarizer pattern (originally inline `node -e "const r=JSON.parse(...)..."` in YAML) extracted to `tools/summarize-mutation.cjs` with a fixed input path. No shell-interpolation surface.
+
+The threat model is CI supply chain + secret leakage. Mutation-score-driven false-negative is out of scope while `break: null`.
+
 ## What's NOT in v0
 
 - **Per-directory thresholds via CI matrix.** Stryker has ONE global `thresholds` triple per invocation (issue [#2434](https://github.com/stryker-mutator/stryker-js/issues/2434)). Per-module floors would require N separate runs. Deferred to v1.5 if telemetry shows the single-config approach is insufficient.
