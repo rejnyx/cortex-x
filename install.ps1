@@ -623,7 +623,7 @@ if ($Profile -eq "qa-tester") {
 # Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
 # they're discoverable as slash commands. Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/.
-foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor", "cortex-goal")) {
+foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor", "cortex-goal", "cortex-update", "cortex-uninstall")) {
     $SrcSkill = Join-Path $CortexRoot "shared/skills/$SkillName/SKILL.md"
     if (Test-Path $SrcSkill) {
         $DstSkillDir = Join-Path $ClaudeHome "skills/$SkillName"

@@ -531,7 +531,7 @@ fi
 # they're discoverable as slash commands (Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/).
 # Without this, /audit, /designer, /start are invisible.
-for SKILL_NAME in audit designer start cortex-doctor cortex-goal; do
+for SKILL_NAME in audit designer start cortex-doctor cortex-goal cortex-update cortex-uninstall; do
   SRC_SKILL="$CORTEX_ROOT/shared/skills/$SKILL_NAME/SKILL.md"
   if [ -f "$SRC_SKILL" ]; then
     mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
