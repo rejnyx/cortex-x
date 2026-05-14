@@ -91,19 +91,33 @@ const CORTEX_PERMISSIONS = Object.freeze({
     'Bash(pwd)',
     'Bash(node --version)',
     'Bash(node -v)',
-    // cortex's own READ-ONLY CLIs (Sprint 2.28.1 hardening — security R2 MED-1:
-    // the prior catch-all `Bash(cortex-*)` auto-approved destructive CLIs
-    // like `cortex-uninstall --purge`. Narrow to confirmed-safe surfaces only.
-    // cortex-uninstall + cortex-update (full) require explicit operator approval.)
-    'Bash(cortex-doctor*)',
-    'Bash(cortex-help*)',
-    'Bash(cortex-update --check*)',
-    'Bash(cortex-update --json*)',
-    'Bash(cortex-hooks-register --status*)',
-    'Bash(cortex-claude-md-augment --status*)',
-    'Bash(cortex-permissions-register --status*)',
-    'Bash(cortex-capabilities*)',
-    'Bash(cortex-gap-report*)',
+    // cortex's own READ-ONLY CLIs (Sprint 2.28.1 + 2.28.2 hardening):
+    // - 2.28.1 MED-1: prior catch-all `Bash(cortex-*)` auto-approved destructive
+    //   `cortex-uninstall --purge`. Narrow to confirmed-safe surfaces only.
+    // - 2.28.2 security MED: prior `Bash(cortex-capabilities*)` auto-approved
+    //   the `--write` flag (destructive file write to cortex/). Narrowed to
+    //   `--json` read-only invocation.
+    // - 2.28.2 edge MED #7+#12: trailing `*` on inner-space patterns may
+    //   widen to shell-chain (`cortex-update --check && rm -rf /`) and pick
+    //   up destructive flags (`--check --reinstall`). Replaced with exact
+    //   entries for the small number of known-safe invocations.
+    // cortex-uninstall + cortex-update (full path) + cortex-capabilities --write
+    // all require explicit operator approval per Claude Code's default flow.
+    'Bash(cortex-doctor)',
+    'Bash(cortex-doctor --json)',
+    'Bash(cortex-doctor --json --fix-suggestions)',
+    'Bash(cortex-help)',
+    'Bash(cortex-update --check)',
+    'Bash(cortex-update --check --json)',
+    'Bash(cortex-hooks-register --status)',
+    'Bash(cortex-hooks-register --status --json)',
+    'Bash(cortex-claude-md-augment --status)',
+    'Bash(cortex-claude-md-augment --status --json)',
+    'Bash(cortex-permissions-register --status)',
+    'Bash(cortex-permissions-register --status --json)',
+    'Bash(cortex-capabilities --json)',
+    'Bash(cortex-gap-report)',
+    'Bash(cortex-gap-report --json)',
   ],
 });
 
@@ -264,7 +278,10 @@ function computePlan(currentPermissions, mode) {
   }
 
   // Preserve user-owned `ask` list verbatim (cortex does not opine).
-  const userAsk = normalizeKindList(cur.ask);
+  // Sprint 2.28.2 R2 hardening (edge-case-hunter #2): suppress drop warning
+  // on user-owned `ask` — cortex doesn't own this key, so linting its shape
+  // to stderr is surprising side-effect noise.
+  const userAsk = normalizeKindList(cur.ask, { warn: false });
   if (userAsk.length > 0) {
     next.ask = userAsk;
     summary.kept.ask = userAsk.length;
@@ -280,15 +297,27 @@ function computePlan(currentPermissions, mode) {
   return { next, summary };
 }
 
+// Sprint 2.28.2 R2 hardening (correctness-auditor #1 + acceptance-auditor #2):
+// pure decision helper extracted for testability. The TTY-read plumbing stays
+// in confirmInteractive, but the reply→boolean mapping is now a pure function
+// that can be unit-tested without spawning a subprocess.
+//
+// Contract: empty / whitespace / non-y reply → false (abort).
+// Only literal "y" / "yes" (case-insensitive, trimmed) → true (proceed).
+// This is the explicit-confirm-only semantics from Sprint 2.28.1 edge HIGH #11.
+function parseConfirmReply(rawReply) {
+  if (typeof rawReply !== 'string') return false;
+  const trimmed = rawReply.trim().toLowerCase();
+  return trimmed === 'y' || trimmed === 'yes';
+}
+
 // Sprint 2.21.2 R2 hardening: cross-platform interactive prompt with
 // Windows /dev/tty fallback.
 //
 // Sprint 2.28.1 R2 hardening (edge-case-hunter #11): require EXPLICIT
 // 'y'/'yes' reply — empty input (EOF, closed stdin, Ctrl-D) no longer
 // defaults to true. Previously `reply === ''` confirmed destructive
-// settings.json mutation, which is wrong for a settings-write CLI even
-// though the upstream prompt text shows "[Y/n]" — the safer default
-// when stdin is exhausted is to abort, not proceed.
+// settings.json mutation; safer default when stdin is exhausted is abort.
 function confirmInteractive(promptText) {
   if (!process.stdin.isTTY) return false;
   process.stdout.write(promptText);
@@ -299,8 +328,7 @@ function confirmInteractive(promptText) {
       let n = 0;
       try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
       fs.closeSync(fd);
-      const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-      return reply === 'y' || reply === 'yes';
+      return parseConfirmReply(buf.slice(0, n).toString('utf8'));
     } catch {
       /* fall through to stdin path */
     }
@@ -309,8 +337,7 @@ function confirmInteractive(promptText) {
     const buf = Buffer.alloc(64);
     let n = 0;
     try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
-    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === 'y' || reply === 'yes';
+    return parseConfirmReply(buf.slice(0, n).toString('utf8'));
   } catch {
     return false;
   }
@@ -336,8 +363,14 @@ function statusReport(json) {
     report.per_kind[kind] = cortex.length;
     report.cortex_entries_total += cortex.length;
   }
+  // Sprint 2.28.2 R2 hardening (edge-case-hunter #6 + blind-hunter MED):
+  // catch-all detection must tolerate spacing variants (`Bash( * )`,
+  // `Bash(**)`) and case variants (`bash(*)`). Exact-string match missed
+  // trivial typos. Regex anchors on Bash prefix + optional whitespace +
+  // 1-or-more stars + optional whitespace.
+  const CATCH_ALL_RE = /^bash\(\s*\*+\s*\)$/i;
   const allowList = normalizeKindList(permissions.allow, { warn: false });
-  if (allowList.includes('Bash(*)')) {
+  if (allowList.some((p) => CATCH_ALL_RE.test(p))) {
     report.user_catch_all_in_allow = true;
   }
   return report;
@@ -417,7 +450,7 @@ function main() {
       `  remove deny: ${summary.removed.deny.length} entry(s)\n` +
       `  remove allow: ${summary.removed.allow.length} entry(s)\n` +
       `  (user-owned entries are left untouched.)\n` +
-      `Proceed? [Y/n] `;
+      `Proceed? [y/N] `;
     if (!confirmInteractive(promptText)) {
       if (args.json) {
         console.log(JSON.stringify({ ok: true, aborted: true }, null, 2));
@@ -480,4 +513,5 @@ module.exports = {
   statusReport,
   normalizePermissionsField,
   normalizeKindList,
+  parseConfirmReply,
 };

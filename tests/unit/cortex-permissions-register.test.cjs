@@ -21,7 +21,7 @@ const { spawnSync } = require('node:child_process');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPT = path.join(REPO_ROOT, 'bin', 'cortex-permissions-register.cjs');
-const { isCortexPattern, computePlan, CORTEX_PERMISSIONS, normalizePermissionsField, normalizeKindList } = require(SCRIPT);
+const { isCortexPattern, computePlan, CORTEX_PERMISSIONS, normalizePermissionsField, normalizeKindList, parseConfirmReply } = require(SCRIPT);
 
 function mkTmp(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -379,18 +379,29 @@ describe('cortex-permissions-register — R2 hardening (Sprint 2.21.2 parity)', 
 });
 
 describe('cortex-permissions-register — Sprint 2.28.1 R2 hardening', () => {
-  test('security MED-1: allow list no longer auto-approves cortex-uninstall', () => {
+  test('security MED-1 + 2.28.2: allow list rejects destructive cortex CLIs', () => {
     // Prior `Bash(cortex-*)` catch-all auto-approved destructive
-    // cortex-uninstall --purge. Narrowed to read-only CLIs only.
+    // cortex-uninstall --purge. Sprint 2.28.1 narrowed to read-only CLIs.
+    // Sprint 2.28.2 further tightened: removed trailing `*` on inner-space
+    // patterns (cortex-update --check*) which could match
+    // `cortex-update --check --reinstall` and `cortex-capabilities*` which
+    // auto-approved the destructive --write flag.
     assert.ok(!CORTEX_PERMISSIONS.allow.includes('Bash(cortex-*)'),
       'broad cortex-* catch-all removed');
-    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-doctor*)'),
-      'narrow cortex-doctor entry present');
-    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-update --check*)'),
-      'narrow cortex-update --check entry present');
+    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-doctor)'),
+      'exact cortex-doctor entry present');
+    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-update --check)'),
+      'exact cortex-update --check entry present');
     const allowJoined = CORTEX_PERMISSIONS.allow.join('|');
+    // Block destructive verbs / flags.
     assert.ok(!/cortex-uninstall/.test(allowJoined),
       'cortex-uninstall must NOT be auto-approved');
+    assert.ok(!/cortex-capabilities --write/.test(allowJoined),
+      'cortex-capabilities --write must NOT be auto-approved');
+    // No remaining broad cortex-* catch-all with trailing wildcard.
+    const broad = CORTEX_PERMISSIONS.allow.filter((p) => /^Bash\(cortex-[a-z-]+\*\)$/.test(p));
+    assert.deepStrictEqual(broad, [],
+      'no broad Bash(cortex-<name>*) trailing-wildcard catch-alls allowed');
   });
 
   test('edge HIGH #8: non-string entries dropped with stderr warning', () => {
@@ -441,5 +452,75 @@ describe('cortex-permissions-register — Sprint 2.28.1 R2 hardening', () => {
       const result = JSON.parse(r.stdout);
       assert.strictEqual(result.user_catch_all_in_allow, false);
     } finally { tryRm(home); }
+  });
+});
+
+describe('cortex-permissions-register — Sprint 2.28.2 R2 hardening', () => {
+  test('parseConfirmReply: explicit y/yes required (Sprint 2.28.1 edge HIGH #11)', () => {
+    // Aborts on empty / whitespace / non-y replies.
+    assert.strictEqual(parseConfirmReply(''), false, 'empty reply aborts');
+    assert.strictEqual(parseConfirmReply('\n'), false, 'newline-only aborts');
+    assert.strictEqual(parseConfirmReply('   '), false, 'whitespace-only aborts');
+    assert.strictEqual(parseConfirmReply('n'), false, 'explicit n aborts');
+    assert.strictEqual(parseConfirmReply('no'), false, 'explicit no aborts');
+    assert.strictEqual(parseConfirmReply('maybe'), false, 'ambiguous aborts');
+    // Proceeds only on explicit y / yes (case-insensitive, trim-tolerant).
+    assert.strictEqual(parseConfirmReply('y'), true);
+    assert.strictEqual(parseConfirmReply('Y'), true);
+    assert.strictEqual(parseConfirmReply('yes'), true);
+    assert.strictEqual(parseConfirmReply('YES'), true);
+    assert.strictEqual(parseConfirmReply('Yes'), true);
+    assert.strictEqual(parseConfirmReply(' y \n'), true, 'trim whitespace');
+    // Non-string defends against type confusion.
+    assert.strictEqual(parseConfirmReply(null), false);
+    assert.strictEqual(parseConfirmReply(undefined), false);
+    assert.strictEqual(parseConfirmReply(0), false);
+  });
+
+  test('catch-all detection tolerates spacing + double-glob + case variants', () => {
+    // Sprint 2.28.2 edge MED #6 + blind MED: detection must match
+    // `Bash(*)` / `Bash( * )` / `Bash(**)` / `bash(*)` — all forms of
+    // a user-added catch-all that negates the floor.
+    const variants = [
+      { allow: ['Bash(*)'], expected: true, label: 'exact Bash(*)' },
+      { allow: ['Bash( * )'], expected: true, label: 'spaces inside parens' },
+      { allow: ['Bash(**)'], expected: true, label: 'double-glob' },
+      { allow: ['Bash(  *  )'], expected: true, label: 'multiple spaces' },
+      { allow: ['bash(*)'], expected: true, label: 'lowercase Bash prefix' },
+      { allow: ['Bash(*.sh)'], expected: false, label: 'narrow glob is not catch-all' },
+      { allow: ['Bash(rm -rf*)'], expected: false, label: 'narrow with-args is not catch-all' },
+    ];
+    for (const v of variants) {
+      const home = mkFakeHome({ permissions: { allow: v.allow } });
+      try {
+        const r = runCli(['--status', '--json'], home);
+        const result = JSON.parse(r.stdout);
+        assert.strictEqual(result.user_catch_all_in_allow, v.expected,
+          `${v.label} → user_catch_all_in_allow should be ${v.expected}`);
+      } finally { tryRm(home); }
+    }
+  });
+
+  test('prompt UX: text matches new abort-by-default semantics', () => {
+    // Sprint 2.28.2 blind LOW: prompt text was "[Y/n]" implying default-yes,
+    // but Sprint 2.28.1 made empty input abort. Text now "[y/N]" to match.
+    // Source the SCRIPT file and check for the prompt text directly.
+    const scriptSource = fs.readFileSync(SCRIPT, 'utf8');
+    assert.ok(!scriptSource.includes('Proceed? [Y/n]'),
+      'old [Y/n] prompt removed (would lie about default behavior)');
+    assert.ok(scriptSource.includes('Proceed? [y/N]'),
+      'new [y/N] prompt present (reflects empty=abort default)');
+  });
+
+  test('no broad cortex-<name>* trailing wildcards in allow', () => {
+    // Sprint 2.28.2 edge MED #7 + #12: trailing `*` on inner-space patterns
+    // can match destructive flag combinations. Hard regression guard.
+    for (const entry of CORTEX_PERMISSIONS.allow) {
+      // Allow entries that ARE exactly `Bash(*)` won't slip through (we
+      // already reject those at runtime via user_catch_all_in_allow), but
+      // we also block any `Bash(cortex-<name>*)` form.
+      assert.ok(!/^Bash\(cortex-[a-z-]+\*\)$/.test(entry),
+        `broad cortex-trailing-wildcard pattern detected: ${entry}`);
+    }
   });
 });

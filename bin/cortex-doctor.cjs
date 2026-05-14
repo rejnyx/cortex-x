@@ -40,6 +40,12 @@ const SETTINGS_PATH = path.join(CLAUDE_HOME, 'settings.json');
 const CLAUDE_MD_PATH = path.join(CLAUDE_HOME, 'CLAUDE.md');
 const SOURCE_YAML = path.join(SHARED, 'cortex-source.yaml');
 
+// Sprint 2.28.2 R2 hardening (ssot-enforcer #1): single timeout const applied
+// to every health-check execFileSync call. Previously 2.28.1 applied 5000ms
+// only to the permissions-register call; the same rationale (hung child blocks
+// doctor forever) holds for hooks-register + claude-md-augment + git remote.
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
 // SSOT for skill discovery audit. Keep aligned with install.{sh,ps1}'s
 // per-profile skill-promotion loop: `audit, designer, start, cortex-doctor`
 // for all profiles + `test-audit` for the qa-tester profile.
@@ -215,7 +221,7 @@ function runChecks() {
   if (hooksRegisterScript && fs.existsSync(hooksRegisterScript)) {
     try {
       const out = execFileSync(process.execPath, [hooksRegisterScript, '--status', '--json'], {
-        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: HEALTH_CHECK_TIMEOUT_MS,
       });
       const report = JSON.parse(out);
       if (report.cortex_entries_total === 0) {
@@ -243,7 +249,7 @@ function runChecks() {
   if (permsScript && fs.existsSync(permsScript)) {
     try {
       const out = execFileSync(process.execPath, [permsScript, '--status', '--json'], {
-        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000,
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: HEALTH_CHECK_TIMEOUT_MS,
       });
       const report = JSON.parse(out);
       if (report.cortex_entries_total === 0) {
@@ -277,7 +283,7 @@ function runChecks() {
   if (augmentScript && fs.existsSync(augmentScript)) {
     try {
       const out = execFileSync(process.execPath, [augmentScript, '--status', '--json'], {
-        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: HEALTH_CHECK_TIMEOUT_MS,
       });
       const report = JSON.parse(out);
       if (!report.cortex_block_present) {
@@ -308,7 +314,7 @@ function runChecks() {
   if (sourceDir && fs.existsSync(path.join(sourceDir, '.git'))) {
     try {
       const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
-        cwd: sourceDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: sourceDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: HEALTH_CHECK_TIMEOUT_MS,
       }).trim();
       findings.push(check('git_remote', 'ok', `origin: ${remote}`));
     } catch {

@@ -738,7 +738,9 @@ if ($LASTEXITCODE -ne 0) {
 $HooksRegisterScript = Join-Path $CortexRoot "bin\cortex-hooks-register.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $HooksRegisterScript)) {
     $RegisterDecision = $null
-    $EnvDecision = $env:CORTEX_REGISTER_HOOKS
+    # Sprint 2.28.2 R2 hardening (ssot-enforcer #3): trim whitespace before
+    # anchored regex match. Backported from 2.28.1 permissions-register block.
+    $EnvDecision = if ($null -ne $env:CORTEX_REGISTER_HOOKS) { $env:CORTEX_REGISTER_HOOKS.Trim() } else { $null }
     if ($EnvDecision -match '^(1|y|yes|true)$') {
         $RegisterDecision = 'y'
     } elseif ($EnvDecision -match '^(0|n|no|false)$') {
@@ -773,7 +775,9 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $HooksRegis
 $AugmentScript = Join-Path $CortexRoot "bin\cortex-claude-md-augment.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScript)) {
     $AugmentDecision = $null
-    $EnvAugment = $env:CORTEX_AUGMENT_CLAUDE_MD
+    # Sprint 2.28.2 R2 hardening (ssot-enforcer #3): trim whitespace before
+    # anchored regex match. Backported from 2.28.1 permissions-register block.
+    $EnvAugment = if ($null -ne $env:CORTEX_AUGMENT_CLAUDE_MD) { $env:CORTEX_AUGMENT_CLAUDE_MD.Trim() } else { $null }
     if ($EnvAugment -match '^(1|y|yes|true)$') {
         $AugmentDecision = 'y'
     } elseif ($EnvAugment -match '^(0|n|no|false)$') {

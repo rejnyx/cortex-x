@@ -629,7 +629,11 @@ fi
 # (unset, non-TTY)        → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" ]; then
   REGISTER_HOOKS_DECISION=''
-  case "$CORTEX_REGISTER_HOOKS" in
+  # Sprint 2.28.2 R2 hardening (ssot-enforcer #2): normalize env var
+  # — lowercase + strip whitespace — so "YES", "True", " 1 " match.
+  # Backported from the 2.28.1 permissions-register block.
+  CORTEX_REGISTER_HOOKS_NORM="$(printf '%s' "${CORTEX_REGISTER_HOOKS:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "$CORTEX_REGISTER_HOOKS_NORM" in
     1|y|yes|true) REGISTER_HOOKS_DECISION='y' ;;
     0|n|no|false) REGISTER_HOOKS_DECISION='n' ;;
     '')
@@ -675,7 +679,11 @@ fi
 # (unset, non-TTY)           → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" ]; then
   AUGMENT_CLAUDE_MD_DECISION=''
-  case "$CORTEX_AUGMENT_CLAUDE_MD" in
+  # Sprint 2.28.2 R2 hardening (ssot-enforcer #2): normalize env var
+  # — lowercase + strip whitespace — so "YES", "True", " 1 " match.
+  # Backported from the 2.28.1 permissions-register block.
+  CORTEX_AUGMENT_CLAUDE_MD_NORM="$(printf '%s' "${CORTEX_AUGMENT_CLAUDE_MD:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "$CORTEX_AUGMENT_CLAUDE_MD_NORM" in
     1|y|yes|true) AUGMENT_CLAUDE_MD_DECISION='y' ;;
     0|n|no|false) AUGMENT_CLAUDE_MD_DECISION='n' ;;
     '')
