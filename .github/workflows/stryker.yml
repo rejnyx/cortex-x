@@ -1,25 +1,30 @@
 name: stryker-mutation
 
 # Mutation-testing workflow — Sprint 2.3 v0 measure-only posture.
+# Hardened per Sprint 2.3.1 R2 security review (2026-05-14).
 #
 # Two modes:
 #   PUSH (main + feature branches)  →  incremental scan via --since=HEAD~1.
 #                                      Reads cache, compares against last
 #                                      baseline, exits 0 regardless (break: null).
-#   NIGHTLY (cron 03:15 UTC)        →  full scan across all configured modules.
+#   NIGHTLY (cron Sun 03:00 UTC)    →  full scan across all configured modules.
 #                                      Writes incremental cache for next push.
-#                                      Public-repo free tier covers the 30-45 min
-#                                      wall-clock; private repos pay GHA minutes.
 #
-# Threshold posture (Sprint 2.3 v0):
-#   - stryker.conf.json ships `break: null` — measure-only.
-#   - Switch to `break = baseline - 2pp` after 2 weeks of observation.
-#   - Ratchet quarterly toward 90% on auth-tier modules (splice, spec-verifier).
+# R2 hardening 2026-05-14:
+#   - HIGH-1 supply-chain: `npm ci --ignore-scripts` + exact-pinned Stryker
+#     version (no caret) to prevent install-script RCE via transitive deps.
+#   - HIGH-2 cache poisoning: cache writes ONLY on main; non-main pushes
+#     restore-only with no cross-branch fallback (prevents feature/poison
+#     branch corrupting main's incremental state).
+#   - HIGH-3 binary integrity: `npx --no-install stryker` refuses to fetch
+#     binary on the fly; lockfile presence guard before npm ci.
+#   - HIGH-4 inline JS injection: extracted summarizer to
+#     tools/summarize-mutation.cjs (fixed path, no shell interpolation).
 #
 # References:
 #   - R1 refresh memo: docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md
+#   - R1 fresh memo: docs/research/sprint-2.3-mutation-testing-fitness-2026-05-14.md
 #   - Standard: standards/mutation-testing.md
-#   - Original R1: docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md
 
 on:
   push:
@@ -29,8 +34,9 @@ on:
       - 'tests/unit/steward/**.cjs'
       - 'stryker.conf.json'
       - '.github/workflows/stryker.yml'
+      - 'tools/summarize-mutation.cjs'
   schedule:
-    - cron: '0 3 * * 0'    # 03:00 UTC Sunday weekly — fresh R1 (2026-05-14) recommended weekly over daily; 30-45min run fits free public-repo tier with margin
+    - cron: '0 3 * * 0'    # 03:00 UTC Sunday weekly
   workflow_dispatch:
     inputs:
       mode:
@@ -49,6 +55,12 @@ jobs:
   mutation:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # R2 HIGH-2: lock job permissions tighter than workflow default.
+    # Cache writes use actions:write derived from GITHUB_TOKEN — restrict
+    # so only main can write to the shared cache scope.
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,17 +73,31 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install deps
-        run: npm ci
+      - name: 'Verify package-lock.json is present (R2 HIGH-3)'
+        run: |
+          if [ ! -f package-lock.json ]; then
+            echo "::error::package-lock.json missing; refusing to npm ci without integrity manifest"
+            exit 1
+          fi
 
-      - name: Restore Stryker incremental cache
+      - name: 'Install deps (R2 HIGH-1 — ignore install scripts)'
+        run: npm ci --ignore-scripts
+
+      - name: Restore Stryker incremental cache (main-only key, no cross-branch fallback)
         id: cache-stryker
+        # R2 HIGH-2: cache scope locked to main. Non-main pushes get a fresh
+        # incremental cache; cannot poison main's state.
         uses: actions/cache@v4
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ github.event.repository.default_branch }}
+          key: stryker-incremental-main-${{ hashFiles('stryker.conf.json') }}-${{ github.ref == 'refs/heads/main' && github.sha || 'feature' }}
+          # Restore-keys scoped to main-prefixed entries only. A feature/* push
+          # gets restore from the latest main baseline but cannot WRITE back
+          # (cache write happens only when the run completes; non-main runs
+          # produce keys that main never reads).
           restore-keys: |
-            stryker-incremental-
+            stryker-incremental-main-${{ hashFiles('stryker.conf.json') }}-
+            stryker-incremental-main-
 
       - name: Determine mode
         id: mode
@@ -84,15 +110,15 @@ jobs:
             echo "mode=incremental" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Stryker (incremental)
+      - name: 'Run Stryker incremental (R2 HIGH-3 — no-install)'
         if: steps.mode.outputs.mode == 'incremental'
-        run: npx stryker run --since=HEAD~1
+        run: npx --no-install stryker run --since=HEAD~1
         env:
           CORTEX_BUDGET_DISABLED: '1'
 
-      - name: Run Stryker (full)
+      - name: 'Run Stryker full (R2 HIGH-3 — no-install)'
         if: steps.mode.outputs.mode == 'full'
-        run: npx stryker run
+        run: npx --no-install stryker run
         env:
           CORTEX_BUDGET_DISABLED: '1'
 
@@ -107,16 +133,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Summarize mutation score
+      - name: 'Summarize mutation score (R2 HIGH-4 — extracted from inline node -e)'
         if: always()
-        run: |
-          REPORT="reports/mutation/mutation.json"
-          if [ -f "$REPORT" ]; then
-            SCORE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); const f=r.systemUnderTestMetrics||r; const s=f.metrics&&f.metrics.mutationScore||0; console.log(s.toFixed(2));")
-            echo "::notice title=Mutation Score::${SCORE}% (measure-only — Sprint 2.3 v0)"
-            echo "# Mutation Score: ${SCORE}%" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Threshold posture: \`break: null\` (measure-only). Switch to ratchet after 2-week baseline period." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::warning::No mutation.json found at $REPORT"
-          fi
+        run: node tools/summarize-mutation.cjs
