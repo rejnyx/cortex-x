@@ -36,6 +36,7 @@ const recommendations = require('./_lib/recommendations.cjs');
 const trailers = require('./_lib/git-trailers.cjs');
 const policy = require('./_lib/policy-check.cjs');
 const actionKinds = require('./_lib/action-kinds.cjs');
+const worktreeGuard = require('./_lib/worktree-guard.cjs');
 
 const DEFAULT_TRIGGER = 'manual';
 
@@ -177,6 +178,22 @@ function runDryRun(opts = {}) {
       ok: false,
       error: `unknown action_kind '${kind}'. Supported: ${actionKinds.listKinds().join(', ')}`,
       code: 'UNKNOWN_KIND',
+    };
+  }
+
+  // Sprint 2.30: worktree pre-flight. Steward commits + pushes against
+  // `main` of the PRIMARY worktree. Running from a secondary worktree would
+  // land commits on the wrong branch. STEWARD_ALLOW_WORKTREE=1 opts out.
+  const worktreeCheck = worktreeGuard.checkWorktree({ cwd: repoRoot });
+  if (!worktreeCheck.ok && worktreeCheck.code === 'STEWARD_WORKTREE_DENIED') {
+    return {
+      ok: false,
+      code: worktreeCheck.code,
+      current: worktreeCheck.current,
+      primary: worktreeCheck.primary,
+      bypassEnv: worktreeCheck.bypassEnv,
+      message: worktreeCheck.message,
+      exitCode: haltCheck.EX_TEMPFAIL,
     };
   }
 
