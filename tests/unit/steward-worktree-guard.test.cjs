@@ -61,6 +61,26 @@ describe('worktree-guard — parseWorktreeList', () => {
   test('handles empty input', () => {
     assert.deepEqual(parseWorktreeList(''), []);
   });
+
+  // R2 round-2 HIGH: detached-HEAD worktree must carry a detached marker
+  // so future callers don't deref a null .branch.
+  test('R2 round-2 HIGH: detached-HEAD worktree marked detached: true', () => {
+    const porcelain = [
+      'worktree /repo/primary',
+      'HEAD abc123',
+      'branch refs/heads/main',
+      '',
+      'worktree /repo/detached',
+      'HEAD def456',
+      'detached',
+      '',
+    ].join('\n');
+    const entries = parseWorktreeList(porcelain);
+    assert.equal(entries.length, 2);
+    assert.equal(entries[1].detached, true);
+    assert.equal(entries[1].branch, null);
+    assert.equal(entries[0].detached, false);
+  });
 });
 
 describe('worktree-guard — checkWorktree', () => {
@@ -118,6 +138,17 @@ describe('worktree-guard — checkWorktree', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  // R2 round-2 HIGH: non-existent cwd must return STEWARD_WORKTREE_BAD_CWD,
+  // distinct from missing-git so operators get an actionable error.
+  test('R2 round-2 HIGH: non-existent cwd returns STEWARD_WORKTREE_BAD_CWD', () => {
+    const r = checkWorktree({
+      cwd: path.join(os.tmpdir(), 'cortex-nonexistent-' + Date.now() + '-' + Math.random()),
+      env: {},
+    });
+    assert.equal(r.ok, false);
+    assert.equal(r.code, 'STEWARD_WORKTREE_BAD_CWD');
   });
 
   test('denial message includes both current + primary paths', () => {
