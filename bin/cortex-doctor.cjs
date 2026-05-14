@@ -235,7 +235,32 @@ function runChecks() {
     findings.push(check('hooks_registered', 'info', 'cortex-hooks-register script not found — skipping check'));
   }
 
-  // 9. CLAUDE.md discipline block.
+  // 9. Permissions safety-floor (Sprint 2.28).
+  const permsScript = sourceDir ? path.join(sourceDir, 'bin', 'cortex-permissions-register.cjs') : null;
+  if (permsScript && fs.existsSync(permsScript)) {
+    try {
+      const out = execFileSync(process.execPath, [permsScript, '--status', '--json'], {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const report = JSON.parse(out);
+      if (report.cortex_entries_total === 0) {
+        findings.push(check('permissions_registered', 'info',
+          'Cortex safety-floor permissions not registered — relying on Claude Code defaults',
+          'cortex-permissions-register'));
+      } else {
+        findings.push(check('permissions_registered', 'ok',
+          `${report.cortex_entries_total} cortex permission entry(s) in ${SETTINGS_PATH} (deny ${report.per_kind.deny}, allow ${report.per_kind.allow})`));
+      }
+    } catch (err) {
+      findings.push(check('permissions_registered', 'info',
+        `could not check permissions registration (${err.message || 'unknown'})`,
+        'cortex-permissions-register --status'));
+    }
+  } else {
+    findings.push(check('permissions_registered', 'info', 'cortex-permissions-register script not found — skipping check'));
+  }
+
+  // 10. CLAUDE.md discipline block.
   const augmentScript = sourceDir ? path.join(sourceDir, 'bin', 'cortex-claude-md-augment.cjs') : null;
   if (augmentScript && fs.existsSync(augmentScript)) {
     try {

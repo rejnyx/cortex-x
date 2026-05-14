@@ -526,6 +526,7 @@ New-DelegateShim "cortex-update"         "cortex-update.cjs"
 New-DelegateShim "cortex-uninstall"      "cortex-uninstall.cjs"
 New-DelegateShim "cortex-hooks-register" "cortex-hooks-register.cjs"
 New-DelegateShim "cortex-claude-md-augment" "cortex-claude-md-augment.cjs"
+New-DelegateShim "cortex-permissions-register" "cortex-permissions-register.cjs"
 New-DelegateShim "cortex-doctor"         "cortex-doctor.cjs"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
@@ -800,6 +801,41 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScr
         }
     } elseif ($AugmentDecision -eq 'n' -and [Environment]::UserInteractive) {
         Write-Host "  $([char]0x21B3) Skipped. Re-run anytime: cortex-claude-md-augment"
+    }
+}
+
+# Sprint 2.28 — opt-in safety-floor permissions registration (mirror install.sh logic).
+$PermissionsScript = Join-Path $CortexRoot "bin\cortex-permissions-register.cjs"
+if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $PermissionsScript)) {
+    $PermissionsDecision = $null
+    $EnvPerms = $env:CORTEX_REGISTER_PERMISSIONS
+    if ($EnvPerms -match '^(1|y|yes|true)$') {
+        $PermissionsDecision = 'y'
+    } elseif ($EnvPerms -match '^(0|n|no|false)$') {
+        $PermissionsDecision = 'n'
+    } elseif ([Environment]::UserInteractive) {
+        Write-Host ""
+        Write-Host "  Cortex safety-floor permissions can be registered in ~/.claude/settings.json:"
+        Write-Host "  a deny list blocking destructive operations + an allow baseline skipping"
+        Write-Host "  approval prompts on common-safe ops (npm test, git status, ls, cortex CLIs)."
+        Write-Host "  Replaces --dangerously-skip-permissions: same speed, deny-precedence floor."
+        $PermsReply = Read-Host "  Register cortex safety-floor permissions? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($PermsReply) -or $PermsReply -match '^(y|Y|yes|YES)$') {
+            $PermissionsDecision = 'y'
+        } else {
+            $PermissionsDecision = 'n'
+        }
+    } else {
+        $PermissionsDecision = 'n'
+    }
+    if ($PermissionsDecision -eq 'y') {
+        & node $PermissionsScript --apply --yes
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  warning: permissions registration failed (settings.json untouched per safety contract)." -ForegroundColor Yellow
+            Write-Host "  manual: cortex-permissions-register --apply" -ForegroundColor Yellow
+        }
+    } elseif ($PermissionsDecision -eq 'n' -and [Environment]::UserInteractive) {
+        Write-Host "  $([char]0x21B3) Skipped. Re-run anytime: cortex-permissions-register"
     }
 }
 

@@ -416,8 +416,9 @@ emit_delegate_shim cortex-doc-audit        cortex-doc-audit.cjs
 emit_delegate_shim cortex-wiki-consolidate cortex-wiki-consolidate.cjs
 emit_delegate_shim cortex-update           cortex-update.cjs
 emit_delegate_shim cortex-uninstall        cortex-uninstall.cjs
-emit_delegate_shim cortex-hooks-register   cortex-hooks-register.cjs
-emit_delegate_shim cortex-claude-md-augment cortex-claude-md-augment.cjs
+emit_delegate_shim cortex-hooks-register      cortex-hooks-register.cjs
+emit_delegate_shim cortex-claude-md-augment   cortex-claude-md-augment.cjs
+emit_delegate_shim cortex-permissions-register cortex-permissions-register.cjs
 emit_delegate_shim cortex-doctor           cortex-doctor.cjs
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
@@ -706,6 +707,54 @@ if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-claude-md-a
   elif [ "$AUGMENT_CLAUDE_MD_DECISION" = "n" ]; then
     if [ -t 0 ]; then
       echo "  ↳ Skipped. Re-run anytime: cortex-claude-md-augment"
+    fi
+  fi
+fi
+
+# Sprint 2.28 — opt-in safety-floor permissions registration. Replaces the
+# blunt --dangerously-skip-permissions flag with a curated deny floor +
+# allow baseline. Claude Code precedence is deny > ask > allow > defaultMode,
+# so cortex's deny entries hold even if the user widens allow elsewhere.
+# Same consent model as hooks + augment above.
+#
+# CORTEX_REGISTER_PERMISSIONS=1 → register without prompting (e.g. CI)
+# CORTEX_REGISTER_PERMISSIONS=0 → skip without prompting
+# (unset, TTY)                  → interactive Y/n
+# (unset, non-TTY)              → skip silently
+if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" ]; then
+  REGISTER_PERMISSIONS_DECISION=''
+  case "$CORTEX_REGISTER_PERMISSIONS" in
+    1|y|yes|true) REGISTER_PERMISSIONS_DECISION='y' ;;
+    0|n|no|false) REGISTER_PERMISSIONS_DECISION='n' ;;
+    '')
+      if [ -t 0 ]; then
+        echo
+        echo "  Cortex safety-floor permissions can be registered in ~/.claude/settings.json:"
+        echo "  a deny list blocking destructive operations + an allow baseline skipping"
+        echo "  approval prompts on common-safe ops (npm test, git status, ls, cortex CLIs)."
+        echo "  Replaces --dangerously-skip-permissions: same speed, deny-precedence floor."
+        printf "  Register cortex safety-floor permissions? [Y/n]: "
+        read -r CORTEX_PERMS_REPLY || true
+        CORTEX_PERMS_REPLY="${CORTEX_PERMS_REPLY:-y}"
+        case "$CORTEX_PERMS_REPLY" in
+          [yY]|[yY][eE][sS]) REGISTER_PERMISSIONS_DECISION='y' ;;
+          *) REGISTER_PERMISSIONS_DECISION='n' ;;
+        esac
+      else
+        REGISTER_PERMISSIONS_DECISION='n'
+      fi
+      ;;
+  esac
+  if [ "$REGISTER_PERMISSIONS_DECISION" = "y" ]; then
+    if node "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" --apply --yes; then
+      :
+    else
+      echo "  warning: permissions registration failed (settings.json untouched per safety contract)." >&2
+      echo "  manual: cortex-permissions-register --apply" >&2
+    fi
+  elif [ "$REGISTER_PERMISSIONS_DECISION" = "n" ]; then
+    if [ -t 0 ]; then
+      echo "  ↳ Skipped. Re-run anytime: cortex-permissions-register"
     fi
   fi
 fi

@@ -40,6 +40,10 @@ Rules:
 Already prints concrete next-step instructions. **Do not bloat with vision.** Tail stays factual:
 - Paths installed (framework / agents / skill / user data / bootstrap)
 - Profile selected
+- Three opt-in consent prompts (each interactive Y/n, skipped silently in CI):
+  - **Hooks registration** (`cortex-hooks-register`) — Sprint 2.21. Without this, SessionStart context injection + block-destructive + auto-orchestrate are inactive. `CORTEX_REGISTER_HOOKS=0|1` env to skip the prompt.
+  - **Discipline block append** (`cortex-claude-md-augment`) — Sprint 2.21+2.21.1. Appends R1+R2+TodoWrite+voice+surgical-changes block to `~/.claude/CLAUDE.md` between BEGIN/END markers. `CORTEX_AUGMENT_CLAUDE_MD=0|1` env.
+  - **Safety-floor permissions** (`cortex-permissions-register`) — Sprint 2.28. Registers curated `deny` floor + `allow` baseline in `~/.claude/settings.json`. Replaces `--dangerously-skip-permissions`: same speed, but Claude Code's `deny > ask > allow > defaultMode` precedence means the operator cannot accidentally invoke a destructive command via typo, even if their `allow` widens to a catch-all. Reference: [code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings). `CORTEX_REGISTER_PERMISSIONS=0|1` env.
 - Next command (`claude` → `/cortex-init`)
 - Steward + PATH info as informational footer
 
