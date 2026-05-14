@@ -1,0 +1,122 @@
+name: stryker-mutation
+
+# Mutation-testing workflow — Sprint 2.3 v0 measure-only posture.
+#
+# Two modes:
+#   PUSH (main + feature branches)  →  incremental scan via --since=HEAD~1.
+#                                      Reads cache, compares against last
+#                                      baseline, exits 0 regardless (break: null).
+#   NIGHTLY (cron 03:15 UTC)        →  full scan across all configured modules.
+#                                      Writes incremental cache for next push.
+#                                      Public-repo free tier covers the 30-45 min
+#                                      wall-clock; private repos pay GHA minutes.
+#
+# Threshold posture (Sprint 2.3 v0):
+#   - stryker.conf.json ships `break: null` — measure-only.
+#   - Switch to `break = baseline - 2pp` after 2 weeks of observation.
+#   - Ratchet quarterly toward 90% on auth-tier modules (splice, spec-verifier).
+#
+# References:
+#   - R1 refresh memo: docs/research/sprint-2.3-mutation-testing-fitness-refresh-2026-05-10.md
+#   - Standard: standards/mutation-testing.md
+#   - Original R1: docs/research/sprint-2.3-mutation-testing-fitness-2026-05-09.md
+
+on:
+  push:
+    branches: [main, 'sprint-*', 'feature/*']
+    paths:
+      - 'bin/steward/_lib/**.cjs'
+      - 'tests/unit/steward/**.cjs'
+      - 'stryker.conf.json'
+      - '.github/workflows/stryker.yml'
+  schedule:
+    - cron: '0 3 * * 0'    # 03:00 UTC Sunday weekly — fresh R1 (2026-05-14) recommended weekly over daily; 30-45min run fits free public-repo tier with margin
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'incremental | full'
+        required: false
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Stryker --since=HEAD~1 needs prior commit
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Restore Stryker incremental cache
+        id: cache-stryker
+        uses: actions/cache@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.event.repository.default_branch }}
+          restore-keys: |
+            stryker-incremental-
+
+      - name: Determine mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=incremental" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Stryker (incremental)
+        if: steps.mode.outputs.mode == 'incremental'
+        run: npx stryker run --since=HEAD~1
+        env:
+          CORTEX_BUDGET_DISABLED: '1'
+
+      - name: Run Stryker (full)
+        if: steps.mode.outputs.mode == 'full'
+        run: npx stryker run
+        env:
+          CORTEX_BUDGET_DISABLED: '1'
+
+      - name: Upload Stryker HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report-${{ github.run_id }}
+          path: |
+            reports/mutation/
+            reports/stryker-incremental.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Summarize mutation score
+        if: always()
+        run: |
+          REPORT="reports/mutation/mutation.json"
+          if [ -f "$REPORT" ]; then
+            SCORE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); const f=r.systemUnderTestMetrics||r; const s=f.metrics&&f.metrics.mutationScore||0; console.log(s.toFixed(2));")
+            echo "::notice title=Mutation Score::${SCORE}% (measure-only — Sprint 2.3 v0)"
+            echo "# Mutation Score: ${SCORE}%" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Threshold posture: \`break: null\` (measure-only). Switch to ratchet after 2-week baseline period." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::No mutation.json found at $REPORT"
+          fi

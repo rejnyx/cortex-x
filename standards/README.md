@@ -21,6 +21,7 @@
 | | [Observability](./observability.md) | Must-have | Review pipeline flag = blocker |
 | | [Correctness](./correctness.md) | Must-have | Zod boundaries + property tests + mutation testing; blocker |
 | | [Verification loop](./verification-loop.md) | Must-have | Pair every implementation todo with verification todo (screenshot · DevTools MCP · spec-verifier); blocker |
+| | [Mutation testing](./mutation-testing.md) | Must-have | Stryker 9.6 measurement infra (Sprint 2.3 v0 measure-only) — ratchet to break-threshold after 2-week baseline |
 | | [Steward policy](./steward-policy.md) | Must-have | Steward runtime safety contract (denylist + caps + actor); blocker for Steward PRs |
 | **📋 RULE 3** | [Performance](./performance.md) | Should-have | Review pipeline flag = warning |
 | (Process) | [Accessibility](./accessibility.md) | Should-have | Review pipeline flag = warning |

@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npm test"
+  },
+  "mutate": [
+    "bin/steward/_lib/splice.cjs",
+    "bin/steward/_lib/spec-verifier.cjs",
+    "bin/steward/_lib/halt-check.cjs",
+    "bin/steward/_lib/cost-safety.cjs",
+    "bin/steward/_lib/recommendations.cjs",
+    "bin/steward/_lib/policy-check.cjs"
+  ],
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
+  "concurrency": "50%",
+  "reporters": ["html", "clear-text", "progress", "json"],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "timeoutMS": 60000,
+  "tempDirName": ".cortex-data/.stryker-tmp",
+  "cleanTempDir": "always"
+}
