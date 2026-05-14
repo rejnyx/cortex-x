@@ -276,6 +276,49 @@ test('renderMarkdown: empty data renders placeholders, not crashes', () => {
   assert.match(md, /All shipped skills fired/);
 });
 
+// === R2 2.25.1 HARDENING REGRESSION TESTS ===
+
+test('R2 edge-case HIGH-1: array message.content extracts slash-command from text block', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-insights-array-'));
+  const f = path.join(tmp, 'session.jsonl');
+  writeJsonl(f, [
+    { timestamp: '2026-05-14T08:00:00Z', message: { content: [{ type: 'text', text: '/audit triggered here' }, { type: 'tool_use', name: 'X' }] } },
+    { timestamp: '2026-05-14T08:05:00Z', message: { content: [{ type: 'text', text: '/cortex-doctor' }] } },
+  ]);
+  const r = rollupClaudeJsonl([f], NOW_MS - 7 * 24 * 3600 * 1000);
+  assert.equal(r.promptsRun.get('audit').count, 1);
+  assert.equal(r.promptsRun.get('cortex-doctor').count, 1);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+test('R2 correctness HIGH-2: unknown model surfaces as anomaly', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-insights-unknown-'));
+  const f = path.join(tmp, 'session.jsonl');
+  writeJsonl(f, [
+    { timestamp: '2026-05-14T08:00:00Z', model: 'claude-opus-4-8-future', usage: { input_tokens: 1000, output_tokens: 500 } },
+  ]);
+  const r = rollupClaudeJsonl([f], NOW_MS - 7 * 24 * 3600 * 1000);
+  assert.ok(r.anomalies.some((a) => a.type === 'unknown_model_cost' && a.model === 'claude-opus-4-8-future'));
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+test('R2 edge-case MED: renderMarkdown sanitizes pipe + backtick + control chars in cells', () => {
+  const report = {
+    range_label: '7d',
+    generated_at: '2026-05-14',
+    skills: [{ name: 'evil|name|with`backtick`', count: 1, last_seen: '' }],
+    prompts: [],
+    steward_actions: [],
+    cost: { steward_total_usd: 0, claude_estimated_usd: 0, by_model: [], by_action_kind: [] },
+    unused_skills: [],
+    unused_action_kinds: [],
+    anomalies: [],
+  };
+  const md = renderMarkdown(report);
+  // Pipe must be escaped, backticks replaced with single-quote
+  assert.match(md, /evil\\\|name\\\|with'backtick'/);
+});
+
 test('buildReport: malformed JSONL line does not abort run', () => {
   const tmp = tmpDir();
   const claudeRoot = path.join(tmp, 'claude-projects');

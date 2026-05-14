@@ -22,6 +22,10 @@ const {
 
 const NOW_MS = Date.parse('2026-05-14T12:00:00Z');
 
+// R2 security HIGH-2 hardening: cortex-dream now refuses to operate on a
+// data-home outside the operator's $HOME. Test harness sets the explicit opt-in env.
+process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME = '1';
+
 function tmpDataHome() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-dream-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
@@ -234,5 +238,121 @@ test('end-to-end: dry-run does not mutate; --apply mutates', () => {
   applyPlan(plan, { noArchive: true });
   const after = fs.readFileSync(memPath, 'utf8');
   assert.notEqual(after, original);
+  fs.rmSync(data, { recursive: true, force: true });
+});
+
+// === R2 2.25.1 HARDENING REGRESSION TESTS ===
+
+test('R2 security HIGH-1: canary catches Unicode lookalike via NFKC normalize', () => {
+  // Cyrillic ѕ (U+0455) folds to Latin s under NFKC normalization.
+  // Actually NFKC doesn't fold Cyrillic to Latin — let's use a fullwidth form.
+  // Fullwidth < and > do fold to ASCII via NFKC.
+  const fwLT = '＜';  // FULLWIDTH LESS-THAN SIGN
+  const fwGT = '＞';  // FULLWIDTH GREATER-THAN SIGN
+  const content = `${fwLT}system${fwGT}injected${fwLT}/system${fwGT}`;
+  assert.equal(checkCanary(content), true);
+});
+
+test('R2 security HIGH-1: canary expanded set catches tool_use + assistant + instructions', () => {
+  assert.equal(checkCanary('<tool_use>x</tool_use>'), true);
+  assert.equal(checkCanary('<assistant>x'), true);
+  assert.equal(checkCanary('<instructions>'), true);
+  assert.equal(checkCanary('<human>'), true);
+  assert.equal(checkCanary('<user>'), true);
+});
+
+test('R2 security HIGH-1: canary catches HTML-entity-encoded form', () => {
+  assert.equal(checkCanary('&lt;system&gt;injected&lt;/system&gt;'), true);
+  assert.equal(checkCanary('&#60;tool_use&#62;'), true);
+});
+
+test('R2 security HIGH-1: checkCanary defensive on non-string input', () => {
+  assert.equal(checkCanary(null), false);
+  assert.equal(checkCanary(undefined), false);
+  assert.equal(checkCanary(42), false);
+});
+
+test('R2 security HIGH-2: buildPlan rejects dataHome outside $HOME without opt-in', () => {
+  const origEnv = process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME;
+  delete process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME;
+  try {
+    const plan = buildPlan({ dataHome: '/etc' });
+    assert.equal(plan.ok, false);
+    assert.equal(plan.error, 'DATA_HOME_OUTSIDE_HOME');
+  } finally {
+    if (origEnv) process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME = origEnv;
+    else process.env.CORTEX_ALLOW_NONSTANDARD_DATA_HOME = '1';  // restore test env
+  }
+});
+
+test('R2 security HIGH-2: readMarkdownSafe refuses to follow symlinks', () => {
+  if (process.platform === 'win32') {
+    // Skip on Windows — symlink creation requires elevated perms by default.
+    return;
+  }
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dream-symlink-'));
+  try {
+    const target = path.join(tmp, 'target.md');
+    const link = path.join(tmp, 'link.md');
+    fs.writeFileSync(target, '# real content');
+    fs.symlinkSync(target, link);
+    // Re-require to get the internal readMarkdownSafe
+    delete require.cache[require.resolve('../../bin/cortex-dream.cjs')];
+    const dream = require('../../bin/cortex-dream.cjs');
+    const data = fs.mkdtempSync(path.join(os.tmpdir(), 'dream-data-'));
+    fs.mkdirSync(path.join(data, 'projects'), { recursive: true });
+    fs.symlinkSync(target, path.join(data, 'MEMORY.md'));
+    const plan = dream.buildPlan({ dataHome: data, nowMs: NOW_MS });
+    const memFile = plan.files.find((f) => f.path.endsWith('MEMORY.md'));
+    assert.ok(memFile);
+    assert.equal(memFile.status, 'skipped');
+    assert.equal(memFile.reason, 'IS_SYMLINK');
+    fs.rmSync(data, { recursive: true, force: true });
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('R2 edge-case HIGH-2: months use real calendar math, not 30-day approximation', () => {
+  // 12 months ago from 2026-05-14 should be exactly 2025-05-14 (calendar
+  // math), not 2026-05-14 - 360 days = 2025-05-19 (30-day hardcode).
+  const r = normalizeRelativeDates('event 12 months ago', NOW_MS);
+  assert.match(r.content, /2025-05-14/);
+});
+
+test('R2 edge-case HIGH-2: 1 month ago handles 30/31-day month boundary correctly', () => {
+  // From 2026-05-14, 1 month ago = 2026-04-14 (real calendar).
+  const r = normalizeRelativeDates('1 month ago', NOW_MS);
+  assert.match(r.content, /2026-04-14/);
+});
+
+test('R2 correctness HIGH-1: applyPlan is idempotent — re-running on already-converged file is a no-op', () => {
+  const data = tmpDataHome();
+  const memPath = path.join(data, 'MEMORY.md');
+  fs.writeFileSync(memPath, '# MEMORY\n\nEntry referencing yesterday with sufficient content length.\n');
+  // First apply: should mutate + write archive
+  const plan1 = buildPlan({ dataHome: data, nowMs: NOW_MS });
+  const w1 = applyPlan(plan1, { noArchive: false });
+  assert.equal(w1.written, 1);
+  // Second apply: file is now converged; should write nothing
+  const plan2 = buildPlan({ dataHome: data, nowMs: NOW_MS });
+  const w2 = applyPlan(plan2, { noArchive: false });
+  assert.equal(w2.written, 0);
+  assert.equal(w2.writtenWithArchive, 0);
+  fs.rmSync(data, { recursive: true, force: true });
+});
+
+test('R2 security HIGH-3: archive append never destroys prior archive', () => {
+  const data = tmpDataHome();
+  const memPath = path.join(data, 'MEMORY.md');
+  const archivePath = path.join(data, 'MEMORY.archive.md');
+  fs.writeFileSync(memPath, '# MEMORY\n\nFirst version with yesterday reference and enough length.\n');
+  fs.writeFileSync(archivePath, 'PRE-EXISTING-ARCHIVE-CONTENT-MUST-SURVIVE');
+  const plan = buildPlan({ dataHome: data, nowMs: NOW_MS });
+  applyPlan(plan, { noArchive: false });
+  const archiveAfter = fs.readFileSync(archivePath, 'utf8');
+  assert.match(archiveAfter, /PRE-EXISTING-ARCHIVE-CONTENT-MUST-SURVIVE/);
+  // And the new block is appended:
+  assert.match(archiveAfter, /cortex-dream archive/);
   fs.rmSync(data, { recursive: true, force: true });
 });
