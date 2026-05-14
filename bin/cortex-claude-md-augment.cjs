@@ -44,7 +44,9 @@ const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
 
 // Block version — bump when content changes so we can detect outdated blocks
 // and offer to refresh them.
-const BLOCK_VERSION = '2';
+// v3 (Sprint 2.27 + 2.30 co-ship): verification-discipline + worktree/mode
+// hints added.
+const BLOCK_VERSION = '3';
 const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
 const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
 // Match any version of the block (for removal + version-drift detection).
@@ -81,6 +83,24 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 **Discoverability.** Type \`/cortex-help\` to see the slash command menu. \`/cortex-init\` (new project) · \`/audit\` (existing) · \`/test-audit\` (QA lens) · \`/designer\` (UI) · \`/cortex-doctor\` (health check). For nightly autonomous work: \`steward-setup.md\`.
 
 **Safety hooks** are registered in \`~/.claude/settings.json\` if you ran \`cortex-hooks-register\` post-install. Verify: \`cortex-doctor --json\`. Without hooks: no block-destructive guard, no SessionStart context, no auto-orchestrate parallel-agent nudge.
+
+### Verification discipline (Sprint 2.27)
+
+**Pair every implementation todo with a verification todo on the next line.** Implementation = build/edit. Verification = run the test, open the URL, screenshot, read the log. Implementation alone is "compiles"; verification is "actually works."
+
+**Before commit, the verification todo must be checked off** — not just the implementation one. A green test suite proves correctness; it doesn't prove the feature does what was asked. Screenshot + render + visual assertion proves the user-facing outcome.
+
+**UI-shaped todos**: verification is \`Chrome DevTools MCP\` (\`claude mcp add chrome-devtools\`) → screenshot → assert, not \`npm run build → green\`. Build success is necessary, not sufficient. SSOT: \`~/.claude/shared/standards/verification-loop.md\`.
+
+**95% confidence baseline.** When the user gives an ambiguous brief, ask clarifying questions until you're at ~95% confidence about scope + acceptance criteria BEFORE the first edit. One question round saves 3-4 rounds of corrections. Use \`prompts/95-confidence.md\` as the canonical phrasing.
+
+### Claude Code mode hints (Sprint 2.30)
+
+**Plan mode for ≥3 unknowns or cross-system impact.** Press \`shift+tab\` to enter plan mode (read+research only, no mutation). Produce the plan, get operator sign-off, then exit and execute. Cheap to cancel; expensive to mid-rollback.
+
+**\`ultrathink\` for architecture decisions / non-trivial refactors / ambiguous bug reports.** Prefix the prompt with the literal token \`ultrathink\` to switch to the 32K-token thinking budget tier (other tiers: \`think\` 4K, \`think hard\`/\`megathink\` 10K). Not every task needs it; lean toward more thinking when the cost of being wrong is high.
+
+**Parallel features → \`claude --worktree <name>\`** (shorthand \`-w\`). Each gets isolated \`.claude/worktrees/<name>/\` on branch \`worktree-<name>\`. Run from the primary worktree before sleeping — cortex Steward refuses to run in a non-primary worktree by default (\`STEWARD_WORKTREE_DENIED\`).
 
 **Out-of-date?** This block is auto-generated. Refresh: \`cortex-claude-md-augment --apply\` (upgrades stale versions in place). Remove: \`cortex-claude-md-augment --remove\`. Health audit any time: \`cortex-doctor\`.`;
 

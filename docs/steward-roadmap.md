@@ -1712,7 +1712,7 @@ These have duplicate entries, contradicted facts, relative dates ("yesterday", "
 
 ---
 
-### Sprint 2.27 — Verification discipline: self-checking todos + screenshot-loop pattern + 95% confidence prompt (S-M effort) — 📋 PLANNED 2026-05-13
+### Sprint 2.27 — Verification discipline: self-checking todos + screenshot-loop pattern + 95% confidence prompt (S-M effort) — ✅ SHIPPED 2026-05-14 (co-shipped with 2.30)
 
 **Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` (16-min "32 tricks" walkthrough). Three hacks codify a discipline cortex already endorses informally but doesn't enforce or template:
 
@@ -1935,7 +1935,7 @@ This is **not a runtime dependency** — cortex never invokes Context7. It's a p
 
 ---
 
-### Sprint 2.30 — Worktree-aware Steward + CLAUDE.md augment v3 final polish (plan mode + ultrathink + worktree safety) (S effort) — 📋 PLANNED 2026-05-13
+### Sprint 2.30 — Worktree-aware Steward + CLAUDE.md augment v3 final polish (plan mode + ultrathink + worktree safety) (S effort) — ✅ SHIPPED 2026-05-14 (co-shipped with 2.27)
 
 **Why**: Operator surfaced `docs/transcripts/32-tricks-claude-code.md` hacks #7 (always start in plan mode), #23 (parallel sessions via `claude --worktree`), #29 (`ultrathink` keyword). Web research verified all three are Anthropic-native CLI features as of May 2026:
 - `--worktree <name>` (shorthand `-w`) creates `.claude/worktrees/<name>/` on branch `worktree-<name>`. Announced by Boris Cherny on Threads. Doc: [code.claude.com/docs/en/worktrees](https://code.claude.com/docs/en/worktrees).
