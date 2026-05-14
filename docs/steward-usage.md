@@ -11,6 +11,7 @@
 >
 > **Companion docs:** [`docs/steward-rfc.md`](./steward-rfc.md) (motivation),
 > [`docs/steward-runtime.md`](./steward-runtime.md) (5-component design),
+> [`docs/steward-crons.md`](./steward-crons.md) (per-cron-lane reference + operator playbook + AI debug lookup),
 > [`docs/steward-research-synthesis.md`](./steward-research-synthesis.md) (research),
 > [`standards/steward-policy.md`](../standards/steward-policy.md) (refusals + MUST patterns).
 
