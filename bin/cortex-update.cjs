@@ -30,6 +30,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { confirmInteractive } = require('./_lib/confirm.cjs');
 
 function readYamlBomSafe(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -172,23 +173,15 @@ function runInstaller(sourceDir) {
   }
 }
 
-function confirmInteractive(promptText) {
-  if (!process.stdin.isTTY) return true; // non-TTY: assume yes (CI / pipe)
-  process.stdout.write(promptText);
-  try {
-    const buf = Buffer.alloc(8);
-    const fd = fs.openSync('/dev/tty', 'r');
-    let n = 0;
-    try { n = fs.readSync(fd, buf, 0, 8, null); } catch { /* fall through */ }
-    fs.closeSync(fd);
-    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === '' || reply === 'y' || reply === 'yes';
-  } catch {
-    // Windows / no /dev/tty — default to yes if --yes not passed it never
-    // reaches this branch (we exit earlier on --yes). Safer default: abort.
-    return false;
-  }
-}
+// Sprint 2.28.3 R2 H-7 SSOT migration: confirmInteractive moved to
+// bin/_lib/confirm.cjs. Behavior shift documented:
+//
+//  - non-TTY → false (was: true). CI / cron lanes must pass `--yes`
+//    explicitly. No CI workflow currently invokes cortex-update — verified
+//    by grep across .github/workflows/ at migration time.
+//  - empty reply → false (was: true). Prompt text aligned `[Y/n]` → `[y/N]`.
+//  - Aligns with cortex-hooks-register / claude-md-augment /
+//    permissions-register / uninstall — single source of truth.
 
 function main() {
   const args = parseArgs(process.argv);
@@ -302,7 +295,7 @@ function main() {
   console.log('');
 
   if (!args.yes) {
-    const ok = confirmInteractive('Apply update + re-run installer? [Y/n] ');
+    const ok = confirmInteractive('Apply update + re-run installer? [y/N] ');
     if (!ok) {
       console.log('cortex-update: aborted by user.');
       return 0;

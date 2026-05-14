@@ -88,6 +88,57 @@ fi
 CLAUDE_HOME="${HOME}/.claude"
 CHANNEL="${CORTEX_CHANNEL:-beta}"
 
+# Sprint 2.28.3 SSOT extract — Rule-of-Three on 3 consent gates below.
+# Single source for env-var normalization + interactive-consent decision.
+#
+# normalize_consent_var: lowercases + strips whitespace from $1 with LC_ALL=C
+# (Sprint 2.28.3 item #8 MED edge — Turkish locale dotless-i hardening).
+normalize_consent_var() {
+  printf '%s' "${1:-}" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -d '[:space:]'
+}
+
+# consent_prompt_decision: reads $1 (env-var raw value), $2 (TTY prompt text).
+# Echoes 'y' / 'n' to stdout. Settings-mutating prompts use abort-on-empty
+# (Sprint 2.28.3 item #5 MED — align install.sh with CLI's Sprint 2.28.1
+# edge HIGH #11 fix). For non-TTY runs without env-var → 'n' (skip silently).
+#
+# Recognized env-var values (case-insensitive, whitespace-tolerant):
+#   1 / y / yes / true  → 'y'
+#   0 / n / no / false  → 'n'
+#   anything else / empty → fall through to TTY prompt, else 'n'.
+consent_prompt_decision() {
+  local raw_var="$1"
+  local prompt_text="$2"
+  local norm
+  norm="$(normalize_consent_var "$raw_var")"
+  case "$norm" in
+    1|y|yes|true) echo 'y'; return 0 ;;
+    0|n|no|false) echo 'n'; return 0 ;;
+  esac
+  if [ -t 0 ]; then
+    local reply=''
+    local norm_reply=''
+    printf '%s' "$prompt_text"
+    read -r reply || true
+    # H-5 R2 hardening: CRLF-cloned install.sh (Git autocrlf on Windows)
+    # would leave $'\r' at end of $reply, breaking literal case match. Strip
+    # before normalize.
+    reply="${reply%$'\r'}"
+    # H-6 R2 hardening: route reply through the same normalizer as env-var
+    # input so "Yes", " y ", "YES\n" all accept consistently with the CJS
+    # parseConfirmReply contract (trim + lowercase). Without this,
+    # install.sh accepted only `[yY]|[yY][eE][sS]` while CJS accepted any
+    # case + whitespace — cross-platform parity gap.
+    norm_reply="$(normalize_consent_var "$reply")"
+    case "$norm_reply" in
+      y|yes) echo 'y' ;;
+      *) echo 'n' ;;
+    esac
+  else
+    echo 'n'
+  fi
+}
+
 # Language preference — interactive prompt unless CORTEX_LANGUAGE is set
 # or stdin is not a TTY (for CI/non-interactive runs).
 if [ -z "$CORTEX_LANGUAGE" ] && [ -t 0 ]; then
@@ -628,33 +679,16 @@ fi
 # (unset, TTY)            → interactive Y/n
 # (unset, non-TTY)        → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" ]; then
-  REGISTER_HOOKS_DECISION=''
-  # Sprint 2.28.2 R2 hardening (ssot-enforcer #2): normalize env var
-  # — lowercase + strip whitespace — so "YES", "True", " 1 " match.
-  # Backported from the 2.28.1 permissions-register block.
-  CORTEX_REGISTER_HOOKS_NORM="$(printf '%s' "${CORTEX_REGISTER_HOOKS:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-  case "$CORTEX_REGISTER_HOOKS_NORM" in
-    1|y|yes|true) REGISTER_HOOKS_DECISION='y' ;;
-    0|n|no|false) REGISTER_HOOKS_DECISION='n' ;;
-    '')
-      if [ -t 0 ]; then
-        echo
-        echo "  Cortex hooks (block-destructive safety, SessionStart context, auto-orchestrate)"
-        echo "  are NOT active until registered in ~/.claude/settings.json."
-        echo "  Without them, you lose ~50% of cortex-x value — but settings.json is yours,"
-        echo "  so the choice is explicit. A timestamped backup is written before any change."
-        printf "  Register cortex hooks now? [Y/n]: "
-        read -r CORTEX_HOOKS_REPLY || true
-        CORTEX_HOOKS_REPLY="${CORTEX_HOOKS_REPLY:-y}"
-        case "$CORTEX_HOOKS_REPLY" in
-          [yY]|[yY][eE][sS]) REGISTER_HOOKS_DECISION='y' ;;
-          *) REGISTER_HOOKS_DECISION='n' ;;
-        esac
-      else
-        REGISTER_HOOKS_DECISION='n'
-      fi
-      ;;
-  esac
+  # Show benefits paragraph BEFORE the prompt (only on TTY without env-var override).
+  CORTEX_REGISTER_HOOKS_NORM="$(normalize_consent_var "${CORTEX_REGISTER_HOOKS:-}")"
+  if [ -z "$CORTEX_REGISTER_HOOKS_NORM" ] && [ -t 0 ]; then
+    echo
+    echo "  Cortex hooks (block-destructive safety, SessionStart context, auto-orchestrate)"
+    echo "  are NOT active until registered in ~/.claude/settings.json."
+    echo "  Without them, you lose ~50% of cortex-x value — but settings.json is yours,"
+    echo "  so the choice is explicit. A timestamped backup is written before any change."
+  fi
+  REGISTER_HOOKS_DECISION="$(consent_prompt_decision "${CORTEX_REGISTER_HOOKS:-}" "  Register cortex hooks now? [y/N]: ")"
   if [ "$REGISTER_HOOKS_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-hooks-register.cjs" --apply --yes; then
       :
@@ -678,33 +712,15 @@ fi
 # (unset, TTY)               → interactive Y/n
 # (unset, non-TTY)           → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" ]; then
-  AUGMENT_CLAUDE_MD_DECISION=''
-  # Sprint 2.28.2 R2 hardening (ssot-enforcer #2): normalize env var
-  # — lowercase + strip whitespace — so "YES", "True", " 1 " match.
-  # Backported from the 2.28.1 permissions-register block.
-  CORTEX_AUGMENT_CLAUDE_MD_NORM="$(printf '%s' "${CORTEX_AUGMENT_CLAUDE_MD:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-  case "$CORTEX_AUGMENT_CLAUDE_MD_NORM" in
-    1|y|yes|true) AUGMENT_CLAUDE_MD_DECISION='y' ;;
-    0|n|no|false) AUGMENT_CLAUDE_MD_DECISION='n' ;;
-    '')
-      if [ -t 0 ]; then
-        echo
-        echo "  Cortex discipline block (R1 research-first, R2 review pipeline, parallel agents"
-        echo "  by default) can be appended to your global ~/.claude/CLAUDE.md. This biases EVERY"
-        echo "  Claude Code session — not just cortex slash commands — toward cortex behavior."
-        echo "  Bracketed by BEGIN/END markers — your existing CLAUDE.md content is preserved."
-        printf "  Append cortex discipline block to global CLAUDE.md? [Y/n]: "
-        read -r CORTEX_AUGMENT_REPLY || true
-        CORTEX_AUGMENT_REPLY="${CORTEX_AUGMENT_REPLY:-y}"
-        case "$CORTEX_AUGMENT_REPLY" in
-          [yY]|[yY][eE][sS]) AUGMENT_CLAUDE_MD_DECISION='y' ;;
-          *) AUGMENT_CLAUDE_MD_DECISION='n' ;;
-        esac
-      else
-        AUGMENT_CLAUDE_MD_DECISION='n'
-      fi
-      ;;
-  esac
+  CORTEX_AUGMENT_CLAUDE_MD_NORM="$(normalize_consent_var "${CORTEX_AUGMENT_CLAUDE_MD:-}")"
+  if [ -z "$CORTEX_AUGMENT_CLAUDE_MD_NORM" ] && [ -t 0 ]; then
+    echo
+    echo "  Cortex discipline block (R1 research-first, R2 review pipeline, parallel agents"
+    echo "  by default) can be appended to your global ~/.claude/CLAUDE.md. This biases EVERY"
+    echo "  Claude Code session — not just cortex slash commands — toward cortex behavior."
+    echo "  Bracketed by BEGIN/END markers — your existing CLAUDE.md content is preserved."
+  fi
+  AUGMENT_CLAUDE_MD_DECISION="$(consent_prompt_decision "${CORTEX_AUGMENT_CLAUDE_MD:-}" "  Append cortex discipline block to global CLAUDE.md? [y/N]: ")"
   if [ "$AUGMENT_CLAUDE_MD_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-claude-md-augment.cjs" --apply --yes; then
       :
@@ -730,33 +746,15 @@ fi
 # (unset, TTY)                  → interactive Y/n
 # (unset, non-TTY)              → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" ]; then
-  REGISTER_PERMISSIONS_DECISION=''
-  # Sprint 2.28.1 R2 hardening (blind-hunter MED #1): normalize env var
-  # — lowercase + trim — so "YES", "True", " 1 " all match. POSIX `case`
-  # is case-sensitive; CI configs commonly emit capitalized booleans.
-  CORTEX_REGISTER_PERMISSIONS_NORM="$(printf '%s' "${CORTEX_REGISTER_PERMISSIONS:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-  case "$CORTEX_REGISTER_PERMISSIONS_NORM" in
-    1|y|yes|true) REGISTER_PERMISSIONS_DECISION='y' ;;
-    0|n|no|false) REGISTER_PERMISSIONS_DECISION='n' ;;
-    '')
-      if [ -t 0 ]; then
-        echo
-        echo "  Cortex safety-floor permissions can be registered in ~/.claude/settings.json:"
-        echo "  a deny list blocking destructive operations + an allow baseline skipping"
-        echo "  approval prompts on common-safe ops (npm test, git status, ls, cortex CLIs)."
-        echo "  Replaces --dangerously-skip-permissions: same speed, deny-precedence floor."
-        printf "  Register cortex safety-floor permissions? [Y/n]: "
-        read -r CORTEX_PERMS_REPLY || true
-        CORTEX_PERMS_REPLY="${CORTEX_PERMS_REPLY:-y}"
-        case "$CORTEX_PERMS_REPLY" in
-          [yY]|[yY][eE][sS]) REGISTER_PERMISSIONS_DECISION='y' ;;
-          *) REGISTER_PERMISSIONS_DECISION='n' ;;
-        esac
-      else
-        REGISTER_PERMISSIONS_DECISION='n'
-      fi
-      ;;
-  esac
+  CORTEX_REGISTER_PERMISSIONS_NORM="$(normalize_consent_var "${CORTEX_REGISTER_PERMISSIONS:-}")"
+  if [ -z "$CORTEX_REGISTER_PERMISSIONS_NORM" ] && [ -t 0 ]; then
+    echo
+    echo "  Cortex safety-floor permissions can be registered in ~/.claude/settings.json:"
+    echo "  a deny list blocking destructive operations + an allow baseline skipping"
+    echo "  approval prompts on common-safe ops (npm test, git status, ls, cortex CLIs)."
+    echo "  Replaces --dangerously-skip-permissions: same speed, deny-precedence floor."
+  fi
+  REGISTER_PERMISSIONS_DECISION="$(consent_prompt_decision "${CORTEX_REGISTER_PERMISSIONS:-}" "  Register cortex safety-floor permissions? [y/N]: ")"
   if [ "$REGISTER_PERMISSIONS_DECISION" = "y" ]; then
     if node "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" --apply --yes; then
       :

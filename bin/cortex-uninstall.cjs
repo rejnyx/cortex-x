@@ -35,6 +35,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { confirmInteractive } = require('./_lib/confirm.cjs');
 
 const HOME = os.homedir();
 const CLAUDE_HOME = path.join(HOME, '.claude');
@@ -229,25 +230,10 @@ function buildPlan(args) {
   return plan;
 }
 
-function confirmInteractive(promptText) {
-  // Non-TTY (CI / piped): refuse silent destructive uninstall. Operator must pass
-  // --yes/-y explicitly to acknowledge in scripted contexts. Sprint 2.17.x audit
-  // closed a piped-destructive gap where `echo y | cortex-uninstall --purge`
-  // would bypass the prompt without explicit consent flag.
-  if (!process.stdin.isTTY) return false;
-  process.stdout.write(promptText);
-  try {
-    const buf = Buffer.alloc(8);
-    const fd = fs.openSync('/dev/tty', 'r');
-    let n = 0;
-    try { n = fs.readSync(fd, buf, 0, 8, null); } catch { /* fall through */ }
-    fs.closeSync(fd);
-    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === 'y' || reply === 'yes';
-  } catch {
-    return false;
-  }
-}
+// Sprint 2.28.3 R2 H-7 SSOT migration: confirmInteractive moved to
+// bin/_lib/confirm.cjs (shared with cortex-hooks-register / claude-md-augment
+// / permissions-register / cortex-update). Pre-existing semantics preserved:
+// non-TTY → false (refuse silent destructive uninstall), explicit y/yes only.
 
 function backupDataHome(dataHome) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

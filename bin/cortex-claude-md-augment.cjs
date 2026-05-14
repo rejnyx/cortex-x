@@ -36,6 +36,8 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { parseConfirmReply, confirmInteractive } = require('./_lib/confirm.cjs');
+const { backupFile, writeFileAtomic } = require('./_lib/atomic-write.cjs');
 
 const HOME = os.homedir();
 const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
@@ -173,29 +175,12 @@ function detectBlock(content) {
   return { present: true, version: matches[0][1], count: matches.length, orphan };
 }
 
-function backupFile(rawContent) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const backupPath = `${CLAUDE_MD_PATH}.backup-${ts}`;
-  // Mode 0o600 (owner read+write only) — CLAUDE.md may contain operator notes
-  // about credentials, internal URLs, or other sensitive context; backup must
-  // not leak them to other local users via umask default.
-  fs.writeFileSync(backupPath, rawContent, { encoding: 'utf8', mode: 0o600 });
-  return backupPath;
+function backupClaudeMd(rawContent) {
+  return backupFile(CLAUDE_MD_PATH, rawContent);
 }
 
 function writeContent(content) {
-  const tmp = CLAUDE_MD_PATH + '.tmp';
-  let renamed = false;
-  try {
-    fs.mkdirSync(path.dirname(CLAUDE_MD_PATH), { recursive: true });
-    fs.writeFileSync(tmp, content, 'utf8');
-    fs.renameSync(tmp, CLAUDE_MD_PATH);
-    renamed = true;
-  } finally {
-    if (!renamed) {
-      try { fs.unlinkSync(tmp); } catch {}
-    }
-  }
+  writeFileAtomic(CLAUDE_MD_PATH, content);
 }
 
 // Compute the new content after applying mode. Pure function.
@@ -210,42 +195,11 @@ function computeNext(currentContent, mode) {
   return (base.length > 0 ? base + '\n\n' : '') + fullBlock + '\n';
 }
 
-// Sprint 2.21.2 R2 hardening: cross-platform interactive prompt.
-// /dev/tty is Unix-only; on Windows it throws ENOENT and the prompt silently
-// auto-declines. Fall back to reading from process.stdin (works on Windows
-// when stdin is a TTY) before giving up. If both fail, default to false so
-// the caller knows to require --yes for unattended use.
-function confirmInteractive(promptText) {
-  if (!process.stdin.isTTY) return false;
-  process.stdout.write(promptText);
-  // Path 1 — POSIX /dev/tty (preferred: works even when stdin is piped to
-  // a TTY emulator like Git Bash on Windows).
-  if (process.platform !== 'win32') {
-    try {
-      const buf = Buffer.alloc(64);
-      const fd = fs.openSync('/dev/tty', 'r');
-      let n = 0;
-      try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
-      fs.closeSync(fd);
-      const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-      return reply === '' || reply === 'y' || reply === 'yes';
-    } catch {
-      /* fall through to stdin path */
-    }
-  }
-  // Path 2 — Windows (no /dev/tty) or POSIX fallback: read directly from
-  // stdin. Synchronous read via fs.readSync on fd 0. Works on Windows native
-  // when launched from a console host.
-  try {
-    const buf = Buffer.alloc(64);
-    let n = 0;
-    try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
-    const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === '' || reply === 'y' || reply === 'yes';
-  } catch {
-    return false;
-  }
-}
+// Sprint 2.28.3 parity backport: confirmInteractive + parseConfirmReply
+// moved to bin/_lib/confirm.cjs. Semantics changed from "empty=yes" (Sprint
+// 2.21.2) to "empty=abort" (Sprint 2.28.1 edge HIGH #11). Same threat model
+// as cortex-permissions-register: writes CLAUDE.md, closed stdin must not
+// auto-confirm. Helpers imported at top of file.
 
 function main() {
   const args = parseArgs(process.argv);
@@ -353,7 +307,7 @@ function main() {
     const prompt =
       `cortex-claude-md-augment will ${verb} the cortex discipline block in ${CLAUDE_MD_PATH}.\n` +
       `  (user content outside the markers is preserved.)\n` +
-      `Proceed? [Y/n] `;
+      `Proceed? [y/N] `;
     if (!confirmInteractive(prompt)) {
       if (args.json) {
         console.log(JSON.stringify({ ok: true, aborted: true }, null, 2));
@@ -367,7 +321,7 @@ function main() {
   let backupPath = null;
   if (current.exists) {
     try {
-      backupPath = backupFile(current.content);
+      backupPath = backupClaudeMd(current.content);
     } catch (err) {
       console.error(`cortex-claude-md-augment: backup failed: ${err.message}`);
       return 1;
@@ -417,4 +371,5 @@ module.exports = {
   computeNext,
   countMarkers,
   isWellFormedUtf8,
+  parseConfirmReply,
 };

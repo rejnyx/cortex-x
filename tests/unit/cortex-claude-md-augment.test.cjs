@@ -18,7 +18,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPT = path.join(REPO_ROOT, 'bin', 'cortex-claude-md-augment.cjs');
 const {
   BLOCK_VERSION, CORTEX_BLOCK_START, CORTEX_BLOCK_END, CORTEX_BLOCK_RE,
-  detectBlock, computeNext,
+  detectBlock, computeNext, parseConfirmReply,
 } = require(SCRIPT);
 
 function mkTmp(prefix) {
@@ -331,5 +331,35 @@ describe('cortex-claude-md-augment — R2 hardening (Sprint 2.21.2)', () => {
       const onDisk = fs.readFileSync(path.join(home, '.claude', 'CLAUDE.md'));
       assert.strictEqual(onDisk[2], 0xe9, 'invalid bytes must remain');
     } finally { rmProject(home); }
+  });
+});
+
+// Sprint 2.28.3 R2 H-3 regression: behavior change "empty stdin → abort"
+// must persist in this CLI. Without these assertions, a future re-inline of
+// the legacy "reply === '' || ..." semantics would pass _lib/confirm tests
+// but break the user contract here.
+describe('cortex-claude-md-augment — Sprint 2.28.3 confirm-contract regression', () => {
+  test('parseConfirmReply is re-exported from this CLI', () => {
+    assert.equal(typeof parseConfirmReply, 'function');
+  });
+
+  test('parseConfirmReply rejects empty / Enter / whitespace (abort default)', () => {
+    for (const reply of ['', '\n', ' ', '\r\n', '\t']) {
+      assert.equal(parseConfirmReply(reply), false, `reply ${JSON.stringify(reply)} must abort`);
+    }
+  });
+
+  test('parseConfirmReply accepts y / yes (any case + whitespace)', () => {
+    for (const reply of ['y', 'Y', 'yes', 'YES', ' yes ', '\ty\n']) {
+      assert.equal(parseConfirmReply(reply), true);
+    }
+  });
+
+  test('prompt text uses [y/N] not [Y/n] (abort-on-empty UX truth)', () => {
+    const src = fs.readFileSync(SCRIPT, 'utf8');
+    assert.ok(!src.includes('Proceed? [Y/n]'),
+      'old [Y/n] prompt removed — would lie about default behavior');
+    assert.ok(src.includes('Proceed? [y/N]'),
+      'new [y/N] prompt present (reflects empty=abort default)');
   });
 });

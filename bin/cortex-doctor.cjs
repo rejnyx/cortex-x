@@ -278,7 +278,7 @@ function runChecks() {
     findings.push(check('permissions_registered', 'info', 'cortex-permissions-register script not found — skipping check'));
   }
 
-  // 10. CLAUDE.md discipline block.
+  // 11. CLAUDE.md discipline block.
   const augmentScript = sourceDir ? path.join(sourceDir, 'bin', 'cortex-claude-md-augment.cjs') : null;
   if (augmentScript && fs.existsSync(augmentScript)) {
     try {
@@ -310,7 +310,7 @@ function runChecks() {
     findings.push(check('claude_md_block', 'info', 'cortex-claude-md-augment script not found — skipping check'));
   }
 
-  // 10. git remote reachability (optional, only if source clone is git).
+  // 12. git remote reachability (optional, only if source clone is git).
   if (sourceDir && fs.existsSync(path.join(sourceDir, '.git'))) {
     try {
       const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {

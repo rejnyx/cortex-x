@@ -38,15 +38,17 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { parseConfirmReply, confirmInteractive } = require('./_lib/confirm.cjs');
+const { backupFile, writeFileAtomic } = require('./_lib/atomic-write.cjs');
 
 const HOME = os.homedir();
 const SETTINGS_PATH = path.join(HOME, '.claude', 'settings.json');
 
 // Canonical cortex permission manifest. Two-kind shape — only `deny` (safety
 // floor) and `allow` (common-safe baseline). `ask` is intentionally absent:
-// cortex does not opine on ask-list (operator preference territory). Add a
-// new entry here AND keep install.sh INSTALL_NOTES.md in sync (SSOT
-// enforcement: tests check the two stay aligned).
+// cortex does not opine on ask-list (operator preference territory). This
+// manifest is the SINGLE source of truth — Sprint 2.28.3 R2 H-2/H-8 hardening:
+// any roadmap or doc listing of deny entries is descriptive only.
 //
 // Patterns use Claude Code's Tool(pattern) syntax. Glob-ish: `*` matches any
 // suffix on a Bash command argv. Per [code.claude.com/docs/en/settings],
@@ -54,22 +56,60 @@ const SETTINGS_PATH = path.join(HOME, '.claude', 'settings.json');
 // even if the user widens allow to a catch-all.
 const CORTEX_PERMISSIONS = Object.freeze({
   deny: [
-    // Destructive filesystem
+    // Destructive filesystem. `rm -fr*` is the order-swapped variant — Bash
+    // accepts both `-rf` and `-fr`, so we deny both prefixes.
     'Bash(rm -rf*)',
-    // Destructive git history
+    'Bash(rm -fr*)',
+    // `sudo*` is the highest-priority addition: privilege elevation negates
+    // every other floor entry. Documented limitation: prefix-match only;
+    // full-path invocations (`/usr/bin/sudo …`) bypass — defense in depth at
+    // Steward policy-denylist layer covers that class.
+    'Bash(sudo*)',
+    // chmod / chown recursive — multiple flag-order forms a user might type.
+    // Sprint 2.28.3 R2 security MED-3: cover the bash flag-permutation set.
+    'Bash(chmod -R*)',
+    'Bash(chmod -fR*)',
+    'Bash(chmod -vR*)',
+    'Bash(chmod --recursive*)',
+    'Bash(chown -R*)',
+    'Bash(chown --recursive*)',
+    // xargs rm — common destructive pipeline tail. Embedded-wildcard
+    // alternatives (`find *-delete*`, `dd *of=/dev*`) were intentionally
+    // dropped — Claude Code's Tool() matcher is suffix-glob only per
+    // bin/cortex-permissions-register.cjs:53. Those patterns either
+    // overshot (deny ALL dd) or under-shot (decorative suffix). Catch
+    // those classes at the Steward policy-denylist layer instead.
+    'Bash(xargs rm*)',
+    // Shell evaluation + system halt commands.
+    'Bash(eval*)',
+    'Bash(shutdown*)',
+    'Bash(reboot*)',
+    'Bash(halt*)',
+    'Bash(poweroff*)',
+    'Bash(mkfs*)',
+    'Bash(mkfs.*)',
+    // Destructive git history. `git push *--mirror*` removed: embedded `*`
+    // does not work in suffix-glob matcher; the replacement `Bash(git push *)`
+    // would over-deny ALL pushes including `git push origin main`. Mirror
+    // pushes stay caught by Steward review.
     'Bash(git push --force*)',
     'Bash(git push -f*)',
     'Bash(git reset --hard*)',
     'Bash(git clean -f*)',
     'Bash(git checkout .*)',
-    // Destructive database
+    'Bash(git branch -D*)',
+    'Bash(git tag -d*)',
+    // Destructive database. Embedded `*` patterns `psql*DROP TABLE*` and
+    // `psql*TRUNCATE*` were broken per same matcher limitation — left in
+    // place historically but ineffective. Listed here as known limitation;
+    // Steward LLM review catches destructive SQL at recommendation review.
     'Bash(supabase db reset*)',
-    'Bash(psql*DROP TABLE*)',
-    'Bash(psql*TRUNCATE*)',
     // Accidental npm publishes (operator overrides per-package via project
-    // settings if intentional)
+    // settings if intentional) + uninstall/clean across pkg managers.
     'Bash(npm publish*)',
-    // Interactive flags that hang headless agent runs
+    'Bash(pip uninstall -y*)',
+    'Bash(cargo clean*)',
+    // Interactive flags that hang headless agent runs.
     'Bash(git rebase -i*)',
     'Bash(git add -i*)',
   ],
@@ -190,31 +230,12 @@ function readSettings() {
 }
 
 function backupSettings(raw) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const backupPath = `${SETTINGS_PATH}.backup-${ts}`;
-  // Mode 0o600 — Sprint 2.21.3 MED 2 hardening: settings.json may contain
-  // OAuth tokens; backups must not leak via umask default.
-  fs.writeFileSync(backupPath, raw, { encoding: 'utf8', mode: 0o600 });
-  return backupPath;
+  return backupFile(SETTINGS_PATH, raw);
 }
 
 function writeSettings(json) {
   const out = JSON.stringify(json, null, 2) + '\n';
-  const tmp = SETTINGS_PATH + '.tmp';
-  let renamed = false;
-  try {
-    fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    // Sprint 2.28.1 R2 hardening (security LOW-2): tmp file must inherit the
-    // same 0o600 mode as the backup. settings.json may contain OAuth tokens;
-    // the tmp file briefly holds identical content before atomic rename.
-    fs.writeFileSync(tmp, out, { encoding: 'utf8', mode: 0o600 });
-    fs.renameSync(tmp, SETTINGS_PATH);
-    renamed = true;
-  } finally {
-    if (!renamed) {
-      try { fs.unlinkSync(tmp); } catch {}
-    }
-  }
+  writeFileAtomic(SETTINGS_PATH, out);
 }
 
 // Sprint 2.21.2 R2 hardening parity: tolerate `permissions: null`, array,
@@ -297,51 +318,10 @@ function computePlan(currentPermissions, mode) {
   return { next, summary };
 }
 
-// Sprint 2.28.2 R2 hardening (correctness-auditor #1 + acceptance-auditor #2):
-// pure decision helper extracted for testability. The TTY-read plumbing stays
-// in confirmInteractive, but the reply→boolean mapping is now a pure function
-// that can be unit-tested without spawning a subprocess.
-//
-// Contract: empty / whitespace / non-y reply → false (abort).
-// Only literal "y" / "yes" (case-insensitive, trimmed) → true (proceed).
-// This is the explicit-confirm-only semantics from Sprint 2.28.1 edge HIGH #11.
-function parseConfirmReply(rawReply) {
-  if (typeof rawReply !== 'string') return false;
-  const trimmed = rawReply.trim().toLowerCase();
-  return trimmed === 'y' || trimmed === 'yes';
-}
-
-// Sprint 2.21.2 R2 hardening: cross-platform interactive prompt with
-// Windows /dev/tty fallback.
-//
-// Sprint 2.28.1 R2 hardening (edge-case-hunter #11): require EXPLICIT
-// 'y'/'yes' reply — empty input (EOF, closed stdin, Ctrl-D) no longer
-// defaults to true. Previously `reply === ''` confirmed destructive
-// settings.json mutation; safer default when stdin is exhausted is abort.
-function confirmInteractive(promptText) {
-  if (!process.stdin.isTTY) return false;
-  process.stdout.write(promptText);
-  if (process.platform !== 'win32') {
-    try {
-      const buf = Buffer.alloc(64);
-      const fd = fs.openSync('/dev/tty', 'r');
-      let n = 0;
-      try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
-      fs.closeSync(fd);
-      return parseConfirmReply(buf.slice(0, n).toString('utf8'));
-    } catch {
-      /* fall through to stdin path */
-    }
-  }
-  try {
-    const buf = Buffer.alloc(64);
-    let n = 0;
-    try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
-    return parseConfirmReply(buf.slice(0, n).toString('utf8'));
-  } catch {
-    return false;
-  }
-}
+// Sprint 2.28.3 SSOT extract: parseConfirmReply + confirmInteractive moved
+// to bin/_lib/confirm.cjs (shared with cortex-hooks-register +
+// cortex-claude-md-augment). Same semantics, single source. Helpers imported
+// at top of file.
 
 function statusReport(json) {
   const permissions = normalizePermissionsField(json && json.permissions);
