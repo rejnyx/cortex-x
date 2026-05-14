@@ -723,7 +723,11 @@ fi
 # (unset, non-TTY)              → skip silently
 if command -v node > /dev/null 2>&1 && [ -f "$CORTEX_ROOT/bin/cortex-permissions-register.cjs" ]; then
   REGISTER_PERMISSIONS_DECISION=''
-  case "$CORTEX_REGISTER_PERMISSIONS" in
+  # Sprint 2.28.1 R2 hardening (blind-hunter MED #1): normalize env var
+  # — lowercase + trim — so "YES", "True", " 1 " all match. POSIX `case`
+  # is case-sensitive; CI configs commonly emit capitalized booleans.
+  CORTEX_REGISTER_PERMISSIONS_NORM="$(printf '%s' "${CORTEX_REGISTER_PERMISSIONS:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "$CORTEX_REGISTER_PERMISSIONS_NORM" in
     1|y|yes|true) REGISTER_PERMISSIONS_DECISION='y' ;;
     0|n|no|false) REGISTER_PERMISSIONS_DECISION='n' ;;
     '')

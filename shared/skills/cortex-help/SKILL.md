@@ -68,6 +68,7 @@ These are operator-facing maintenance tools shipped under `~/.claude/shared/bin/
 | **`cortex-doctor`** | Same checks as `/cortex-doctor` slash skill but headless. Flags: `--json`, `--fix-suggestions`. Exit 0/1 | CI / scripted health audit |
 | **`cortex-hooks-register`** | Opt-in idempotent merge of cortex hooks into `~/.claude/settings.json` with timestamped backup. Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json` | Manual hooks wiring if install consent declined |
 | **`cortex-claude-md-augment`** | Opt-in BEGIN/END-marker append of discipline block to `~/.claude/CLAUDE.md` (R1+R2+TodoWrite+voice+surgical). Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json` | Manual global-CLAUDE wiring if install consent declined |
+| **`cortex-permissions-register`** | Opt-in idempotent merge of safety-floor permissions into `~/.claude/settings.json` (deny floor + allow baseline). Replaces `--dangerously-skip-permissions`: same speed, `deny > ask > allow` precedence floor. Flags: `--apply`, `--remove`, `--status`, `--dry-run`, `--yes`, `--json` | Manual permissions wiring if install consent declined |
 
 Full CLI roster (14 tools incl. internal Steward + lessons + propose-skill + evolve-ab + wiki-consolidate + doc-audit): see [`bin/README.md`](../../../bin/README.md).
 

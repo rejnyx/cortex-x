@@ -236,11 +236,14 @@ function runChecks() {
   }
 
   // 9. Permissions safety-floor (Sprint 2.28).
+  // Sprint 2.28.1 R2 hardening (blind-hunter MED #3): execFileSync timeout
+  // — without it, a hung child blocks the doctor forever. 5s is generous
+  // for a settings.json read; real failures surface immediately.
   const permsScript = sourceDir ? path.join(sourceDir, 'bin', 'cortex-permissions-register.cjs') : null;
   if (permsScript && fs.existsSync(permsScript)) {
     try {
       const out = execFileSync(process.execPath, [permsScript, '--status', '--json'], {
-        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000,
       });
       const report = JSON.parse(out);
       if (report.cortex_entries_total === 0) {
@@ -250,6 +253,15 @@ function runChecks() {
       } else {
         findings.push(check('permissions_registered', 'ok',
           `${report.cortex_entries_total} cortex permission entry(s) in ${SETTINGS_PATH} (deny ${report.per_kind.deny}, allow ${report.per_kind.allow})`));
+        // Sprint 2.28.1 R2 hardening (acceptance-auditor gap): detect
+        // user-added catch-all `Bash(*)` in allow which negates the
+        // deny floor's effective coverage (precedence still holds at
+        // runtime, but the allow widens the attack surface).
+        if (report.user_catch_all_in_allow) {
+          findings.push(check('permissions_allow_catch_all', 'warn',
+            'User catch-all `Bash(*)` present in permissions.allow — narrows effective safety floor',
+            'Remove Bash(*) from ~/.claude/settings.json permissions.allow if not intentional'));
+        }
       }
     } catch (err) {
       findings.push(check('permissions_registered', 'info',

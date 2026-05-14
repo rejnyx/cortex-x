@@ -91,8 +91,19 @@ const CORTEX_PERMISSIONS = Object.freeze({
     'Bash(pwd)',
     'Bash(node --version)',
     'Bash(node -v)',
-    // cortex's own CLIs (operator can trust these)
-    'Bash(cortex-*)',
+    // cortex's own READ-ONLY CLIs (Sprint 2.28.1 hardening — security R2 MED-1:
+    // the prior catch-all `Bash(cortex-*)` auto-approved destructive CLIs
+    // like `cortex-uninstall --purge`. Narrow to confirmed-safe surfaces only.
+    // cortex-uninstall + cortex-update (full) require explicit operator approval.)
+    'Bash(cortex-doctor*)',
+    'Bash(cortex-help*)',
+    'Bash(cortex-update --check*)',
+    'Bash(cortex-update --json*)',
+    'Bash(cortex-hooks-register --status*)',
+    'Bash(cortex-claude-md-augment --status*)',
+    'Bash(cortex-permissions-register --status*)',
+    'Bash(cortex-capabilities*)',
+    'Bash(cortex-gap-report*)',
   ],
 });
 
@@ -179,7 +190,10 @@ function writeSettings(json) {
   let renamed = false;
   try {
     fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fs.writeFileSync(tmp, out, 'utf8');
+    // Sprint 2.28.1 R2 hardening (security LOW-2): tmp file must inherit the
+    // same 0o600 mode as the backup. settings.json may contain OAuth tokens;
+    // the tmp file briefly holds identical content before atomic rename.
+    fs.writeFileSync(tmp, out, { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(tmp, SETTINGS_PATH);
     renamed = true;
   } finally {
@@ -199,9 +213,28 @@ function normalizePermissionsField(value) {
   return value;
 }
 
-function normalizeKindList(value) {
+// Sprint 2.28.1 R2 hardening (edge-case-hunter #8): warn on silent drops.
+// Previously non-string entries (e.g. `{deny: [{not: "a string"}]}` from a
+// hand-edited settings.json) were dropped without notice, producing silent
+// data loss on write. Now we filter the same way but log a stderr warning
+// so the operator sees the discarded shape and can fix it manually.
+function normalizeKindList(value, opts = {}) {
   if (!Array.isArray(value)) return [];
-  return value.filter((v) => typeof v === 'string');
+  const out = [];
+  const dropped = [];
+  for (const v of value) {
+    if (typeof v === 'string') out.push(v);
+    else dropped.push(v);
+  }
+  if (dropped.length > 0 && opts.warn !== false && typeof process !== 'undefined' && process.stderr && process.stderr.write) {
+    try {
+      const preview = JSON.stringify(dropped.slice(0, 3));
+      process.stderr.write(
+        `cortex-permissions-register: warning — ${dropped.length} non-string entry(s) in permissions list dropped: ${preview}${dropped.length > 3 ? ' …' : ''}\n`
+      );
+    } catch { /* best-effort */ }
+  }
+  return out;
 }
 
 // Compute the planned state given current permissions block and the
@@ -248,7 +281,14 @@ function computePlan(currentPermissions, mode) {
 }
 
 // Sprint 2.21.2 R2 hardening: cross-platform interactive prompt with
-// Windows /dev/tty fallback. Shared shape with cortex-hooks-register.
+// Windows /dev/tty fallback.
+//
+// Sprint 2.28.1 R2 hardening (edge-case-hunter #11): require EXPLICIT
+// 'y'/'yes' reply — empty input (EOF, closed stdin, Ctrl-D) no longer
+// defaults to true. Previously `reply === ''` confirmed destructive
+// settings.json mutation, which is wrong for a settings-write CLI even
+// though the upstream prompt text shows "[Y/n]" — the safer default
+// when stdin is exhausted is to abort, not proceed.
 function confirmInteractive(promptText) {
   if (!process.stdin.isTTY) return false;
   process.stdout.write(promptText);
@@ -260,7 +300,7 @@ function confirmInteractive(promptText) {
       try { n = fs.readSync(fd, buf, 0, 64, null); } catch { /* fall through */ }
       fs.closeSync(fd);
       const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-      return reply === '' || reply === 'y' || reply === 'yes';
+      return reply === 'y' || reply === 'yes';
     } catch {
       /* fall through to stdin path */
     }
@@ -270,7 +310,7 @@ function confirmInteractive(promptText) {
     let n = 0;
     try { n = fs.readSync(0, buf, 0, 64, null); } catch { /* fall through */ }
     const reply = buf.slice(0, n).toString('utf8').trim().toLowerCase();
-    return reply === '' || reply === 'y' || reply === 'yes';
+    return reply === 'y' || reply === 'yes';
   } catch {
     return false;
   }
@@ -278,12 +318,27 @@ function confirmInteractive(promptText) {
 
 function statusReport(json) {
   const permissions = normalizePermissionsField(json && json.permissions);
-  const report = { settings_present: fs.existsSync(SETTINGS_PATH), cortex_entries_total: 0, per_kind: { deny: 0, allow: 0 } };
+  const report = {
+    settings_present: fs.existsSync(SETTINGS_PATH),
+    cortex_entries_total: 0,
+    per_kind: { deny: 0, allow: 0 },
+    // Sprint 2.28.1 R2 hardening (acceptance-auditor gap): expose user
+    // catch-all `Bash(*)` in allow so cortex-doctor can warn — it negates
+    // the effective coverage of the deny floor for any pattern
+    // Claude Code's matcher resolves via prefix.
+    user_catch_all_in_allow: false,
+  };
+  // Suppress drop warnings in status mode (status is read-only; warning
+  // would noise stderr without offering a fix path).
   for (const kind of Object.keys(CORTEX_PERMISSIONS)) {
-    const list = normalizeKindList(permissions[kind]);
+    const list = normalizeKindList(permissions[kind], { warn: false });
     const cortex = list.filter((p) => isCortexPattern(p, kind));
     report.per_kind[kind] = cortex.length;
     report.cortex_entries_total += cortex.length;
+  }
+  const allowList = normalizeKindList(permissions.allow, { warn: false });
+  if (allowList.includes('Bash(*)')) {
+    report.user_catch_all_in_allow = true;
   }
   return report;
 }

@@ -363,18 +363,83 @@ describe('cortex-permissions-register — R2 hardening (Sprint 2.21.2 parity)', 
     } finally { tryRm(home); }
   });
 
-  test('user-added catch-all Bash(*) in allow does NOT clash with cortex deny precedence', () => {
-    // This tests cortex's defensive posture — operator may add `Bash(*)`
-    // to allow as a blanket "trust me" pass; cortex's deny entries still
-    // hold per Claude Code's documented `deny > ask > allow` precedence.
-    // We only verify cortex doesn't remove the user's `Bash(*)` entry on
-    // apply; the runtime enforcement is Claude Code's job.
+  test('preserves user catch-all Bash(*) alongside cortex deny floor', () => {
+    // Sprint 2.28.1 R2 hardening (blind-hunter LOW): test renamed for accuracy.
+    // Verifies cortex preserves the user's `Bash(*)` allow entry on apply;
+    // Claude Code's `deny > ask > allow` precedence is enforced at runtime
+    // by Claude Code, not by this CLI.
     const home = mkFakeHome({ permissions: { allow: ['Bash(*)'] } });
     try {
       runCli(['--apply', '--yes', '--json'], home);
       const settings = readSettingsFromHome(home);
       assert.ok(settings.permissions.allow.includes('Bash(*)'), 'user catch-all preserved');
       assert.ok(settings.permissions.deny.includes('Bash(rm -rf*)'), 'cortex floor still present');
+    } finally { tryRm(home); }
+  });
+});
+
+describe('cortex-permissions-register — Sprint 2.28.1 R2 hardening', () => {
+  test('security MED-1: allow list no longer auto-approves cortex-uninstall', () => {
+    // Prior `Bash(cortex-*)` catch-all auto-approved destructive
+    // cortex-uninstall --purge. Narrowed to read-only CLIs only.
+    assert.ok(!CORTEX_PERMISSIONS.allow.includes('Bash(cortex-*)'),
+      'broad cortex-* catch-all removed');
+    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-doctor*)'),
+      'narrow cortex-doctor entry present');
+    assert.ok(CORTEX_PERMISSIONS.allow.includes('Bash(cortex-update --check*)'),
+      'narrow cortex-update --check entry present');
+    const allowJoined = CORTEX_PERMISSIONS.allow.join('|');
+    assert.ok(!/cortex-uninstall/.test(allowJoined),
+      'cortex-uninstall must NOT be auto-approved');
+  });
+
+  test('edge HIGH #8: non-string entries dropped with stderr warning', () => {
+    const home = mkFakeHome({ permissions: { deny: ['Bash(rm -rf*)', { invalid: 'shape' }, 42] } });
+    try {
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      assert.match(r.stderr, /non-string entry\(s\) in permissions list dropped/,
+        'stderr must surface the silent-drop warning');
+      const settings = readSettingsFromHome(home);
+      assert.ok(settings.permissions.deny.includes('Bash(rm -rf*)'));
+      assert.ok(!settings.permissions.deny.includes(42));
+    } finally { tryRm(home); }
+  });
+
+  test('security LOW-2: tmp file inherits mode 0o600 (via final settings.json mode)', () => {
+    // The tmp file is renamed to settings.json atomically. After rename,
+    // settings.json has the tmp's mode bits. On Windows the assertion is
+    // skipped because mode bits are not honored exactly.
+    const home = mkFakeHome();
+    try {
+      const r = runCli(['--apply', '--yes', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      if (process.platform !== 'win32') {
+        const settingsPath = path.join(home, '.claude', 'settings.json');
+        const stat = fs.statSync(settingsPath);
+        assert.strictEqual(stat.mode & 0o777, 0o600,
+          'settings.json must inherit tmp mode 0o600 after atomic rename');
+      }
+    } finally { tryRm(home); }
+  });
+
+  test('acceptance gap: statusReport exposes user_catch_all_in_allow', () => {
+    const home = mkFakeHome({ permissions: { allow: ['Bash(*)'] } });
+    try {
+      const r = runCli(['--status', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      const result = JSON.parse(r.stdout);
+      assert.strictEqual(result.user_catch_all_in_allow, true);
+    } finally { tryRm(home); }
+  });
+
+  test('acceptance gap: statusReport reports user_catch_all_in_allow=false when absent', () => {
+    const home = mkFakeHome({ permissions: { allow: ['Bash(npm test)'] } });
+    try {
+      const r = runCli(['--status', '--json'], home);
+      assert.strictEqual(r.status, 0);
+      const result = JSON.parse(r.stdout);
+      assert.strictEqual(result.user_catch_all_in_allow, false);
     } finally { tryRm(home); }
   });
 });

@@ -808,7 +808,10 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $AugmentScr
 $PermissionsScript = Join-Path $CortexRoot "bin\cortex-permissions-register.cjs"
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $PermissionsScript)) {
     $PermissionsDecision = $null
-    $EnvPerms = $env:CORTEX_REGISTER_PERMISSIONS
+    # Sprint 2.28.1 R2 hardening (blind-hunter MED #2): trim whitespace
+    # before regex match — "  1  " and " yes\n" both legitimate values
+    # from CI configs would otherwise fail the anchored regex.
+    $EnvPerms = if ($null -ne $env:CORTEX_REGISTER_PERMISSIONS) { $env:CORTEX_REGISTER_PERMISSIONS.Trim() } else { $null }
     if ($EnvPerms -match '^(1|y|yes|true)$') {
         $PermissionsDecision = 'y'
     } elseif ($EnvPerms -match '^(0|n|no|false)$') {
