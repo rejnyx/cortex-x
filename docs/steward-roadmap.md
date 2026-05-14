@@ -1025,9 +1025,11 @@ PHASE C — DELIVER (deterministic)
 
 ---
 
-### Sprint 2.8.2 — Karpathy-style wiki layer (lessons + insights → human-readable Obsidian-shaped markdown) (S-M effort) — 📋 PROPOSED 2026-05-13
+### Sprint 2.8.2 — Karpathy-style wiki layer (lessons + insights → human-readable Obsidian-shaped markdown) (S-M effort) — ✅ SHIPPED v0 2026-05-13 (verified 2026-05-14)
 
-**Status**: 📋 Roadmap-add 2026-05-13 from [Karpathy "From Vibe Coding to Agentic Engineering" transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
+**Status**: ✅ Shipped v0 — `bin/cortex-wiki-consolidate.cjs` CLI + `bin/steward/_lib/wiki-consolidate.cjs` library + `wiki_consolidate` registered in `action-kinds.cjs` + ~20 R2-hardened tests (idempotency, lessons cap, YAML escaping, Windows reserved names, tie-break, mixed timestamps). Phase A is pure-deterministic (no LLM). Sprint 2.8.2 v1 (LLM-validated cross-family synthesis) deferred to a future sprint when Sprint 2.19 v1 LLM-validator pattern is more mature. Status flipped from 📋 PROPOSED → ✅ SHIPPED during Sprint 2.26 verification sweep — same drift pattern as Sprint 2.20.
+
+**Original spec source**: [Karpathy "From Vibe Coding to Agentic Engineering" transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md):
 > "I really enjoy whenever I read an article I have my wiki that's being built up from these articles and I love asking questions about things ... these are tools to enhance understanding."
 
 Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karpathy-Obsidian-RAG structure (vault → raw / wiki / output).
