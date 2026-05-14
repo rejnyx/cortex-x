@@ -4,7 +4,7 @@
 
 > *"I sort of feel like loops are the future at this point. If you haven't experimented with it, highly highly recommend it."* — Boris Cherny, creator of Claude Code, Sequoia "Why Coding Is Solved" May 2026 ([transcript excerpt](./docs/transcripts/boris-black-vibecoding.md))
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Status: public preview](https://img.shields.io/badge/status-v0.3--pre_public_preview-orange)](#what-runs-today) [![Tests: 2697](https://img.shields.io/badge/tests-2697_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE) [![Status: public preview](https://img.shields.io/badge/status-v0.3.0_public_preview-blue)](#what-runs-today) [![Tests: 2955](https://img.shields.io/badge/tests-2955_green-brightgreen)](./tests/README.md) [![CI](https://img.shields.io/badge/CI-5--lane_matrix-brightgreen)](./.github/workflows/)
 
 ---
 
@@ -99,7 +99,7 @@ Without these, `/cortex-init`, `/audit`, `/start` still work (skills auto-discov
 
 ## What you get
 
-1. **Scaffolds** a new project with one of 11 stack profiles (Next.js SaaS, chatbot platform, AI agent, CLI tool, static site, …) — `CLAUDE.md` + `PROGRESS.md` + `.claude/` hooks + memory scaffold + 26 standards, in ~3 minutes.
+1. **Scaffolds** a new project with one of 11 stack profiles (Next.js SaaS, chatbot platform, AI agent, CLI tool, static site, …) — `CLAUDE.md` + `PROGRESS.md` + `.claude/` hooks + memory scaffold + 28 standards, in ~3 minutes.
 2. **Audits** an existing repo across 12 dimensions via 4 parallel subagents, returns a senior-consultant-grade report.
 3. **Maintains** the repo overnight via **Steward** — read `cortex/recommendations.md`, run the LLM, apply edits, gate on tests, open a draft PR. Safety primitives: draft-only PRs, `STEWARD_HALT` killswitch, daily/weekly/monthly USD caps, atomic rollback.
 
@@ -113,7 +113,7 @@ Built for the operator who runs **many repos** and wants a maintenance autopilot
 
 Every Steward run: draft PR (never pushes to main) · `STEWARD_HALT` killswitch · daily / weekly / monthly USD caps · 3-failure circuit breaker · atomic rollback on any phase failure. See [`docs/steward-usage.md`](./docs/steward-usage.md) to activate Steward on your repo.
 
-## Design principles — 26 standards across 5 tiers
+## Design principles — 28 standards across 5 tiers
 
 | Tier | Examples | Enforced by |
 |---|---|---|
@@ -152,12 +152,12 @@ cortex-x/
 │   └── steward/         Autonomous runtime — dry-run + execute + status + _lib/ primitives
 ├── profiles/            11 project profiles (YAML)
 ├── templates/           Handlebars templates (CLAUDE.md, PROGRESS.md, MEMORY.md, …)
-├── standards/           26 standards (Rule 0/1/1.5/2/3)
-├── prompts/             15+ reusable prompts bound to slash commands
+├── standards/           28 standards (Rule 0/1/1.5/2/3)
+├── prompts/             18 reusable prompts bound to slash commands
 ├── agents/              9 specialized subagents (review pipeline + planner + thinker)
 ├── shared/hooks/        7 universal Claude Code hooks
 ├── detectors/           Profile + stage classifiers (<100ms, fail-open)
-├── tests/               2697 tests across 8 tier gates
+├── tests/               2955 tests across 8 tier gates
 ├── evals/               Aider-style eval suite (10 canonical task rubrics)
 ├── docs/                Long-form docs (vision, positioning, install walkthrough, …)
 └── install.{sh,ps1}     One-command install to ~/.claude/shared/
@@ -178,7 +178,7 @@ cortex-x/
 | Surface | State |
 |---|---|
 | One-command install (`install.sh` / `install.ps1`) | ✅ shipped, 5-lane CI green |
-| 11 project profiles, 26 standards, 9 review agents, 15 reusable prompts | ✅ shipped |
+| 11 project profiles, 28 standards, 9 review agents, 18 reusable prompts | ✅ shipped |
 | Claude Code hooks (session-start, block-destructive, post-tool-use, …) | ✅ shipped, contract-tested |
 | 6-agent parallel code-review pipeline (`prompts/code-review.md`) | ✅ shipped |
 | Web-research-before-implement default (`standards/web-research.md`) | ✅ shipped |
@@ -195,7 +195,7 @@ cortex-x/
 | GraphRAG + lightweight reasoning over journal | ⏳ deferred pending LazyGraphRAG cost cliff resolution |
 | Capability marketplace + WaaS (Tier 3 productization) | ⏳ Tier 3 roadmap |
 
-**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2697-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable.
+**Honesty disclaimer.** Repo is a fresh public preview under Apache 2.0 (relicensed 2026-05-12). 0 GitHub stars on day 1 is structural, not a quality signal. The 2955-test suite, 5-lane CI matrix, and 15 nightly cron workflows are real and verifiable. Three sub-sprints remain deferred — 2.2.1 multi-agent spawner (foundation utilities shipped, actual git-worktree spawner with judge LLM invocation deferred), 2.3.1 `mutation_score` criterion kind in spec-verifier (gated on 2-week Stryker baseline), 3.X Anthropic Memory Tool (gated on claude-cli engine collision + OpenRouter beta-header pass-through).
 
 See [`docs/vision.md`](./docs/vision.md) for the full four-tier roadmap (Foundation → Verification → Compound learners → Productization → Persistent entity).
 
@@ -233,7 +233,7 @@ cortex-x sits in a slot none of these occupy: **self-hosted, zero-deps CJS, cron
 - Bug reports & beta feedback: see [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE/)
 - Security vulnerabilities: **do not file a public issue** — see [`SECURITY.md`](./SECURITY.md) for private disclosure via GitHub Private Vulnerability Reporting
 - Code of conduct: [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
-- Pre-PR gate: `npm test` (~26 sec, 2697 tests across unit + contract + integration)
+- Pre-PR gate: `npm test` (~28 sec, 2955 tests across unit + contract + integration)
 
 ## License
 

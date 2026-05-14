@@ -2,6 +2,50 @@
 
 All notable changes to cortex-x. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-05-14 — First public stable preview
+
+> **Chapter close: Tier 0 (Foundation) + Tier 1 (Verification + multi-agent) shipped, Tier 2 (Compound learners) essentially complete.** First version intended for stranger consumption — `0.3.0-pre` suffix dropped. `experimental: true` flag preserved in the Claude Code plugin manifest because three named sub-sprints remain deferred (2.2.1 multi-agent spawner, 2.3.1 mutation_score criterion kind, 3.X Anthropic Memory Tool). Plugin stability flag moved `closed-beta` → `public-preview`.
+>
+> Headline numbers for the 2026-05-14 autonomous session: **15 commits**, **11 sprints landed** (2.29 · 2.26 · 2.20 status flip · 2.24 · 2.8.2 · 2.8.3 · 2.22 + 2.22.1 R2 · 2.25 + 2.25.1 R2 · 2.3 + 2.3.1 R2 · 2.2 + 2.2.1 R2 · 3.X verified-deferral), **4 R2 hardening rounds** closing **25 HIGH findings** in-commit, **5 fresh R1 web-research dispatches**, **2697 → 2955 tests (+258)**, 0 failing, 2 pre-existing skips.
+
+### Added (2026-05-14 — Sprint 2.29 + 2.26 + 2.20 + 2.24 + 2.8.2 + 2.8.3 + 2.22 + 2.25 + 2.3 + 2.2 + 3.X-defer)
+
+**Sprint 2.3** — StrykerJS mutation-testing measure-only baseline (commit `68feef9`). New [`standards/mutation-testing.md`](./standards/mutation-testing.md) (Rule 2 Critical) + [`stryker.conf.json`](./stryker.conf.json) (incremental, concurrency 50%, timeout 60s, `break: null` measure-only posture) + [`.github/workflows/stryker.yml`](./.github/workflows/stryker.yml) (push + Sun 03:00 UTC cron + workflow_dispatch). Mutate-scope locked to auth-tier `bin/steward/_lib/` modules (splice · spec-verifier · halt-check · cost-safety · recommendations · policy-check). Fitness signal beyond "tests pass": Stryker mutates one operator per run, re-runs `npm test`, scores % killed. Threshold ratchets activate after 2-week baseline. R1: [`docs/research/sprint-2.3-mutation-testing-fitness-2026-05-14.md`](./docs/research/sprint-2.3-mutation-testing-fitness-2026-05-14.md) (1670 words, 26 URLs). Fresh memo complements the original Sprint 2.3 R1 (2026-05-10) + R1 refresh (2026-05-10).
+
+**Sprint 2.2** — worktree-supervisor foundation v0 (commit `93d7b8d`). 4 pure utility functions in [`bin/steward/_lib/topology.cjs`](./bin/steward/_lib/topology.cjs): `parseTreeBudgetCap` (USD cap, clamped [0.10, 10.0], default $1.50) · `canonicalize` (tag-encodes Date/Buffer/RegExp/Map/Set/TypedArray/BigInt + SHA-256 fingerprint defense against position bias + cross-tree loop detection) · `randomizeJudgeOrder` (Fisher-Yates with defensive rng clamping) · `validateTopologySafe` (Object.prototype.hasOwnProperty defense vs prototype pollution). New action_kind `recommendation_harvest_parallel` (LLM-required, `topology_safe: 'parallel'`, ensemble shape: 2 Sonnet workers + same-tier Sonnet judge) — registry-only, spawner deferred. New [`standards/multi-agent-supervisor.md`](./standards/multi-agent-supervisor.md) (Rule 2 Critical): 6 safety contracts (S1 budget · S2 depth · S3 audit randomization · S4 fingerprint dedup · S5 worker-judge same-tier · S6 fail-safe rollback). R1: [`docs/research/sprint-2.2-worktree-supervisor-2026-05-14.md`](./docs/research/sprint-2.2-worktree-supervisor-2026-05-14.md) (1530 words, 13 URLs; DeepMind 17.2× amplification, $47K LangChain runaway).
+
+**Sprint 2.22 + 2.22.1 R2** — `cortex-skill-validate` CLI + 3-tier model + ToxicSkills regex (commits `e9c01d7`, `c014f43`). 3-tier validator (spec compliance / Claude Code runtime / cortex opinion). ToxicSkills security regex (system-prompt injection, prompt-leak, role-confusion). 7 HIGH closed by 4-agent parallel review.
+
+**Sprint 2.25 + 2.25.1 R2** — `cortex-dream` + `cortex-insights` operator-edited memory consolidator (commits `d45b517`, `b24af86`). 4-op consolidator (merge duplicates · remove contradicted · relative→absolute dates · aggressive 200-line prune) targeting `MEMORY.md` + `~/.cortex/projects/<slug>.md`. 7 HIGH closed by 3-agent review (security + correctness + edge-case).
+
+**Sprint 2.29** — MCP server recommendations per profile (Context7 etc.).
+
+**Sprint 2.26** — template/standards/sample card surfacing.
+
+**Sprint 2.24** — `/cortex-goal` plan-first wrapper for Claude Code native `/goal` (commit `46aafa0`). Steward (cron) + `/goal` (session) are complementary, not overlapping — `/cortex-goal` produces a cortex-disciplined plan; Claude's native `/goal` runs the haiku verifier loop unchanged.
+
+**Sprint 2.8.2** — `bin/cortex-wiki-consolidate.cjs` status flip (commit `60c09d7`). Already-live deterministic Phase A consolidator surfaced; ~20 tests R2-hardened.
+
+**Sprint 2.8.3** — Agent-first audit snapshot deliverable + roadmap entry (commit `b91968b`).
+
+**Sprint 2.20** — `cortex-update` CLI status flip after positioning.md §Second-lens landing (commit `e104252`). Roadmap drift only.
+
+**Sprint 3.X (Anthropic Memory Tool)** — verified-deferral. 4 blockers documented in [`docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md`](./docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md) (1700 words, 15 URLs): claude-cli engine collision (active), Sprint 2.8 Memory Foundation (resolved), value/ceremony ratio (active), **NEW OpenRouter beta-header pass-through** (active — surfaced by R1 reading). 3 of 4 blockers active = stays deferred.
+
+### Fixed (2026-05-14 — R2 hardening rounds: 25 HIGH closed across 4 reviews)
+
+**Sprint 2.3.1 R2** (commit `4b2611b`, 4 HIGH closed): supply-chain CWE-1357 — `@stryker-mutator/core` pinned exact `9.6.1` (no caret) + `npm ci --ignore-scripts` defeats transitive `preinstall`/`postinstall` RCE class (event-stream / ua-parser-js). Cache poisoning CWE-349 — `restore-keys` locked to main-prefixed only; tj-actions March 2025 cache-poisoning class. Binary integrity CWE-829 — `npx --no-install stryker` refuses on-the-fly fetch; lockfile-presence guard pre-`npm ci`. Inline JS injection CWE-78 — extracted summarizer from inline `node -e "..."` in YAML to [`tools/summarize-mutation.cjs`](./tools/summarize-mutation.cjs) with fixed input path, no shell interpolation.
+
+**Sprint 2.2.1 R2** (commit `e2b7e7b`, 7 HIGH closed by 3-agent parallel review): `canonicalize` tag-encoding (Date/Buffer/RegExp/Map/Set/TypedArray/BigInt) + circular-reference WeakSet guard + DANGEROUS_KEYS strip (`__proto__` · `constructor` · `prototype`). `randomizeJudgeOrder` Fisher-Yates defensive clamp for rng OOB values (`rng=NaN`, `rng=1.0`, `rng<0`). Frozen `VALID_TOPOLOGIES`. `validateTopologySafe` `Object.prototype.hasOwnProperty.call` defense vs prototype pollution. Unicode NFKC + HTML-entity-encoded variants in canary regex (`&lt;` + `&#60;` + `&#x3C;`). 12 R2 regression tests + 5 fast-check property tests (Fisher-Yates uniformity chi-squared n=4 bound `chi2 < 100`).
+
+**Sprint 2.25.1 R2** (commit `b24af86`, 7 HIGH closed): see Sprint 2.25 entry above for full breakdown.
+
+**Sprint 2.22.1 R2** (commit `c014f43`, 7 HIGH closed): see Sprint 2.22 entry above for full breakdown.
+
+### Test growth (2026-05-14)
+
+2697 → 2950 → **2955** tests landed today (+258). All 5 R1 fresh memos cite from `docs/research/sprint-*-2026-05-14.md`. Zero failures. Two pre-existing skips (sandbox-only paths).
+
 ## [Unreleased]
 
 ### Added (2026-05-13 afternoon — Sprint 3.0 v2 + 3.2 v1 + 2.19 v1 + 3.4 v0 + 3.1 v0)

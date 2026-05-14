@@ -565,6 +565,10 @@ New-DelegateShim "cortex-hooks-register" "cortex-hooks-register.cjs"
 New-DelegateShim "cortex-claude-md-augment" "cortex-claude-md-augment.cjs"
 New-DelegateShim "cortex-permissions-register" "cortex-permissions-register.cjs"
 New-DelegateShim "cortex-doctor"         "cortex-doctor.cjs"
+# Sprint 2.22 / 2.25 / 2.22.1 — three CLIs shipped 2026-05-14.
+New-DelegateShim "cortex-skill-validate" "cortex-skill-validate.cjs"
+New-DelegateShim "cortex-dream"          "cortex-dream.cjs"
+New-DelegateShim "cortex-insights"       "cortex-insights.cjs"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #
@@ -619,7 +623,7 @@ if ($Profile -eq "qa-tester") {
 # Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
 # they're discoverable as slash commands. Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/.
-foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor")) {
+foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor", "cortex-goal")) {
     $SrcSkill = Join-Path $CortexRoot "shared/skills/$SkillName/SKILL.md"
     if (Test-Path $SrcSkill) {
         $DstSkillDir = Join-Path $ClaudeHome "skills/$SkillName"

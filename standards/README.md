@@ -1,6 +1,6 @@
 # cortex-x Standards
 
-> **26 standards** organized in 5 tiers. **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
+> **28 standards** organized in 5 tiers (+ 1 meta-standard at `RULE-1.md` + 2 supporting reference docs). **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
 
 ## Tier hierarchy
 
@@ -46,9 +46,11 @@ Security can be added. Testing can be retrofitted. Observability can be layered 
 
 Tier 1 is the only tier you can't fix later.
 
-## Why 26 (across 5 tiers)
+## Why 28 (across 5 tiers)
 
-Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
+Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + verification-loop + mutation-testing (Sprint 2.3) + multi-agent-supervisor (Sprint 2.2) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard, skill-validate). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
+
+**Two added 2026-05-14 (Sprint 2.2 + 2.3 v0):** [`mutation-testing.md`](./mutation-testing.md) (Rule 2 — Stryker measure-only baseline as fitness signal beyond "tests pass") and [`multi-agent-supervisor.md`](./multi-agent-supervisor.md) (Rule 2 — 6 safety contracts S1-S6 the v1 spawner must respect: tree-budget cap, depth limit, judge order randomization, fingerprint-based dedup, worker-judge same-tier rule, fail-safe rollback).
 
 Most indie projects skip ~80% of this surface. cortex-x ships all of it as defaults.
 

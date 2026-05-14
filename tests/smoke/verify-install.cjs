@@ -246,6 +246,8 @@ function runChecks() {
   checkFileExists('user.skills.audit', path.join(CLAUDE_HOME, 'skills', 'audit', 'SKILL.md'));
   checkFileExists('user.skills.designer', path.join(CLAUDE_HOME, 'skills', 'designer', 'SKILL.md'));
   checkFileExists('user.skills.start', path.join(CLAUDE_HOME, 'skills', 'start', 'SKILL.md'));
+  // Sprint 2.24 — /cortex-goal slash-skill (plan-first wrapper for native /goal).
+  checkFileExists('user.skills.cortex-goal', path.join(CLAUDE_HOME, 'skills', 'cortex-goal', 'SKILL.md'), 'warning');
 
   // Sprint LR.B+ — cortex-capabilities CLI shim. Without this, /cortex-help
   // can't surface the registry on a stranger's machine because the
@@ -265,7 +267,12 @@ function runChecks() {
   checkFileExists('shared.bin.cortex-uninstall',      path.join(SHARED, 'bin', 'cortex-uninstall'),      'warning');
   checkFileExists('shared.bin.cortex-hooks-register', path.join(SHARED, 'bin', 'cortex-hooks-register'), 'warning');
   checkFileExists('shared.bin.cortex-claude-md-augment', path.join(SHARED, 'bin', 'cortex-claude-md-augment'), 'warning');
+  checkFileExists('shared.bin.cortex-permissions-register', path.join(SHARED, 'bin', 'cortex-permissions-register'), 'warning');
   checkFileExists('shared.bin.cortex-doctor',         path.join(SHARED, 'bin', 'cortex-doctor'),         'warning');
+  // Sprint 2.22 / 2.25 — three CLIs shipped 2026-05-14 (skill-validate / dream / insights).
+  checkFileExists('shared.bin.cortex-skill-validate', path.join(SHARED, 'bin', 'cortex-skill-validate'), 'warning');
+  checkFileExists('shared.bin.cortex-dream',          path.join(SHARED, 'bin', 'cortex-dream'),          'warning');
+  checkFileExists('shared.bin.cortex-insights',       path.join(SHARED, 'bin', 'cortex-insights'),       'warning');
 
   // Cortex-source.yaml integrity (Sprint 1.6 contract)
   checkYamlField('shared.cortex-source.cortex_source', path.join(SHARED, 'cortex-source.yaml'), 'cortex_source');

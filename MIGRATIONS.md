@@ -20,6 +20,53 @@
 
 ## Current
 
+### v0.3.0 — first public stable preview (2026-05-14)
+
+**Non-breaking.** Version suffix dropped (`0.3.0-pre` → `0.3.0`) across `package.json`, `package-lock.json`, and `.claude-plugin/plugin.json`. The Claude Code plugin manifest moved `stability: closed-beta` → `stability: public-preview`; `experimental: true` flag preserved because three sub-sprints remain deferred.
+
+#### What this version closes
+
+- **Tier 0 (Foundation)** — scaffold + capability palette + safety mechanics + 6-kind spec-driven verification. Fully shipped.
+- **Tier 1 (Verification + multi-agent)** — spec-driven verification, Phoenix OTLP observability, autoresearch overnight burst, `edit_ops[]` primitive, mutation-testing fitness foundation (Stryker measure-only baseline), `senior_tester_review` + `workflow_hardener` + `secret_history_sweep` capabilities, `read_set` 6th criterion kind, worktree-supervisor foundation utilities. Fully shipped.
+- **Tier 2 (Compound learners)** — essentially complete. AlphaEvolve A/B harness, FTS5 lessons index, daily + weekly Dreaming, LLM-as-judge rubric scoring, external tool adapter protocol, self-extending capabilities (proposal-only), all shipped. Only Tier 2 outlier remaining: Sprint 3.3 GraphRAG (deferred pending LazyGraphRAG external cost-cliff resolution).
+
+#### What this version explicitly does NOT close
+
+These three sub-sprints stay deferred — operator should consult `docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md` for the live blocker table:
+
+- **Sprint 2.2.1** — multi-agent spawner. Foundation utilities (`bin/steward/_lib/topology.cjs` with canonicalize/parseTreeBudgetCap/randomizeJudgeOrder/validateTopologySafe) shipped and tested. Spawner (git-worktree integration + judge LLM invocation + STEWARD_WORKER_DEPTH process-guard + production rng) deferred to a focused follow-up.
+- **Sprint 2.3.1** — `mutation_score` acceptance-criterion kind in `bin/steward/_lib/spec-verifier.cjs`. Stryker measurement infrastructure is live (measure-only `break: null` posture); the criterion that would gate Steward edits on a per-action mutation score requires a 2-week baseline first.
+- **Sprint 3.X** — Anthropic Memory Tool integration. Three of four blockers active: claude-cli engine collision, value/ceremony ratio, OpenRouter beta-header pass-through. Verified-deferral memo lives at `docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md`.
+
+#### Engage v0.3.0
+
+```bash
+# Fresh install
+bash install.sh                              # macOS / Linux / WSL / Git Bash
+# Or PowerShell (5.1 + 7 both supported):
+./install.ps1
+```
+
+If you already have a cortex-x clone from `v0.3.0-pre`, fast-forward + re-install — the version bump is the only required change:
+
+```bash
+cortex-update                                # fetch + fast-forward + re-run install
+```
+
+Re-installing materializes three new CLI delegate shims into `~/.claude/shared/bin/` (`cortex-skill-validate`, `cortex-dream`, `cortex-insights`) and one new user-level slash skill (`~/.claude/skills/cortex-goal/SKILL.md`). Without the re-install these stay invisible as first-class commands (you'd have to invoke them as `node $CORTEX_SOURCE/bin/cortex-{name}.cjs`). The `cortex-doctor` health-check now lists `cortex-goal` as a `RECOMMENDED_SKILLS` entry; the install smoke test (`tests/smoke/verify-install.cjs`) now flags the new shims + the new permissions-register shim from Sprint 2.28.
+
+#### Rollback
+
+`git checkout v0.3.0-pre` (if you tagged) or `git revert <version-bump-commit>`. The 0.3.0 bump touches only three JSON manifests; reverting is mechanical. The underlying functional changes — three new CLIs, one new skill, four standards docs, two foundation modules — are independent additive commits and stay reachable.
+
+#### Reference
+
+- Operator encyclopedia of what cortex-x does (Czech, beginner-friendly) lives in the 2026-05-14 session transcript; condensed into `README.md` + `CLAUDE.md` for stranger consumption.
+- Full sprint-by-sprint detail with commit SHAs in `CHANGELOG.md` § `[0.3.0] — 2026-05-14`.
+- Four R2 hardening rounds (Sprint 2.3.1 supply-chain · 2.2.1 topology · 2.22.1 skill-validate · 2.25.1 dream/insights) each documented inline in `CHANGELOG.md`.
+
+---
+
 ### Sprint 2.10.7 — security regrese fix + parser hygiene + dogfood lessons (2026-05-10)
 
 Non-breaking. Three concrete fixes shipped + 3 recommendations re-marked, surfaced by overnight cron diagnostic loop (7 rounds, ~$0.008 LLM cost). All fixes have property/contract test coverage; full suite `1779 → 1798` (+19 net).
