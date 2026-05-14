@@ -26,7 +26,20 @@
 'use strict';
 
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
+
+// R2 round-2 fix (correctness HIGH + edge HIGH): canonicalize via realpath so
+// macOS /private/{var,tmp} symlink drift doesn't produce a false DENIED when
+// the operator is in the primary worktree. Falls back to syntactic resolve
+// if the path doesn't exist (best-effort).
+function canonicalize(p) {
+  try {
+    return fs.realpathSync.native ? fs.realpathSync.native(p) : fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
 
 function runGit(args, cwd) {
   try {
@@ -44,16 +57,21 @@ function runGit(args, cwd) {
   }
 }
 
-// Parse `git worktree list --porcelain` into [{path, branch, primary}]
+// Parse `git worktree list --porcelain` into [{path, branch, detached, primary}].
+// R2 round-2 fix (correctness HIGH): detached-HEAD worktrees emit no `branch`
+// line but a `detached` line. Track explicitly so future callers don't deref
+// a null .branch.
 function parseWorktreeList(porcelain) {
   const entries = [];
   let current = null;
   for (const line of porcelain.split(/\r?\n/)) {
     if (line.startsWith('worktree ')) {
       if (current) entries.push(current);
-      current = { path: line.slice('worktree '.length), branch: null };
+      current = { path: line.slice('worktree '.length), branch: null, detached: false };
     } else if (line.startsWith('branch ')) {
       if (current) current.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
+    } else if (line === 'detached') {
+      if (current) current.detached = true;
     } else if (line === '' || line === '\n') {
       if (current) { entries.push(current); current = null; }
     }
@@ -72,6 +90,13 @@ function checkWorktree(opts = {}) {
   // Operator escape hatch.
   if (env.STEWARD_ALLOW_WORKTREE === '1') {
     return { ok: true, bypassed: true, current: cwd };
+  }
+
+  // R2 round-2 fix (edge HIGH): distinct error for non-existent cwd vs
+  // missing git binary. Previously both collapsed into NO_GIT, misleading
+  // operators who typo'd --repo-root.
+  if (!fs.existsSync(cwd)) {
+    return { ok: false, code: 'STEWARD_WORKTREE_BAD_CWD', current: cwd };
   }
 
   let toplevel;
@@ -96,9 +121,10 @@ function checkWorktree(opts = {}) {
     return { ok: true, current: toplevel, primary: toplevel };
   }
 
-  // Compare via resolved/canonical paths. On macOS /private/var vs /var.
-  const currentResolved = path.resolve(toplevel);
-  const primaryResolved = path.resolve(primary.path);
+  // Compare via realpath-canonicalized paths. On macOS /private/var vs /var
+  // symlinks would produce false DENIED if compared via syntactic resolve.
+  const currentResolved = canonicalize(toplevel);
+  const primaryResolved = canonicalize(primary.path);
   if (currentResolved === primaryResolved) {
     return { ok: true, current: currentResolved, primary: primaryResolved };
   }
