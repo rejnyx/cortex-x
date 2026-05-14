@@ -59,6 +59,20 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 
 ### Terminal CLIs — run in shell, outside Claude Code
 
+### Terminal CLIs (run in shell, outside Claude Code)
+
+These are operator-facing maintenance tools shipped under `~/.claude/shared/bin/` (add to PATH or invoke directly). Run them in a normal terminal, not inside the Claude Code chat surface.
+
+| Command | What it does | When to use |
+|---|---|---|
+| **`cortex-update`** | Upgrade cortex framework + source clone — weekly or before launches | Weekly or before launches |
+| **`cortex-uninstall`** | Conservative removal, preserves `~/.cortex/` data home — when migrating off cortex | When migrating off cortex |
+| **`cortex-doctor`** | Health check + drift detection — weekly or after fresh install | Weekly or after fresh install |
+| **`cortex-hooks-register`** | Idempotent register cortex hooks into `~/.claude/settings.json` with backup — once post-install if you skipped the prompt | Once post-install if you skipped the prompt |
+| **`cortex-claude-md-augment`** | Idempotent append/remove cortex discipline block in `~/.claude/CLAUDE.md` — once post-install if you skipped the prompt | Once post-install if you skipped the prompt |
+
+Full 14-tool roster + flag documentation: [bin/README.md](../../../bin/README.md).
+
 These are operator-facing maintenance tools shipped under `~/.claude/shared/bin/` (add to PATH or invoke directly). Run them in a normal terminal, not inside the Claude Code chat surface.
 
 | Command | What it does | When to use |
