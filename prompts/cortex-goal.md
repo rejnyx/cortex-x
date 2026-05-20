@@ -107,4 +107,4 @@ If operator wants to opt out of any default criterion, ask once: "you want to su
 - [goalkeeper (itsuzef)](https://github.com/itsuzef/goalkeeper) — contract-driven variant with subagent judge
 - [continuous-claude (AnandChowdhary)](https://github.com/AnandChowdhary/continuous-claude) — Ralph loop with PR automation
 - [Claude Code Ralph Loop overnight builds](https://newsletter.claudecodemasterclass.com/p/claude-code-ralph-loop-from-basic) — long-running session guide
-- [`docs/transcripts/goals-for-claude-code.md`](docs/transcripts/goals-for-claude-code.md) — operator-captured transcript
+- `docs/transcripts/goals-for-claude-code.md` — operator-captured transcript (operator-local, gitignored)
