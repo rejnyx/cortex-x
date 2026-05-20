@@ -192,6 +192,11 @@ pre-pii-purge-*
 /docs/transcripts/*.md
 !/docs/transcripts/README.md
 
+# Internal working docs — kept locally, never committed. Marketing copy and
+# dogfood-process planning are operator-facing scratchpads, not framework docs.
+/docs/launch-copy.md
+/docs/steward-dogfood-plan.md
+
 # Operator's hand-curated architecture diagrams — personal mental-model captures,
 # not referenced from README or shipped docs.
 /docs/pics/
