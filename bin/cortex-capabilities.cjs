@@ -25,6 +25,12 @@ const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
+// Deterministic, locale-independent name sort — codepoint order. Replaces
+// String.prototype.localeCompare, which is locale-dependent (cs-CZ vs en-US
+// collation reorders entries), so `npm run capabilities` output is
+// byte-identical across developer machines and CI runners.
+const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+
 // ---------------------------------------------------------------------------
 // Extractors — one per category. Each returns array of { name, description, ... }.
 // ---------------------------------------------------------------------------
@@ -68,7 +74,7 @@ function inventoryStewardPrimitives() {
       sprint: extractSprintTag(p),
       description: extractCjsTagline(p),
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryHooks() {
@@ -78,7 +84,7 @@ function inventoryHooks() {
       path: p.replace(/\\/g, '/'),
       description: extractCjsTagline(p),
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryStandards() {
@@ -107,7 +113,7 @@ function inventoryStandards() {
         description: firstPara.slice(0, 240),
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryProfiles() {
@@ -126,7 +132,7 @@ function inventoryProfiles() {
         ai_sdk: aiSdk ? aiSdk.trim() : null,
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryPrompts() {
@@ -148,7 +154,7 @@ function inventoryPrompts() {
         purpose: purpose.slice(0, 280),
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryAgents() {
@@ -175,7 +181,7 @@ function inventoryAgents() {
         tools,
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 function inventoryWorkflows() {
@@ -204,7 +210,7 @@ function inventoryWorkflows() {
         description: desc.slice(0, 200),
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byName);
 }
 
 // Inventory action_kinds by REQUIRING the module — single source of truth.
@@ -233,7 +239,7 @@ function inventoryActionKinds() {
         blast_radius: (def && typeof def.blast_radius === 'string') ? def.blast_radius : null,
         cost_envelope: (def && typeof def.cost_envelope === 'string') ? def.cost_envelope : null,
       }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(byName);
   } catch {
     // action-kinds.cjs missing or syntax-broken — fail-open with empty list.
     // Contract test `action_kinds inventory non-empty` will catch this.
@@ -422,8 +428,8 @@ function renderMarkdown(r) {
   lines.push(`| Review-pipeline agents (\`agents/\`) | ${r.agents.length} |`);
   lines.push(`| GitHub workflows | ${r.workflows.length} |`);
   lines.push(`| Tests total | ${r.tests.total} (unit ${r.tests.counts.unit} · contract ${r.tests.counts.contract} · integration ${r.tests.counts.integration} · smoke ${r.tests.counts.smoke}) |`);
-  lines.push(`| Runtime LoC (\`bin/\`) | ${r.code_volume.steward_runtime_loc.toLocaleString()} |`);
-  lines.push(`| Test LoC (\`tests/\`) | ${r.code_volume.test_code_loc.toLocaleString()} |`);
+  lines.push(`| Runtime LoC (\`bin/\`) | ${r.code_volume.steward_runtime_loc.toLocaleString('en-US')} |`);
+  lines.push(`| Test LoC (\`tests/\`) | ${r.code_volume.test_code_loc.toLocaleString('en-US')} |`);
   lines.push('');
   lines.push(`> _Test count is computed via regex over \`test()\`/\`it()\` invocations across \`tests/{unit,contract,integration,smoke}/\`. The authoritative count for CI/release gating is whatever \`npm test\` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because \`describe()\` blocks and some \`.skip\`/\`.todo\` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, \`npm test\` is the gate._`);
   lines.push('');
