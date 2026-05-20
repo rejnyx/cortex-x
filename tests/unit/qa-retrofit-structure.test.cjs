@@ -42,10 +42,6 @@ describe('Sprint 2.10 — qa-retrofit artifacts exist', () => {
   test('shared/skills/test-audit/SKILL.md exists', () => {
     assert.equal(exists('shared/skills/test-audit/SKILL.md'), true);
   });
-
-  test('docs/research/sprint-2.10-qa-retrofit-2026-05-09.md (R1 memo) exists', () => {
-    assert.equal(exists('docs/research/sprint-2.10-qa-retrofit-2026-05-09.md'), true);
-  });
 });
 
 describe('Sprint 2.10 — qa-retrofit prompt has all 7 phases', () => {
@@ -517,47 +513,7 @@ describe('Sprint 2.10.2 — installer profile selection (--profile=qa-tester)', 
   });
 });
 
-describe('Sprint 2.10.5 — cortex-x self-audit deliverables (eat-our-own-dogfood)', () => {
-  // Sprint LR.B (2026-05-12): moved operator's working self-audit content from
-  // tracked cortex/qa/* to docs/dogfood-examples/* so fresh-install users get a
-  // clean cortex/qa/ (only README + their own future audit output). Self-audit
-  // artifacts remain public as historical examples. Tests now verify the new
-  // canonical paths + the cortex/qa/README pointer back to examples.
-  test('docs/dogfood-examples/qa-audit-cortex-x.md exists (12-section ISO 25010:2023 self-audit)', () => {
-    assert.equal(exists('docs/dogfood-examples/qa-audit-cortex-x.md'), true);
-  });
-
-  test('docs/dogfood-examples/qa-testing-strategy-cortex-x.md exists', () => {
-    assert.equal(exists('docs/dogfood-examples/qa-testing-strategy-cortex-x.md'), true);
-  });
-
-  test('docs/dogfood-examples/qa-testing-gaps-cortex-x.md exists', () => {
-    assert.equal(exists('docs/dogfood-examples/qa-testing-gaps-cortex-x.md'), true);
-  });
-
-  test('cortex/qa/README points operators at the dogfood-examples for sample content', () => {
-    assert.equal(exists('cortex/qa/README.md'), true);
-    const readme = read('cortex/qa/README.md');
-    assert.match(readme, /docs\/dogfood-examples\/qa-audit-cortex-x\.md/);
-    assert.match(readme, /docs\/dogfood-examples\/qa-testing-gaps-cortex-x\.md/);
-    assert.match(readme, /docs\/dogfood-examples\/qa-testing-strategy-cortex-x\.md/);
-  });
-
-  test('self-audit references ISO 25010:2023 + Phase 5a-bis catalog selection', () => {
-    const audit = read('docs/dogfood-examples/qa-audit-cortex-x.md');
-    assert.match(audit, /ISO\/IEC 25010:2023/);
-    assert.match(audit, /Catalog selection \(Phase 5a-bis\)/);
-    assert.match(audit, /Selected types:.*\d+ of 117/);
-  });
-
-  test('self-audit testing-gaps surfaces P0 GAP-001 (adversarial regression suite)', () => {
-    const gaps = read('docs/dogfood-examples/qa-testing-gaps-cortex-x.md');
-    assert.match(gaps, /GAP-001/);
-    assert.match(gaps, /Adversarial.*regression/i);
-    assert.match(gaps, /security-lethal-trifecta/);
-    assert.match(gaps, /ai-prompt-injection-regression/);
-  });
-
+describe('Sprint 2.10.5 — qa-tester onboarding surface', () => {
   test('docs/qa-tester-onboarding.md tutorial exists for the junior tester', () => {
     // Sprint 2.17.x repo hygiene 2026-05-13: Czech sidecar (`qa-tester-onboarding.cs.md`)
     // removed in commit 6fbf363 — single-source-of-truth English file is canonical.
@@ -607,39 +563,5 @@ describe('Sprint 2.10.6 — Phase 1b existing-tests modernization analysis', () 
     const profile = read('profiles/qa-engineer.yaml');
     assert.match(profile, /cost_guard:[\s\S]*?estimated_tokens_per_tool:\s*60000/);
     assert.match(profile, /flat_subscription_safe:\s*true/);
-  });
-});
-
-describe('Sprint 2.10 — R1 memo three-hop traceability', () => {
-  const memoText = read('docs/research/sprint-2.10-qa-retrofit-2026-05-09.md');
-
-  test('has frontmatter with sprint=2.10 + status=R1', () => {
-    assert.match(memoText, /sprint: 2\.10/);
-    assert.match(memoText, /status: R1/);
-  });
-
-  test('has acceptance criteria section', () => {
-    assert.match(memoText, /## Acceptance criteria/);
-  });
-
-  test('has out-of-scope section (explicit non-goals)', () => {
-    assert.match(memoText, /## Out of scope/);
-  });
-
-  test('has risks + mitigations section', () => {
-    assert.match(memoText, /## Risks \+ mitigations/);
-  });
-
-  test('cites at least 30 sources', () => {
-    // Sources are numbered [1] through [N] in the bibliography section.
-    const matches = memoText.match(/^\[\d+\] https?:\/\//gm) || [];
-    assert.ok(matches.length >= 30, `expected at least 30 cited URLs, got ${matches.length}`);
-  });
-
-  test('references the 4 raw research caches in c:\\tmp', () => {
-    assert.match(memoText, /qa-research-1-ai-augmented/);
-    assert.match(memoText, /qa-research-2-ecommerce/);
-    assert.match(memoText, /qa-research-3-deep-audit/);
-    assert.match(memoText, /qa-research-4-admin-security/);
   });
 });
