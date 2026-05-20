@@ -1,0 +1,137 @@
+name: Install failed
+description: cortex-x install did not finish successfully on your machine
+title: "[install] <one-line summary>"
+labels: ["install", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying cortex-x. The 5-lane CI matrix can't catch every real-world combination — your report closes that gap.
+
+        Before submitting: please paste the **exact command you ran**, the **error output** (full, not truncated), and what `cortex-doctor` reports if you got that far. Issues without these usually can't be triaged.
+
+  - type: input
+    id: command
+    attributes:
+      label: Exact install command you ran
+      placeholder: 'curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_mode
+    attributes:
+      label: Install mode
+      options:
+        - "curl | bash (remote, one-line)"
+        - "iwr | iex (PowerShell, one-line)"
+        - "git clone + ./install.sh (local)"
+        - "git clone + ./install.ps1 (local PowerShell)"
+        - "Other (describe in error log)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - "Ubuntu / Debian (Linux)"
+        - "Fedora / RHEL (Linux)"
+        - "Alpine (Linux)"
+        - "Arch / Manjaro (Linux)"
+        - "Other Linux"
+        - "macOS (Intel)"
+        - "macOS (Apple Silicon)"
+        - "Windows 10/11 + Git Bash"
+        - "Windows 10/11 + PowerShell 7"
+        - "Windows 10/11 + PowerShell 5.1"
+        - "Windows + WSL2"
+        - "Other (describe below)"
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version (uname -a or systeminfo | findstr /B "OS")
+      placeholder: 'Ubuntu 22.04.4 LTS · Linux 6.5.0-26-generic'
+    validations:
+      required: true
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node version (node -v)
+      placeholder: 'v22.4.0'
+    validations:
+      required: true
+
+  - type: input
+    id: shell
+    attributes:
+      label: Shell + version (echo $SHELL ; $SHELL --version)
+      placeholder: 'bash 5.2.21 · or pwsh 7.4.0 · or zsh 5.9'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: claude_code_installed
+    attributes:
+      label: Was Claude Code already installed before running cortex-x install?
+      options:
+        - "Yes — claude is on PATH and working"
+        - "No — first-time cortex-x user, no claude yet"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Before pasting the log below — scrub secrets.** GitHub issues are public and permanent. Remove any auth tokens, `_authToken` lines, proxy URLs with embedded passwords, `GITHUB_TOKEN` / API keys from env dumps, and internal corporate hostnames. The install itself touches no secrets — but your shell environment might surface some in an error dump.
+
+  - type: textarea
+    id: error_log
+    attributes:
+      label: Full error log
+      description: Paste everything from the failing command — stdout + stderr, not truncated. Secrets scrubbed per the note above.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor_output
+    attributes:
+      label: cortex-doctor output (if install partially succeeded)
+      description: |
+        Run `cortex-doctor --json` (or `node ~/cortex-x/bin/cortex-doctor.cjs --json`) and paste output. Leave blank if install never created the binary.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: pre_state
+    attributes:
+      label: Pre-install state (anything unusual?)
+      description: |
+        Anti-virus, OneDrive/Dropbox sync on `~/.claude/`, corporate proxy, custom Node from nvm/asdf/Volta, locked-down corporate Windows, exotic shell, pre-existing `~/.cortex/`, etc. Anything that could affect installation.
+      placeholder: 'Corporate Windows 11, antivirus is CrowdStrike, ~/.claude/ is synced via OneDrive'
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduction_attempts
+    attributes:
+      label: What you tried before opening this issue
+      description: Re-running, sudo, manual clone, etc. Helps avoid suggestions you already exhausted.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: beta_consent
+    attributes:
+      label: Beta tester opt-in (optional)
+      options:
+        - label: "I'd like to be added to the closed beta cohort for future install verification."
+          required: false
