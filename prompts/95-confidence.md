@@ -80,5 +80,5 @@ Honor it. The 95% bar exists to reduce rework, not to delay output. If the opera
 
 - [standards/verification-loop.md](standards/verification-loop.md) — what to do AFTER you've implemented (the verification pair)
 - [standards/coding-behavior.md](standards/coding-behavior.md) — Think Before Coding, Goal-Driven Execution
-- [docs/transcripts/32-tricks-claude-code.md](docs/transcripts/32-tricks-claude-code.md) hack #9 — origin transcript
+- `docs/transcripts/32-tricks-claude-code.md` hack #9 — origin transcript (operator-local, gitignored)
 - `bin/cortex-claude-md-augment.cjs` BLOCK_VERSION 3 — auto-injects this baseline into operator sessions
