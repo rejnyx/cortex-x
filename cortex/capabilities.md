@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-20T09:04:35.659Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-20T09:17:26.025Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -17,8 +17,8 @@
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
 | Tests total | 2873 (unit 2696 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 32 299 |
-| Test LoC (`tests/`) | 37 919 |
+| Runtime LoC (`bin/`) | 32,305 |
+| Test LoC (`tests/`) | 37,919 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -127,6 +127,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 
 | Standard | Title | Snippet |
 |---|---|---|
+| [`RULE-1`](../standards/RULE-1.md) | RULE 1 — Inviolable Architectural Invariants | Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift. |
 | [`accessibility`](../standards/accessibility.md) | Accessibility — Usable by Everyone | 1. **Perceivable** — content is presented in ways users can perceive (text alternatives, captions, color contrast) |
 | [`ai-patterns`](../standards/ai-patterns.md) | AI Patterns — Agentic Architecture Standards | **Agentic-ready by default, agentic-heavy by intent.** |
 | [`ai-sdks`](../standards/ai-sdks.md) | AI SDKs — Selection Standard | \| SDK \| Vendor \| Lang \| Model lock-in \| Best at \| |
@@ -143,7 +144,6 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`mutation-testing`](../standards/mutation-testing.md) | Mutation testing — fitness signal beyond "tests pass" | A passing test suite proves nothing about whether the tests would catch a regression. Mutation testing systematically modifies your code (one operator change at a time) and re-runs the tests. If the mutated code still passes all tests, the |
 | [`observability`](../standards/observability.md) | Observability — See What's Happening in Production | 1. **Logs** — what happened |
 | [`performance`](../standards/performance.md) | Performance — Fast by Default | - **Core Web Vitals targets (2026):** |
-| [`RULE-1`](../standards/RULE-1.md) | RULE 1 — Inviolable Architectural Invariants | Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift. |
 | [`scalable`](../standards/scalable.md) | Scalable — Patterns That Survive 10x Growth | You won't know in advance which project succeeds. The ones that take off punish you for shortcuts taken early. Scalable-by-default means growth is exciting, not a crisis. |
 | [`security`](../standards/security.md) | Security — Layered Defense from Day One | 1. **No secrets in git.** `.env` in `.gitignore` from first commit. Pre-commit hook blocks accidental commits. |
 | [`self-correction`](../standards/self-correction.md) | Self-Correction — What Actually Works in 2026 | **Rule 2 (Critical).** Alongside Correctness — this standard prevents adopting patterns that measurably degrade agent quality. |
@@ -168,8 +168,8 @@ Project archetypes used by the scaffold. Each declares stack, ai_sdk, agentic po
 | [`ai-agent`](../profiles/ai-agent.yaml) | — | claude-agent # autonomy tier: filesystem/shell, Skills, MCP, subagents | Autonomous multi-step AI agent — Claude Agent SDK primary, Vercel AI SDK optional for web surface, three-layer memory, MCP integration |
 | [`astro-static`](../profiles/astro-static.yaml) | — | none | Static site (portfolio, blog, docs) — Astro 5 with Content Layer, Server Islands, zero-JS default |
 | [`browser-agent`](../profiles/browser-agent.yaml) | — | — | Agent that drives a real browser (CDP/Playwright) — scraping, RPA, automated testing, onboarding flows, workflow automation. Extends ai-agent profile with browser-specific security + tooling. |
-| [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
 | [`chatbot-platform`](../profiles/chatbot-platform.yaml) | — | vercel # primary: streaming + provider-agnostic for multi-tenant flexibility | Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator |
+| [`cli-tool`](../profiles/cli-tool.yaml) | — | none # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs. | Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform |
 | [`kiosek`](../profiles/kiosek.yaml) | — | none | Restaurant self-service touch kiosk — PWA, offline-first, large tap targets, idle timeout |
 | [`minimal`](../profiles/minimal.yaml) | — | none | Minimal scaffold for quick prototypes and experiments — no heavy architecture |
 | [`nextjs-saas`](../profiles/nextjs-saas.yaml) | ✅ | vercel # web tier: streaming UI, provider-agnostic, Next.js-native | Next.js 16 + Supabase + AI SaaS — the primary agentic-SaaS stack, AGENTIC-READY by default. Even without AI at MVP, structure allows plug-in without refactor. |
@@ -184,6 +184,7 @@ Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-int
 | Prompt | Title | Purpose |
 |---|---|---|
 | [`95-confidence`](../prompts/95-confidence.md) | 95% confidence prompt fragment |  |
+| [`README`](../prompts/README.md) | prompts/ | \| Prompt \| Cadence \| Purpose \| |
 | [`agent-first-audit`](../prompts/agent-first-audit.md) | Agent-first docs audit — Sprint 2.8.3 v0 |  |
 | [`auto-review`](../prompts/auto-review.md) | Auto-Review — post-implementation parallel pipeline |  |
 | [`code-review`](../prompts/code-review.md) | Code Review — Parallel Adversarial Pipeline |  |
@@ -198,7 +199,6 @@ Reusable Claude Code prompts in `prompts/`. Invoke via `/`-commands or paste-int
 | [`onboarding-first-10min`](../prompts/onboarding-first-10min.md) | Onboarding — first 10 minutes after fresh install |  |
 | [`project-scan`](../prompts/project-scan.md) | Universal Project Scan Prompt (SLIM) |  |
 | [`qa-retrofit`](../prompts/qa-retrofit.md) | QA Retrofit — Deep Test-Strategy Audit + Risk Worm-Through + Cited Gap Backlog |  |
-| [`README`](../prompts/README.md) | prompts/ | \| Prompt \| Cadence \| Purpose \| |
 | [`retrofit`](../prompts/retrofit.md) | Retrofit — apply cortex-x structure to an existing (messy) project |  |
 | [`retrospective`](../prompts/retrospective.md) | Retrospective — Post-Sprint Reflection → cortex library |  |
 | [`sprint-status`](../prompts/sprint-status.md) | Sprint Status — Parse PROGRESS.md and Report |  |
@@ -210,13 +210,13 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 
 | Agent | Tools | Description |
 |---|---|---|
+| [`README`](../agents/README.md) | — |  |
 | [`acceptance-auditor`](../agents/acceptance-auditor.md) | - Read | Reviews diff against acceptance criteria (story/spec/PROGRESS.md). Checks that the implementation actually does what was asked, no more, no less. Has read access to PROGRESS.md, CLAUDE.md, and specs. |
 | [`blind-hunter`](../agents/blind-hunter.md) | - Read | Reviews code diff WITHOUT project context. Catches bugs that contextual reviewers rationalize away. Input: git diff only. No project access, no history, no specs. Surfaces: obvious bugs, typos, logic errors, missing error handling, security |
 | [`correctness-auditor`](../agents/correctness-auditor.md) | - Read | Correctness-focused code review against cortex-x/standards/correctness.md. Checks: trust-boundary validation (Zod/Pydantic), property-based test coverage on invariant code, eval suite for LLM endpoints, mutation score on critical modules, s |
 | [`cortex-thinker`](../agents/cortex-thinker.md) | - Read | Meta-agent that reflects on cortex-x state, detects cross-project patterns, and surfaces proactive suggestions. Invoked at SessionStart, Stop events, or manually via /cortex-reflect. Reads cortex-x/projects/ library and proposes insights gr |
 | [`edge-case-hunter`](../agents/edge-case-hunter.md) | - Read | Walks every branching path and boundary condition in changed code. Reports ONLY unhandled edge cases. Has project read access for context, but focuses on what inputs would break the code. Orthogonal to adversarial review — method-driven, no |
 | [`planner`](../agents/planner.md) | — | Reads detected stack + project context, picks 3-5 most relevant research topics from the {profile} × {concern} matrix. Used by Phase 5 Adapt (new-project) and Phase 4 Research (existing-project-audit). Returns a prioritized JSON list of top |
-| [`README`](../agents/README.md) | — |  |
 | [`security-auditor`](../agents/security-auditor.md) | - Read | Security-focused code review against cortex-x/standards/security.md 8-layer model. Checks: secrets leakage, RLS violations, injection vectors, auth bypass, missing rate limits, insecure defaults. Flags findings with severity + CWE reference |
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |

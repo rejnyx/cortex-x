@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-20T09:04:35.659Z",
+  "generated_at": "2026-05-20T09:17:26.025Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -531,6 +531,12 @@
   ],
   "standards": [
     {
+      "name": "RULE-1",
+      "path": "standards/RULE-1.md",
+      "title": "RULE 1 — Inviolable Architectural Invariants",
+      "description": "Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift."
+    },
+    {
       "name": "accessibility",
       "path": "standards/accessibility.md",
       "title": "Accessibility — Usable by Everyone",
@@ -625,12 +631,6 @@
       "path": "standards/performance.md",
       "title": "Performance — Fast by Default",
       "description": "- **Core Web Vitals targets (2026):**"
-    },
-    {
-      "name": "RULE-1",
-      "path": "standards/RULE-1.md",
-      "title": "RULE 1 — Inviolable Architectural Invariants",
-      "description": "Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift."
     },
     {
       "name": "scalable",
@@ -740,18 +740,18 @@
       "ai_sdk": null
     },
     {
-      "name": "cli-tool",
-      "path": "profiles/cli-tool.yaml",
-      "description": "Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform",
-      "agentic_ready": false,
-      "ai_sdk": "none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs."
-    },
-    {
       "name": "chatbot-platform",
       "path": "profiles/chatbot-platform.yaml",
       "description": "Multi-tenant chatbot platform — channel adapters (Telegram, WhatsApp, Web, Chatwoot), RLS tenant isolation, orchestrator",
       "agentic_ready": false,
       "ai_sdk": "vercel          # primary: streaming + provider-agnostic for multi-tenant flexibility"
+    },
+    {
+      "name": "cli-tool",
+      "path": "profiles/cli-tool.yaml",
+      "description": "Node.js CLI tool distributed via npm — command-line utility with prompts, colored output, cross-platform",
+      "agentic_ready": false,
+      "ai_sdk": "none            # most CLIs are non-AI. Set to 'claude-agent' for AI-primary CLIs."
     },
     {
       "name": "kiosek",
@@ -802,6 +802,12 @@
       "path": "prompts/95-confidence.md",
       "title": "95% confidence prompt fragment",
       "purpose": ""
+    },
+    {
+      "name": "README",
+      "path": "prompts/README.md",
+      "title": "prompts/",
+      "purpose": "| Prompt | Cadence | Purpose |"
     },
     {
       "name": "agent-first-audit",
@@ -888,12 +894,6 @@
       "purpose": ""
     },
     {
-      "name": "README",
-      "path": "prompts/README.md",
-      "title": "prompts/",
-      "purpose": "| Prompt | Cadence | Purpose |"
-    },
-    {
       "name": "retrofit",
       "path": "prompts/retrofit.md",
       "title": "Retrofit — apply cortex-x structure to an existing (messy) project",
@@ -919,6 +919,12 @@
     }
   ],
   "agents": [
+    {
+      "name": "README",
+      "path": "agents/README.md",
+      "description": "",
+      "tools": ""
+    },
     {
       "name": "acceptance-auditor",
       "path": "agents/acceptance-auditor.md",
@@ -953,12 +959,6 @@
       "name": "planner",
       "path": "agents/planner.md",
       "description": "Reads detected stack + project context, picks 3-5 most relevant research topics from the {profile} × {concern} matrix. Used by Phase 5 Adapt (new-project) and Phase 4 Research (existing-project-audit). Returns a prioritized JSON list of top",
-      "tools": ""
-    },
-    {
-      "name": "README",
-      "path": "agents/README.md",
-      "description": "",
       "tools": ""
     },
     {
@@ -1202,7 +1202,7 @@
     "total": 2873
   },
   "code_volume": {
-    "steward_runtime_loc": 32299,
+    "steward_runtime_loc": 32305,
     "test_code_loc": 37919
   }
 }
