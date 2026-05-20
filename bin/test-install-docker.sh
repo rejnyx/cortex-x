@@ -6,12 +6,13 @@
 #   --local  (default) — mounts the local repo at /cortex-source, sets
 #                        CORTEX_HOME, runs the local install.sh. Tests the
 #                        WORKING-COPY install flow.
-#   --remote           — downloads the published install.sh from main, then
-#                        runs it (download-then-run, not curl|bash — so a curl
-#                        failure surfaces as a discrete error instead of being
-#                        masked by the pipe). Tests the PUBLIC install flow;
-#                        install.sh content is identical to the one-liner
-#                        users run.
+#   --remote           — runs the exact public one-liner: curl the published
+#                        install.sh from main and pipe it to bash. install.sh
+#                        detects pipe execution and self-clones to ~/cortex-x,
+#                        so the pipe is load-bearing — it must NOT be replaced
+#                        with download-then-run (that makes install.sh think
+#                        it is a local-mode install). A curl failure is caught
+#                        by the chained verify-install.cjs step failing.
 #
 # Scope: this harness covers Linux-distro breadth that the CI matrix's single
 # ubuntu lane does not. The Windows (Git Bash / PowerShell 7 / PS 5.1) and
@@ -54,14 +55,14 @@ test-install-docker.sh — verify cortex-x install across Linux distros via Dock
 
 Usage:
   ./bin/test-install-docker.sh                  all distros, local mode
-  ./bin/test-install-docker.sh --remote         public download-then-run flow
+  ./bin/test-install-docker.sh --remote         public curl-pipe-bash flow
   ./bin/test-install-docker.sh --distro ubuntu  single distro
   ./bin/test-install-docker.sh --keep-logs      retain logs on success
   ./bin/test-install-docker.sh --help
 
 Modes:
   --local   (default) mount the working copy, run the local install.sh
-  --remote  download the published install.sh from main, then run it
+  --remote  run the public one-liner: curl install.sh from main | bash
 
 Distros: ubuntu (22.04) · debian (12) · fedora (42) · alpine (3.21)
 
@@ -124,13 +125,17 @@ fi
 #   module.local.yaml + may git-fetch, so we copy to a writable /tmp/cortex
 #   inside the container before installing. This preserves host isolation
 #   (no writes leak back) while letting install.sh do its in-place work.
-# --remote: download-then-run so a curl failure (404, DNS, proxy) aborts at a
-#   discrete && step instead of piping empty output into a shell that exits 0.
+# --remote: the exact public one-liner — curl install.sh | bash. install.sh's
+#   pipe-detection self-clones cortex-x to ~/cortex-x and re-execs from there,
+#   so the pipe must be preserved (download-then-run would make install.sh
+#   treat /tmp as a local checkout and fail). A failed curl pipes empty input
+#   into bash (exit 0), but the chained verify-install.cjs then fails because
+#   nothing was installed — so the run still reports FAIL, never a false PASS.
 if [[ "$MODE" == "local" ]]; then
   INSTALL_CMD='cp -r /cortex-source /tmp/cortex && export CORTEX_HOME=/tmp/cortex && bash /tmp/cortex/install.sh && node /tmp/cortex/tests/smoke/verify-install.cjs --strict'
   DOCKER_MOUNT=(-v "$REPO_ROOT:/cortex-source:ro")
 else
-  INSTALL_CMD='curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh -o /tmp/cortex-install.sh && bash /tmp/cortex-install.sh && node "$HOME/cortex-x/tests/smoke/verify-install.cjs" --strict'
+  INSTALL_CMD='curl -fsSL https://raw.githubusercontent.com/Rejnyx/cortex-x/main/install.sh | bash && node "$HOME/cortex-x/tests/smoke/verify-install.cjs" --strict'
   DOCKER_MOUNT=()
 fi
 
