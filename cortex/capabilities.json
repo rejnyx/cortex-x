@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-14T11:54:33.952Z",
+  "generated_at": "2026-05-20T09:04:35.659Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -101,6 +101,15 @@
       "effort": null,
       "blast_radius": "minimal",
       "cost_envelope": "free"
+    },
+    {
+      "name": "recommendation_harvest_parallel",
+      "description": "Sprint 2.2 multi-agent variant of recommendation_harvest. Supervisor spawns N=2 workers in git worktrees, each proposes alternative recommendation sets; same-tier judge LLM picks best by rubric. Foundation v0 (Sprint 2.2) ships utilities only — spawner/worker/judge are Sprint 2.2.1.",
+      "requires_llm": true,
+      "shipped_in": null,
+      "effort": "medium",
+      "blast_radius": "minimal",
+      "cost_envelope": "normal"
     },
     {
       "name": "release_notes_drafter",
@@ -453,6 +462,12 @@
       "description": "Sprint 2.11 senior_tester_review smell taxonomy"
     },
     {
+      "name": "topology",
+      "path": "bin/steward/_lib/topology.cjs",
+      "sprint": "Sprint 2.2",
+      "description": "Sprint 2.2 v0 foundation: multi-agent supervisor/worker primitives"
+    },
+    {
       "name": "verifier",
       "path": "bin/steward/_lib/verifier.cjs",
       "sprint": null,
@@ -586,6 +601,18 @@
       "path": "standards/modular.md",
       "title": "Modular — Isolated Subsystems",
       "description": "Tightly coupled code is where bugs hide and velocity dies. When changing X requires touching A, B, C, you don't change X — you avoid it. Modularity buys you the ability to refactor, replace, and scale individual pieces without cascading rew"
+    },
+    {
+      "name": "multi-agent-supervisor",
+      "path": "standards/multi-agent-supervisor.md",
+      "title": "Multi-agent supervisor + agent-as-judge ensemble — when, why, how to gate",
+      "description": "cortex-x Steward runs LLM-driven actions serially by default — one process, one prompt, one verified outcome. **Multi-agent parallelism is the wrong default** for shared-context coding tasks because (a) it amplifies errors when topology is "
+    },
+    {
+      "name": "mutation-testing",
+      "path": "standards/mutation-testing.md",
+      "title": "Mutation testing — fitness signal beyond \"tests pass\"",
+      "description": "A passing test suite proves nothing about whether the tests would catch a regression. Mutation testing systematically modifies your code (one operator change at a time) and re-runs the tests. If the mutated code still passes all tests, the "
     },
     {
       "name": "observability",
@@ -1145,6 +1172,16 @@
       "description": "steward-workflow-hardener.yml — Sprint 2.5b weekly cron."
     },
     {
+      "name": "stryker-mutation",
+      "path": ".github/workflows/stryker.yml",
+      "triggers": [
+        "cron(0 3 * * 0)",
+        "manual",
+        "push"
+      ],
+      "description": "Mutation-testing workflow — Sprint 2.3 v0 measure-only posture."
+    },
+    {
       "name": "test",
       "path": ".github/workflows/test.yml",
       "triggers": [
@@ -1157,15 +1194,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2608,
+      "unit": 2696,
       "contract": 106,
       "integration": 71,
       "smoke": 0
     },
-    "total": 2785
+    "total": 2873
   },
   "code_volume": {
-    "steward_runtime_loc": 31787,
-    "test_code_loc": 37043
+    "steward_runtime_loc": 32299,
+    "test_code_loc": 37919
   }
 }
