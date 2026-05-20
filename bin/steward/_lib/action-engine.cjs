@@ -667,6 +667,94 @@ function extractFileReferences(body, repoRoot) {
   return out;
 }
 
+// Sprint 2.3.2 — back-fill engine-authoritative expectedSha256 onto LLM edit
+// plans.
+//
+// Sprint 2.2.5 v1.5 injects each referenced file's content + SHA-256 into the
+// prompt (see buildUserPrompt) and asks the LLM to copy that sha256 verbatim
+// into its op's `expectedSha256` field. Small models (deepseek-v4-flash) do not
+// reliably transcribe a 64-char hex string — they emit str_replace/insert ops
+// with `expectedSha256` absent, and splice.cjs rejects the entire plan with
+// EDIT_OP_SHA_REQUIRED. The cortex-x nightly stalled on recommendations.md
+// item #3 for 7 consecutive days (runs 25851983569 … 26142925029) for exactly
+// this reason — the LLM was being asked to be a courier for a value the engine
+// already knew.
+//
+// `expectedSha256` is the ENGINE's field: the engine read the file, the engine
+// knows its hash. So the engine owns it. For every ops-edit whose path the
+// engine deliberately injected (same extractFileReferences() set the prompt
+// builder used), set `expectedSha256` to the engine-computed hash directly.
+//
+// Staleness contract: validateEditSafety still re-reads the file at apply time
+// and recomputes the hash, so a file mutated between this back-fill and the
+// apply phase is still caught as EDIT_OP_STALE_SHA. The hash stamped here is
+// the engine's POST-LLM read, not the pre-prompt read — under the single-
+// threaded, lock-held nightly cron the engine is the only writer and the two
+// reads are identical, so this is exact. A target file mutated DURING the LLM
+// round-trip would not be flagged by the SHA gate (only by str_replace's
+// anchor-not-found / anchor-ambiguous checks); that is acceptable for the
+// current deployment and noted here rather than claimed away.
+//
+// Files the engine did NOT inject (denylisted / oversized / symlink / absent /
+// not referenced in the action body) are left untouched: the engine never read
+// them, so it cannot vouch for them, and EDIT_OP_SHA_REQUIRED still fires by
+// design. Those are reported in `unresolved` for the run log.
+const SHA256_HEX_RE = /^[0-9a-f]{64}$/i;
+
+// Mirror extractFileReferences' path normalization (forward slashes) and also
+// strip a leading `./` so an LLM `edit.path` of `./src/x` matches a body
+// reference of `src/x` and vice versa. Both sides MUST run this identically.
+function normalizeRefPath(p) {
+  return String(p == null ? '' : p).replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function backfillExpectedSha(editPlan, actionBody, repoRoot) {
+  const result = { backfilled: [], unresolved: [] };
+  if (!editPlan || !Array.isArray(editPlan.edits)) return result;
+
+  // Only ops-shape edits whose ops include a SHA-gated kind are affected.
+  const gated = editPlan.edits.filter(
+    (e) => e && Array.isArray(e.ops)
+      && e.ops.some((o) => o && (o.kind === 'str_replace' || o.kind === 'insert')),
+  );
+  if (gated.length === 0) return result;
+
+  let refs = [];
+  try {
+    refs = extractFileReferences(actionBody || '', repoRoot || process.cwd());
+  } catch {
+    refs = []; // non-fatal — fall through; unresolved edits still surface
+  }
+  const shaByPath = new Map();
+  for (const ref of refs) {
+    // Only trust a ref whose sha256 is a real 64-hex digest — defends against
+    // a future extractFileReferences change that yields a falsy/malformed hash.
+    if (SHA256_HEX_RE.test(ref.sha256)) shaByPath.set(normalizeRefPath(ref.path), ref.sha256);
+  }
+
+  for (const edit of gated) {
+    // A non-string path is a malformed plan splice.cjs will reject anyway;
+    // surface it once here without coercing arrays/objects into junk keys.
+    if (typeof edit.path !== 'string' || edit.path.length === 0) {
+      if (!result.unresolved.includes('(missing path)')) result.unresolved.push('(missing path)');
+      continue;
+    }
+    const norm = normalizeRefPath(edit.path);
+    const engineSha = shaByPath.get(norm);
+    if (engineSha) {
+      // Only report a back-fill when a value was actually written — an edit
+      // already carrying the correct hash is a no-op, not a fix.
+      if (edit.expectedSha256 !== engineSha) {
+        edit.expectedSha256 = engineSha;
+        if (!result.backfilled.includes(norm)) result.backfilled.push(norm);
+      }
+    } else if (typeof edit.expectedSha256 !== 'string' || !SHA256_HEX_RE.test(edit.expectedSha256)) {
+      if (!result.unresolved.includes(norm)) result.unresolved.push(norm);
+    }
+  }
+  return result;
+}
+
 function buildUserPrompt(plan, opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
   // Sprint 1.6.20 (T7): wrap untrusted-origin content in explicit tags so the
@@ -1032,6 +1120,17 @@ async function _openrouterEngineInner(plan, opts = {}) {
       model,
       ...usageFields,
     };
+  }
+
+  // Sprint 2.3.2 — carry the engine's own sha256 into str_replace/insert ops
+  // the LLM emitted without `expectedSha256` (small models drop it). Done
+  // before applyEditsToFilesystem so splice.cjs sees a complete plan.
+  const shaFix = backfillExpectedSha(editPlan, plan && plan.action && plan.action.body, opts.repoRoot);
+  if (shaFix.backfilled.length > 0) {
+    console.error(`[steward:engine] back-filled engine-authoritative expectedSha256 for ${shaFix.backfilled.length} edit(s): ${shaFix.backfilled.join(', ')}`);
+  }
+  if (shaFix.unresolved.length > 0) {
+    console.error(`[steward:engine] ${shaFix.unresolved.length} ops-edit(s) need expectedSha256 but reference uninjected paths: ${shaFix.unresolved.join(', ')}`);
   }
 
   const applyResult = applyEditsToFilesystem(editPlan.edits, {
@@ -1742,6 +1841,15 @@ async function _claudeCliEngineInner(plan, opts = {}) {
       };
     }
 
+    // Sprint 2.3.2 — same engine-authoritative SHA back-fill as openrouterEngine.
+    const shaFix = backfillExpectedSha(editPlan, plan && plan.action && plan.action.body, opts.repoRoot);
+    if (shaFix.backfilled.length > 0) {
+      console.error(`[steward:engine] back-filled engine-authoritative expectedSha256 for ${shaFix.backfilled.length} edit(s): ${shaFix.backfilled.join(', ')}`);
+    }
+    if (shaFix.unresolved.length > 0) {
+      console.error(`[steward:engine] ${shaFix.unresolved.length} ops-edit(s) need expectedSha256 but reference uninjected paths: ${shaFix.unresolved.join(', ')}`);
+    }
+
     const applyResult = applyEditsToFilesystem(editPlan.edits, {
       repoRoot: opts.repoRoot,
       emptyCode: 'CLAUDE_CLI_NO_EDITS',
@@ -1818,6 +1926,8 @@ module.exports = {
   buildUserPrompt,
   // Sprint 2.2.5 v1.5 — file-reference extractor + sha injector
   extractFileReferences,
+  // Sprint 2.3.2 — engine-authoritative expectedSha256 back-fill
+  backfillExpectedSha,
   // Sprint 2.1 — autoresearch composes the request body for per-candidate
   // temperature + personaOverlay. Exported for tests + reuse.
   buildOpenRouterRequestBody,
