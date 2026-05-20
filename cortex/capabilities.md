@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-14T11:54:33.952Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-20T09:04:35.659Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -8,21 +8,21 @@
 
 | Category | Count |
 |---|---|
-| Steward action_kinds | 19 |
-| Steward primitives (`bin/steward/_lib/`) | 50 |
+| Steward action_kinds | 20 |
+| Steward primitives (`bin/steward/_lib/`) | 51 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 29 |
+| Standards (rule tiers 0-3) | 31 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
-| GitHub workflows | 22 |
-| Tests total | 2785 (unit 2608 · contract 106 · integration 71 · smoke 0) |
-| Runtime LoC (`bin/`) | 31 787 |
-| Test LoC (`tests/`) | 37 043 |
+| GitHub workflows | 23 |
+| Tests total | 2873 (unit 2696 · contract 106 · integration 71 · smoke 0) |
+| Runtime LoC (`bin/`) | 32 299 |
+| Test LoC (`tests/`) | 37 919 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
-## 1. Steward action_kinds (19)
+## 1. Steward action_kinds (20)
 
 What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manual, or recommendation harvester.
 
@@ -39,6 +39,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `pr_review_responder` | Monitor open Steward-authored PRs for unresolved reviewer comments, file aggregation issue per PR. v1: deterministic surfacing only — auto-patch parked v0.9+. Capability #9. |
 | `recommendation` | Standard cortex/recommendations.md item. LLM produces edits, gates on npm test, atomic commit, draft PR. |
 | `recommendation_harvest` | Read closed PRs + CI failures + open issues, append candidate observations to recommendations.md. Read-only — no LLM, no edits to source code. |
+| `recommendation_harvest_parallel` | Sprint 2.2 multi-agent variant of recommendation_harvest. Supervisor spawns N=2 workers in git worktrees, each proposes alternative recommendation sets; same-tier judge LLM picks best by rubric. Foundation v0 (Sprint 2.2) ships utilities only — spawner/worker/judge are Sprint 2.… |
 | `release_notes_drafter` | After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation. |
 | `secret_history_sweep` | TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing. |
 | `senior_tester_review` | 2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files … |
@@ -48,7 +49,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `wiki_consolidate` | Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills… |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (50)
+## 2. Steward primitives (51)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -100,6 +101,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`tech-debt-audit`](../bin/steward/_lib/tech-debt-audit.cjs) | Sprint 2.5 | Sprint 2.5 — tech_debt_audit executor. |
 | [`test-smell-detector`](../bin/steward/_lib/test-smell-detector.cjs) | Sprint 2.11 | Sprint 2.11 senior_tester_review Phase A |
 | [`test-smell-registry`](../bin/steward/_lib/test-smell-registry.cjs) | Sprint 2.11 | Sprint 2.11 senior_tester_review smell taxonomy |
+| [`topology`](../bin/steward/_lib/topology.cjs) | Sprint 2.2 | Sprint 2.2 v0 foundation: multi-agent supervisor/worker primitives |
 | [`verifier`](../bin/steward/_lib/verifier.cjs) | — | runs the project's verification commands (`npm test` and |
 | [`wiki-consolidate`](../bin/steward/_lib/wiki-consolidate.cjs) | Sprint 2.8.2 | bin/steward/_lib/wiki-consolidate.cjs — Sprint 2.8.2 v0 (Phase A only) |
 | [`workflow-hardener-action`](../bin/steward/_lib/workflow-hardener-action.cjs) | Sprint 2.5b | Sprint 2.5b advisory analyzer |
@@ -119,7 +121,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (29)
+## 4. Standards (31)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -137,6 +139,8 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`error-handling`](../standards/error-handling.md) | Error Handling — Fail Gracefully, Recover Automatically | 1. **Fail fast at boundaries, fail gracefully inside.** Validate at API entry, crash early. Within the app, catch and recover. |
 | [`git-workflow`](../standards/git-workflow.md) | Git Workflow — Commit Like a Pro | ``` |
 | [`modular`](../standards/modular.md) | Modular — Isolated Subsystems | Tightly coupled code is where bugs hide and velocity dies. When changing X requires touching A, B, C, you don't change X — you avoid it. Modularity buys you the ability to refactor, replace, and scale individual pieces without cascading rew |
+| [`multi-agent-supervisor`](../standards/multi-agent-supervisor.md) | Multi-agent supervisor + agent-as-judge ensemble — when, why, how to gate | cortex-x Steward runs LLM-driven actions serially by default — one process, one prompt, one verified outcome. **Multi-agent parallelism is the wrong default** for shared-context coding tasks because (a) it amplifies errors when topology is |
+| [`mutation-testing`](../standards/mutation-testing.md) | Mutation testing — fitness signal beyond "tests pass" | A passing test suite proves nothing about whether the tests would catch a regression. Mutation testing systematically modifies your code (one operator change at a time) and re-runs the tests. If the mutated code still passes all tests, the |
 | [`observability`](../standards/observability.md) | Observability — See What's Happening in Production | 1. **Logs** — what happened |
 | [`performance`](../standards/performance.md) | Performance — Fast by Default | - **Core Web Vitals targets (2026):** |
 | [`RULE-1`](../standards/RULE-1.md) | RULE 1 — Inviolable Architectural Invariants | Every piece of knowledge has **exactly one authoritative source**. No duplication. No drift. |
@@ -217,7 +221,7 @@ Specialized review agents dispatched by R2 review pipeline. Each lives in `agent
 | [`ssot-enforcer`](../agents/ssot-enforcer.md) | - Read | Scans diff for SSOT (Single Source of Truth) violations per cortex-x/standards/ssot.md. Detects duplicated constants, hardcoded labels that should be in config, copy-paste code that should be extracted, multiple sources of truth for the sam |
 | [`synthesizer`](../agents/synthesizer.md) | — | Reads parallel research outputs (planner-dispatched topics) and writes the per-project recommendations.md plus a § Stack reality check section appended to CLAUDE.md. Enforces three-hop citation traceability (claim → finding ID → source URL) |
 
-## 8. GitHub workflows (22)
+## 8. GitHub workflows (23)
 
 CI + Steward cron workflows in `.github/workflows/`.
 
@@ -244,6 +248,7 @@ CI + Steward cron workflows in `.github/workflows/`.
 | [`steward test-coverage-gap`](../.github/workflows/steward-test-coverage-gap.yml) | cron(0 6 * * 1) · manual | steward-test-coverage-gap.yml — autonomous Steward coverage-gap detector. |
 | [`steward todo-triage`](../.github/workflows/steward-todo-triage.yml) | cron(0 4 1 * *) · manual | steward-todo-triage.yml — autonomous Steward TODO/FIXME triage workflow. |
 | [`steward workflow-hardener`](../.github/workflows/steward-workflow-hardener.yml) | cron(0 3 * * 0) · manual | steward-workflow-hardener.yml — Sprint 2.5b weekly cron. |
+| [`stryker-mutation`](../.github/workflows/stryker.yml) | cron(0 3 * * 0) · manual · push | Mutation-testing workflow — Sprint 2.3 v0 measure-only posture. |
 | [`test`](../.github/workflows/test.yml) | manual · push · pull_request | Fast lane — Linux only, runs the full test suite on every PR + push. |
 
 ---
