@@ -84,7 +84,7 @@ Until this exists, manual execution is the contract.
 
 ## Aider-Polyglot lift discipline (Sprint LR.1.1)
 
-> **Source:** Refact.ai 2025 blog post — Aider Polyglot 76 % → 92.9 % via two harness changes alone. Cited in [`docs/research/cortex-x-sprint-brief-10-5.md`](../docs/research/cortex-x-sprint-brief-10-5.md) §"Aider Polyglot — co tě reálně zajímá pro evals".
+> **Source:** Refact.ai 2025 blog post — Aider Polyglot 76 % → 92.9 % via two harness changes alone. Cited in `docs/research/cortex-x-sprint-brief-10-5.md` §"Aider Polyglot — co tě reálně zajímá pro evals".
 
 The Refact.ai lift came from two protocol invariants, not from a smarter model:
 

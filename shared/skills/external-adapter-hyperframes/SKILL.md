@@ -38,7 +38,7 @@ When operator types `/external-adapter-hyperframes` or natural-language equivale
 
 ## Why Hyperframes first
 
-Sprint 3.4 R1 ([docs/research/sprint-3.4-external-adapters-research-2026-05-11.md](../../../docs/research/sprint-3.4-external-adapters-research-2026-05-11.md)) selected Hyperframes as the v0 proof-of-concept because:
+Sprint 3.4 R1 (`docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`) selected Hyperframes as the v0 proof-of-concept because:
 
 - Apache-2.0 → exercises `oss-permissive` license tier (no env gate)
 - "Built for agents" tagline + agentskills.io spec → adapter is thinner than expected
@@ -49,6 +49,6 @@ The second adapter (Remotion) lands in Sprint 3.4 v1 because Remotion forces des
 
 ## Related
 
-- Sprint 3.4 R1 memo: [`docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`](../../../docs/research/sprint-3.4-external-adapters-research-2026-05-11.md)
+- Sprint 3.4 R1 memo: `docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`
 - Adapter lib: [`bin/steward/_lib/external-adapter.cjs`](../../../bin/steward/_lib/external-adapter.cjs)
 - Roadmap entry: `docs/steward-roadmap.md` § Sprint 3.4

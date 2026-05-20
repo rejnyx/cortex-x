@@ -2,7 +2,7 @@
 
 > The tools that materially do "AI ships code without me watching." Where cortex-x sits, what survives competitive scrutiny, what it isn't.
 
-This is the launch-readiness companion to [`docs/positioning-vs-ralph.md`](./positioning-vs-ralph.md). Ralph is the philosophical ancestor; the tools below are the production peers.
+This is the launch-readiness companion to the `docs/positioning-vs-ralph.md` memo. Ralph is the philosophical ancestor; the tools below are the production peers.
 
 **Refresh history**: drafted 2026-05-10, brain-kit memory lens added 2026-05-13 morning (Sprint 2.20), **landscape refresh 2026-05-13 evening (Sprint LR.X)** after operator-driven web research caught three material deltas: OpenClaw's April 2026 pivot into vertical code-maintenance, Block Goose shipping `goose serve` + Recipe cron, OpenHands RFC #13275 cron primitive. Pricing for Devin / Replit / Cursor refreshed against current public pricing pages.
 
@@ -213,7 +213,7 @@ Legend: ✅ shipped & first-class · ⚠️ partial / via workaround · ❌ abse
 
 **Don't pivot.** Mem0 dominates with 47K★ + temporal-graph (Zep) wins benchmarks; entering memory-SaaS from behind is a losing fight. Stay in the maintenance-autopilot lane; the memory layer is *infrastructure for it*, not the product.
 
-Sources for this lens: brain-kit landscape memo [`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md), [5-system agent-memory benchmark 2026](https://dev.to/varun_pratapbhardwaj_b13/5-ai-agent-memory-systems-compared-mem0-zep-letta-supermemory-superlocalmemory-2026-benchmark-59p3), [Microsoft Learn Neo4j Memory Provider](https://learn.microsoft.com/en-us/agent-framework/integrations/neo4j-memory), [OpenClaw Dreaming guide](https://dev.to/czmilo/openclaw-dreaming-guide-2026-background-memory-consolidation-for-ai-agents-585e), [Anthropic Auto Dream](https://claudefa.st/blog/guide/mechanics/auto-dream), [Memori Labs trace-derived memory launch (2026-05-07)](https://www.prweb.com/releases/memori-labs-releases-new-agent-native-memory-infrastructure-automatically-creating-structured-memory-from-agent-trace-302765715.html).
+Sources for this lens: brain-kit landscape memo `docs/research/brain-kit-landscape-2026-05-13.md`, [5-system agent-memory benchmark 2026](https://dev.to/varun_pratapbhardwaj_b13/5-ai-agent-memory-systems-compared-mem0-zep-letta-supermemory-superlocalmemory-2026-benchmark-59p3), [Microsoft Learn Neo4j Memory Provider](https://learn.microsoft.com/en-us/agent-framework/integrations/neo4j-memory), [OpenClaw Dreaming guide](https://dev.to/czmilo/openclaw-dreaming-guide-2026-background-memory-consolidation-for-ai-agents-585e), [Anthropic Auto Dream](https://claudefa.st/blog/guide/mechanics/auto-dream), [Memori Labs trace-derived memory launch (2026-05-07)](https://www.prweb.com/releases/memori-labs-releases-new-agent-native-memory-infrastructure-automatically-creating-structured-memory-from-agent-trace-302765715.html).
 
 ## Third lens — skill / capability marketplaces (NEW 2026-05-13)
 
@@ -228,8 +228,8 @@ Sources: [Tessl](https://tessl.io/), [agensi comparison](https://www.agensi.io/l
 
 ## References
 
-Research dispatch memo: [`docs/research/sprint-lr.6-competitive-landscape-research-2026-05-10.md`](./research/sprint-lr.6-competitive-landscape-research-2026-05-10.md) (25 cited URLs).
+Research dispatch memo: `docs/research/sprint-lr.6-competitive-landscape-research-2026-05-10.md` (25 cited URLs).
 
 **2026-05-13 evening refresh dispatch**: 3 parallel general-purpose agents (autonomous coding deltas, memory-SaaS deltas, self-hosted cron-driven landscape). Findings synthesized in this doc; full output captured in commit message of `feat(sprint-lr.x): positioning refresh after 2026-05-13 landscape scan`.
 
-Companion: [`docs/positioning-vs-ralph.md`](./positioning-vs-ralph.md) (philosophical ancestor framing).
+Companion: `docs/positioning-vs-ralph.md` (philosophical ancestor framing).

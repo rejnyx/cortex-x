@@ -4,7 +4,7 @@
 
 cortex does NOT reimplement broad spec-conformance lint. `agnix` (npm, 414 rules) already covers that surface well. `cortex-skill-validate` runs AFTER `agnix` and adds three cortex-opinionated layers — spec-driven failure mode, Claude-Code-only warnings, cortex-flavor scoring — plus an optional security regex pass.
 
-Full R1 memo: [`docs/research/sprint-2.22-skill-quality-2026-05-14.md`](../docs/research/sprint-2.22-skill-quality-2026-05-14.md) (16 cited URLs, 2026-05-14).
+Full R1 memo: `docs/research/sprint-2.22-skill-quality-2026-05-14.md` (16 cited URLs, 2026-05-14).
 
 ## Why a 3-tier model
 
@@ -12,7 +12,7 @@ Full R1 memo: [`docs/research/sprint-2.22-skill-quality-2026-05-14.md`](../docs/
 |---|---|---|---|
 | **A** | FAIL | [agentskills.io spec](https://agentskills.io/specification) | Anything in this tier breaks the skill registration contract. Skill won't trigger reliably (or at all). Hard fail. |
 | **B** | WARN | [Claude Code authoring guide](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Claude-Code-specific runtime constraints (listing budget, reserved tokens). Only enforced when `--target claude-code` (default). Skill still works at the spec level but loses listing surface in CC. |
-| **C** | SCORE | cortex opinion ([R1 memo](../docs/research/sprint-2.22-skill-quality-2026-05-14.md)) | "Will this skill trigger when the operator says…?" — quality heuristics: verb-first description, trigger-last surface, no internal jargon, sufficient density. Scored, not blocked. |
+| **C** | SCORE | cortex opinion (R1 memo) | "Will this skill trigger when the operator says…?" — quality heuristics: verb-first description, trigger-last surface, no internal jargon, sufficient density. Scored, not blocked. |
 
 ## Tier A — spec violations (FAIL)
 

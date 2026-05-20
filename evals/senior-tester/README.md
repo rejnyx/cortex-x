@@ -42,7 +42,7 @@ A change to either side fails the runner. To intentionally update a baseline:
    re-verifies; if you skipped step 3, the next monthly cron will surface
    the calibration regression to ops.
 
-This is the [Sonar / DeepSource baseline-update model](../../docs/research/sprint-2.11.2-eval-suite-research-2026-05-10.md):
+This is the Sonar / DeepSource baseline-update model:
 no `--updateSnapshot` auto-fix, manual two-eyes for any baseline mutation.
 
 ## Five fixtures, by design
@@ -149,5 +149,5 @@ literature ([arXiv 2506.08680](https://arxiv.org/abs/2506.08680)).
   validates the registry on Java; this suite focuses on cortex-x's
   Tier-1 audience (JS/TS).
 
-See [`docs/research/sprint-2.11.2-eval-suite-research-2026-05-10.md`](../../docs/research/sprint-2.11.2-eval-suite-research-2026-05-10.md)
+See `docs/research/sprint-2.11.2-eval-suite-research-2026-05-10.md`
 for the full rationale + sources.

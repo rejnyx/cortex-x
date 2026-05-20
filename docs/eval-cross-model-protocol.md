@@ -168,7 +168,7 @@ Phase B (weekly) proposals touching human_only paths are rare; when they happen,
 
 ## References
 
-- DGM transfer test: [`docs/research/cortex-x-sprint-brief-10-5.md`](./research/cortex-x-sprint-brief-10-5.md) § "Cross-model transfer test" + § P1.3.
+- DGM transfer test: `docs/research/cortex-x-sprint-brief-10-5.md` § "Cross-model transfer test" + § P1.3.
 - Aider-Polyglot lift discipline (step limit + test-execution-before-scoring) — [`evals/runner.md`](../evals/runner.md) § "Aider-Polyglot lift discipline (Sprint LR.1.1)".
 - Lock-in honest weakness: [`docs/positioning.md`](./positioning.md) § 4, weakness #4.
 - Eval suite SSOT config: [`config/evolve.yaml`](../config/evolve.yaml) § `eval_suite`.

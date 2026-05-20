@@ -2,7 +2,7 @@
 
 > **Status:** v0 draft (2026-05-10) — DRAFT for operator review. Actual code-side guardrails (max-depth, wall-clock, dedup) ship in Sprint 2.13. Until then this document is **behavioral policy** for Claude Code sessions running cortex-x.
 
-This is a minidoc for operators (and for Claude Code sessions reading their own project context) that codifies how to use cortex-x's autonomous capabilities responsibly. Grounded in the May 2026 deep-dive memo at [`../research/autonomous-deep-dive-2026-05-10.md`](../research/autonomous-deep-dive-2026-05-10.md).
+This is a minidoc for operators (and for Claude Code sessions reading their own project context) that codifies how to use cortex-x's autonomous capabilities responsibly. Grounded in the May 2026 deep-dive memo at `docs/research/autonomous-deep-dive-2026-05-10.md`.
 
 ---
 

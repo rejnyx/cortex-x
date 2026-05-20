@@ -62,7 +62,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 1.9 — Spec-driven verification ✅ SHIPPED 2026-05-09
 
-**Status**: ✅ Shipped 2026-05-09 (commit `c5d0c8f`). 871/871 → 900/900 tests across all 3 CI lanes. R1 decision memo: [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](research/sprint-1.9-spec-driven-verification-2026-05-09.md). Operator approved Option D with all 5 default answers.
+**Status**: ✅ Shipped 2026-05-09 (commit `c5d0c8f`). 871/871 → 900/900 tests across all 3 CI lanes. R1 decision memo: `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`. Operator approved Option D with all 5 default answers.
 
 **What shipped (vs original scope)**:
 - ❌ NOT `cortex/specs/<kind>.spec.yaml` — operator-approved memo Option D rejected the YAML schema for in-registry declaration. SSOT = `bin/steward/_lib/action-kinds.cjs acceptance_criteria[]`. cortex/specs/ kept as extension-spec archive (markdown narrative + plan-override examples).
@@ -124,7 +124,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 **Status**: ✅ Shipped 2026-05-08. Phoenix self-hosted single-container observability + zero-deps OTLP/JSON emitter (~530 LoC). 12 must-fix items from 6-agent R2 review applied pre-commit. **Followup Sprint 2.0.1 below addresses Phoenix protobuf-only constraint discovered in manual dogfood.**
 
-**REFINED 2026-05-08 (Sprint 2.0 R1 memo)** — see [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./research/sprint-2.0-langfuse-observability-2026-05-08.md). Original plan was Langfuse self-hosted; **research flipped this to Phoenix (Arize)** as the default, Langfuse parked as a documented opt-in upgrade for Tier 3. Five findings drove the flip:
+**REFINED 2026-05-08 (Sprint 2.0 R1 memo)** — see `docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`. Original plan was Langfuse self-hosted; **research flipped this to Phoenix (Arize)** as the default, Langfuse parked as a documented opt-in upgrade for Tier 3. Five findings drove the flip:
 
 1. **Langfuse v3 is a 6-container stack** (postgres + clickhouse + redis + minio + 2× pods) with documented unbounded ClickHouse log-table growth — fresh installs filling 100 GB/day at zero activity unless TTLs pre-tuned. Footgun for single-dev ops.
 2. **Phoenix is `docker run -p 6006:6006 arizephoenix/phoenix:latest`** — single container, SQLite persistence, native OpenInference + native OpenRouter integration. Zero ops drama for ~1 trace/night.
@@ -206,7 +206,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.2 — Worktree supervisor + agent-as-judge ensemble (L effort) — ✅ FOUNDATION v0 SHIPPED 2026-05-14, spawner v1 (Sprint 2.2.1) deferred
 
-**REFINED 2026-05-08 (anthill R1 memo)** — see [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md). Operator's "anthill" intuition is real (+90.2% on Anthropic research evals via role-routed sub-agents) but comes with three hard constraints: **15× token overhead, multi-agent is wrong for shared-context coding tasks** (so ~6 of our 9 capability kinds stay single-process), and the **DeepMind Dec-2025 finding shows unstructured agent networks amplify errors up to 17.2×** vs single-agent baseline. The memo's verdict: **verifier > spawner**. Our 1.9.0 spec-verifier is the architectural moat. Sprint 2.2 ships **MVP only** — 1 supervisor + 1 spawned worker, **`recommendation_harvest_parallel` only** (breadth-first kind, ideal shape) — not "all 9 kinds become multi-agent."
+**REFINED 2026-05-08 (anthill R1 memo)** — see `docs/research/swarm-self-spawning-agents-2026-05-08.md`. Operator's "anthill" intuition is real (+90.2% on Anthropic research evals via role-routed sub-agents) but comes with three hard constraints: **15× token overhead, multi-agent is wrong for shared-context coding tasks** (so ~6 of our 9 capability kinds stay single-process), and the **DeepMind Dec-2025 finding shows unstructured agent networks amplify errors up to 17.2×** vs single-agent baseline. The memo's verdict: **verifier > spawner**. Our 1.9.0 spec-verifier is the architectural moat. Sprint 2.2 ships **MVP only** — 1 supervisor + 1 spawned worker, **`recommendation_harvest_parallel` only** (breadth-first kind, ideal shape) — not "all 9 kinds become multi-agent."
 
 **Why after 2.1**: 2.1 proves the multi-strategy pattern serial; 2.2 makes it parallel via git worktrees. Claude Agent SDK's orchestrator-worker primitive is the reference (depth-cap=2 built-in, per-sub-agent maxTurns/effort/model/permissionMode, but **no built-in per-tree token cap — we must implement**).
 
@@ -236,7 +236,7 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.2.5 — `edit.position` primitive in action-engine (M effort) — ✅ SHIPPED 2026-05-10 (v0/v1)
 
-**Status**: ✅ Shipped 2026-05-10. Action-engine now supports `edit_ops[]` shape with `append` / `create` / `insert` / `str_replace` operations + `expectedSha256` SHA pinning gate. R1 memo: [`docs/research/sprint-2.3-edit-position-2026-05-10.md`](research/sprint-2.3-edit-position-2026-05-10.md) (filename intentionally `2.3-` for chronological order; sprint label is 2.2.5). Three-stage validation: LLM emits op + SHA → engine validates SHA matches pre-edit content → engine applies op → spec-verifier gates result.
+**Status**: ✅ Shipped 2026-05-10. Action-engine now supports `edit_ops[]` shape with `append` / `create` / `insert` / `str_replace` operations + `expectedSha256` SHA pinning gate. R1 memo: `docs/research/sprint-2.3-edit-position-2026-05-10.md` (filename intentionally `2.3-` for chronological order; sprint label is 2.2.5). Three-stage validation: LLM emits op + SHA → engine validates SHA matches pre-edit content → engine applies op → spec-verifier gates result.
 
 **Why before mutation testing**: 2026-05-10 dogfood proved that current LLMs (DeepSeek V4 Flash + likely all current production models) cannot reliably return full-file content for "insert N bytes into existing >200 B file" tasks. Today's edit shape is `{ path, content, replace_all? }`. LLM either returns empty response or partial-content rewrite — `no_destructive_rewrite` correctly blocks 100 % of these. **Result**: 3 of 7 cortex-x recommendations had to be marked `[HUMAN-ONLY]` as same-incident-class. Most production cortex-x recommendations will hit the same wall until we ship a richer edit primitive.
 
@@ -284,17 +284,17 @@ These rules are non-negotiable. Each sprint must satisfy all of them before merg
 
 ### Sprint 2.4 — Anthropic `claude-cli` engine via Max subscription ✅ SHIPPED 2026-05-09 (commit `3f9575d`, ⭐ COST PIVOT)
 
-**Status**: ✅ Shipped 2026-05-09. New `claudeCliEngine` inline in `bin/steward/_lib/action-engine.cjs` (~470 LoC including helpers). Three-layer billing-leak defense: env scrub + `total_cost_usd === 0` assert + fleet `STEWARD_HALT` write. Auth via `CLAUDE_CODE_OAUTH_TOKEN` only; `--bare` hard-prohibited via `CLAUDE_CLI_FORBIDDEN_FLAGS` freeze-list. R2 review pipeline (6 agents in parallel) found 1 BLOCKER + 3 HIGH + 11 MAJOR + 14 MINOR; 13 must-fix items applied pre-commit. R1 memo: [`docs/research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md`](research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md). 1158 → 1164 tests (29 new).
+**Status**: ✅ Shipped 2026-05-09. New `claudeCliEngine` inline in `bin/steward/_lib/action-engine.cjs` (~470 LoC including helpers). Three-layer billing-leak defense: env scrub + `total_cost_usd === 0` assert + fleet `STEWARD_HALT` write. Auth via `CLAUDE_CODE_OAUTH_TOKEN` only; `--bare` hard-prohibited via `CLAUDE_CLI_FORBIDDEN_FLAGS` freeze-list. R2 review pipeline (6 agents in parallel) found 1 BLOCKER + 3 HIGH + 11 MAJOR + 14 MINOR; 13 must-fix items applied pre-commit. R1 memo: `docs/research/sprint-2.4-anthropic-claude-cli-engine-2026-05-08.md`. 1158 → 1164 tests (29 new).
 
 ### Sprint 2.4.1 — Per-action_kind effort tuning ✅ SHIPPED 2026-05-11
 
-Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.md`](./research/sprint-2.4.1-extended-thinking-research-2026-05-11.md). Anthropic effort parameter (`low`/`medium`/`high`/`xhigh`/`max`) bifurcated from legacy `budget_tokens` in Opus 4.7. Claude Code v2.1.117+ defaults to `xhigh` — every cortex-x action was silently paying for xhigh-tier thinking before this fix. Sprint 2.4.1 adds `effort` field per LLM-requiring action_kind (recommendation/pattern_transfer → `high`; senior_tester_review/release_notes_drafter → `medium`) + `resolveEffortLevel()` precedence (env > opts > action_kind > default `medium`) + `--effort <level>` arg injection into claudeCliEngine + journal capture for retro analysis. Test enforces NO default `xhigh`/`max` (anti-overthinking; community reports max-effort looping behavior). ~80 LoC, 16 tests. Operator escape hatch: `CLAUDE_CODE_EFFORT_LEVEL` env var.
+Grounded in: `docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.md`. Anthropic effort parameter (`low`/`medium`/`high`/`xhigh`/`max`) bifurcated from legacy `budget_tokens` in Opus 4.7. Claude Code v2.1.117+ defaults to `xhigh` — every cortex-x action was silently paying for xhigh-tier thinking before this fix. Sprint 2.4.1 adds `effort` field per LLM-requiring action_kind (recommendation/pattern_transfer → `high`; senior_tester_review/release_notes_drafter → `medium`) + `resolveEffortLevel()` precedence (env > opts > action_kind > default `medium`) + `--effort <level>` arg injection into claudeCliEngine + journal capture for retro analysis. Test enforces NO default `xhigh`/`max` (anti-overthinking; community reports max-effort looping behavior). ~80 LoC, 16 tests. Operator escape hatch: `CLAUDE_CODE_EFFORT_LEVEL` env var.
 
 **(Original sprint memo retained below for design context.)**
 
 
 
-**Why**: research dispatch 2026-05-08 (R3 — see [`docs/research/sprint-2.4-anthropic-max-routing-2026-05-08.md`](./research/sprint-2.4-anthropic-max-routing-2026-05-08.md) when written) confirmed that Anthropic Max x20 subscription is **programmatically reachable via `claude -p` non-interactive CLI** with `CLAUDE_CODE_OAUTH_TOKEN` set + `ANTHROPIC_API_KEY` unset. ToS explicitly permits this for personal autonomous agents on operator's own repos (Green Tier per claudefa.st safe-use guide). Anthropic April 2026 OpenClaw crackdown was specifically token-extraction in third-party harnesses — not legitimate `claude` subprocess invocation.
+**Why**: research dispatch 2026-05-08 (R3 — see `docs/research/sprint-2.4-anthropic-max-routing-2026-05-08.md` when written) confirmed that Anthropic Max x20 subscription is **programmatically reachable via `claude -p` non-interactive CLI** with `CLAUDE_CODE_OAUTH_TOKEN` set + `ANTHROPIC_API_KEY` unset. ToS explicitly permits this for personal autonomous agents on operator's own repos (Green Tier per claudefa.st safe-use guide). Anthropic April 2026 OpenClaw crackdown was specifically token-extraction in third-party harnesses — not legitimate `claude` subprocess invocation.
 
 **Strategic impact**: this is the **cost-economy pivot** of Tier 1. Today Steward calls OpenRouter at ~$0.0008/run avg ($0.024/month full cadence). After 2.4, the LLM-driven action_kinds (`recommendation` + autoresearch judge + future `pattern_transfer`) become **zero marginal cost** under the operator's existing Max sub. OpenRouter stays as overflow only (when Max weekly cap exhausted or `claude -p` returns auth error). Hardware decision (lokální 30k CZK box) deferred until this is validated and remaining spend is measured.
 
@@ -331,7 +331,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.5 — `tech_debt_audit` action_kind ✅ SHIPPED 2026-05-09 (commit `b9d25b5`)
 
-**Status**: ✅ Shipped 2026-05-09. 10th action_kind, deterministic (zero LLM cost), runs nightly, snapshots code-health to `cortex/debt-snapshot.json` (committed audit trail). qlty + knip toolchain. Fail-open on missing tools. R2 review pipeline (6 agents) found 2 BLOCKER + 3 HIGH + 11 MAJOR + many MINOR; 14 must-fix items applied pre-commit (dispatcher wire, scrubEnv, byte-cap, parser hardening, fs walk symlink protection, error-code reconciliation, 3 fixture-based integration tests). R1 memo: [`docs/research/sprint-2.5-tech-debt-audit-2026-05-08.md`](research/sprint-2.5-tech-debt-audit-2026-05-08.md). 1187 → 1199 tests (35 new).
+**Status**: ✅ Shipped 2026-05-09. 10th action_kind, deterministic (zero LLM cost), runs nightly, snapshots code-health to `cortex/debt-snapshot.json` (committed audit trail). qlty + knip toolchain. Fail-open on missing tools. R2 review pipeline (6 agents) found 2 BLOCKER + 3 HIGH + 11 MAJOR + many MINOR; 14 must-fix items applied pre-commit (dispatcher wire, scrubEnv, byte-cap, parser hardening, fs walk symlink protection, error-code reconciliation, 3 fixture-based integration tests). R1 memo: `docs/research/sprint-2.5-tech-debt-audit-2026-05-08.md`. 1187 → 1199 tests (35 new).
 
 **(Original sprint memo retained below for design context.)**
 
@@ -375,7 +375,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.6 — Discord remote control ✅ SHIPPED 2026-05-09 (commit `27c3529`, v0 alpha; hardening 2.6.1 follow-up)
 
-**Status**: ✅ Shipped 2026-05-09. `bin/discord-bridge/` sibling-folder pattern preserves zero-deps Steward core; bridge has its own `package.json` with `discord.js` 14.x. v0 ships testable zero-deps parts (auth + commands + journal-tail); Gateway WebSocket wiring deferred to operator setup. R2 retro review found 2 BLOCKER + 5 HIGH + 5 MAJOR; all BLOCKERs and most HIGHs landed in same-day Sprint 2.6.1 hardening commit (HMAC token reuse defense via consumed-tokens Set, SECRET ≥32 enforcement, ephemeral:true on all mutation embeds, `crypto.randomBytes` actionId, `!` prefix removed from Discord-side names per API spec, `appendRecommendation` mkdirSync + symlink TOCTOU defense). R1 memo: [`docs/research/sprint-2.6-discord-remote-control-2026-05-08.md`](research/sprint-2.6-discord-remote-control-2026-05-08.md). 1262 → ~1276 tests.
+**Status**: ✅ Shipped 2026-05-09. `bin/discord-bridge/` sibling-folder pattern preserves zero-deps Steward core; bridge has its own `package.json` with `discord.js` 14.x. v0 ships testable zero-deps parts (auth + commands + journal-tail); Gateway WebSocket wiring deferred to operator setup. R2 retro review found 2 BLOCKER + 5 HIGH + 5 MAJOR; all BLOCKERs and most HIGHs landed in same-day Sprint 2.6.1 hardening commit (HMAC token reuse defense via consumed-tokens Set, SECRET ≥32 enforcement, ephemeral:true on all mutation embeds, `crypto.randomBytes` actionId, `!` prefix removed from Discord-side names per API spec, `appendRecommendation` mkdirSync + symlink TOCTOU defense). R1 memo: `docs/research/sprint-2.6-discord-remote-control-2026-05-08.md`. 1262 → ~1276 tests.
 
 **(Original sprint memo retained below for design context.)**
 
@@ -419,7 +419,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.7 — Cross-project `pattern_transfer` action_kind ✅ SHIPPED 2026-05-09 (commit `b80ebdf`, v0; hardening 2.7.1 follow-up)
 
-**Status**: ✅ Shipped 2026-05-09. 11th action_kind, LLM-driven, journal-only. v0 ships testable zero-deps parts (manifest validator + sibling-reader path safety + glob matcher + assertEditWithinCwd); LLM dispatch deferred to Sprint 2.7.1 (needs operator-populated `cortex/sibling-projects.json`). R2 retro review found 2 BLOCKER + 4 HIGH + 3 MAJOR; both BLOCKERs landed in same-day Sprint 2.7.1 hardening commit (acceptance predicate now rejects UNC paths `\\server\share`, dispatcher returns `ACTION_KIND_NOT_DISPATCHABLE` until LLM wiring lands so cron operators see the gap explicitly). `assertEditWithinCwd` documented as wired-but-dormant pending dispatcher wiring. R1 memo: [`docs/research/sprint-2.7-pattern-transfer-2026-05-08.md`](research/sprint-2.7-pattern-transfer-2026-05-08.md). 1307 → ~1315 tests.
+**Status**: ✅ Shipped 2026-05-09. 11th action_kind, LLM-driven, journal-only. v0 ships testable zero-deps parts (manifest validator + sibling-reader path safety + glob matcher + assertEditWithinCwd); LLM dispatch deferred to Sprint 2.7.1 (needs operator-populated `cortex/sibling-projects.json`). R2 retro review found 2 BLOCKER + 4 HIGH + 3 MAJOR; both BLOCKERs landed in same-day Sprint 2.7.1 hardening commit (acceptance predicate now rejects UNC paths `\\server\share`, dispatcher returns `ACTION_KIND_NOT_DISPATCHABLE` until LLM wiring lands so cron operators see the gap explicitly). `assertEditWithinCwd` documented as wired-but-dormant pending dispatcher wiring. R1 memo: `docs/research/sprint-2.7-pattern-transfer-2026-05-08.md`. 1307 → ~1315 tests.
 
 **(Original sprint memo retained below for design context.)**
 
@@ -460,7 +460,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.8 — Memory Foundation v0 ✅ SHIPPED 2026-05-09 (commit `86b2472`, ⭐ MEMORY GATE; hardening 2.8.1 follow-up)
 
-**Status**: ✅ Shipped 2026-05-09. v0 ships zero-deps memory-decay primitive (`bin/steward/_lib/memory-decay.cjs`, ~150 LoC) + lessons.cjs schema extension (agent_id, failure_origin, impact, frequency forward-compat fields). Anthropic Memory Tool migration + retrieval-at-decision-time MaTTS + LLM failure-distillation deferred to Sprint 2.8.1 (operator-cost-validated). R2 retro review found 0 BLOCKER + 5 HIGH + 4 MAJOR + 4 MINOR; key HIGHs landed in same-day Sprint 2.8.1 hardening commit (decay floor at 1e-12 to prevent ancient-item underflow ranking loss, SSOT impact classifier covering all CLAUDE_CLI_* + TECH_DEBT_* + SIBLING_* error codes, small-list archive policy avoids decay-shock under 10 items, malformed ts → score 0 instead of fresh). R1 memo: [`docs/research/sprint-2.8-memory-foundation-2026-05-08.md`](research/sprint-2.8-memory-foundation-2026-05-08.md). 1337 → ~1345 tests.
+**Status**: ✅ Shipped 2026-05-09. v0 ships zero-deps memory-decay primitive (`bin/steward/_lib/memory-decay.cjs`, ~150 LoC) + lessons.cjs schema extension (agent_id, failure_origin, impact, frequency forward-compat fields). Anthropic Memory Tool migration + retrieval-at-decision-time MaTTS + LLM failure-distillation deferred to Sprint 2.8.1 (operator-cost-validated). R2 retro review found 0 BLOCKER + 5 HIGH + 4 MAJOR + 4 MINOR; key HIGHs landed in same-day Sprint 2.8.1 hardening commit (decay floor at 1e-12 to prevent ancient-item underflow ranking loss, SSOT impact classifier covering all CLAUDE_CLI_* + TECH_DEBT_* + SIBLING_* error codes, small-list archive policy avoids decay-shock under 10 items, malformed ts → score 0 instead of fresh). R1 memo: `docs/research/sprint-2.8-memory-foundation-2026-05-08.md`. 1337 → ~1345 tests.
 
 **(Original sprint memo retained below for design context.)**
 
@@ -513,7 +513,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.10 — QA Retrofit infrastructure ✅ SHIPPED 2026-05-09 (M effort, operator-targeted dogfood)
 
-**Status**: ✅ Shipped 2026-05-09 late evening. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl." Field-test target: `<colleague-storefront-repo>` + `<colleague-admin-repo>`. R1 memo: [`docs/research/sprint-2.10-qa-retrofit-2026-05-09.md`](research/sprint-2.10-qa-retrofit-2026-05-09.md) — 38 cited sources via 4 parallel research agents.
+**Status**: ✅ Shipped 2026-05-09 late evening. Operator request: "udělej cortex master of testing guru pro novou kolegyni testerku — projet jak červ celý projekt, najít všechny slabiny, ale opravdu hluboké a dávající smysl." Field-test target: `<colleague-storefront-repo>` + `<colleague-admin-repo>`. R1 memo: `docs/research/sprint-2.10-qa-retrofit-2026-05-09.md` — 38 cited sources via 4 parallel research agents.
 
 **Why**: 75% of orgs target AI-driven testing, only 16% successfully adopt — differentiator is starting with audit baseline before automating (testdevlab 2026). cortex-x already has audit infra (existing-project-audit, planner, synthesizer, research dispatch); the QA lens closes the gap with a senior-consultant deliverable on day 1.
 
@@ -596,7 +596,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.9 — Tools Foundation v0 ✅ SHIPPED 2026-05-09 (M effort, ⭐ STRATEGIC)
 
-**Status**: ✅ Shipped 2026-05-09. New `bin/cortex/tools/` module tree (~2k LoC): descriptor spec + validator + 6 reference tools (read/write/edit/glob/grep/bash) + 4 runtime adapters (toMcpServer primary, toClaudeAgentSdk, toOpenAiAgents, toVercelAiSdk-stub) + annotation routing + 2 shared libs (`_lib/path-safety.cjs` + `_lib/limits.cjs`). 6-agent R2 review pipeline (acceptance + blind + correctness + security + ssot + edge-case) surfaced 6 BLOCKER + 18 HIGH + 9 MEDIUM findings; all BLOCKERs and key HIGHs fixed in hardening pass before merge. 1349 → 1502 tests (+153). R1 memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md).
+**Status**: ✅ Shipped 2026-05-09. New `bin/cortex/tools/` module tree (~2k LoC): descriptor spec + validator + 6 reference tools (read/write/edit/glob/grep/bash) + 4 runtime adapters (toMcpServer primary, toClaudeAgentSdk, toOpenAiAgents, toVercelAiSdk-stub) + annotation routing + 2 shared libs (`_lib/path-safety.cjs` + `_lib/limits.cjs`). 6-agent R2 review pipeline (acceptance + blind + correctness + security + ssot + edge-case) surfaced 6 BLOCKER + 18 HIGH + 9 MEDIUM findings; all BLOCKERs and key HIGHs fixed in hardening pass before merge. 1349 → 1502 tests (+153). R1 memo: `docs/research/sprint-2.9-tools-foundation-2026-05-09.md`.
 
 **Hardening pass shipped (R2 closed-out)**:
 - Extracted `_lib/path-safety.cjs` (5 duplicates → 1 SSOT) with fail-closed semantics + UNC/device-prefix rejection + Windows case-insensitive containment + parent-mode for `write`.
@@ -673,9 +673,9 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 - `TOOL_HANDLER_MISSING` — descriptor without `handler` export.
 - `TOOL_ADAPTER_ROUNDTRIP_DIVERGENCE` — descriptor lost data through adapter (contract-test only).
 
-**Acceptance criteria (10)** — see [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md) §4.
+**Acceptance criteria (10)** — see `docs/research/sprint-2.9-tools-foundation-2026-05-09.md` §4.
 
-**Pre-implementation research dispatch (R1)** — ✅ DONE 2026-05-09. Memo: [`docs/research/sprint-2.9-tools-foundation-2026-05-09.md`](research/sprint-2.9-tools-foundation-2026-05-09.md). 14 sources cited; recommendation = Option (b) neutral spec + adapters with MCP as the spec format.
+**Pre-implementation research dispatch (R1)** — ✅ DONE 2026-05-09. Memo: `docs/research/sprint-2.9-tools-foundation-2026-05-09.md`. 14 sources cited; recommendation = Option (b) neutral spec + adapters with MCP as the spec format.
 
 **Open questions for operator** (R1 §8):
 1. Tool naming: lowercase per MCP regex (`read` / `write` / `edit`) or capitalized like Claude Code (`Read` / `Write` / `Edit`)? Memo recommends lowercase + document the mapping.
@@ -689,7 +689,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.5b — `workflow_hardener` action_kind (S effort) ✅ SHIPPED 2026-05-10 (commit `213ea72`)
 
-**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3 + [`sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`](research/sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md). Awaiting operator approval.
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: `docs/research/cortex-x-housekeeping-audit-2026-05-10.md` §3 + `sprint-2.5b-2.6b-devops-hygiene-research-2026-05-10.md`. Awaiting operator approval.
 
 **Why**: GitHub's [Aug 2025 policy](https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/) enforces SHA pinning; the [2026 roadmap](https://github.com/orgs/community/discussions/190621) adds workflow lockfiles. cortex-x's `dep_update_patch` covers version drift, but not workflow security hardening (missing `permissions:`/`concurrency:`/`timeout-minutes:` blocks, branch-protection drift). Direct precedent = [StepSecurity Secure-Repo](https://github.com/step-security/secure-repo); Renovate-Mend explicitly does NOT cover this niche. Pre-public-launch ship gate.
 
@@ -722,7 +722,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.6b — `secret_history_sweep` action_kind (S effort) ✅ SHIPPED 2026-05-10 (commit `213ea72`)
 
-**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §3. Awaiting operator approval.
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: `docs/research/cortex-x-housekeeping-audit-2026-05-10.md` §3. Awaiting operator approval.
 
 **Why**: Pre-public-flip MUST. cortex-x has `no-pii.yml` (regex-only at HEAD) + `policy-check.cjs` `NO_SECRET_READ` (Sprint pre-2.0). Neither covers **rotated-but-leaked keys, encoded blobs, deep history**. [TruffleHog](https://github.com/trufflesecurity/trufflehog) full-history with `--only-verified` covers 800+ secret types and verifies them as currently-active. The moment cortex-x flips public, any verified credential in history is exposed; this sweep catches it the week before.
 
@@ -765,7 +765,7 @@ Grounded in: [`docs/research/sprint-2.4.1-extended-thinking-research-2026-05-11.
 
 ### Sprint 2.11 — `senior_tester_review` action_kind (M effort, ⭐ DIFFERENTIATOR) ✅ SHIPPED 2026-05-10 (commit `e3829a3`)
 
-**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: [`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §2 + [`sprint-2.11-senior-tester-research-2026-05-10.md`](research/sprint-2.11-senior-tester-research-2026-05-10.md). Awaiting operator approval.
+**Status**: 📋 Proposed 2026-05-10 from housekeeping audit synthesis. R1 memo: `docs/research/cortex-x-housekeeping-audit-2026-05-10.md` §2 + `sprint-2.11-senior-tester-research-2026-05-10.md`. Awaiting operator approval.
 
 **Why**: **Open niche, real research lane (2024Q4-2025Q4)**. UTRefactor (FSE'25, [arxiv:2409.16739](https://arxiv.org/abs/2409.16739)) — 89% smell reduction. Agentic-LMs (IEEE Software, [arxiv:2504.07277](https://arxiv.org/abs/2504.07277)) — Phi-4-14B pass@5 75.3% within 5% of frontier. ESE 2025 ([DOI 10.1007/s10664-025-10718-x](https://link.springer.com/article/10.1007/s10664-025-10718-x)) — 13 new test smells in 4 categories, explicit tsDetect extension for AI-generated tests. **No SaaS or GitHub App ships cron-driven "audit existing tests" mode** — Diffblue Cover (Test Review/Test Asset Insights) generates new tests rather than auditing existing quality. Mabl/Functionize/TestSprite/Applitools/Virtuoso all sit in authoring lane. cortex-x positioning: "AI-augmented tester, not replacement" (already in Sprint 2.10 framing) — this kind makes that real on a cron.
 
@@ -836,7 +836,7 @@ PHASE C — DELIVER (deterministic)
 
 ### Sprint 2.18 — `read_set` acceptance-criterion kind (read-coverage proof) — ✅ SHIPPED 2026-05-12
 
-**Status**: ✅ Shipped 2026-05-12. R1 → R2 → review pipeline → R2 hardening all same day. 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) found 1 HIGH symlink termination, 1 HIGH expected_glob path-traversal, 1 HIGH padding bypass via expected_count, 1 HIGH mergeCriteria override weakening, 4 MED (NFC normalize, excludes merge-vs-replace, rootMissing → SPEC_MALFORMED, min_coverage=0 contradiction) — all fixed pre-commit. 2270 → 2338 tests (+68 read_set + R2 regression). R1 memo: [`docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`](research/sprint-2.18-read-coverage-proof-research-2026-05-12.md). Operator-flagged after a 2026-05-12 Facebook incident discussion: agent for API doc generation read 64/278 methods and confabulated the remaining 214. Class of failure invisible to every current Steward gate because the edit-side artifact is internally consistent — it's just wrong about coverage of the input set.
+**Status**: ✅ Shipped 2026-05-12. R1 → R2 → review pipeline → R2 hardening all same day. 6-agent parallel review (acceptance + blind + correctness + security + ssot + edge-case) found 1 HIGH symlink termination, 1 HIGH expected_glob path-traversal, 1 HIGH padding bypass via expected_count, 1 HIGH mergeCriteria override weakening, 4 MED (NFC normalize, excludes merge-vs-replace, rootMissing → SPEC_MALFORMED, min_coverage=0 contradiction) — all fixed pre-commit. 2270 → 2338 tests (+68 read_set + R2 regression). R1 memo: `docs/research/sprint-2.18-read-coverage-proof-research-2026-05-12.md`. Operator-flagged after a 2026-05-12 Facebook incident discussion: agent for API doc generation read 64/278 methods and confabulated the remaining 214. Class of failure invisible to every current Steward gate because the edit-side artifact is internally consistent — it's just wrong about coverage of the input set.
 
 **Why this is one criterion-kind, not a new architectural layer**:
 - Current spec-verifier (Sprint 1.9) gates the **edit side** via 5 criterion kinds (shell, file_predicate, regex, ears_text, llm_judge). Sprint 2.18 adds a **6th kind: `read_set`** — folds into the existing dispatcher, no new top-level subsystem.
@@ -937,7 +937,7 @@ PHASE C — DELIVER (deterministic)
 
 
 
-**Status**: 📋 Proposed 2026-05-11. R1 research dispatch completed same day — [`docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`](research/sprint-3.4-external-adapters-research-2026-05-11.md). Formalizes the architectural shape for "cortex-x knows how to drive external repos" — Hyperframes (HTML → video, agent-native), Remotion (React programmatic video, licensed), Lottie generators, Figma plugins, Playwright codegen, etc. Gated on Sprint 2.8 Memory Foundation (so adapter usage records into lessons.jsonl) and complementary to Sprint 3.1 (self-extending capabilities — adapters are first-class skill targets).
+**Status**: 📋 Proposed 2026-05-11. R1 research dispatch completed same day — `docs/research/sprint-3.4-external-adapters-research-2026-05-11.md`. Formalizes the architectural shape for "cortex-x knows how to drive external repos" — Hyperframes (HTML → video, agent-native), Remotion (React programmatic video, licensed), Lottie generators, Figma plugins, Playwright codegen, etc. Gated on Sprint 2.8 Memory Foundation (so adapter usage records into lessons.jsonl) and complementary to Sprint 3.1 (self-extending capabilities — adapters are first-class skill targets).
 
 **Why this is one sprint, not 50 per-tool skills**:
 - The HARD part is the **invocation contract** (sandboxing, output discovery, error normalization, cost attribution, license/secret scoping) — not the specific tool wrapper.
@@ -977,7 +977,7 @@ PHASE C — DELIVER (deterministic)
 
 **Why**: operator's 2026-05-11 brainstorm — "cortex-x by mohl být totální SaaS builder, kde z jednoho promptu vyleze app + web + animace na promo + designové variace." Each piece exists separately today. The positioning shift is **explicit composition** + a single entry point that orchestrates them.
 
-**Competitive landscape (R1-grounded, [research memo §4](research/sprint-3.4-external-adapters-research-2026-05-11.md))**: nobody is shipping the **full** composite under one brand in 2026, but four adjacent quadrants exist —
+**Competitive landscape (R1-grounded, research memo §4)**: nobody is shipping the **full** composite under one brand in 2026, but four adjacent quadrants exist —
 - [Flatlogic](https://flatlogic.com/generator) and [Fuzen](https://www.fuzen.io/posts/ai-saas-website-builder) own "text → working SaaS app"
 - [WeWeb](https://www.weweb.io/blog/best-saas-website-builder-tools) owns "best SaaS website builder, no-code"
 - [Agent Opus / Opus.pro](https://www.opus.pro/agent/workflows/saas-product-video-maker) owns "URL → promo video"
@@ -1023,7 +1023,7 @@ PHASE C — DELIVER (deterministic)
 
 **Defer reason**: operator may want to design the write-format before this lands; the auto-memory pipeline interaction needs investigation.
 
-**R1 memo**: [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md) (covers full Anthropic Memory Tool research + why this smaller bite is the right shape).
+**R1 memo**: `docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md` (covers full Anthropic Memory Tool research + why this smaller bite is the right shape).
 
 ---
 
@@ -1085,7 +1085,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 **Status**: 📋 Roadmap-add 2026-05-11. Deferred from autonomous-ship after R1 research dispatch identified three blockers. Gated on Sprint 2.8 Memory Foundation schema work.
 
-**Why STILL deferred 2026-05-14** — fresh R1 dispatch (memo: [`docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md`](./research/sprint-3.x-anthropic-memory-tool-2026-05-14.md)) confirmed 3 of 4 blockers remain ACTIVE:
+**Why STILL deferred 2026-05-14** — fresh R1 dispatch (memo: `docs/research/sprint-3.x-anthropic-memory-tool-2026-05-14.md`) confirmed 3 of 4 blockers remain ACTIVE:
 
 1. **claude-cli engine collision — STILL BLOCKING + policy worsened.** Anthropic's 2026-04-04 cutoff explicitly excludes third-party harnesses from Max-OAuth subscription quota. cortex-x is a third-party harness. `total_cost_usd === 0` detector is mechanically correct but policy meaning shifted from "free path" to "borderline-compliant operator-opt-in."
 2. **Sprint 2.8 Memory Foundation gate — RESOLVED.** Sprint 2.8 v0 + 2.8.1 + 2.8.2 all shipped 2026-05-09 → 2026-05-14. ReasoningBank schema in place.
@@ -1099,7 +1099,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 - (B) OpenRouter publicly adds `context-management-*` beta pass-through.
 - (C) cortex-x long-context action class ships (`/cortex-goal` reaches multi-hour usage OR autoresearch v2 Sprint 2.1+) — at which point the 39% claim actually applies to our workload.
 
-**Original 2026-05-11 deferral context** (3 blockers from [`docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`](./research/anthropic-memory-tool-deferred-research-2026-05-11.md)):
+**Original 2026-05-11 deferral context** (3 blockers from `docs/research/anthropic-memory-tool-deferred-research-2026-05-11.md`):
 1. **claude-cli engine collision** — Memory Tool requires direct `/v1/messages` HTTP with `betas: ["context-management-2025-06-27"]`. claude-cli bills against Max subscription via OAuth — using Memory Tool would re-introduce API-key cost line, reversing Sprint 2.4's cost pivot.
 2. **Sprint 2.8 Memory Foundation schema gate** — adding Anthropic Memory Tool before deciding durable schema risks design drift.
 3. **Value/ceremony ratio** — the 84% token / +39% perf wins come from Memory Tool + `clear_tool_uses_20250919` context-editing **combined**, not Memory Tool alone. Doing both at once (Sprint 3.X) gets full upside.
@@ -1124,7 +1124,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 **v0 shipped 2026-05-13** — daily Dreaming cron (Phase A deterministic):
 
-**Status**: 📋 Proposed 2026-05-13 from brain-kit research synthesis ([`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md)). Pull-forward from "Phase 5 self-improvement loop ⏳ designed, awaits Phase 7" — industry has shipped the same primitive (OpenClaw "Dreaming" cron, Anthropic "Auto Dream", ICLM 2026 "Language Models Need Sleep", arXiv SCM Sleep-Consolidated Memory), cortex-x is now behind on what was a designed-but-runtime-dormant capability.
+**Status**: 📋 Proposed 2026-05-13 from brain-kit research synthesis (`docs/research/brain-kit-landscape-2026-05-13.md`). Pull-forward from "Phase 5 self-improvement loop ⏳ designed, awaits Phase 7" — industry has shipped the same primitive (OpenClaw "Dreaming" cron, Anthropic "Auto Dream", ICLM 2026 "Language Models Need Sleep", arXiv SCM Sleep-Consolidated Memory), cortex-x is now behind on what was a designed-but-runtime-dormant capability.
 
 **Scope**:
 - 4 new GitHub Actions workflows wrapping existing prompts: `cortex-evolve-daily.yml` (ingest), `-weekly.yml` (mining), `-monthly.yml` (eval), `-quarterly.yml` (audit). Reuse Steward cron + skip-commit pattern shipped today (bash-e tolerance + JSON-validity gate).
@@ -1144,7 +1144,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 **Status**: ✅ Shipped 2026-05-13 late evening. Follow-up to Sprint LR.X positioning refresh — verifies the "OpenClaw is primary competitor" claim against OpenClaw's shipped reality with citation-grounded feature-gap matrix.
 
-**Deliverable**: [`docs/research/openclaw-architecture-2026-05-13.md`](./research/openclaw-architecture-2026-05-13.md) — 29 cited sources, 10 topic sections.
+**Deliverable**: `docs/research/openclaw-architecture-2026-05-13.md` — 29 cited sources, 10 topic sections.
 
 **Key findings**:
 - OpenClaw is **breadth-first** (250K stars, MIT, ClawHub plugin ecosystem with 5.7K+ skills, OAuth-over-HTTP for paid Codex, TaskFlow SQLite checkpointing, Memory Wiki). **Safety-thin** — ships zero of cortex-x's 7-row safety-stack moat.
@@ -1232,7 +1232,7 @@ Plus [Chase Agentic OS transcript](./transcripts/claude-code-agentic-os.md) Karp
 
 ### Sprint LR (Launch Readiness) track — 📋 PROPOSED 2026-05-10
 
-**Status**: 📋 Proposed 2026-05-10 from operator brief audit ([`docs/research/cortex-x-housekeeping-audit-2026-05-10.md`](research/cortex-x-housekeeping-audit-2026-05-10.md) §1). Distinct track from Tier 1 engineering — these are publish-readiness items that should never block engineering momentum.
+**Status**: 📋 Proposed 2026-05-10 from operator brief audit (`docs/research/cortex-x-housekeeping-audit-2026-05-10.md` §1). Distinct track from Tier 1 engineering — these are publish-readiness items that should never block engineering momentum.
 
 | ID | Item | Effort | Operator-only? | Status |
 |---|---|---|---|---|
@@ -1445,7 +1445,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 - `bin/steward/_lib/eval-judge.cjs` — LLM-as-judge via OpenRouter. Default model `anthropic/claude-sonnet-4.6` (different family from candidates → kills self-preference bias). System prompt enforces CoT-before-booleans + per-item evidence quotes + explicit refusal flag. Deep structural validator (mirrors `llm-judge-schema.cjs` pattern). Soft-fall to v1 smoke on judge failure.
 - `bin/cortex-evolve-ab.cjs` — `--judge` + `--judge-model` flags.
 - 22 tests (`rubric-extractor.test.cjs` + `eval-judge.test.cjs`): extraction shape, score weights (must=1.0, should=0.5, must_not=−1.0), refusal short-circuit, partial-pass scaling, all 5 judge-bias defenses validated.
-- R1 memo: [`docs/research/sprint-3.0-v2-llm-as-judge-2026-05-13.md`](./research/sprint-3.0-v2-llm-as-judge-2026-05-13.md) — Anthropic Sonnet vs DeepSeek judge cost, 5 self-bias defenses, cost ceiling math ($0.68/eval-run, <3% of $25/week cap).
+- R1 memo: `docs/research/sprint-3.0-v2-llm-as-judge-2026-05-13.md` — Anthropic Sonnet vs DeepSeek judge cost, 5 self-bias defenses, cost ceiling math ($0.68/eval-run, <3% of $25/week cap).
 
 **v0 shipped 2026-05-13** — measurement harness, NOT full evolution engine:
 
@@ -1460,7 +1460,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 
 **Deferred to v3 — multi-judge ensemble** (📋 ROADMAP-ADD 2026-05-13, [Karpathy transcript](./transcripts/andrej-karpathy-from-vibe-coding-to-agentic-engineering.md) alignment): v2 ships single Sonnet judge with cross-family bias defense. Karpathy explicitly: "for unverifiable domains, you can have a council of LLM judges and probably get something reasonable." v3 adds Sonnet + GPT-5 + DeepSeek + majority-vote aggregation. Disagreement signal surfaced when judges split (proxy for "task is in jagged-intelligence zone"). Cost: ~3× v2 per eval-run. Budget cap stays $25/week — implies eval-suite trimming or weekly cadence. Acceptance: 22 existing v2 tests pass + new disagreement-signal test + 3-judge agreement ≥80% on N=20 calibration set vs human gold.
 
-**R1 memo**: [`docs/research/sprint-3.0-prompt-evolution-2026-05-13.md`](./research/sprint-3.0-prompt-evolution-2026-05-13.md) — AlphaEvolve May 2026 impact, Sakana DGM state, DSPy / Langfuse production patterns, eval-suite-size statistical thresholds, mode-collapse + metric-overfit defense.
+**R1 memo**: `docs/research/sprint-3.0-prompt-evolution-2026-05-13.md` — AlphaEvolve May 2026 impact, Sakana DGM state, DSPy / Langfuse production patterns, eval-suite-size statistical thresholds, mode-collapse + metric-overfit defense.
 
 **Why**: this is the only direction that compounds. After 50 generations, Steward prompts will beat your hand-tuned baselines by measurable margin — and you didn't write any of them.
 
@@ -1484,7 +1484,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 - `bin/steward/_lib/skill-scaffolder.cjs` (~240 LoC) — LLM-driven scaffolder (Sonnet 4.6 default, cross-family vs DeepSeek per Sprint 3.0 v2 bias-defense pattern). Writes `skill-experiments/<slug>/SKILL.md` + `acceptance.md` + `PROPOSAL.md` bundle. Strict structural validator + belt-and-suspenders re-check before disk write.
 - `bin/cortex-propose-skill.cjs` — operator CLI with `list` + `scaffold` subcommands. Hard rate limit ≤1 proposal/week enforced by reading journal. Journal events: `skill_proposal_emitted` (success) / `skill_proposal_attempt_failed` (LLM failure path with cost capture).
 - 19 tests covering detector evidence gates + window + flag-priority sort + stable id generation + scaffolder validator (8 failure paths) + integration with mock LLM.
-- R1 memo: [`docs/research/sprint-3.1-self-extending-2026-05-13.md`](./research/sprint-3.1-self-extending-2026-05-13.md) — DGM cautionary pattern, Anthropic skill-creator operator-invoked shape, agentskills.io conventions, eval-gated promotion criteria, 4 documented failure modes.
+- R1 memo: `docs/research/sprint-3.1-self-extending-2026-05-13.md` — DGM cautionary pattern, Anthropic skill-creator operator-invoked shape, agentskills.io conventions, eval-gated promotion criteria, 4 documented failure modes.
 - **Recursive self-improvement door explicitly closed**: scaffolder NEVER writes to `bin/steward/_lib/action-kinds.cjs`. Promotion to live action_kind requires explicit human commit (handler authoring, test authoring, registry entry, SKILL.md move from `skill-experiments/` to `shared/skills/`).
 - `skill-experiments/` directory deliberately outside `.agents/skills/` and `shared/skills/` — no SKILL-aware client (including Steward) auto-discovers proposals.
 
@@ -1551,7 +1551,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 - Curator runs **on-read, not on-index** (LazyGraphRAG-style economics — see Sprint 3.3 deferral note). No DB beyond FTS5; corpus stays plain markdown.
 
 **Pre-implementation research dispatch (R1 ✅ done)**:
-- ✅ R1 memo: [`docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md`](./research/sprint-3.6-llm-wiki-research-2026-05-11.md) — Karpathy gist primary source, 2026 GraphRAG state of the art, Anthropic Memory Tool comparison, Letta / GitNexus / Obsidian-second-brain landscape.
+- ✅ R1 memo: `docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md` — Karpathy gist primary source, 2026 GraphRAG state of the art, Anthropic Memory Tool comparison, Letta / GitNexus / Obsidian-second-brain landscape.
 
 **Why this is "one sprint extension, not a new sprint"** (per R1 §5 recommendation):
 - Karpathy ships **no reference implementation** — gist is explicitly abstract, meant to be copy-pasted as a pattern prompt (F2).
@@ -1565,7 +1565,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 
 ### Sprint 3.3 — GraphRAG codebase context (M effort) — ⏸️ DEFERRED 2026-05-11 (pending LazyGraphRAG + buy-vs-build)
 
-**Status**: ⏸️ Deferred 2026-05-11 per Sprint 3.6 R1 research ([`docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md`](./research/sprint-3.6-llm-wiki-research-2026-05-11.md)). Two reasons:
+**Status**: ⏸️ Deferred 2026-05-11 per Sprint 3.6 R1 research (`docs/research/sprint-3.6-llm-wiki-research-2026-05-11.md`). Two reasons:
 
 1. **LazyGraphRAG cost cliff** (R1 F6) — Microsoft's LazyGraphRAG (Q1-Q2 2026 release, currently in cleanup at [microsoft/graphrag](https://github.com/microsoft/graphrag)) cuts indexing cost to **0.1% of full GraphRAG** + **700× lower query cost** for global queries. Production deployments report 70-97% cost reduction ([graph-praxis cliff analysis](https://medium.com/graph-praxis/the-graphrag-cost-cliff-how-33-000-became-33-in-eighteen-months-be1b0fbe37e4)). Building on full-fat GraphRAG now = amortizing yesterday's economics.
 2. **Buy-vs-build re-evaluation** (R1 F10) — **GitNexus** (10k+ stars, MCP-native, [github.com/CodeGraphContext/CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext)) + **Nomik** ([nomik.co](https://nomik.co/)) already ship the wiki-shaped codebase pattern we planned to build. Both are MCP-native and already work with Claude Code / Cursor. Re-evaluate whether cortex-x writes its own Tree-sitter pipeline or wires the existing MCP server as an external adapter (Sprint 3.4).
@@ -1578,7 +1578,7 @@ This table is the durable artifact — a memo "what cortex got right per Anthrop
 
 **Re-eval gate**: when LazyGraphRAG hits stable release OR when an action_kind genuinely needs multi-hop code-graph traversal (Sprint 3.3 R1 §5 trade-off T1: graph DB violates zero-deps invariant for Tier 1-2; reconsider only post-Tier 3).
 
-**2026-05-13 update from brain-kit research** ([`docs/research/brain-kit-landscape-2026-05-13.md`](./research/brain-kit-landscape-2026-05-13.md)): **Microsoft Agent Framework v1.0 ships Neo4j as a first-party memory + GraphRAG provider** ("Neo4j Aura Agent", "Create Context Graph" end-to-end deployment paths). GraphRAG-V benchmark: +11pp recall over vector baselines on MultiHopRAG, indexing cost 10–40× pgvector. Implications: (a) buy-vs-build option C added — adopt Neo4j as external service (violates zero-deps but is now the industry reference impl), (b) cortex-x's "roll-our-own SQLite graph" path remains defensible on zero-deps + cost grounds, (c) when LazyGraphRAG ships, we have a clear A/B to run.
+**2026-05-13 update from brain-kit research** (`docs/research/brain-kit-landscape-2026-05-13.md`): **Microsoft Agent Framework v1.0 ships Neo4j as a first-party memory + GraphRAG provider** ("Neo4j Aura Agent", "Create Context Graph" end-to-end deployment paths). GraphRAG-V benchmark: +11pp recall over vector baselines on MultiHopRAG, indexing cost 10–40× pgvector. Implications: (a) buy-vs-build option C added — adopt Neo4j as external service (violates zero-deps but is now the industry reference impl), (b) cortex-x's "roll-our-own SQLite graph" path remains defensible on zero-deps + cost grounds, (c) when LazyGraphRAG ships, we have a clear A/B to run.
 
 **Interim**: if structural code awareness is needed before LazyGraphRAG ships, evaluate GitNexus MCP as a drop-in (matches Sprint 3.4 External Tool Capability Adapters pattern).
 
@@ -2316,7 +2316,7 @@ This is **validation, not competition**:
 - **Local-first.** Next.js dev server `localhost:3737`, reads filesystem only, no backend.
 - **Sibling repo** `cortex-dashboard` — not a folder in cortex-x. Scaffolded by cortex-x's own profile system (new profile `cortex-dashboard`).
 - **Read-only first.** Live journal viewer rolled by date / kind / outcome; spec_failures drill-down (per criterion id, expected vs actual, file affected); lessons.jsonl explorer; cost ledger vs `STEWARD_DAILY_USD_CAP` / `STEWARD_TREE_USD_CAP` (post-2.2); halt status; recommendations.md preview with detector-match overlay; cron run timeline (`gh run list --json`).
-- **Anthill view (post-2.2 / 2.3 — operator-pitched 2026-05-08).** When Sprint 2.2 ships supervisor + worker spawning, dashboard wraps the OTLP traces from Sprint 2.0 (Phoenix/Langfuse) and renders the live tree: supervisor at root, N workers as children, per-node cost + token + status, fan-out/fan-in animation. **Don't reinvent the trace store** — Phoenix already has the OTLP HTTP API; dashboard is just the Steward-flavored UI. See [`docs/research/swarm-self-spawning-agents-2026-05-08.md`](./research/swarm-self-spawning-agents-2026-05-08.md) §9 for visualization options surveyed.
+- **Anthill view (post-2.2 / 2.3 — operator-pitched 2026-05-08).** When Sprint 2.2 ships supervisor + worker spawning, dashboard wraps the OTLP traces from Sprint 2.0 (Phoenix/Langfuse) and renders the live tree: supervisor at root, N workers as children, per-node cost + token + status, fan-out/fan-in animation. **Don't reinvent the trace store** — Phoenix already has the OTLP HTTP API; dashboard is just the Steward-flavored UI. See `docs/research/swarm-self-spawning-agents-2026-05-08.md` §9 for visualization options surveyed.
 - **v2 control**: halt button (writes `.cortex/STEWARD_HALT` with reason; legacy `STEWARD_HALT` filename also honored through v0.2.0), lesson edit/dismiss.
 - **v2 Chase-OS skill triggers (2026-05-13 transcript)**: one-click buttons for every action_kind + cron workflow that map to a headless `claude -p <skill-prompt>` invocation. Skills tab lists 16 action_kinds + 9 review-pipeline agents; click runs the skill in a headless Claude Code instance and streams output back to the dashboard panel. Same `cortex-source.yaml` shim resolution as the CLI delegation shims (Sprint 2.8.1+/3.0/3.1/3.2). Unlocks **team/client distribution** — non-CLI-fluent operators can run cortex-x by clicking buttons. See [Chase transcript §dashboard](./transcripts/claude-code-agentic-os.md) for shape reference.
 

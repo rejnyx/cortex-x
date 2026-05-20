@@ -15,9 +15,9 @@ This directory is populated by the `qa-tester` profile retrofit (`/test-audit` s
 
 For reference content showing what a real `AUDIT.md` + `testing-gaps.md` + `testing-strategy.md` look like, see:
 
-- [`docs/dogfood-examples/qa-audit-cortex-x.md`](../../docs/dogfood-examples/qa-audit-cortex-x.md)
-- [`docs/dogfood-examples/qa-testing-gaps-cortex-x.md`](../../docs/dogfood-examples/qa-testing-gaps-cortex-x.md)
-- [`docs/dogfood-examples/qa-testing-strategy-cortex-x.md`](../../docs/dogfood-examples/qa-testing-strategy-cortex-x.md)
+- `docs/dogfood-examples/qa-audit-cortex-x.md`
+- `docs/dogfood-examples/qa-testing-gaps-cortex-x.md`
+- `docs/dogfood-examples/qa-testing-strategy-cortex-x.md`
 
 Those examples are cortex-x auditing **itself**, not a template for your project. Your audit will reference your code, your test layout, your stack.
 

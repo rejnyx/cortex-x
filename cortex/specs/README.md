@@ -82,6 +82,6 @@ Every spec-verifier failure surfaces as `result.code` from `execute.cjs`:
 
 - [`bin/steward/_lib/action-kinds.cjs`](../../bin/steward/_lib/action-kinds.cjs) — registry (authoritative)
 - [`bin/steward/_lib/spec-verifier.cjs`](../../bin/steward/_lib/spec-verifier.cjs) — runner + validator
-- [`docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md`](../../docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md) — R1 decision memo
+- `docs/research/sprint-1.9-spec-driven-verification-2026-05-09.md` — R1 decision memo
 - [`docs/troubleshooting.md`](../../docs/troubleshooting.md) — operator-facing remediation guide
 - [`MIGRATIONS.md`](../../MIGRATIONS.md) § Sprint 1.9.0 — migration notes
