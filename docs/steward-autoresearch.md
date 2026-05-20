@@ -2,7 +2,7 @@
 
 > Sprint 2.1 shipped 2026-05-08. Autoresearch is opt-in — default flow stays
 > single-shot. Enable via `--mode=autoresearch` CLI flag or `STEWARD_MODE=autoresearch` env.
-> R1 memo: [`docs/research/sprint-2.1-autoresearch-overnight-burst-2026-05-08.md`](research/sprint-2.1-autoresearch-overnight-burst-2026-05-08.md).
+> R1 memo: `docs/research/sprint-2.1-autoresearch-overnight-burst-2026-05-08.md`.
 
 ## What it does
 

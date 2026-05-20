@@ -210,3 +210,14 @@ pre-pii-purge-*
 # (per ship-ready.md — i18n is NOT a v0 goal).
 /docs/*.cs.md
 
+
+# === Repo-hygiene cleanup 2026-05-20 — public-repo professionalism ===
+# Internal lab-notebook material: R1 sprint-research memos, dogfood self-audits,
+# superseded positioning strategy, old sprint-design notes. Kept locally for the
+# maintainer; not part of the public documentation set.
+/docs/research/
+/docs/dogfood-examples/
+/docs/positioning-evolution.md
+/docs/positioning-vs-ralph.md
+/docs/sprint-1.5-design.md
+/docs/agent-first-audit.md

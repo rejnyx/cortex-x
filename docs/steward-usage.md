@@ -210,7 +210,7 @@ tree view of `AGENT → LLM/TOOL → ...` per run.
 native OpenInference + native OpenRouter, the Tier-2 prompt-evolution
 features Steward will need (Prompt Playground, LLM-as-Judge evals,
 annotation queues) are open in the self-host (paywalled in Langfuse).
-See [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](./research/sprint-2.0-langfuse-observability-2026-05-08.md)
+See `docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`
 for the full comparison + decision rationale.
 
 ```bash

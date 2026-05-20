@@ -2,7 +2,7 @@
 
 > Sprint 2.0b shipped 2026-05-08. Routing is opt-in additive: existing
 > `STEWARD_MODEL=...` env vars and workflow files keep working unchanged.
-> R1 memo: [`docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md`](research/sprint-2.0b-action-kind-model-routing-2026-05-08.md).
+> R1 memo: `docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md`.
 
 ## Why routing
 

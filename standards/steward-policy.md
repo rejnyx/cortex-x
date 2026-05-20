@@ -181,7 +181,7 @@ Defaults override-able in `~/.cortex/steward.yaml`. Soft-cap = T1 journal flag. 
 
 ## 6.5. Routing profile policy (Sprint 2.0b)
 
-Steward picks an LLM model per action_kind via [`bin/steward/_lib/routing-table.cjs`](../bin/steward/_lib/routing-table.cjs). Operator-facing guide: [`docs/steward-routing.md`](../docs/steward-routing.md). R1 memo: [`docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md`](../docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md).
+Steward picks an LLM model per action_kind via [`bin/steward/_lib/routing-table.cjs`](../bin/steward/_lib/routing-table.cjs). Operator-facing guide: [`docs/steward-routing.md`](../docs/steward-routing.md). R1 memo: `docs/research/sprint-2.0b-action-kind-model-routing-2026-05-08.md`.
 
 ### Override hierarchy (high → low precedence)
 

@@ -11,7 +11,7 @@ based_on:
 
 Live recommendations queue Steward reads each nightly cron. Items derive from (a) Sprint 2.21.3 R2 hardening MEDs deferred 2026-05-13, (b) the 2026-05-14 CI audit that flagged Node 20 deprecation in workflow artifacts, (c) Sprint LR.9 and Sprint 2.31 strategic items operator owns. Format follows `bin/steward/_lib/recommendations.cjs` parser contract (`### N.` H3 items per section).
 
-For a worked historical example see [`docs/dogfood-examples/recommendations-cortex-x-2026-05-09.md`](../docs/dogfood-examples/recommendations-cortex-x-2026-05-09.md).
+For a worked historical example see `docs/dogfood-examples/recommendations-cortex-x-2026-05-09.md`.
 
 ## DO this week (cited)
 

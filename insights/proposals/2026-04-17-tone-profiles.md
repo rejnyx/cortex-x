@@ -12,7 +12,7 @@ status: pending_review
 
 The maintainer uses a "máma-mode" tone in one project — an explicit style that explains concepts through laypeople analogies ("each Node project is a recipe in a cookbook…"). The question arose whether cortex-x should **auto-detect** a user's preferred tone from session behavior and adapt across projects.
 
-Web research ([`research/tone-adaptation-2026-04-17.md`](../../research/tone-adaptation-2026-04-17.md)) returned a clear verdict: **industry converged on declarative tone profiles, NOT behavioral inference**. Every major tool (Claude Styles, ChatGPT Custom Instructions, Cursor Rules, Copilot 3-tier) landed there. Auto-inference is the documented failure mode of GPT-4o's April 2025 rollback (sycophancy drift, arXiv 2509.12517).
+Web research (`research/tone-adaptation-2026-04-17.md`) returned a clear verdict: **industry converged on declarative tone profiles, NOT behavioral inference**. Every major tool (Claude Styles, ChatGPT Custom Instructions, Cursor Rules, Copilot 3-tier) landed there. Auto-inference is the documented failure mode of GPT-4o's April 2025 rollback (sycophancy drift, arXiv 2509.12517).
 
 Without a declarative tone system, cortex-x has:
 - No first-class way for the maintainer to encode "talk to me like a peer with deep systems knowledge" across all projects at once
@@ -21,7 +21,7 @@ Without a declarative tone system, cortex-x has:
 
 ## Evidence (research-grounded, journal data pending)
 
-1. [research/tone-adaptation-2026-04-17.md](../../research/tone-adaptation-2026-04-17.md):L24-L37 — industry convergence finding (Anthropic, OpenAI, Cursor, GitHub all deprecated behavioral inference)
+1. `research/tone-adaptation-2026-04-17.md`:L24-L37 — industry convergence finding (Anthropic, OpenAI, Cursor, GitHub all deprecated behavioral inference)
 2. [arXiv 2509.12517](https://arxiv.org/pdf/2509.12517) — 2026 evidence that persistent context amplifies sycophancy drift (why auto-detect fails)
 3. [DSPy MIPROv2 docs](https://dspy.ai/api/optimizers/MIPROv2/) — correct mental model: trace-driven instruction PROPOSAL (PR-gated), not in-session adaptation
 

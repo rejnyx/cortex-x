@@ -55,7 +55,7 @@ Phoenix renders the OpenInference set natively. Any future OTel-compatible backe
 
 ## Why not Langfuse?
 
-See [`docs/research/sprint-2.0-langfuse-observability-2026-05-08.md`](../../docs/research/sprint-2.0-langfuse-observability-2026-05-08.md) for the full R1 memo. Headlines:
+See `docs/research/sprint-2.0-langfuse-observability-2026-05-08.md` for the full R1 memo. Headlines:
 
 - **Langfuse v3 is a 6-container stack** (postgres + clickhouse + redis + minio + 2× pods). Documented unbounded ClickHouse disk-growth bug — fresh installs filling 100 GB/day at zero activity unless TTLs pre-tuned.
 - **Phoenix is 1 container, SQLite, native OpenInference + native OpenRouter**.

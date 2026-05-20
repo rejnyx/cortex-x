@@ -11,7 +11,7 @@
 ## Research provenance
 
 Three background research agents dispatched 2026-05-07, each with non-overlapping
-scope. Briefs archived at [`research/hermes-2026-05-07/`](../research/hermes-2026-05-07/) (TBD; full text currently in agent output logs):
+scope. Briefs archived at `research/hermes-2026-05-07/` (TBD; full text currently in agent output logs):
 
 | # | Brief | Primary question | Decision driver |
 |---|---|---|---|

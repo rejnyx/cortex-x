@@ -97,8 +97,8 @@ Both gates must pass. Per-worker spec-verifier kills bad workers before judge wa
 
 ## References
 
-- [Sprint 2.2 R1 fresh memo (2026-05-14)](../docs/research/sprint-2.2-worktree-supervisor-2026-05-14.md) — 13 cited URLs, decision matrix, 12 implementation recommendations split into HARD / EASY-TO-GET-WRONG / DEFER
-- [Sprint 2.2 R1 anthill memo (2026-05-08)](../docs/research/swarm-self-spawning-agents-2026-05-08.md) — original architecture analysis
+- Sprint 2.2 R1 fresh memo (2026-05-14) — 13 cited URLs, decision matrix, 12 implementation recommendations split into HARD / EASY-TO-GET-WRONG / DEFER
+- Sprint 2.2 R1 anthill memo (2026-05-08) — original architecture analysis
 - [Claude Agent SDK — Subagents](https://code.claude.com/docs/en/agent-sdk/subagents) — orchestrator-worker primitive (depth-cap=2 native)
 - [Anthropic multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) — +90.2% gain (parallelism wins primarily by spending more tokens)
 - [Cursor 2.0 Worktrees](https://cursor.com/docs/configuration/worktrees) — OSS reference for worktree-per-agent
