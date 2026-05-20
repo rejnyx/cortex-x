@@ -72,14 +72,15 @@ jobs:
 
       - name: Check if registry drifted
         id: drift
-        # R2 edge audit MED: ignore `generated_at` timestamp field so a fresh
-        # `npm run capabilities` run doesn't produce phantom commits when the
-        # actual inventory is stable. Uses git -I 'regex' (git 2.30+) to skip
-        # hunks where the only change matches the timestamp line. Falls back
-        # to plain diff if the flag isn't supported (older runners).
+        # Ignore BOTH timestamp forms — the JSON `"generated_at"` field AND the
+        # Markdown `Last generated:` line — so a fresh `npm run capabilities`
+        # run doesn't produce phantom drift when the actual inventory is stable.
+        # The .md form was previously unignored, which failed the PR path on
+        # every PR (regenerate -> fresh .md timestamp -> still flagged -> loop).
+        # Uses git -I 'regex' (git 2.30+); falls back to plain diff on older runners.
         run: |
           set -e
-          DIFF_OUT=$(git diff -I '"generated_at"' --stat cortex/capabilities.md cortex/capabilities.json 2>/dev/null || git diff --stat cortex/capabilities.md cortex/capabilities.json)
+          DIFF_OUT=$(git diff -I '"generated_at"' -I 'Last generated:' --stat cortex/capabilities.md cortex/capabilities.json 2>/dev/null || git diff --stat cortex/capabilities.md cortex/capabilities.json)
           if [ -z "$DIFF_OUT" ]; then
             echo "drifted=false" >> "$GITHUB_OUTPUT"
             echo "Registry up-to-date (timestamp-only diffs ignored)."
