@@ -15,6 +15,7 @@ For a worked historical example see `docs/dogfood-examples/recommendations-corte
 
 ## DO this week (cited)
 
+- [ ] Investigate recurring steward nightly workflow failures [src: https://github.com/Rejnyx/cortex-x/actions/runs/26324275298]
 ### 1. (DONE 2026-05-14) Add Terminal CLIs subsection to shared/skills/cortex-help/SKILL.md
 ~~Original task: open `shared/skills/cortex-help/SKILL.md` and insert a new H3 subsection listing 5 operator-facing terminal CLIs.~~ **Shipped in commit `4a8f65a` 2026-05-14 morning during the cortex-help index drift fix, BEFORE this recommendations.md item was authored.** When Steward picked it up at 09:05 UTC on the manual `workflow_dispatch` run (action_id `01KRJVQNT9YRGQXMNE5T52DKXZ`, $0.00097 OpenRouter cost), the LLM read the item literally and added a duplicate subsection alongside the existing one (PR #10, closed without merge 2026-05-14). The existing section from `4a8f65a` is strictly better — more detailed flag info, mentions internal CLIs in the bin/README.md link. Lesson: when seeding recommendations.md from operator backlog, verify each item against current filesystem state before writing it; consider a spec-verifier criterion that fails when the insertion target already exists with similar content (backlog item below).
 [audit: PR #10 diff + commit 4a8f65a] [src: shared/skills/cortex-help/SKILL.md:60-71]
