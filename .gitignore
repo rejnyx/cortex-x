@@ -221,3 +221,9 @@ pre-pii-purge-*
 /docs/positioning-vs-ralph.md
 /docs/sprint-1.5-design.md
 /docs/agent-first-audit.md
+
+# Gemini Deep Research source dumps used as seed material for skill-building
+# (e.g. /shared/skills/ux-copywriter/ was built from these). Kept locally so a
+# future iteration can re-derive from the same corpus; the distilled skill is
+# the public deliverable, the raw 10k-word reports are not.
+/deep-research/
