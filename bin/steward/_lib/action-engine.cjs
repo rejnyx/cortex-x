@@ -598,12 +598,18 @@ const STEWARD_SYSTEM_PROMPT = [
 //
 // Defense:
 //   - HARD_DENYLIST applied (no .env / .pem / .ssh / etc. into prompt)
-//   - Per-file cap MAX_INJECTED_FILE_BYTES (16 KiB)
+//   - Per-file cap MAX_INJECTED_FILE_BYTES (32 KiB — Sprint 2.3.3 bump from
+//     16 KiB after 11-day cortex-x nightly stall on recommendations.md #3:
+//     bin/cortex-claude-md-augment.cjs is 24 KiB, was silently skipped under
+//     the 16 KiB cap → no SHA in shaByPath → backfillExpectedSha rightly
+//     classified as `unresolved` → EDIT_OP_SHA_REQUIRED. 32 KiB covers the
+//     larger Steward primitives (action-engine, augment, hooks-register)
+//     with margin; total stays 64 KiB so the LLM's input doesn't bloat.)
 //   - Aggregate cap MAX_INJECTED_TOTAL_BYTES (64 KiB)
 //   - Symlink refusal (lstat — never follows)
 //   - Realpath containment (file must resolve under repoRoot)
 //   - Max files cap (8) so a body listing 50 paths doesn't exhaust budget
-const MAX_INJECTED_FILE_BYTES = 16 * 1024;
+const MAX_INJECTED_FILE_BYTES = 32 * 1024;
 const MAX_INJECTED_TOTAL_BYTES = 64 * 1024;
 const MAX_INJECTED_FILES = 8;
 // Path-like extensions we consider plausible references. Conservative
@@ -654,8 +660,14 @@ function extractFileReferences(body, repoRoot) {
     const realRepo = (() => { try { return fs.realpathSync(repoRoot); } catch { return repoRoot; } })();
     if (!real.startsWith(realRepo + path.sep) && real !== realRepo) continue;
 
-    // Per-file size cap.
-    if (st.size > MAX_INJECTED_FILE_BYTES) continue;
+    // Per-file size cap. Log the skip — silent skips here cost the cortex-x
+    // nightly 11 days of red runs before the cause was traced (Sprint 2.3.3).
+    if (st.size > MAX_INJECTED_FILE_BYTES) {
+      try {
+        console.error(`[steward:engine] extractFileReferences skipped ${norm}: ${st.size} bytes > MAX_INJECTED_FILE_BYTES (${MAX_INJECTED_FILE_BYTES}). LLM will see the path but not the content; str_replace/insert ops against this file will fail EDIT_OP_SHA_REQUIRED downstream.`);
+      } catch { /* logging is best-effort */ }
+      continue;
+    }
     if (totalBytes + st.size > MAX_INJECTED_TOTAL_BYTES) break;
 
     let content;

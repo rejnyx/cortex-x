@@ -128,9 +128,9 @@ describe('Sprint 2.2.5 v1.5 — extractFileReferences defenses', () => {
     assert.ok(refs.length <= 8, `cap exceeded: ${refs.length}`);
   });
 
-  test('skips oversized files (> 16 KiB)', () => {
+  test('skips oversized files (> 32 KiB per-file cap; Sprint 2.3.3 bumped from 16 KiB)', () => {
     const dir = tmp('size');
-    const big = 'x'.repeat(17 * 1024);
+    const big = 'x'.repeat(33 * 1024);
     fixture(dir, 'big.md', big);
     fixture(dir, 'small.md', '# small\n');
     const body = 'Edit `big.md` and `small.md`.';
@@ -138,6 +138,16 @@ describe('Sprint 2.2.5 v1.5 — extractFileReferences defenses', () => {
     const paths = refs.map((r) => r.path);
     assert.ok(paths.includes('small.md'));
     assert.ok(!paths.includes('big.md'));
+  });
+
+  test('injects 24 KiB file that was silently skipped under the old 16 KiB cap (regression for cortex-x nightly stall)', () => {
+    const dir = tmp('mid');
+    const mid = 'y'.repeat(24 * 1024); // matches bin/cortex-claude-md-augment.cjs real size class
+    fixture(dir, 'src/medium.cjs', mid);
+    const refs = engine.extractFileReferences('Edit `src/medium.cjs`.', dir);
+    assert.equal(refs.length, 1);
+    assert.equal(refs[0].path, 'src/medium.cjs');
+    assert.equal(refs[0].bytes, 24 * 1024);
   });
 
   test('skips paths with newlines / null bytes', () => {
