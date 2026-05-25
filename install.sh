@@ -531,11 +531,14 @@ fi
 # they're discoverable as slash commands (Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/).
 # Without this, /audit, /designer, /start are invisible.
-for SKILL_NAME in audit designer start cortex-doctor cortex-goal cortex-update cortex-uninstall; do
-  SRC_SKILL="$CORTEX_ROOT/shared/skills/$SKILL_NAME/SKILL.md"
-  if [ -f "$SRC_SKILL" ]; then
+# 2026-05-25: switched from `cp SKILL.md` to `cp -r` of the whole skill dir —
+# ux-copywriter is the first skill to ship companion `references/` files that
+# SKILL.md links to relatively; copying only SKILL.md would break those links.
+for SKILL_NAME in audit designer start ux-copywriter cortex-doctor cortex-goal cortex-update cortex-uninstall; do
+  SRC_SKILL_DIR="$CORTEX_ROOT/shared/skills/$SKILL_NAME"
+  if [ -f "$SRC_SKILL_DIR/SKILL.md" ]; then
     mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
-    cp "$SRC_SKILL" "$CLAUDE_HOME/skills/$SKILL_NAME/SKILL.md"
+    cp -r "$SRC_SKILL_DIR/." "$CLAUDE_HOME/skills/$SKILL_NAME/"
   fi
 done
 

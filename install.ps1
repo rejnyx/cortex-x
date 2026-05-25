@@ -623,12 +623,16 @@ if ($Profile -eq "qa-tester") {
 # Sprint LR.B+ (2026-05-12) — promote remaining shared skills to user-level so
 # they're discoverable as slash commands. Claude Code only auto-loads from
 # ~/.claude/skills/<name>/SKILL.md, NOT from ~/.claude/shared/skills/.
-foreach ($SkillName in @("audit", "designer", "start", "cortex-doctor", "cortex-goal", "cortex-update", "cortex-uninstall")) {
-    $SrcSkill = Join-Path $CortexRoot "shared/skills/$SkillName/SKILL.md"
-    if (Test-Path $SrcSkill) {
+# 2026-05-25: switched from `Copy-Item SKILL.md` to a recursive directory copy
+# — ux-copywriter is the first skill to ship companion `references/` files
+# that SKILL.md links to relatively; copying only SKILL.md would break those.
+foreach ($SkillName in @("audit", "designer", "start", "ux-copywriter", "cortex-doctor", "cortex-goal", "cortex-update", "cortex-uninstall")) {
+    $SrcSkillDir = Join-Path $CortexRoot "shared/skills/$SkillName"
+    $SrcSkillFile = Join-Path $SrcSkillDir "SKILL.md"
+    if (Test-Path $SrcSkillFile) {
         $DstSkillDir = Join-Path $ClaudeHome "skills/$SkillName"
         New-Item -ItemType Directory -Force -Path $DstSkillDir | Out-Null
-        Copy-Item -Path $SrcSkill -Destination (Join-Path $DstSkillDir "SKILL.md") -Force
+        Copy-Item -Path (Join-Path $SrcSkillDir "*") -Destination $DstSkillDir -Recurse -Force
     }
 }
 
