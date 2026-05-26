@@ -77,7 +77,6 @@ yarn-debug.log*
 # caches are maintainer-private. Framework-level examples ship.
 /projects/*.md
 !/projects/README.md
-!/projects/cortex-x.md
 # insights/proposals/* are framework examples (whole subdir ships).
 # Top-level dated insights are the user's private mining outputs — ignored.
 /insights/20*-*.md

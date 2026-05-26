@@ -117,7 +117,7 @@ This is the "plan first" pattern (Replit Agent precedent). Operator sees cortex 
 The chained prompts live at `~/.claude/shared/prompts/<name>.md`. Some Claude Code versions don't auto-expand `~` for the Read tool — resolve to an **absolute path** before calling Read:
 
 - **Unix/macOS/WSL/Git Bash:** `/home/<user>/.claude/shared/prompts/<name>.md` (or use `$HOME`)
-- **Windows native:** `C:\Users\<user>\.claude\shared\prompts\<name>.md`
+- **Windows native:** `C:/Users/<user>/.claude/shared/prompts/<name>.md` (Claude Code accepts forward slashes on all platforms — avoid backslashes which agentskills.io spec disallows for portability)
 
 **Do NOT** fall back to the cortex-x source repo (`$CORTEX_HOME/prompts/`) if the installed path is missing — that masks an install regression. If Read fails on the installed path, **stop and tell the user**:
 

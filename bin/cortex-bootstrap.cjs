@@ -75,7 +75,31 @@ function nextSteps(mode, markerPath, at) {
   console.log('');
 }
 
+function printHelp() {
+  console.log(`cortex-bootstrap — per-project mode selector for cortex-x onboarding
+
+Usage:
+  cortex-bootstrap                                interactive mode (TTY)
+  CORTEX_BOOTSTRAP_MODE=new cortex-bootstrap      non-interactive (new project)
+  CORTEX_BOOTSTRAP_MODE=existing cortex-bootstrap non-interactive (existing project audit)
+  CORTEX_BOOTSTRAP_MODE=framework cortex-bootstrap non-interactive (framework-only)
+  cortex-bootstrap --help                         this message
+
+What it does:
+  Writes .cortex-bootstrap-pending into the current directory + prints next-step
+  instructions. The cortex-x SessionStart hook reads the marker on the next
+  claude session and primes the appropriate skill (/start, /audit, or none).
+
+Recommended entry point is /cortex-init (skill) — this CLI is the shell-level
+power-user alternative.`);
+}
+
 async function main() {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    printHelp();
+    process.exit(0);
+  }
+
   const cwd = process.cwd();
   let mode = process.env.CORTEX_BOOTSTRAP_MODE;
 
