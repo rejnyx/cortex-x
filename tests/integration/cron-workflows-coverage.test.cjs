@@ -89,6 +89,107 @@ describe('every steward-*.yml is structurally valid', () => {
   }
 });
 
+describe('cron coverage inventory: high-risk crons have dedicated tests', () => {
+  // Closes the gap from the 2026-05-26 cron survey: the 5 highest-risk
+  // Steward crons (no test coverage at the time of survey + active failure
+  // signals) MUST have a dedicated integration test under tests/integration/.
+  //
+  // This test asserts the existence + minimal viability of those tests.
+  // Adding a new high-risk cron to the list = adding a corresponding test.
+  // Closing the gap = removing the cron from the list once its test ships.
+
+  const HIGH_RISK_CRONS = [
+    {
+      workflow: 'steward-tech-debt-audit.yml',
+      test: 'tests/integration/steward-tech-debt-audit.test.cjs',
+      reason: 'Sprint 2.9.7a security HIGH path untested',
+    },
+    {
+      workflow: 'steward-workflow-hardener.yml',
+      test: 'tests/integration/steward-workflow-hardener.test.cjs',
+      reason: 'Advisory-only v1, scanning logic untested',
+    },
+    {
+      workflow: 'steward-senior-tester-review.yml',
+      test: 'tests/integration/steward-senior-tester-review.test.cjs',
+      reason: '39-smell heuristic + Phase B judge gate untested',
+    },
+    {
+      workflow: 'steward-key-probe.yml',
+      test: 'tests/integration/steward-key-probe.test.cjs',
+      reason: 'Zero coverage, 4 failure modes uncovered',
+    },
+    {
+      workflow: 'steward-secret-history-sweep.yml',
+      test: 'tests/integration/steward-secret-history-sweep.test.cjs',
+      reason: 'TruffleHog fail-open path untested',
+    },
+  ];
+
+  test('every high-risk cron has a corresponding workflow file', () => {
+    const missing = HIGH_RISK_CRONS
+      .filter((c) => !fs.existsSync(path.join(WORKFLOWS_DIR, c.workflow)))
+      .map((c) => c.workflow);
+    assert.deepEqual(
+      missing,
+      [],
+      `High-risk cron workflows missing from .github/workflows/: ${missing.join(', ')}`,
+    );
+  });
+
+  test('every high-risk cron has a dedicated integration test', () => {
+    const missing = HIGH_RISK_CRONS
+      .filter((c) => !fs.existsSync(path.join(REPO_ROOT, c.test)))
+      .map((c) => `${c.test} (for ${c.workflow}: ${c.reason})`);
+    assert.deepEqual(
+      missing,
+      [],
+      `High-risk crons without a dedicated test file:\n  ${missing.join('\n  ')}`,
+    );
+  });
+
+  test('every high-risk cron test actually exercises assertions (not just present)', () => {
+    // Line-count alone is gameable; assert the file contains describe(, test(,
+    // and at least 3 assert.* calls. This catches a file that exists but has
+    // all assertions commented out (silent no-op).
+    const empty = HIGH_RISK_CRONS
+      .filter((c) => {
+        const testPath = path.join(REPO_ROOT, c.test);
+        if (!fs.existsSync(testPath)) return true;
+        const src = fs.readFileSync(testPath, 'utf8');
+        const hasDescribe = /\bdescribe\s*\(/.test(src);
+        const hasTest = /\btest\s*\(/.test(src);
+        const assertCount = (src.match(/\bassert\.[a-zA-Z]+\s*\(/g) || []).length;
+        return !(hasDescribe && hasTest && assertCount >= 3);
+      })
+      .map((c) => c.test);
+    assert.deepEqual(
+      empty,
+      [],
+      `High-risk cron tests missing describe() / test() / >=3 assert.* calls:\n  ${empty.join('\n  ')}`,
+    );
+  });
+
+  test('every high-risk cron test loads without syntax errors', () => {
+    // node --check via require() — a syntax error throws synchronously.
+    const broken = [];
+    for (const c of HIGH_RISK_CRONS) {
+      const testPath = path.join(REPO_ROOT, c.test);
+      if (!fs.existsSync(testPath)) continue;
+      try {
+        // Read + Function-eval as a smoke check (no execution of the tests
+        // themselves — that would loop infinitely).
+        const src = fs.readFileSync(testPath, 'utf8');
+        // eslint-disable-next-line no-new-func
+        new Function(src);
+      } catch (err) {
+        broken.push(`${c.test}: ${err.message.slice(0, 100)}`);
+      }
+    }
+    assert.deepEqual(broken, [], `Test files with syntax errors:\n  ${broken.join('\n  ')}`);
+  });
+});
+
 describe('Steward action_kind registry vs cron workflows', () => {
   const json = JSON.parse(fs.readFileSync(CAPABILITIES_JSON, 'utf8'));
   const registeredKinds = (json.action_kinds || []).map((k) => k.name);
