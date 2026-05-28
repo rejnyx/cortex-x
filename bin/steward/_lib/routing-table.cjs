@@ -151,6 +151,25 @@ const ROUTING_TABLE = {
     },
   },
 
+  // Sprint 2.34: tdd_red_green writes a failing test + implements against
+  // NAMED target tests (TDAD: targeted context, not generic TDD prose).
+  // Reasoning-heavy coding like recommendation/pattern_transfer — Sonnet
+  // balanced, Opus premium. Serial topology (executor mutates the codebase),
+  // so ensemble fan-out isn't the natural path; the ensemble slot is kept for
+  // table completeness. Executor lands Sprint 2.34.1.
+  tdd_red_green: {
+    cheap: 'deepseek/deepseek-v4-flash',
+    balanced: 'anthropic/claude-sonnet-4.6',
+    premium: 'anthropic/claude-opus-4.6',
+    ensemble: {
+      workers: [
+        'anthropic/claude-sonnet-4.6',
+        'deepseek/deepseek-v4-flash',
+      ],
+      judge: 'anthropic/claude-sonnet-4.6',
+    },
+  },
+
   security_review: {
     // Always cross-family — single-family review can miss family-specific
     // blind spots (DryRun Security March 2026 report).

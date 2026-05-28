@@ -82,6 +82,19 @@ Test file without error cases = fragile. Test file without security = negligent.
 - **Agent loop tests** — mock LLM responses, test multi-step behavior
 - **Cost guard tests** — simulate token blowup, assert quota enforcement
 - **Memory system tests** — core index rebuild, activity log search, vector recall
+- **Reward-hack tests** — assert the agent did NOT edit a test file or hardcode a fixture to pass (see [correctness.md](./correctness.md) § Reward hacking)
+
+## TDD for agents
+
+Test-first works *better* for AI agents than for humans — but only done right.
+
+- **Test-first cuts regressions ~70%** for coding agents (TDAD, arXiv 2603.17973: 6.08% → 1.82% on SWE-bench Verified). Writing the failing test first makes it harder for the agent to "cheat" than implement-then-write-tests, because the assertion is fixed before the implementation exists.
+- **Name the tests — don't just say "do TDD".** The same study found that generic TDD instructions *without telling the agent which tests to check* made regressions **worse (9.94%)** — worse than no intervention. The win comes from **targeted test context** (the specific tests the change must satisfy), not the ritual. When you ask an agent to TDD, hand it the named target tests.
+- **Keep hidden hold-outs.** Give the agent the tests to satisfy, but retain a hold-out set it never sees, to catch overfitting (passing the visible cases, failing the rest).
+- **Red → green → refactor:** write the failing test, confirm it fails (red), implement until it passes (green), then refactor under green. Confirming red first proves the test actually exercises the new behavior.
+- **Anti-reward-hack:** the agent must never weaken or delete existing assertions to force green — that's reward hacking. See [correctness.md](./correctness.md) § Reward hacking for the full failure-mode list + defenses.
+
+Steward encodes this as the `tdd_red_green` action_kind (`bin/steward/_lib/action-kinds.cjs`, registry-only as of Sprint 2.34) — its acceptance criteria forbid shrinking an existing test file to fake green (size-based; the full assertion-integrity diff gate ships with the Sprint 2.34.1 executor).
 
 ## Beyond example-based tests — see correctness.md
 

@@ -812,6 +812,53 @@ const ACTION_KINDS = {
     ],
   },
 
+  // ── Sprint 2.34: tdd_red_green (registry-only; executor deferred) ──────
+  // LLM-driven test-driven loop: name the target tests, write a failing test,
+  // confirm red, implement, confirm green. Grounded in TDAD (arXiv 2603.17973):
+  // test-first cut regressions ~70% on SWE-bench Verified — BUT generic "do TDD"
+  // WITHOUT naming which tests to check made it WORSE (9.94%). So the executor
+  // (Sprint 2.34.1) MUST inject TARGETED test context, never generic TDD prose.
+  // Reward-hacking co-threat (standards/correctness.md § Reward hacking): the
+  // agent must not weaken/delete existing assertions to force green. This entry
+  // ships shipped_in: null — registry contract + criteria only, no executor —
+  // same staging pattern as recommendation_harvest_parallel / mutation_score_drift.
+  tdd_red_green: {
+    description:
+      'Test-first implementation loop: name the target tests, write a failing test, confirm red, implement until green. Executor MUST inject targeted test context (which tests to check), never generic "do TDD" prose (TDAD: generic instructions regress harder than no intervention). Registry-only in Sprint 2.34; executor + detector land in Sprint 2.34.1.',
+    requires_llm: true,
+    effort: 'high', // COMPLEX: test authoring + implementation against named tests
+    source: 'plan.target_tests (named test files/ids) + source under test',
+    detector: null, // operator-invoked or scheduled once executor ships (Sprint 2.34.1)
+    cost_envelope: 'normal', // ~$0.0008/run via deepseek-v4-flash, $0 under claude-cli engine
+    blast_radius: 'medium', // writes a new/edited test + implementation source
+    topology_safe: 'serial', // needs shared context with the codebase mutation (per multi-agent-supervisor.md §"Where multi-agent is WRONG")
+    shipped_in: null, // Sprint 2.34 ships REGISTRY ENTRY ONLY; executor v1 in Sprint 2.34.1
+    acceptance_criteria: [
+      // Universal backstop — the implement step must not destroy existing files.
+      NO_DESTRUCTIVE_REWRITE_CRITERION,
+      // TDD-specific anti-reward-hack gate: a tdd task ADDS a failing test then
+      // implements; it must NOT shrink an EXISTING test file (which would mean
+      // deleting/weakening assertions to fake green). Brand-new test files
+      // (prevSize 0) and implementation source are exempt. See
+      // standards/correctness.md § Reward hacking.
+      {
+        id: 'tdd_no_test_assertion_deletion',
+        kind: 'file_predicate',
+        description:
+          'A tdd_red_green task must not SHRINK an existing *.test.*/*.spec.* file (size-based deletion guard) — gutting assertions to force green is reward hacking. New test files (prevSize 0) and implementation source are exempt. LIMITATION: size alone does NOT catch same-size assertion-weakening (e.g. toBe(5)→toBeDefined()); the Sprint 2.34.1 executor must add a diff/assertion-integrity check AND broaden test-file classification (__tests__/, *_test.*, tests/, basename-scoped) beyond this JS-dotted-name regex.',
+        predicate:
+          'touchedFiles.every((p) => !/\\.(test|spec)\\./.test(p) || prevSize(p) === 0 || fileSize(p) >= prevSize(p))',
+        severity: 'block',
+      },
+      {
+        id: 'tdd_red_green_ears',
+        kind: 'ears_text',
+        ears: 'WHEN tdd_red_green runs THE SYSTEM SHALL write a failing test against the named target tests before implementing, confirm it fails, then implement until it passes without weakening or deleting existing assertions to force a green result',
+        severity: 'block',
+      },
+    ],
+  },
+
   // ── v1.0+ roadmap placeholder ──────────────────────────────────────────
   release_notes_drafter: {
     description:

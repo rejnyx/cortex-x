@@ -52,6 +52,20 @@ These are added automatically — keep them unless you have a strong reason to s
 
 Maximum **{{turn_budget}}** turns. If `/goal` haiku evaluator returns "no" after this many turns, halt and surface the residual delta to the operator — do not loop indefinitely.
 
+## Task type — HITL vs AFK
+
+Classify the work so the operator knows which steps the `/goal` loop can run unattended (**AFK**) and which need a human checkpoint (**HITL**). Rule of thumb ([Swarmia 5-level autonomy](https://www.swarmia.com/blog/five-levels-ai-agent-autonomy/)): planning, scope/taste decisions, and irreversible actions stay human-in-the-loop; implementation against the clear acceptance criteria above can run AFK. Higher autonomy is not "better" — it's matched to reversibility. (Day shift = human plans; night shift = AI implements.)
+
+**AFK — loop runs unattended:**
+
+{{#each afk_steps}}- {{this}}
+{{/each}}
+
+**HITL — pause for operator:**
+
+{{#each hitl_steps}}- {{this}}
+{{/each}}
+
 ## Risks
 
 {{#each risks}}- {{this}}

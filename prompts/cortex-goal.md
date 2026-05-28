@@ -49,6 +49,7 @@ Hydrate [`templates/cortex-goal-plan.md.hbs`](templates/cortex-goal-plan.md.hbs)
   - Source contains specific identifier / lacks anti-pattern → `regex` or `read_set`
   - Behavior matches EARS spec ("When X, the system shall Y") → `ears_text`
   - Quality dimension Claude can read but not regex → `llm_judge`
+- `afk_steps` / `hitl_steps` — classify the plan's work by autonomy. The template's § Task type owns the taxonomy definition; apply it here: implementation steps verifiable by the acceptance criteria above → `afk_steps`; scope/alignment decisions, anything irreversible or destructive (DB migration, prod deploy, dependency removal, schema change), and the final taste/QA pass → `hitl_steps`. Default to HITL when reversibility is unclear. At least 1 item in each list.
 - `turn_budget` — Phase-1 Question-3 answer (clamp to [10, 200]).
 - `risks` — name 2-4 risks from your read of the brief + stack. Examples: "test suite has flakies that cap iteration speed", "RLS policies for new tables not auto-generated", "GUI verification requires Chrome DevTools MCP not installed".
 - `open_questions` — anything Phase 1 left ambiguous. If none, write `- None — proceed.`

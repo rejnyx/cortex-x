@@ -194,6 +194,7 @@ Any agent that runs LLM-authored code runs it in **Deno permissions / gVisor / F
 - ❌ No egress filter on agent output (markdown links to arbitrary domains pass through)
 - ❌ No append-only audit log of tool calls
 - ❌ `stopWhen` missing from agent loop — runaway token spend
+- ❌ Coding agent can edit its own test files / hardcode expected values to reach green → **reward hacking** (see [correctness.md](./correctness.md) § Reward hacking)
 
 ## Agentic Security (2026) — OWASP-aligned
 

@@ -52,6 +52,7 @@ For trivial mechanical edits (renames, typo fixes, dependency bumps), skip the c
 
 - [standards/correctness.md](standards/correctness.md) — Practice 1 (validate at boundaries), Practice 2 (property tests on invariants), Practice 3 (eval-driven dev)
 - [standards/testing.md](standards/testing.md) — 5 pillars per test + AI-specific tests
+- [standards/context-engineering.md](context-engineering.md) — smart-zone discipline; a reviewer in a fresh/small context is smarter than one in a polluted window
 - [prompts/95-confidence.md](prompts/95-confidence.md) — canonical phrasing
 - `bin/cortex-claude-md-augment.cjs` BLOCK_VERSION 3 — auto-injects this discipline into operator sessions
 - Anthropic's "Building effective agents" (2025) — verifier-loop pattern as a published best practice

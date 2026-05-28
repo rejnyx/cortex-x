@@ -626,7 +626,7 @@ if ($Profile -eq "qa-tester") {
 # 2026-05-25: switched from `Copy-Item SKILL.md` to a recursive directory copy
 # — ux-copywriter is the first skill to ship companion `references/` files
 # that SKILL.md links to relatively; copying only SKILL.md would break those.
-foreach ($SkillName in @("audit", "designer", "start", "ux-copywriter", "ralph-loop", "cortex-doctor", "cortex-goal", "cortex-update", "cortex-uninstall")) {
+foreach ($SkillName in @("audit", "designer", "start", "ux-copywriter", "ralph-loop", "improve-codebase-architecture", "cortex-doctor", "cortex-goal", "cortex-update", "cortex-uninstall")) {
     $SrcSkillDir = Join-Path $CortexRoot "shared/skills/$SkillName"
     $SrcSkillFile = Join-Path $SrcSkillDir "SKILL.md"
     if (Test-Path $SrcSkillFile) {

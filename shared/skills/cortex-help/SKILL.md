@@ -48,6 +48,7 @@ Print this menu, with the "**default**" tag on whichever option Step 2 indicated
 | **`/start`** | New-project bootstrap (Discover → Research → Architect → Scaffold → Adapt) | Empty folder, want a full project scaffold |
 | **`/audit`** | Existing-project deep audit (12 dimensions, 4 parallel agents) | Established codebase, want to know what's there |
 | **`/test-audit`** | Senior-QA-consultant audit → P0/P1/P2 gap list with research memos | Repo needs a testing-strategy review |
+| **`/improve-codebase-architecture`** | Read-only audit for shallow/zero-test modules → deepening candidates (AI-codeability lens) | Agents write bad code in one area; before a big refactor |
 | **`/designer`** | Designer flow — intake + library palette + parallel worktree exploration | Front-end / landing-page / dashboard design session |
 | **`/cortex-doctor`** | Healthcheck — cortex install integrity + drift detection (Sprint 2.21) | Weekly, after migration, or new machine |
 | **`/retrofit`** † | Apply cortex-x patterns to an audited project | After `/audit` finishes |

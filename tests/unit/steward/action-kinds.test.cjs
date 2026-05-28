@@ -176,4 +176,26 @@ describe('action-kinds: future-roadmap entries', () => {
     assert.equal(k.shipped_in, '0.1.0');
     assert.equal(k.detector, 'detectors/todo-triage.cjs');
   });
+
+  test('Sprint 2.34 — tdd_red_green declared registry-only (LLM, serial, executor deferred)', () => {
+    const k = kinds.getActionKind('tdd_red_green');
+    assert.ok(k, 'tdd_red_green must be registered');
+    assert.equal(k.requires_llm, true);
+    assert.equal(k.topology_safe, 'serial'); // needs shared context with codebase mutation
+    assert.equal(k.shipped_in, null); // registry-only; executor lands in Sprint 2.34.1
+    assert.equal(k.detector, null);
+    assert.equal(kinds.isShippedKind('tdd_red_green'), false);
+    assert.equal(kinds.isSupportedKind('tdd_red_green'), true);
+  });
+
+  test('Sprint 2.34 — tdd_red_green carries the anti-reward-hack criterion (no test-file shrink)', () => {
+    const k = kinds.getActionKind('tdd_red_green');
+    const ids = k.acceptance_criteria.map((c) => c.id);
+    assert.ok(
+      ids.includes('tdd_no_test_assertion_deletion'),
+      'tdd_red_green must forbid shrinking an existing test file to fake green (reward-hacking defense)',
+    );
+    // Inherits the universal destructive-rewrite backstop too.
+    assert.ok(ids.includes('no_destructive_rewrite'));
+  });
 });

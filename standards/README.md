@@ -1,6 +1,6 @@
 # cortex-x Standards
 
-> **28 standards** organized in 5 tiers (+ 1 meta-standard at `RULE-1.md` + 2 supporting reference docs). **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
+> **29 standards** organized in 5 tiers (+ 1 meta-standard at `RULE-1.md` + 2 supporting reference docs). **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
 
 ## Tier hierarchy
 
@@ -21,6 +21,7 @@
 | | [Observability](./observability.md) | Must-have | Review pipeline flag = blocker |
 | | [Correctness](./correctness.md) | Must-have | Zod boundaries + property tests + mutation testing; blocker |
 | | [Verification loop](./verification-loop.md) | Must-have | Pair every implementation todo with verification todo (screenshot · DevTools MCP · spec-verifier); blocker |
+| | [Context engineering](./context-engineering.md) | Must-have | Smart-zone budget (40–60% utilization) · clear tool-noise / compact into artifacts · CLAUDE.md right-altitude; blocker |
 | | [Mutation testing](./mutation-testing.md) | Must-have | Stryker 9.6 measurement infra (Sprint 2.3 v0 measure-only) — ratchet to break-threshold after 2-week baseline |
 | | [Multi-agent supervisor](./multi-agent-supervisor.md) | Must-have | Sprint 2.2 foundation — when parallel is right, 6 safety contracts the v1 spawner must respect, $1.50 default per-tree USD cap |
 | | [Steward policy](./steward-policy.md) | Must-have | Steward runtime safety contract (denylist + caps + actor); blocker for Steward PRs |
@@ -46,11 +47,13 @@ Security can be added. Testing can be retrofitted. Observability can be layered 
 
 Tier 1 is the only tier you can't fix later.
 
-## Why 28 (across 5 tiers)
+## Why 29 (across 5 tiers)
 
 Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + verification-loop + mutation-testing (Sprint 2.3) + multi-agent-supervisor (Sprint 2.2) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard, skill-validate). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
 
 **Two added 2026-05-14 (Sprint 2.2 + 2.3 v0):** [`mutation-testing.md`](./mutation-testing.md) (Rule 2 — Stryker measure-only baseline as fitness signal beyond "tests pass") and [`multi-agent-supervisor.md`](./multi-agent-supervisor.md) (Rule 2 — 6 safety contracts S1-S6 the v1 spawner must respect: tree-budget cap, depth limit, judge order randomization, fingerprint-based dedup, worker-judge same-tier rule, fail-safe rollback).
+
+**One added 2026-05-28 (Sprint 2.31):** [`context-engineering.md`](./context-engineering.md) (Rule 2 — smart-zone/dumb-zone budget discipline: 40–60% utilization target, reasoning-degrades-faster-than-retrieval, clear-tool-noise vs. compact-into-artifacts decision, CLAUDE.md right-altitude). Validates the existing `pre-compact.cjs` hook as "intentional compaction".
 
 Most indie projects skip ~80% of this surface. cortex-x ships all of it as defaults.
 

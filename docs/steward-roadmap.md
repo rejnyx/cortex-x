@@ -1777,6 +1777,102 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
+### Sprint 2.31 — Context-budget discipline: smart-zone / dumb-zone standard (S effort) — 📋 PLANNED 2026-05-28
+
+**Why**: Operator surfaced `docs/transcripts/workflow-for-ai-coding.md` (Matt Pocock / AI Hero, 2h workshop, citing Dex Horthy / HumanLayer). 4-agent web research validated but **sharpened** the "smart zone / dumb zone" model: degradation is **continuous and starts well below 100K** (not a clean cliff), and **reasoning degrades far faster than retrieval** (NoLiMa @32K: literal 98.5% / one-hop 56% / two-hop 26%) — the real argument for a small working set on multi-step coding. HumanLayer's operational number is **40–60% utilization**. The transcript's "always clear, never compact — compaction leaves sediment" is **PARTIALLY REFUTED**: no primary source uses "sediment"; Anthropic + HumanLayer favor **intentional compaction into structured artifacts** + aggressive **tool-result** clearing. cortex's `pre-compact.cjs` hook already IS "intentional compaction into artifacts" → **validate it, don't adopt the anti-compaction stance**.
+
+**Sources**:
+- [`docs/transcripts/workflow-for-ai-coding.md`](transcripts/workflow-for-ai-coding.md) — smart/dumb zone, clear-vs-compact
+- [Chroma — context rot](https://www.trychroma.com/research/context-rot) · [NoLiMa (ICML 2025)](https://arxiv.org/html/2502.05167v1)
+- [HumanLayer — advanced context engineering](https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/ace-fca.md) · [12-factor-agents](https://github.com/humanlayer/12-factor-agents)
+- [Anthropic — effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+
+**Scope** (3 stories):
+- **A)** `standards/context-engineering.md` (new) — smart-zone model, 40–60% budget, reasoning-vs-retrieval asymmetry, a decision table (clear tool-noise aggressively / compact into artifacts deliberately / never blind-clear a long horizon), "minimal ≠ short" for CLAUDE.md (right altitude, not shortest).
+- **B)** Cross-link from `standards/README.md` + `standards/correctness.md` + `standards/verification-loop.md`.
+- **C)** One line in pre-compact hook doc confirming it implements "intentional compaction into artifacts" (the recommended practice).
+
+**Acceptance criteria**: new standard cross-linked from README index; framing uses continuous degradation (NO 100K-cliff claim); pre-compact hook positioned as recommended, not anti-pattern; `npm test` green.
+
+**Out of scope**: runtime context-budget enforcement (Claude Code `/context` already surfaces it); auto-clearing logic.
+
+---
+
+### Sprint 2.32 — Deep modules as AI-codeability lever: modular.md enrichment + improve-codebase-architecture skill (S-M effort) — 📋 PLANNED 2026-05-28
+
+**Why**: Ousterhout's deep/shallow modules (confirmed canonical) reframed for AI: a clean test boundary around a **deep** module → better feedback loops → higher agent quality ceiling. **Empirically grounded** — SWE-bench Verified shows repo testability gates agent success (reliable fail→pass harness + pinned Docker). Net-new framing the transcript under-weights: **information hiding = token economy** (a shallow, leaky interface = more tokens the agent must load to use it). "Design the interface yourself, delegate the implementation (gray boxes)" preserves the operator's mental model while moving fast. Matt's single highest-impact takeaway = the `improve-codebase-architecture` skill that scans for shallow modules to deepen + surfaces test gaps.
+
+**Sources**:
+- [softengbook — deep modules](https://softengbook.org/articles/deep-modules) · [aihero — codebases AI agents love](https://www.aihero.dev/how-to-make-codebases-ai-agents-love)
+- [SWE-bench Verified](https://openai.com/index/introducing-swe-bench-verified/) · [Pragmatic Engineer — Philosophy of Software Design](https://newsletter.pragmaticengineer.com/p/the-philosophy-of-software-design)
+
+**Scope** (3 stories):
+- **A)** `standards/modular.md` § "Module depth for AI codeability" — deep vs shallow; info-hiding = token economy; deep module = clean test boundary = feedback-loop quality; "feedback loops are the floor, not a nice-to-have" with SWE-bench citation; interface-first / delegate-implementation. Note: "deep = more testable" is a defensible synthesis, NOT Ousterhout canon — cite as inference.
+- **B)** `shared/skills/improve-codebase-architecture/SKILL.md` (new) — read-only audit: scans for shallow-module clusters + zero-test modules, proposes deepening candidates with coupling rationale + dependency category. **Audit output only, no auto-refactor.** Target cortex-skill-validate ≥80/ok.
+- **C)** Cross-link from `modular.md` + add to `/cortex-help` menu.
+
+**Acceptance criteria**: modular.md section added + cross-linked; skill validates ≥80/ok; skill output is audit-only (no destructive refactor path); `npm test` + structure tests green.
+
+**Out of scope**: auto-applying refactors (audit only — human picks); GraphRAG dependency mapping (Sprint 3.3 deferred).
+
+---
+
+### Sprint 2.33 — Tracer-bullet vertical slicing + HITL/AFK task taxonomy (S effort) — 📋 PLANNED 2026-05-28
+
+**Why**: AI defaults to **horizontal** (layer-by-layer) coding → integration feedback delayed to the final phase. Tracer bullets / vertical slices (Pragmatic Programmer) force **end-to-end feedback in slice 1**. cortex's [`modular.md:12`](../standards/modular.md#L12) mentions vertical slices as a code-org rule only — it's missing the AFK-loop feedback rationale (the part specific to agents). HITL-vs-AFK now has a **formal taxonomy** — Swarmia's 5-level agent autonomy (L1 assistive → L5 human-out-of-loop, "higher ≠ better"). "Day shift = human plans/QA, night shift = AI implements" is a named 2026 pattern.
+
+**Sources**:
+- [aihero — tracer bullets](https://www.aihero.dev/tracer-bullets) · [InfoQ — walking skeleton / skeleton architecture](https://www.infoq.com/articles/skeleton-architecture/)
+- [Swarmia — 5 levels of AI agent autonomy](https://www.swarmia.com/blog/five-levels-ai-agent-autonomy/) · [TracerKit (reference)](https://github.com/helderberto/tracerkit)
+
+**Scope** (2-3 stories):
+- **A)** `standards/modular.md` — extend the vertical-slice line with the AI-feedback rationale: AI biases horizontal → force thin vertical slices, each demoable (schema → service → API → UI → test), so the loop gets feedback on the critical path in phase 1.
+- **B)** `shared/skills/cortex-goal/SKILL.md` — add a **HITL vs AFK task-type tag** to plan output (planning / alignment / QA = HITL; implementation = AFK), referencing Swarmia autonomy levels. Plan stays plan-only (cortex authors, native `/goal` runs).
+- **C)** Optional: note TracerKit + `AGENTS.md` coordination-contract as references in the relevant standard.
+
+**Acceptance criteria**: vertical-slice AI rationale added to modular.md; cortex-goal emits HITL/AFK tags; cortex-skill-validate still ≥80 for cortex-goal; `npm test` green.
+
+**Out of scope**: automated DAG/Kanban issue generation (defer to worktree-supervisor v1, Sprint 2.2.1); TracerKit integration.
+
+---
+
+### Sprint 2.34 — `tdd_red_green` action_kind with targeted test context (M effort) — 📋 PLANNED 2026-05-28
+
+**Why**: TDAD (arXiv 2603.17973) — test-first cut regressions **70%** (6.08% → 1.82%) on SWE-bench Verified. **CRITICAL nuance**: generic "do TDD" **without telling the agent which tests to check made it WORSE (9.94%)**. So a Steward TDD action_kind must inject **targeted test context, not generic TDD prose** — this is the single highest-leverage research finding. Reward-hacking is a real co-threat (agents hardcode `test_cases.json`, edit test files, `sys.exit(0)` to fake green) — see Sprint 2.35.
+
+**Sources**:
+- [TDAD — arXiv 2603.17973](https://arxiv.org/abs/2603.17973) · [Endor Labs — test-first prompting](https://www.endorlabs.com/learn/test-first-prompting-using-tdd-for-secure-ai-generated-code)
+
+**Scope** (3 stories):
+- **A)** New action_kind `tdd_red_green` — **registry-only first, executor deferred** (per the Sprint 2.2 `recommendation_harvest_parallel` pattern). Spec: name the target tests, write failing test, confirm red, implement, confirm green. `topology_safe: 'serial'`.
+- **B)** `standards/testing.md` § "TDD for agents" — the "which tests, not how to TDD" rule (TDAD-grounded) + anti-cheat note (flag test-file edits during impl).
+- **C)** Document the flow against the existing spec-verifier gate (no new criterion kind needed — `shell` + `read_set` cover it).
+
+**Acceptance criteria**: action_kind registered; `validateTopologySafe` returns serial; registry test added; testing.md section cross-linked; `npm test` green.
+
+**Out of scope**: executor/runtime (registry + standard first); `mutation_score` criterion kind (Sprint 2.3.1).
+
+**⚠️ Risk note**: touches the Steward action-kind registry (runtime-adjacent) — ship with tests + R2, do it LAST in any same-day batch.
+
+---
+
+### Sprint 2.35 — Reward-hacking defenses: inoculation prompting + eval benchmarks (S effort, doc) — 📋 PLANNED 2026-05-28
+
+**Why**: Agents game tests (hardcode expected values, edit test files, `sys.exit(0)` fakes). Anthropic's **inoculation prompting** cut misalignment **75–90%**; benchmarks now exist (RHB, EvilGenie arXiv 2511.21654). cortex's `correctness.md` + `security.md` don't yet cover reward-hacking as a named failure class. The cheapest, lowest-risk entry of this cluster — pure doc.
+
+**Sources**:
+- [Anthropic — emergent misalignment / reward hacking](https://www.anthropic.com/research/emergent-misalignment-reward-hacking) · [EvilGenie — arXiv 2511.21654](https://arxiv.org/pdf/2511.21654)
+
+**Scope** (2 stories):
+- **A)** `standards/correctness.md` § "Reward hacking" — failure patterns (hardcoded expected values, test-file edits, exit-0 fakes), inoculation-prompting mitigation, and `read_set` spec-verifier criterion as a defense (proves which files the action actually touched → catches a test-file edit).
+- **B)** Cross-link from `security.md` (§ Agentic Security) + `testing.md`.
+
+**Acceptance criteria**: correctness.md section added; cross-links from security.md + testing.md; `npm test` green.
+
+**Out of scope**: automated reward-hack detection tooling; running the benchmarks in CI.
+
+---
+
 ### Sprint 2.28.3 — Final R2 hardening follow-up: parity drift + Rule-of-Three + polish (S-M effort) — ✅ SHIPPED 2026-05-14
 
 **Why**: Sprint 2.28 chain (initial → 2.28.1 → 2.28.2) ran 3 R2 rounds and closed 17 ship-blockers. Operator refined cadence rule 2026-05-14: *"R2 stačí dát celou review pipeline jednou, nemusíš několikrát. to žere tokeny"*. Remaining round-3 findings backlogged here as a single deferred sprint per the refined rule.

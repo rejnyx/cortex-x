@@ -534,7 +534,7 @@ fi
 # 2026-05-25: switched from `cp SKILL.md` to `cp -r` of the whole skill dir —
 # ux-copywriter is the first skill to ship companion `references/` files that
 # SKILL.md links to relatively; copying only SKILL.md would break those links.
-for SKILL_NAME in audit designer start ux-copywriter ralph-loop cortex-doctor cortex-goal cortex-update cortex-uninstall; do
+for SKILL_NAME in audit designer start ux-copywriter ralph-loop improve-codebase-architecture cortex-doctor cortex-goal cortex-update cortex-uninstall; do
   SRC_SKILL_DIR="$CORTEX_ROOT/shared/skills/$SKILL_NAME"
   if [ -f "$SRC_SKILL_DIR/SKILL.md" ]; then
     mkdir -p "$CLAUDE_HOME/skills/$SKILL_NAME"
