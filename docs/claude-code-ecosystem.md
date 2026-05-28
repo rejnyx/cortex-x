@@ -2,7 +2,7 @@
 
 > **Audience:** cortex-x contributors deciding "should we add feature X?" or "is this already in Claude Code?". Index of native Claude Code features cortex composes with, reimplements deliberately, or stays out of.
 
-Last verified: 2026-05-14 (Claude Code 2.x). When a feature ships on Anthropic's side that cortex previously substituted, this card updates first and `docs/steward-roadmap.md` follows.
+Last verified: 2026-05-26 (Claude Code 2.x, tools reference). When a feature ships on Anthropic's side that cortex previously substituted, this card updates first and `docs/steward-roadmap.md` follows.
 
 ## Compose with (cortex enhances, doesn't replace)
 
@@ -13,8 +13,12 @@ These are Claude Code primitives cortex builds on top of. **Do not reimplement.*
 | **SessionStart hooks** | Per-project shell hook on session open | Universal `session-start.cjs` that auto-detects profile, surfaces sprint state, suggests scaffold |
 | **Pre/Post-tool hooks** | Shell hook around tool calls | `block-destructive` (8-pattern denylist) + `post-tool-use` (journal traces for evolve) |
 | **PreCompact hook** | Shell hook before context compaction | `pre-compact.cjs` writes recovery state to `.claude/compact-state.md` so next session reads where you were |
-| **Skills (`.claude/skills/`)** | Reusable agent skills with frontmatter triggers | 7 cortex skills: cortex-init · cortex-help · cortex-doctor · audit · designer · start · test-audit |
+| **Skills (`.claude/skills/`)** | Reusable agent skills with frontmatter triggers | 13 cortex skills: cortex-init · cortex-help · cortex-doctor · cortex-goal · cortex-update · cortex-uninstall · audit · designer · start · test-audit · ux-copywriter · ralph-loop · external-adapter-hyperframes |
 | **Sub-agents (`.claude/agents/`)** | Specialized agents with isolated context windows | 6-agent parallel review pipeline (acceptance / blind / correctness / edge / security / ssot) auto-dispatched on non-trivial diffs |
+| **Task tools** (`TaskCreate` / `TaskGet` / `TaskList` / `TaskUpdate`) | Session task checklist; default since v2.1.142 (replaced `TodoWrite`, which is now disabled unless `CLAUDE_CODE_ENABLE_TASKS=0`) | Augment block v4 + `verification-loop.md` reference the task list tool-agnostically (Task tools default, TodoWrite fallback). Implementation+verification task pairing is the cortex layer |
+| **Agent tool `isolation: worktree`** | Run a writing subagent in a throwaway git worktree; auto-cleaned if no changes | `/ralph-loop` documents this as the native containment for the lethal-trifecta risk; augment v4 hints it for any writing subagent |
+| **Monitor tool** (v2.1.98+) | Background-watch a log/command, interject on events without pausing | `/ralph-loop` Phase 4 offers it as the native alternative to hand-tailing journal.jsonl |
+| **PushNotification** | Desktop + phone push when Remote Control connected | `/ralph-loop` + Steward overnight runs pair it with Monitor for "run done / cost spike" alerts |
 | **`/goal`** (haiku verifier) | Native 14h–5d session-loop with haiku-driven verification | `/cortex-goal` plans the run with R1-grounded plan, hands off to native `/goal` execution — does NOT reimplement the loop |
 | **`/loop`** | Schedule a recurring or self-paced prompt | Operator-side; cortex docs reference it for autonomous Steward dogfooding |
 | **MCP servers (`~/.claude.json`)** | Model Context Protocol clients | `cortex-doctor` info-severity check + per-profile `recommended_mcp_servers:` (Context7 default for agentic profiles) |
@@ -33,7 +37,7 @@ Where cortex ships a deliberately different implementation because the native ve
 | **Memory** | Single-file `CLAUDE.md` | 4-tier (`projects/<slug>.md` institutional · `MEMORY.md` index · `journal/` append-only · `insights/` consolidated) | Plain-text + citable + 3-hop traceable; Notion AI / ChatGPT memory failure modes avoided |
 | **Discipline enforcement** | None at framework level | R1 (research-before-implement) + R2 (review pipeline) cadence rules + `cortex-doctor` checks | Multi-session cohesion; survive context compaction |
 | **Cron / scheduling** | Cloud Routines (subscription) | GitHub Actions `steward-*.yml` (operator-owned) | OpenRouter billing + atomic rollback + 17 typed action_kinds |
-| **Verification loop** | Operator instructs in prompt | `standards/verification-loop.md` + augment block v3 pairs implementation todos with verification todos | Survives across sessions; enforced via session-start hint, not per-session reminder |
+| **Verification loop** | Operator instructs in prompt | `standards/verification-loop.md` + augment block v4 pairs implementation tasks with verification tasks | Survives across sessions; enforced via session-start hint, not per-session reminder |
 | **95%-confidence prompt** | Operator types it inline | `prompts/95-confidence.md` reusable fragment | One source of truth; consistent phrasing across `/cortex-init`, `/start`, ad-hoc |
 
 ## Explicit NOT-do (already documented elsewhere)
@@ -57,6 +61,8 @@ External-but-aligned tools that compose well with cortex but ship through their 
 - **[Ralph Loop plugin](https://github.com/anthropics/ralph)** — autonomous loop with planning. Sprint 2.24 documents the composition pattern (cortex plans, Ralph loops, native `/goal` verifies).
 - **[anthropics/skills examples](https://github.com/anthropics/skills)** — first-party skill examples worth reading before authoring cortex skills.
 - **[Tirith](https://github.com/repello-ai/tirith)** — context-file injection scanner (MIT Rust binary). Wrapped by cortex `shared/hooks/tirith-scan.cjs` when present; opt-in.
+- **LSP / code-intelligence plugin** — Claude Code's native `LSP` tool stays inert until a language plugin + server are installed. For TS-strict projects (cortex's default profile target), this gives Claude type-error feedback after every edit without a separate build step. Worth installing per stack; cortex doesn't bundle it but profiles could recommend it (candidate roadmap entry).
+- **PowerShell tool** (`CLAUDE_CODE_USE_POWERSHELL_TOOL=1`) — on Windows with Git Bash it's a progressive rollout; opt-in on Linux/macOS/WSL (needs pwsh 7+). cortex hooks + CLIs are all `node` invocations so they run cross-platform regardless, but Windows operators who prefer native PowerShell over Git Bash can enable it without breaking cortex.
 
 ## How this card evolves
 

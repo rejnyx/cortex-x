@@ -112,12 +112,16 @@ Default to `--single-pass` first, then `--builder-only`. Never start with unboun
 
 ## Phase 3 — Spawn the loop
 
+**Isolate first.** Before any execution surface, create a throwaway worktree so a corrupted tree never touches the primary checkout: `git worktree add ../ralph-<usecase> ralph/<usecase>` (or `claude --worktree <usecase>`), then run ralph.sh from there. The Known-risks § lethal-trifecta mitigation depends on this. Skip only for `--single-pass` smoke tests.
+
 Three execution surfaces:
 - **Foreground bash** — `./cortex/ralph/<usecase>/ralph.sh` directly. Use for short runs (< 1h), to watch live, to abort fast.
 - **tmux pane** — `tmux new-session -d -s ralph-<usecase> 'cd cortex/ralph/<usecase> && ./ralph.sh'`. Use for unattended overnight. Operator attaches with `tmux a -t ralph-<usecase>` and detaches with Ctrl+B → D.
 - **`run_in_background` Bash tool** — when invoked from this session, spawn the loop in the background and monitor via journal.jsonl tail. Use sparingly — operator should drive long runs themselves.
 
 For unattended runs, **default to tmux + stream-json output** (`claude -p --output-format stream-json`). The journal.jsonl is appended per iteration with: `{iteration, started_at, ended_at, items_checked_off, cost_usd, exit_reason}`.
+
+**Native monitoring alternative**: instead of tailing journal.jsonl by hand, Claude Code's **Monitor tool** (v2.1.98+) can watch the journal + interject on `exit_reason` / cost-spike events without you polling — ask Claude to `Monitor cortex/ralph/<usecase>/journal.jsonl and flag any exit_reason or iter_cost > $5`. Pair with **PushNotification** for an "overnight run done" phone alert.
 
 ## Phase 4 — Monitor + tune ("sit on the loop, not in it")
 
@@ -236,7 +240,7 @@ The R2 security review (2026-05-25) returned **CANNOT SHIP AS-IS** for productio
 
 ### Architectural risks (require operator awareness)
 
-1. **Lethal trifecta in one process** — Ralph reads private repo data + ingests untrusted `fix_plan.md` + has external network egress (model can `curl` / `git push`). `--dangerously-skip-permissions` disables Claude Code's in-band defense (including the block-destructive hook). **Mitigation v0**: run only on repos you can `git reset --hard`; use a fresh `ralph/<usecase>` branch; never run on prod credentials. **Roadmap v1**: default to `git worktree add` for FS isolation; document container/devcontainer execution path.
+1. **Lethal trifecta in one process** — Ralph reads private repo data + ingests untrusted `fix_plan.md` + has external network egress (model can `curl` / `git push`). `--dangerously-skip-permissions` disables Claude Code's in-band defense (including the block-destructive hook). **Mitigation v0**: run only on repos you can `git reset --hard`; use a fresh `ralph/<usecase>` branch; never run on prod credentials. **Native FS isolation (available now)**: Claude Code exposes `EnterWorktree` / `claude --worktree <name>` + an `isolation: "worktree"` option on the Agent tool — run Ralph inside a throwaway worktree so a corrupted tree never touches your primary checkout (auto-cleaned if no changes land, otherwise the branch + path are returned). Prefer this over running in-place. **Roadmap v1**: ralph.sh auto-creates the worktree; document the container/devcontainer execution path.
 2. **Cost cap is model-self-reported** — `total_cost_usd` is extracted from the model's own stream-json output. A prompt-injected `fix_plan.md` could ask the model to falsify the field, bypassing `MAX_COST_USD`. **Mitigation v0**: `MAX_ITERATIONS` cap is hard-enforced by the shell — that's your real budget ceiling. **Roadmap v1**: out-of-band billing-API cost gate between iterations.
 3. **block-destructive hook disabled** — when running with `--dangerously-skip-permissions`, the cortex-x block-destructive hook does NOT intercept `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, etc. **Mitigation v0**: set `RALPH_REQUIRE_HOOKS=1` to run without the dangerous flag (slower, prompts on each tool call, but defense-in-depth intact). **Roadmap v1**: ship a Ralph-aware permission allowlist that pre-approves the safe tool subset (Read/Grep/Glob/Edit/npm test) while leaving destructive ones gated.
 
@@ -250,13 +254,14 @@ The R2 security review (2026-05-25) returned **CANNOT SHIP AS-IS** for productio
 
 Ralph v0 is safe to run when **all** apply:
 - Personal repo or test fixture, never production
+- **Running inside a dedicated git worktree** (`git worktree add` / `claude --worktree`) — corruption stays off your primary checkout
 - `ralph/<usecase>` branch (never main/master)
 - Clean tree at baseline + you remember the baseline SHA
 - You can `git reset --hard <baseline>` to recover
 - No secrets in `PROMPT.md` or fix_plan items
 - Branch protection enabled on origin/main
 - `MAX_ITERATIONS=20` for first run (caps blast radius)
-- You check on it every 30 min ("sit on the loop, not in it")
+- You check on it every 30 min ("sit on the loop, not in it") — or wire the Monitor tool + PushNotification so it reaches you instead
 
 If any of those don't hold, defer Ralph and use `/cortex-goal` (which runs in your foreground session under normal Claude Code permissions) instead.
 

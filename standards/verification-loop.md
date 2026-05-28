@@ -10,9 +10,9 @@ rule_tier: Rule 2 (Critical — verification = correctness gate)
 
 Every implementation step must be paired with a verification step. Building proves the code compiles; verification proves the code does what was asked.
 
-## The pattern (TodoWrite-anchored)
+## The pattern (task-list-anchored)
 
-Each TodoWrite entry comes in pairs:
+Anchor this on the session task list — the **Task tools** (`TaskCreate` / `TaskUpdate`, default since Claude Code v2.1.142) or `TodoWrite` on older builds (`CLAUDE_CODE_ENABLE_TASKS=0` re-enables it). Either way, each unit of work comes in pairs:
 
 ```
 Implementation: build the password reset endpoint
@@ -25,7 +25,7 @@ Implementation: add `read_set` criterion kind to spec-verifier
 Verification:   npm test -- --filter=spec-verifier + grep journal for criterion_ok=true
 ```
 
-Before commit, the verification todo MUST be checked off. A green build is necessary, not sufficient.
+Before commit, the verification task MUST be checked off. A green build is necessary, not sufficient.
 
 ## Three failure modes (and their verification primitives)
 

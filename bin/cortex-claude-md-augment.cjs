@@ -46,7 +46,9 @@ const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
 // and offer to refresh them.
 // v3 (Sprint 2.27 + 2.30 co-ship): verification-discipline + worktree/mode
 // hints added.
-const BLOCK_VERSION = '3';
+// v4 (2026-05-26): TodoWrite → Task-tools migration (TodoWrite disabled by
+// default since Claude Code v2.1.142); native subagent worktree isolation hint.
+const BLOCK_VERSION = '4';
 const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
 const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
 // Match any version of the block (for removal + version-drift detection).
@@ -66,7 +68,7 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 
 ### Execution discipline
 
-**TodoWrite proactively for multi-step work.** Any task with 3+ distinct steps gets a TodoWrite list at start. Exactly ONE task \`in_progress\` at a time. Mark \`completed\` IMMEDIATELY when finished — never batch completions. New discoveries during execution → add as new todos. This is load-bearing for hackathons + sprints — without it long tasks drift.
+**Track multi-step work with the task list.** Any task with 3+ distinct steps gets a task list at the start. Use the **Task tools** (\`TaskCreate\` / \`TaskUpdate\` / \`TaskList\` — the default since Claude Code v2.1.142); older builds expose \`TodoWrite\` instead (\`CLAUDE_CODE_ENABLE_TASKS=0\` re-enables it). Exactly ONE task \`in_progress\` at a time. Mark \`completed\` IMMEDIATELY when finished — never batch completions. New discoveries during execution → add as new tasks. This is load-bearing for hackathons + sprints — without it long tasks drift.
 
 **Think before code.** State the plan in 1-2 sentences before the first edit. State assumptions you're making. If the plan is wrong, the operator catches it in seconds; if you start coding, the cost is rework.
 
@@ -101,6 +103,8 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 **\`ultrathink\` for architecture decisions / non-trivial refactors / ambiguous bug reports.** Prefix the prompt with the literal token \`ultrathink\` to switch to the 32K-token thinking budget tier (other tiers: \`think\` 4K, \`think hard\`/\`megathink\` 10K). Not every task needs it; lean toward more thinking when the cost of being wrong is high.
 
 **Parallel features → \`claude --worktree <name>\`** (shorthand \`-w\`). Each gets isolated \`.claude/worktrees/<name>/\` on branch \`worktree-<name>\`. Run from the primary worktree before sleeping — cortex Steward refuses to run in a non-primary worktree by default (\`STEWARD_WORKTREE_DENIED\`).
+
+**Filesystem-isolate risky subagents with \`isolation: worktree\`.** When dispatching an Agent that WRITES (autonomous loops, bulk refactors, anything that could corrupt the tree), pass \`isolation: "worktree"\` so it works on a throwaway copy — auto-cleaned if it makes no changes, otherwise the branch + path are returned. Read-only review agents (\`blind-hunter\`, \`ssot-enforcer\`, …) don't need it. This is the native containment for the lethal-trifecta risk that \`/ralph-loop\` documents.
 
 **Out-of-date?** This block is auto-generated. Refresh: \`cortex-claude-md-augment --apply\` (upgrades stale versions in place). Remove: \`cortex-claude-md-augment --remove\`. Health audit any time: \`cortex-doctor\`.`;
 
