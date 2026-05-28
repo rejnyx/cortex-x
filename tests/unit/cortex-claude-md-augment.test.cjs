@@ -141,7 +141,7 @@ describe('cortex-claude-md-augment — CLI end-to-end', () => {
       const md = readClaudeMd(home);
       assert.ok(md.includes(CORTEX_BLOCK_START));
       assert.ok(md.includes(CORTEX_BLOCK_END));
-      assert.ok(md.includes('R1 — research before implementing'));
+      assert.ok(md.includes('R1 — research before you ASSERT or implement'));
     } finally { tryRm(home); }
   });
 

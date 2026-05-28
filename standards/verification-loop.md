@@ -54,7 +54,7 @@ For trivial mechanical edits (renames, typo fixes, dependency bumps), skip the c
 - [standards/testing.md](standards/testing.md) — 5 pillars per test + AI-specific tests
 - [standards/context-engineering.md](context-engineering.md) — smart-zone discipline; a reviewer in a fresh/small context is smarter than one in a polluted window
 - [prompts/95-confidence.md](prompts/95-confidence.md) — canonical phrasing
-- `bin/cortex-claude-md-augment.cjs` BLOCK_VERSION 3 — auto-injects this discipline into operator sessions
+- `bin/cortex-claude-md-augment.cjs` BLOCK_VERSION 5 — auto-injects this discipline into operator sessions
 - Anthropic's "Building effective agents" (2025) — verifier-loop pattern as a published best practice
 
 ## Why this is Rule 2 (Critical), not Rule 3 (Process)

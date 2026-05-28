@@ -48,7 +48,11 @@ const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
 // hints added.
 // v4 (2026-05-26): TodoWrite → Task-tools migration (TodoWrite disabled by
 // default since Claude Code v2.1.142); native subagent worktree isolation hint.
-const BLOCK_VERSION = '4';
+// v5 (2026-05-28): R1 broadened from "research before implement" to "research
+// before ASSERT or implement" — frozen training data means even answering a
+// current-state question needs web research first (operator directive: AI is a
+// tool, not an oracle). +context-engineering standard, 29 files.
+const BLOCK_VERSION = '5';
 const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
 const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
 // Match any version of the block (for removal + version-drift detection).
@@ -60,7 +64,7 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 
 ### Research, review, parallelism
 
-**R1 — research before implementing.** Whenever a task depends on external state (framework versions, library APIs, design trends, CVEs, a11y standards, best practices that change yearly), dispatch parallel web research subagents FIRST. Cite findings with URLs. Cache under \`$CORTEX_DATA_HOME/research/\`. SSOT: \`~/.claude/shared/standards/web-research.md\`. Don't guess from training data on anything dated past your cutoff.
+**R1 — research before you ASSERT or implement.** Your training data is frozen; you don't know current state — not even about yourself (a newly-released model has to web-search to describe its own version). So whenever an ANSWER or a task depends on external/current state (framework + model versions, "what's the latest X", availability, pricing, library APIs, design trends, CVEs, a11y standards, competitive landscape, best practices that change yearly), dispatch web research FIRST — before stating it as fact AND before writing code against it. Say "let me verify" and check; never present frozen training knowledge as current truth. Treat AI as a tool, not an oracle. Cite findings with URLs. Cache under \`$CORTEX_DATA_HOME/research/\`. SSOT: \`~/.claude/shared/standards/web-research.md\`.
 
 **R2 — review pipeline.** For non-trivial diffs (≥3 files, public API change, security-adjacent, agentic code paths), dispatch the 6-agent parallel review pipeline (\`security-auditor\`, \`correctness-auditor\`, \`acceptance-auditor\`, \`ssot-enforcer\`, \`blind-hunter\`, \`edge-case-hunter\`) BEFORE the user merges. Apply consensus HIGH findings in-commit.
 
@@ -78,7 +82,7 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 
 ### Where things live
 
-**Standards order** (when budgets conflict): Rule 0 Ship-Ready → Rule 1 SSOT/Modular/Scalable → Rule 1.5 Coding Behavior → Rule 2 Security/Testing/Observability/Correctness → Rule 3 process. Browse: \`~/.claude/shared/standards/\` (28 files).
+**Standards order** (when budgets conflict): Rule 0 Ship-Ready → Rule 1 SSOT/Modular/Scalable → Rule 1.5 Coding Behavior → Rule 2 Security/Testing/Observability/Correctness/Context-engineering → Rule 3 process. Browse: \`~/.claude/shared/standards/\` (29 files).
 
 **Memory.** Per-project \`MEMORY.md\` (this project). Cross-project library: \`$CORTEX_DATA_HOME/projects/<slug>.md\` (populate via paste \`prompts/cortex-sync.md\` at end of session). Sprint state: \`PROGRESS.md\` (pending/in-progress/done/blocked). Check memory before assumptions; recall, then verify the file/symbol still exists before acting on it.
 
