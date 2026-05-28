@@ -185,6 +185,16 @@ function stateFilePath(sessionHash) {
   return path.join(os.tmpdir(), `cortex-pending-${sessionHash}.jsonl`);
 }
 
+// ---- Review-session marker (consumed by pre-commit-review-gate.cjs) ----
+// When an adversarial review agent fires, drop a session-scoped flag so the
+// commit gate can tell "review ran this session" deterministically (vs. trying
+// to reconstruct it from the journal). Touch-only; content is the timestamp.
+// Roster is SSOT in _lib/review-agents.cjs (shared with the gate).
+const REVIEW_AGENT_SET = new Set(require('./_lib/review-agents.cjs').REVIEW_AGENTS);
+function reviewMarkerPath(sessionHash) {
+  return path.join(os.tmpdir(), `cortex-review-${sessionHash}.flag`);
+}
+
 // ---- Duration correlation (reads + mutates PreToolUse stack file) ----
 // State file is JSONL stack; each PreToolUse appends one line. PostToolUse
 // matches the last entry for this tool_name, removes it, computes duration.
@@ -235,12 +245,25 @@ process.stdin.on('end', () => {
     const toolName = data.tool_name || data.toolName || '';
     if (!toolName) { process.exit(0); return; }
 
+    const sessionHash = hashSessionId(data.session_id || data.sessionId || '');
+    const ti = data.tool_input || data.toolInput || {};
+
+    // Mark the session as reviewed when an adversarial review agent fires.
+    // Placed BEFORE the cortexRoot early-exit (and the zero-signal exit) so the
+    // marker is recorded even in a non-cortex-install cwd — it is session state
+    // in os.tmpdir(), independent of the cortex repo. Consumed by
+    // pre-commit-review-gate.cjs.
+    if ((toolName === 'Agent' || toolName === 'Task') && sessionHash) {
+      const sub = String(ti.subagent_type || '').toLowerCase();
+      if (REVIEW_AGENT_SET.has(sub)) {
+        try { fs.writeFileSync(reviewMarkerPath(sessionHash), new Date().toISOString(), { mode: 0o600 }); } catch {}
+      }
+    }
+
     const cortexRoot = resolveCortexRoot();
     if (!cortexRoot) { process.exit(0); return; }
 
-    const sessionHash = hashSessionId(data.session_id || data.sessionId || '');
     const slug = getProjectSlug();
-    const ti = data.tool_input || data.toolInput || {};
 
     const now = new Date();
     const summary = buildSummary(toolName, ti);

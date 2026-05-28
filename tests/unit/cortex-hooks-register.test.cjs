@@ -340,24 +340,22 @@ describe('cortex-hooks-register — R2 hardening (Sprint 2.21.2)', () => {
   });
 
   test('HIGH#5 HOOK_SPEC SSOT alignment with install.{sh,ps1} INSTALL_NOTES', () => {
-    // Defense against the SSOT drift the enforcer flagged (Sprint 2.21.2):
-    // HOOK_SPEC must enumerate every hook script that install.{sh,ps1}
-    // documents in the INSTALL_NOTES.md heredoc. We verify by reading
-    // install.sh and confirming each HOOK_SPEC event + script name appears
-    // in the heredoc text.
-    const installShPath = path.join(REPO_ROOT, 'install.sh');
-    const installSh = fs.readFileSync(installShPath, 'utf8');
-    for (const [event, entries] of Object.entries(HOOK_SPEC)) {
-      // Locate the "$event": [ ... ] block in the install.sh heredoc.
-      const eventRegex = new RegExp(`"${event}":\\s*\\[`);
-      assert.ok(eventRegex.test(installSh), `install.sh INSTALL_NOTES missing event "${event}"`);
-      // For each cortex hook script referenced, verify install.sh mentions it.
-      for (const entry of entries) {
-        for (const h of entry.hooks) {
-          const m = h.command.match(/hooks\/([\w-]+\.cjs)/);
-          if (!m) continue;
-          const scriptName = m[1];
-          assert.ok(installSh.includes(scriptName), `install.sh INSTALL_NOTES missing hook script "${scriptName}" for event "${event}"`);
+    // Defense against the SSOT drift the enforcer flagged (Sprint 2.21.2 +
+    // 2.39): HOOK_SPEC must enumerate every hook script that BOTH install.sh
+    // AND install.ps1 document in their INSTALL_NOTES heredoc. Checking only
+    // install.sh (the original gap) let the PowerShell copy drift unverified.
+    for (const installFile of ['install.sh', 'install.ps1']) {
+      const installText = fs.readFileSync(path.join(REPO_ROOT, installFile), 'utf8');
+      for (const [event, entries] of Object.entries(HOOK_SPEC)) {
+        const eventRegex = new RegExp(`"${event}":\\s*\\[`);
+        assert.ok(eventRegex.test(installText), `${installFile} INSTALL_NOTES missing event "${event}"`);
+        for (const entry of entries) {
+          for (const h of entry.hooks) {
+            const m = h.command.match(/hooks\/([\w-]+\.cjs)/);
+            if (!m) continue;
+            const scriptName = m[1];
+            assert.ok(installText.includes(scriptName), `${installFile} INSTALL_NOTES missing hook script "${scriptName}" for event "${event}"`);
+          }
         }
       }
     }

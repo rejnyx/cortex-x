@@ -49,6 +49,7 @@ const SETTINGS_PATH = path.join(HOME, '.claude', 'settings.json');
 const HOOK_SPEC = Object.freeze({
   PreToolUse: [
     { matcher: 'Bash', hooks: [{ type: 'command', command: 'node "$HOME/.claude/shared/hooks/block-destructive.cjs"', timeout: 5 }] },
+    { matcher: 'Bash', hooks: [{ type: 'command', command: 'node "$HOME/.claude/shared/hooks/pre-commit-review-gate.cjs"', timeout: 6 }] },
     { hooks: [{ type: 'command', command: 'node "$HOME/.claude/shared/hooks/pre-tool-use.cjs"', timeout: 3 }] },
   ],
   PostToolUse: [
