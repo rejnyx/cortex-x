@@ -180,6 +180,8 @@ fc.assert(fc.property(fc.commands([
 
 **Eval discipline (ties to Practice 3):** include reward-hack attempts in the forbidden-output set — an eval that asserts the agent did NOT edit a test file or hardcode a fixture is as valuable as one asserting correct behavior. Dedicated reward-hacking benchmarks are emerging (e.g. EvilGenie).
 
+**Model honesty is additive, not a substitute.** A more-honest author model raises the floor — e.g. Opus 4.8 is reportedly ~4× less likely than 4.7 to let flaws in its own code pass unremarked, so fewer self-introduced bugs ship unflagged. But honesty of the *author* does not remove the gates above: a model graded on its own tests still has the incentive to game them, and an author cannot flag what it cannot see. Keep independent/adversarial review + the touched-file gate regardless of how honest the generating model is.
+
 ## Applicability gradient
 
 | Stage | Required | Nice-to-have |

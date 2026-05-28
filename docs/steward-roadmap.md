@@ -1873,6 +1873,46 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
+### Sprint 2.36 — Opus 4.8 routing bump (XS effort) — ✅ SHIPPED 2026-05-28
+
+**Why**: Opus 4.8 launched 2026-05-28. 4-agent web research confirmed: OpenRouter slug `anthropic/claude-opus-4.8` live, same $5/$25 rate card as 4.6/4.7, and — critically — the ~35% 4.7 tokenizer inflation that kept routing pinned to 4.6 is **neutralized at default "high" effort** (4.8-high ≈ 4.7-default token spend, better output). Plus ~4× fewer unremarked self-authored code flaws (honesty), which directly serves Steward's verifier gate.
+
+**What shipped**: `routing-table.cjs` premium + ensemble-worker slots `anthropic/claude-opus-4.6` → `anthropic/claude-opus-4.8` (8 occurrences) + updated rationale comment. Pinned the standard slug, NOT `-fast` (2× price, no quality gain). Effort defaults unchanged (per-kind tuning from Sprint 2.4.1 already correct).
+
+**Sources**: [openrouter.ai/anthropic/claude-opus-4.8](https://openrouter.ai/anthropic/claude-opus-4.8) · [anthropic.com/news/claude-opus-4-8](https://www.anthropic.com/news/claude-opus-4-8). Memory: `project_anthropic_landscape_2026_05_28`.
+
+---
+
+### Sprint 2.2.2 — Align worktree-supervisor with native dynamic workflows (S effort) — 📋 PLANNED 2026-05-28
+
+**Why**: On 2026-05-28 Anthropic shipped **dynamic workflows** in Claude Code — Claude writes orchestration scripts that fan out tens-to-hundreds of parallel subagents in-session, run an adversarial-convergence loop (agents refute each other), gate on the test suite, and plan-confirm on first trigger (`ultracode` setting = xhigh effort). This is *the same breadth-first-fan-out-then-converge pattern* Sprint 2.2's worktree-supervisor was building toward — now a first-party CLI/SDK/API primitive. Re-implementing an in-house spawner would rebuild a vendor primitive.
+
+**Decision**: **DEFER the worktree-*spawner* (Sprint 2.2.1)** indefinitely — Anthropic owns in-session fan-out now. **KEEP** the `multi-agent-supervisor.md` standard + `topology.cjs` — they serve a *different substrate*: dynamic workflows are in-session + script-driven with **NO git-worktree isolation**, whereas Steward needs headless/cron/cross-session true filesystem isolation + cortex spec-verifier as the convergence bar.
+
+**Scope**: (A) Amend `multi-agent-supervisor.md` to position cortex's supervisor as the *headless/cron* complement to native dynamic workflows (not a competitor). (B) Thin adapter: when running interactively, prefer `ultracode` + dynamic workflows with cortex spec-verifier criteria as the test-suite bar, rather than the cortex spawner. (C) Validate the `ultracode` flag name before relying on it.
+
+**Sources**: [claude.com/blog/introducing-dynamic-workflows-in-claude-code](https://claude.com/blog/introducing-dynamic-workflows-in-claude-code).
+
+---
+
+### Sprint 2.37 — `mid_conv_system` Steward reinjection (S effort) — 📋 PLANNED 2026-05-28 · ⛔ BLOCKED on engine-passthrough verification
+
+**Why**: The Messages API now accepts a `MidConversationSystemBlockParam` (`{"type":"mid_conv_system", content, cache_control}`) — update an agent's instructions mid-run (permissions, token budgets, environment/halt state) WITHOUT breaking the prompt cache or routing through a fake user turn. Steward's `execute.cjs` currently reinjects rule/budget context as prose; migrating to `mid_conv_system` would make per-phase updates cache-cheap.
+
+**⛔ BLOCKER (research-before-assert)**: `mid_conv_system` is an Anthropic-API beta feature. cortex's default Steward engine routes via **OpenRouter**, and it is UNVERIFIED whether OpenRouter passes the block through. Wiring this blind would ship a feature that may silently no-op on the primary engine. **Gate: verify OpenRouter passthrough (or scope the migration to the `claude-cli` / direct-Anthropic engine seam) BEFORE any execute.cjs change.**
+
+**Sources**: [platform.claude.com/docs/en/api/messages](https://platform.claude.com/docs/en/api/messages) · [anthropic.com/news/claude-opus-4-8](https://www.anthropic.com/news/claude-opus-4-8).
+
+---
+
+### Sprint LR.CMA — Claude Managed Agents positioning memo (S effort, doc) — ✅ SHIPPED 2026-05-28
+
+**Why**: Anthropic's Claude Managed Agents (CMA, beta) is a managed clone of cortex's evolve/spec-verifier/Steward stack (Dreaming = autoDream, Outcomes = spec-verifier). It validates the design but erodes the "only cortex does this" pitch, and raises a build-vs-buy question. Documented in `docs/claude-managed-agents-positioning.md` (LR.Z-style landscape memo): CMA is a **competitor-to-monitor**, a poor 4th Steward engine seam (agent loop is Anthropic-cloud-owned, $0.08/session-hour meter, not ZDR; self-hosting relocates only tool execution). cortex's moat shifts further toward operator-owned markdown SSOT + safety stack — confirming the Boris-Cherny "harness commoditizes → value migrates to wisdom" thesis.
+
+**Sources**: [platform.claude.com/docs/en/managed-agents/overview](https://platform.claude.com/docs/en/managed-agents/overview) · [anthropic.com/engineering/managed-agents](https://www.anthropic.com/engineering/managed-agents). Memory: `project_anthropic_landscape_2026_05_28`.
+
+---
+
 ### Sprint 2.28.3 — Final R2 hardening follow-up: parity drift + Rule-of-Three + polish (S-M effort) — ✅ SHIPPED 2026-05-14
 
 **Why**: Sprint 2.28 chain (initial → 2.28.1 → 2.28.2) ran 3 R2 rounds and closed 17 ship-blockers. Operator refined cadence rule 2026-05-14: *"R2 stačí dát celou review pipeline jednou, nemusíš několikrát. to žere tokeny"*. Remaining round-3 findings backlogged here as a single deferred sprint per the refined rule.

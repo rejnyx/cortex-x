@@ -96,15 +96,14 @@ const ROUTING_TABLE = {
   architecture_review: {
     cheap: 'deepseek/deepseek-v4-flash',
     balanced: 'anthropic/claude-sonnet-4.6',
-    // Premium opts for Opus 4.6 over 4.7 — 4.7's new tokenizer adds ~35%
-    // input tokens per request despite unchanged rate card. Opus 4.6 same
-    // quality, predictable billing. Revisit when Anthropic ships parity.
-    premium: 'anthropic/claude-opus-4.6',
+    // Premium = Opus 4.8 (bumped 2026-05-28, supersedes the 4.6 tokenizer-
+    // inflation pin). Rationale + sources: docs/steward-roadmap.md § Sprint 2.36.
+    premium: 'anthropic/claude-opus-4.8',
     ensemble: {
       workers: [
         'anthropic/claude-sonnet-4.6',
         'openai/gpt-5.4',
-        'anthropic/claude-opus-4.6',
+        'anthropic/claude-opus-4.8',
       ],
       judge: 'anthropic/claude-sonnet-4.6',
     },
@@ -128,7 +127,7 @@ const ROUTING_TABLE = {
   pattern_transfer: {
     cheap: 'deepseek/deepseek-v4-flash',
     balanced: 'anthropic/claude-sonnet-4.6',
-    premium: 'anthropic/claude-opus-4.6',
+    premium: 'anthropic/claude-opus-4.8',
     ensemble: {
       workers: [
         'anthropic/claude-sonnet-4.6',
@@ -144,7 +143,7 @@ const ROUTING_TABLE = {
   evolve_weekly: {
     cheap: 'deepseek/deepseek-v4-flash',
     balanced: 'anthropic/claude-sonnet-4.6',
-    premium: 'anthropic/claude-opus-4.6',
+    premium: 'anthropic/claude-opus-4.8',
     ensemble: {
       workers: ['anthropic/claude-sonnet-4.6'],
       judge: null,
@@ -160,7 +159,7 @@ const ROUTING_TABLE = {
   tdd_red_green: {
     cheap: 'deepseek/deepseek-v4-flash',
     balanced: 'anthropic/claude-sonnet-4.6',
-    premium: 'anthropic/claude-opus-4.6',
+    premium: 'anthropic/claude-opus-4.8',
     ensemble: {
       workers: [
         'anthropic/claude-sonnet-4.6',
@@ -179,12 +178,12 @@ const ROUTING_TABLE = {
       judge: 'anthropic/claude-sonnet-4.6',
     },
     premium: {
-      workers: ['anthropic/claude-opus-4.6', 'openai/gpt-5.5'],
-      judge: 'anthropic/claude-opus-4.6',
+      workers: ['anthropic/claude-opus-4.8', 'openai/gpt-5.5'],
+      judge: 'anthropic/claude-opus-4.8',
     },
     ensemble: {
       workers: [
-        'anthropic/claude-opus-4.6',
+        'anthropic/claude-opus-4.8',
         'openai/gpt-5.5',
         'deepseek/deepseek-v4-flash',
       ],
