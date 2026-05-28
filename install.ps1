@@ -569,6 +569,7 @@ New-DelegateShim "cortex-doctor"         "cortex-doctor.cjs"
 New-DelegateShim "cortex-skill-validate" "cortex-skill-validate.cjs"
 New-DelegateShim "cortex-dream"          "cortex-dream.cjs"
 New-DelegateShim "cortex-insights"       "cortex-insights.cjs"
+New-DelegateShim "cortex-usage"          "cortex-usage.cjs"
 
 # Install default agents to ~/.claude/agents/ for Claude Code discovery.
 #

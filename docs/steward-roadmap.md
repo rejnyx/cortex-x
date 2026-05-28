@@ -1873,6 +1873,18 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
+### Sprint 2.38 — `cortex-usage` artifact-usage telemetry (S effort) — ✅ SHIPPED 2026-05-28
+
+**Why**: The institutional-wisdom library grows every week (standards, prompts, agents, skills) and the operator stated the real pain directly — *"začínám přestávat mít přehled kompletně"* (losing the overview). The fix for comprehension is NOT more content or more tests (both make it worse); it is knowing which ~20% is actually load-bearing so only that has to be held in your head. The raw signal already existed — `shared/hooks/post-tool-use.cjs` logs every `Read` (with file path) to `{root}/journal/YYYY-MM-DD-<slug>.jsonl` — but nothing rolled it up. This sprint turns that stream into an answer: hot (earns its context cost) vs cold (prune candidate).
+
+**What shipped**: `bin/cortex-usage.cjs` — read-only, zero-dep, fail-open rollup CLI (mirrors `cortex-gap-report.cjs` shape). Scans journal dirs at both the repo and `$CORTEX_DATA_HOME` (the hook's resolver writes to the repo root; the convention uses data-home — the CLI reads both and dedupes). Classifies `Read` events into root-independent artifact keys (`standards/x.md`, `prompts/x.md`, `agents/x.md`, `skills/<name>`) so a read of the repo copy and the installed `~/.claude/shared` copy fold into one count. Cross-references the on-disk universe to surface **cold** artifacts (exist but 0 reads in window = prune candidates feeding the 2026-07-17 usage-driven audit). Flags: `--since`, `--kind`, `--cold`, `--json`. 16 unit tests incl. a regression test for the `used + cold === universe` invariant (orphan reads must not inflate `used`). Wired into install.{sh,ps1} delegate shims + `cortex-help` menu + `bin/README.md` roster.
+
+**Out of scope (deferred follow-up — Sprint 2.38.1)**: a Steward action that *acts* on cold artifacts (auto-prune). Auto-deleting wisdom is irreversible and high-blast-radius — it must stay behind a human gate. Measure first (this sprint); the surfacing/recommendation layer (session-start nudge, prune-candidate report in the audit) and any automated pruning are separate, gated work. Also deferred: citation-level signal (which artifact the model actually *cited*, not just opened) — `Read` is the cheap high-value proxy for v0.
+
+**Sources**: internal codebase archaeology only (no external/current-state claims → no R1 web research triggered). Memory: `standards/context-engineering.md` (smart-zone / load-bearing-fraction rationale).
+
+---
+
 ### Sprint 2.36 — Opus 4.8 routing bump (XS effort) — ✅ SHIPPED 2026-05-28
 
 **Why**: Opus 4.8 launched 2026-05-28. 4-agent web research confirmed: OpenRouter slug `anthropic/claude-opus-4.8` live, same $5/$25 rate card as 4.6/4.7, and — critically — the ~35% 4.7 tokenizer inflation that kept routing pinned to 4.6 is **neutralized at default "high" effort** (4.8-high ≈ 4.7-default token spend, better output). Plus ~4× fewer unremarked self-authored code flaws (honesty), which directly serves Steward's verifier gate.
