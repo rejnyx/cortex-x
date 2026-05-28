@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-28T08:16:03.498Z",
+  "generated_at": "2026-05-28T17:26:32.668Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -137,6 +137,15 @@
       "effort": "medium",
       "blast_radius": "minimal",
       "cost_envelope": "free"
+    },
+    {
+      "name": "tdd_red_green",
+      "description": "Test-first implementation loop: name the target tests, write a failing test, confirm red, implement until green. Executor MUST inject targeted test context (which tests to check), never generic \"do TDD\" prose (TDAD: generic instructions regress harder than no intervention). Registry-only in Sprint 2.34; executor + dete",
+      "requires_llm": true,
+      "shipped_in": null,
+      "effort": "high",
+      "blast_radius": "medium",
+      "cost_envelope": "normal"
     },
     {
       "name": "tech_debt_audit",
@@ -577,6 +586,12 @@
       "path": "standards/coding-behavior-examples.md",
       "title": "Coding Behavior — Concrete Examples",
       "description": "**Task:** \"Add user export.\""
+    },
+    {
+      "name": "context-engineering",
+      "path": "standards/context-engineering.md",
+      "title": "Context engineering",
+      "description": "The working context is a budget, not a backpack. Past a point, every token you add makes the model reason *worse* — not because the window is full, but because attention dilutes. Manage the budget deliberately."
     },
     {
       "name": "correctness",
@@ -1194,15 +1209,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2684,
+      "unit": 2686,
       "contract": 106,
       "integration": 174,
       "smoke": 0
     },
-    "total": 2964
+    "total": 2966
   },
   "code_volume": {
-    "steward_runtime_loc": 32345,
-    "test_code_loc": 39950
+    "steward_runtime_loc": 32414,
+    "test_code_loc": 39972
   }
 }

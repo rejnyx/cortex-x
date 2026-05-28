@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-28T08:16:03.498Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-28T17:26:32.668Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -8,21 +8,21 @@
 
 | Category | Count |
 |---|---|
-| Steward action_kinds | 20 |
+| Steward action_kinds | 21 |
 | Steward primitives (`bin/steward/_lib/`) | 51 |
 | Universal hooks (`shared/hooks/`) | 7 |
-| Standards (rule tiers 0-3) | 31 |
+| Standards (rule tiers 0-3) | 32 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 2964 (unit 2684 · contract 106 · integration 174 · smoke 0) |
-| Runtime LoC (`bin/`) | 32,345 |
-| Test LoC (`tests/`) | 39,950 |
+| Tests total | 2966 (unit 2686 · contract 106 · integration 174 · smoke 0) |
+| Runtime LoC (`bin/`) | 32,414 |
+| Test LoC (`tests/`) | 39,972 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
-## 1. Steward action_kinds (20)
+## 1. Steward action_kinds (21)
 
 What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manual, or recommendation harvester.
 
@@ -43,6 +43,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `release_notes_drafter` | After merge to main, read merged PRs since last release tag, draft release notes. Future capability for v1.0+ release-management automation. |
 | `secret_history_sweep` | TruffleHog full-history scan with --only-verified. On verified hit: opens gh issue with severity LABEL. NO auto-PR. Read-only against working tree; only writes are journal entries + gh issue create. Fail-open if trufflehog binary missing. |
 | `senior_tester_review` | 2-stage hybrid test-quality auditor: deterministic detector (~16 smells with regex; tsDetect 21 + Sandoval ESE 2025 13 + cortex-original 5 in registry) + optional LLM judge for strategic synthesis. Writes journal entry + opens ONE gh issue per run. Never edits source/test files … |
+| `tdd_red_green` | Test-first implementation loop: name the target tests, write a failing test, confirm red, implement until green. Executor MUST inject targeted test context (which tests to check), never generic "do TDD" prose (TDAD: generic instructions regress harder than no intervention). Regi… |
 | `tech_debt_audit` | Run qlty metrics + qlty smells + knip; snapshot to cortex/debt-snapshot.json; compute drift vs prior snapshot. v1: snapshot-only (no PR opening). Deterministic — no LLM call. |
 | `test_coverage_gap` | Cross-reference coverage report (statements < threshold) + recently-edited files, file gh issue per gap. v1: deterministic detection only — LLM-driven test generation parked v0.9+. Capability #6. |
 | `todo_triage` | Scan TODO/FIXME/XXX/HACK markers older than N days, dedupe vs open issues, file gh issues with git-blame context. Deterministic — no LLM call. |
@@ -121,7 +122,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (31)
+## 4. Standards (32)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -135,6 +136,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`auto-orchestration`](../standards/auto-orchestration.md) | Standard — Auto-Orchestration (3-fronta rule) | \| Front \| Parallelize? \| Default count \| Evidence \| |
 | [`coding-behavior`](../standards/coding-behavior.md) | Coding Behavior — Meta-Rules for LLM Code Generation | 2026-04-17 retrospective: the cortex-x scaffold work itself committed two behavioral anti-patterns caught only after the 5-agent review pipeline ran. Mass find-replace of a maintainer's name (drive-by refactor) and over-engineered 200-line |
 | [`coding-behavior-examples`](../standards/coding-behavior-examples.md) | Coding Behavior — Concrete Examples | **Task:** "Add user export." |
+| [`context-engineering`](../standards/context-engineering.md) | Context engineering | The working context is a budget, not a backpack. Past a point, every token you add makes the model reason *worse* — not because the window is full, but because attention dilutes. Manage the budget deliberately. |
 | [`correctness`](../standards/correctness.md) | Correctness — Verification Beyond Structure | **Rule 2 (Critical)** — alongside Security, Testing, Observability. Must-have for any project moving beyond prototype. Review-pipeline flag = blocker. |
 | [`documentation`](../standards/documentation.md) | Documentation — Knowledge That Outlives Your Memory | **Document decisions, not code.** Code explains itself (with good naming). Comments explain why. |
 | [`error-handling`](../standards/error-handling.md) | Error Handling — Fail Gracefully, Recover Automatically | 1. **Fail fast at boundaries, fail gracefully inside.** Validate at API entry, crash early. Within the app, catch and recover. |
