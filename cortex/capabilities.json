@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-28T17:26:32.668Z",
+  "generated_at": "2026-05-28T18:50:31.657Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -516,6 +516,11 @@
       "name": "post-tool-use",
       "path": "shared/hooks/post-tool-use.cjs",
       "description": "---- Silent error log (observability for catch-swallowed failures) ----"
+    },
+    {
+      "name": "pre-commit-review-gate",
+      "path": "shared/hooks/pre-commit-review-gate.cjs",
+      "description": "cortex-x PreToolUse hook — commit-time review gate."
     },
     {
       "name": "pre-compact",
@@ -1209,15 +1214,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2686,
+      "unit": 2731,
       "contract": 106,
       "integration": 174,
       "smoke": 0
     },
-    "total": 2966
+    "total": 3011
   },
   "code_volume": {
-    "steward_runtime_loc": 32414,
-    "test_code_loc": 39972
+    "steward_runtime_loc": 32773,
+    "test_code_loc": 40508
   }
 }

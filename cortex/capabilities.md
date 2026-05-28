@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-28T17:26:32.668Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-28T18:50:31.657Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -10,15 +10,15 @@
 |---|---|
 | Steward action_kinds | 21 |
 | Steward primitives (`bin/steward/_lib/`) | 51 |
-| Universal hooks (`shared/hooks/`) | 7 |
+| Universal hooks (`shared/hooks/`) | 8 |
 | Standards (rule tiers 0-3) | 32 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 2966 (unit 2686 · contract 106 · integration 174 · smoke 0) |
-| Runtime LoC (`bin/`) | 32,414 |
-| Test LoC (`tests/`) | 39,972 |
+| Tests total | 3011 (unit 2731 · contract 106 · integration 174 · smoke 0) |
+| Runtime LoC (`bin/`) | 32,773 |
+| Test LoC (`tests/`) | 40,508 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -108,7 +108,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`workflow-hardener-action`](../bin/steward/_lib/workflow-hardener-action.cjs) | Sprint 2.5b | Sprint 2.5b advisory analyzer |
 | [`worktree-guard`](../bin/steward/_lib/worktree-guard.cjs) | Sprint 2.30 | Sprint 2.30 — refuse to run Steward in a non-primary |
 
-## 3. Universal hooks (7)
+## 3. Universal hooks (8)
 
 Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Apply to every project.
 
@@ -117,6 +117,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`auto-orchestrate`](../shared/hooks/auto-orchestrate.cjs) | cortex-x UserPromptSubmit hook — auto-orchestration soft-gate. |
 | [`block-destructive`](../shared/hooks/block-destructive.cjs) | // Filesystem destruction |
 | [`post-tool-use`](../shared/hooks/post-tool-use.cjs) | ---- Silent error log (observability for catch-swallowed failures) ---- |
+| [`pre-commit-review-gate`](../shared/hooks/pre-commit-review-gate.cjs) | cortex-x PreToolUse hook — commit-time review gate. |
 | [`pre-compact`](../shared/hooks/pre-compact.cjs) | Build recovery file |
 | [`pre-tool-use`](../shared/hooks/pre-tool-use.cjs) | ---- Silent error log (mirrors post-tool-use.cjs, shares redact lib) ---- |
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
