@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-05-28T18:50:31.657Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T10:32:45.655Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -11,7 +11,7 @@
 | Steward action_kinds | 21 |
 | Steward primitives (`bin/steward/_lib/`) | 51 |
 | Universal hooks (`shared/hooks/`) | 8 |
-| Standards (rule tiers 0-3) | 32 |
+| Standards (rule tiers 0-3) | 33 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
@@ -123,7 +123,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (32)
+## 4. Standards (33)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -159,6 +159,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`test-types-catalog`](../standards/test-types-catalog.md) | Test Types — Exhaustive 2026 Catalog (SSOT) | **For the audit (Phase 5 selection oracle):** |
 | [`testing`](../standards/testing.md) | Testing — Confidence Through Layered Coverage | Without tests: |
 | [`verification-loop`](../standards/verification-loop.md) | Verification loop | Every implementation step must be paired with a verification step. Building proves the code compiles; verification proves the code does what was asked. |
+| [`visual-taste`](../standards/visual-taste.md) | Visual Taste | Use this standard whenever a task lands frontend code or visuals — directly |
 | [`voice`](../standards/voice.md) | Voice — cortex-x identity & tone charter | The framework is invisible by default. **Claude is the actor, cortex is the environment.** This document is what cortex sounds like across all skills, so the operator hears one coherent agent — not eleven different bots wearing the cortex h |
 | [`web-research`](../standards/web-research.md) | Web Research — Rule 3 standard | cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple |
 

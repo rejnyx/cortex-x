@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-28T18:50:31.657Z",
+  "generated_at": "2026-06-01T10:32:45.655Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -723,6 +723,12 @@
       "path": "standards/verification-loop.md",
       "title": "Verification loop",
       "description": "Every implementation step must be paired with a verification step. Building proves the code compiles; verification proves the code does what was asked."
+    },
+    {
+      "name": "visual-taste",
+      "path": "standards/visual-taste.md",
+      "title": "Visual Taste",
+      "description": "Use this standard whenever a task lands frontend code or visuals — directly"
     },
     {
       "name": "voice",
