@@ -115,7 +115,12 @@ jobs:
 
       - name: 'Run Stryker incremental (R2 HIGH-3 — no-install)'
         if: steps.mode.outputs.mode == 'incremental'
-        run: npx --no-install stryker run --since=HEAD~1
+        # Stryker 9.x uses `--incremental` boolean + the incremental.json cache
+        # to detect changes. `--since=<rev>` was never a real CLI flag — it
+        # was an unverified assumption in the original Sprint 2.3 wiring and
+        # only surfaced on 2026-06-01 when the lockfile fix let the run get
+        # past the npm-ci gate for the first time.
+        run: npx --no-install stryker run --incremental
         env:
           CORTEX_BUDGET_DISABLED: '1'
 
