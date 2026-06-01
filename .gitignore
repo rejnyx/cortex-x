@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
-# cortex-x intentionally does NOT commit a lockfile (single dev dep `c8`,
-# no runtime deps). `npm install` regenerates it locally. Surfaced by the
-# Sprint 1.6.11 dogfood: untracked package-lock.json was tripping Hermes
-# pre-flight DIRTY_TREE check on a fresh clone + npm install.
-package-lock.json
+# Sprint 2.40 (2026-06-01): `package-lock.json` IS now committed. The Sprint
+# 1.6.11 reasoning ("untracked lockfile tripped Hermes DIRTY_TREE on fresh
+# clone + npm install") predates execute.cjs `dep_update_patch` (Sprint 1.8.4)
+# which does `npm install --save` and EXPECTS the lockfile to mutate — that
+# flow is cleaner with a tracked lockfile (real diff vs. mysterious untracked
+# file). Committed lockfile is also a hard prerequisite for stryker.yml
+# (R2 HIGH-3 supply-chain integrity) and steward nightly's `npm ci`. Both
+# scheduled workflows were failing on the missing lockfile until this fix.
 yarn.lock
 pnpm-lock.yaml
 
