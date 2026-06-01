@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T10:51:42.769Z",
+  "generated_at": "2026-06-01T11:03:49.359Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -1201,7 +1201,6 @@
       "name": "stryker-mutation",
       "path": ".github/workflows/stryker.yml",
       "triggers": [
-        "cron(0 3 * * 0)",
         "manual"
       ],
       "description": "Mutation-testing workflow — Sprint 2.3 v0 measure-only posture."
