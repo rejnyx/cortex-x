@@ -27,14 +27,17 @@ name: stryker-mutation
 #   - Standard: standards/mutation-testing.md
 
 on:
-  push:
-    branches: [main, 'sprint-*', 'feature/*']
-    paths:
-      - 'bin/steward/_lib/**.cjs'
-      - 'tests/unit/steward/**.cjs'
-      - 'stryker.conf.json'
-      - '.github/workflows/stryker.yml'
-      - 'tools/summarize-mutation.cjs'
+  # Sprint 2.40 (2026-06-01): push trigger removed. The workflow assumes a
+  # committed `package-lock.json` (R2 HIGH-3 supply-chain integrity guard at
+  # line 76 + `actions/setup-node` cache: 'npm') but `.gitignore:7` excludes
+  # the lockfile per Sprint 1.6.11 ("untracked package-lock.json was tripping
+  # Hermes"). Two sprints landed contradictory assumptions; the workflow was
+  # broken-by-design but only fired when a push's diff matched its path
+  # filter — Sprint 2.40's test-fix commit was the first to land such a path
+  # and surfaced the rot. Until the lockfile-posture decision is revisited
+  # (commit lockfile vs. drop the npm-ci requirement), stryker runs only
+  # on the weekly cron + manual dispatch — measure-only baseline is
+  # preserved; per-commit incremental signal is paused, not the work.
   schedule:
     - cron: '0 3 * * 0'    # 03:00 UTC Sunday weekly
   workflow_dispatch:
