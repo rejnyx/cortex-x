@@ -1,0 +1,842 @@
+# cortex-x — Capability Tree (operator-facing, 2026-06-01)
+
+> **Co všechno cortex umí, do detailu, s vysvětlivkou u každé položky.**
+>
+> Tenhle dokument je orientovaný na **uživatele** (operátora), ne na inženýra.
+> Co můžu reálně udělat? Jak to spustím? K čemu mi to je? Žádné LOC ani seamy.
+>
+> Pro **inženýrský** pohled (LOC, coverage, seam map, complexity) viz
+> [`atlas-2026-06-01.md`](./atlas-2026-06-01.md).
+>
+> Snapshot: HEAD `fadbe94`, Sprint 2.40 shipped.
+
+---
+
+## Jak číst tenhle dokument
+
+Každá kapacita má **3 informace**:
+
+```
+- název          ← jak se tomu říká
+  → jak spustit  ← co konkrétně napíšu / kde to kliknu / kdy se to spustí samo
+  Co to dělá    ← jednovětá vysvětlivka v lidské řeči
+```
+
+**Symboly:**
+
+| Symbol | Znamená |
+|---|---|
+| `/slash` | Slash command v Claude Code (napíšeš v chatu) |
+| `$ cli` | CLI příkaz v terminálu |
+| `auto` | Spustí se samo (hook, cron, hot reload) |
+| `cron` | GitHub Actions na rozvrhu |
+| `file` | Stačí napsat / smazat soubor — žádný příkaz |
+| 🟢 | Funguje, dogfood |
+| 🟡 | Funguje s občasným šumem |
+| 🔴 | Aktuálně rozbité / parkováno |
+| 📋 | Reserved / shipped registry-only, executor čeká |
+
+---
+
+## 0. Quick start — co reálně dělám 90 % času
+
+Toto je **denní chleba**, ne celý strom:
+
+```
+KAŽDÝ DEN
+  └─ Kódím v Claude Code → R2 reviewy se spouští samy na netriviálních diffech
+  └─ Před každým commitem → pre-commit-review-gate kontroluje že R2 proběhlo
+  └─ V noci → Steward (1× denně) zpracuje 1 položku z recommendations.md
+
+OBČAS
+  └─ /cortex-doctor          když si nejsem jistý jestli je všechno OK
+  └─ $ cortex-update         když chci posunout cortex na latest
+  └─ /audit                  když přijde nový projekt a chci ho zorientovat
+  └─ /cortex-init            když začínám zcela nový projekt
+  └─ /designer               když dělám UI/visual a chci taste-discipline
+  └─ /cortex-goal "..."     když chci nechat něco běžet přes noc autonomně
+
+ZŘÍDKA
+  └─ /cortex-reflect         retrospektiva nad projektem
+  └─ /cortex-dream           konsolidace pamětí (4-op nad MEMORY.md)
+  └─ $ cortex-usage --since … sledování co se reálně používá (telemetrie)
+```
+
+Vše ostatní v tomto dokumentu je: (a) podpora těchto akcí, (b) bezpečnostní vrstva, (c) hluboké funkce na zvláštní příležitosti.
+
+---
+
+# Strom kompletních kapacit
+
+```
+1.  BOOTSTRAP & ONBOARDING        — první kontakt s cortexem
+2.  SLASH COMMANDS                 — každodenní práce v chatu
+3.  CLI NÁSTROJE                   — to samé z terminálu
+4.  STEWARD                        — autonomní noční agent
+5.  HOOKS                          — 8 bezpečnostních + kontextových callbacků
+6.  AGENTS                         — 10 review/orchestrace agentů
+7.  STANDARDS                      — 30 pravidel + 5 tierů priority
+8.  WORKFLOWS                      — 23 GitHub Actions (CI + cron)
+9.  PROFILES & DETECTORS           — auto-rozpoznání typu projektu
+10. PROMPTS                        — 20 reusable orchestrací
+11. SPEC-VERIFIER                  — 6 druhů acceptance kritérií
+12. PAMĚŤ                          — MEMORY.md + lessons + insights
+13. OBSERVABILITY                  — co se kde děje, kolik to stálo
+14. INSPIRACE & EXTENSIONS         — vendor candidates, future tier
+```
+
+---
+
+## 1. BOOTSTRAP & ONBOARDING
+
+**Když:** "Právě jsem nainstaloval cortex" / "Začínám nový projekt" / "Chci ověřit že je vše OK."
+
+### 1.1 Instalace a údržba
+
+- **cortex-bootstrap** — `$ cortex-bootstrap`
+  První instalace cortex-x do `~/.claude/shared/`. Spouští se ručně z čerstvého clone.
+
+- **cortex-update** — `$ cortex-update --check` · `$ cortex-update --reinstall`
+  Self-update z GitHub. `--check` jen zjistí jestli je novější verze, `--reinstall` ji stáhne a re-installne. Dělej 1× za měsíc.
+
+- **cortex-uninstall** — `$ cortex-uninstall`
+  Bezpečné odinstalování. Defaultně zachovává `$CORTEX_DATA_HOME` (paměti, journal, lessons). Flag `--purge` smaže i ta data — **vyžaduje potvrzení**.
+
+- **cortex-doctor** — `$ cortex-doctor` · `/cortex-doctor`
+  Healthcheck. Zkontroluje 30+ podmínek: jsou hooky zaregistrované? Je augment block v ~/.claude/CLAUDE.md aktuální? Je OPENROUTER_API_KEY nastaven? Mají settings.json správný schema? Per-finding navrhne fix.
+
+### 1.2 Registrace (opt-in mutátory globálního `~/.claude/`)
+
+Tyhle 3 příkazy upravují **globální** Claude Code config. Spouští se 1× po instalaci.
+
+- **cortex-hooks-register** — `$ cortex-hooks-register`
+  Zaregistruje 8 cortex hooks do `~/.claude/settings.json`. Tohle dělá hooky **fail-open by default** — když cortex zmizí, Claude Code funguje dál. Skip env: `CORTEX_REGISTER_HOOKS=0`.
+
+- **cortex-claude-md-augment** — `$ cortex-claude-md-augment --apply` · `--remove`
+  Vloží "cortex discipline" blok (R1/R2/voice charter/surgical changes/verification loop) do `~/.claude/CLAUDE.md`. Auto-loaduje se v každé Claude Code session, v každém projektu. Verze v5 (Sprint 2.34). Skip env: `CORTEX_AUGMENT_CLAUDE_MD=0`.
+
+- **cortex-permissions-register** — `$ cortex-permissions-register`
+  Sprint 2.28 — bezpečnostní podlaha. Vloží explicit `permissions.deny` pro nejnebezpečnější Bash patterns (rm -rf, git push --force, DROP TABLE, …) do globálního settings.json. Belt-and-suspenders nad block-destructive hookem.
+
+### 1.3 První projekt
+
+- **/cortex-init** *(skill)* — napíšeš `začni` · `nastav cortex` · `set up cortex` · `I installed cortex`
+  Interaktivní picker: **Nový projekt** / **Existující projekt** / **Pouze framework**. Podle volby chainuje na `/start` (scaffold od nuly) nebo `/audit` (orientace v existujícím).
+
+- **/start** *(skill)* — napíšeš `začni nový projekt` · `scaffold this` · `naskafolduj mi projekt`
+  Bootstrap nového projektu od nuly. 5 fází: Discover → Research → Architect → Scaffold → Adapt. Vyrobí kompletní CLAUDE.md + PROGRESS.md + MEMORY.md + settings.json + první SKILL.md. Pro **AI-agentic** projekty automaticky přidává safe-tool wrapper + 3-layer memory scaffold + `/api/chat` route.
+
+- **/audit** *(skill)* — napíšeš `audituj projekt` · `audit my project` · `what does this codebase do`
+  Skenuje existující repo. 6 fází (P0–P5 + P6 ADR backfill): detekce profilu → repo-map → 4 paralelní review agenti → human gate → research → synthesizer s 3-hop citation traceability. Výstup: `cortex/recommendations.md` + `## Stack reality check` apended do CLAUDE.md.
+
+---
+
+## 2. SLASH COMMANDS (denní práce v chatu)
+
+**Když:** Sedíš v Claude Code, něco potřebuješ. Tohle jsou všechny příkazy které **Claude pozná z přirozeného jazyka** (díky SKILL.md frontmatter triggerům).
+
+### 2.1 Core (vstupní brány)
+
+| Skill | Triggery (CZ + EN) | Co dělá |
+|---|---|---|
+| **`/cortex-help`** | `co umíš?` · `what can cortex do?` | One-screen menu všech skillů + CLIs + počet kapacit. **Tohle je tvoje rozcestník.** |
+| **`/cortex-init`** | `začni` · `nastav cortex` · `set up cortex` | Picker: Nový / Existující / Framework-only (viz 1.3) |
+| **`/cortex-doctor`** | `cortex není v pořádku` · `is cortex healthy` | Health-check + per-finding interaktivní fix |
+| **`/cortex-update`** | `aktualizuj cortex` · `update cortex` | Fast-forward source + re-install |
+| **`/cortex-uninstall`** | `smaž cortex` · `uninstall cortex` | Safe removal, preserves data |
+
+### 2.2 Práce s projektem
+
+| Skill | Triggery | Co dělá |
+|---|---|---|
+| **`/audit`** | `audituj projekt` · `audit my project` · `what does this codebase do` | 6-fázový audit existujícího repa (viz 1.3) |
+| **`/start`** | `začni nový projekt` · `naskafolduj mi projekt` | Bootstrap od nuly (viz 1.3) |
+| **`/designer`** | `navrhni mi web` · `redesign this` · `make it look premium` | 5-fázový design flow: DS bootstrap → intake → plan → worktree-parallel iterace → live → Stitch handoff. Sprint 2.40: konzumuje `standards/visual-taste.md` (VARIANCE/MOTION/DENSITY dials, em-dash ban, GSAP skeletons). Opt-in `--award` pro Awwwards-tier ambice. |
+| **`/test-audit`** | `ohodnoť testy` · `test strategy review` | QA-retrofit lens. ISO 25010:2023 + OWASP ASVS 5.0 + Bach HTSM grounded. AI-augmented-tester, ne replacement. |
+| **`/improve-codebase-architecture`** | `prohlub moduly` · `make this codebase agent-friendly` | Read-only audit: deep vs shallow modules, zero-test modules. Needitujee — jen reporting. |
+
+### 2.3 Autonomní práce přes noc
+
+| Skill | Triggery | Co dělá |
+|---|---|---|
+| **`/cortex-goal "..."`** | `vyřeš to autonomně` · `overnight` · `use my unused tokens` · `běhej v noci` | Plan-first wrapper nad nativní `/goal`. Sepíše plán s R1+R2 jako DoD, spec-verifier kritéria, pak nechá Claude's native /goal (Haiku verifier loop) běžet 14h–5d. **Neimplementuje Haiku loop sám — wrap nad nativním.** |
+| **`/ralph-loop`** | `loop until done` · `fix all X until tests pass` · `spusť ralph` | Ralph Wiggum autonomous loop. PRD.md + fix_plan.md + per-iterace fresh context. Riziková akce — má lethal trifecta surface, pouští se v `isolation: worktree`. |
+
+### 2.4 Specializace
+
+| Skill | Triggery | Co dělá |
+|---|---|---|
+| **`/ux-copywriter`** | `napiš mi text` · `potřebuju copy` · `lokalizuj UI do CZ` | Bilingual CZ+EN UX copy. Voice intake → framework pick → length budgets → AI-slop blocklist → CZ lint. |
+| **`/cortex-skill-validate`** | `zkontroluj skill` · `validate skill` | 3-tier validator nad SKILL.md: spec compliance + Claude Code rules + cortex opinions. Eval-driven description optimization. |
+| **`/cortex-dream`** | `konsoliduj paměti` · `dream` | 4-operation memory consolidator: merge duplikáty / odstraň zastaralé / relative→absolute dates / aggressive 200-line prune. Targetuje `MEMORY.md` + `~/.cortex/projects/<slug>.md`. |
+| **`/cortex-insights`** | `dej mi insights` · `cross-project insights` | Cross-project insights z journal + claude-projects. Read-only, žádné mutace. |
+| **`/cortex-reflect`** | `cortex-thinker` · `reflect` | Cortex-thinker agent — 1-2 grounded insights nad cortex-x stavem. Nehalucinuje patterns, vše s file-path citation. |
+| **`/external-adapter-hyperframes`** | `render the landing as a 30-second video` | HTML → video bridge (Sprint 3.4 v0 scaffold). Experimentální. |
+
+---
+
+## 3. CLI NÁSTROJE (terminál)
+
+**Když:** Chceš to samé co slash commands, ale z terminálu / scriptu / GHA / cron. Všechny CLIs jsou v `~/.claude/shared/bin/` po instalaci.
+
+### 3.1 Lifecycle
+
+| Command | Co dělá |
+|---|---|
+| `cortex-bootstrap` | První instalace |
+| `cortex-update` | Self-update z GitHub |
+| `cortex-uninstall` | Safe removal |
+| `cortex-doctor` | Healthcheck (`--json` pro CI) |
+
+### 3.2 Registrace (opt-in)
+
+| Command | Co dělá |
+|---|---|
+| `cortex-hooks-register` | Zaregistruje 8 hooků globálně |
+| `cortex-claude-md-augment` | Vloží/odebere cortex discipline block do CLAUDE.md |
+| `cortex-permissions-register` | Bezpečnostní podlaha v permissions.deny |
+
+### 3.3 Telemetrie & insight
+
+| Command | Co dělá |
+|---|---|
+| `cortex-usage --since 2026-04-01` | **Sprint 2.38** — který artifact (skill/agent/prompt/standard) byl reálně použitý × kolikrát × kde. Hot vs cold rozlišení. Klíčové pro **3-month audit naplánovaný na 2026-07-17** — usage-driven pruning. |
+| `cortex-insights` | Cross-project insights aggregator |
+| `cortex-gap-report` | Kde chybí coverage / paměť / lessons |
+| `cortex-dream` | 4-op memory consolidation |
+
+### 3.4 Capabilities (auto-vygenerovaný registr)
+
+| Command | Co dělá |
+|---|---|
+| `cortex-capabilities` | Regeneruje `cortex/capabilities.{md,json}` filesystem-scanem. Spouští se automaticky přes `capabilities-refresh` workflow. |
+| `cortex-skill-validate` | 3-tier validator pro SKILL.md |
+| `cortex-propose-skill` | Eval-driven návrh popisu pro nový skill (~20-query eval, 60/40 train/test, 3-run trigger scoring) |
+
+### 3.5 Steward (autonomní agent)
+
+`cortex-steward` je router. Volá se:
+
+| Command | Co dělá |
+|---|---|
+| `cortex-steward dry-run` | Plánuje akci. **No side effects.** Vypíše JSON plán. |
+| `cortex-steward execute` | Reálně vykoná plán. Atomic commit nebo rollback. |
+| `cortex-steward status` | Observability: halt + lock + journal rollup + cost forecast. Zero-config, nepotřebuje API key. |
+| `cortex-steward status --forecast` | + projekce nákladů pro daily/weekly/monthly caps |
+| `cortex-steward halt` | Vytvoří `STEWARD_HALT` sentinel — zastaví všechny noční runy. |
+
+### 3.6 Paměť
+
+| Command | Co dělá |
+|---|---|
+| `cortex-lessons-search "query"` | **FTS5** fulltextové vyhledávání v lessons.jsonl |
+| `cortex-export-lessons` | Export lekcí do Obsidian-friendly markdown |
+| `cortex-wiki-consolidate` | Phase A: emit Obsidian wiki articles z lessons.jsonl |
+
+### 3.7 Pokročilé / experimentální
+
+| Command | Co dělá |
+|---|---|
+| `cortex-evolve-ab` | A/B prompt evals — meří který prompt přináší lepší výsledky |
+| `cortex-doc-audit` | Agent-readability scorer — jak dobře Claude rozumí tvojí dokumentaci |
+
+---
+
+## 4. STEWARD (autonomní noční agent) 🤖
+
+**Když:** Spí se. Nebo CI Workflow disponuje. Steward dělá _žehlířskou údržbu_ projektu — drobné akce které by člověka unavovaly.
+
+### 4.1 Mentální model
+
+```
+EVERY NIGHT (04:00 UTC default)
+  ├─ Steward se probudí
+  ├─ Kontrola: STEWARD_HALT existuje? → END (do nothing)
+  ├─ Kontrola: daily cap překročený? → END
+  ├─ Přečte cortex/recommendations.md
+  ├─ Vybere první actionable položku (skip pokud už zpracováno)
+  ├─ Najde action_kind (jeden z 18)
+  ├─ DRY-RUN: vyrobí plán
+  ├─ EXECUTE: vykoná plán
+  │    ├─ Deterministic edit (např. dep_update_patch)
+  │    └─ NEBO LLM via OpenRouter (např. recommendation)
+  ├─ SPEC-VERIFIER: 6-kind acceptance criteria gate
+  ├─ npm test: green required
+  ├─ FAIL → atomic rollback (revert všeho)
+  ├─ PASS → commit + push + draft PR (Steward-* trailers)
+  └─ JOURNAL: zapíše cost, tokens, spec_failures
+```
+
+### 4.2 Bezpečnostní vrstvy (víc než si myslíš)
+
+| Vrstva | Co dělá | Konfig |
+|---|---|---|
+| **STEWARD_HALT file** | Existence souboru = nepustí se vůbec | `touch STEWARD_HALT` |
+| **Daily USD cap** | Halt nad denním limitem | `STEWARD_DAILY_USD_CAP=5` default |
+| **Weekly USD cap** | Halt nad týdenním | `STEWARD_WEEKLY_USD_CAP=25` |
+| **Monthly USD cap** | Halt nad měsíčním | `STEWARD_MONTHLY_USD_CAP=80` |
+| **Failure breaker** | N selhání po sobě = halt | `STEWARD_FAILURE_BREAKER=3` |
+| **Token velocity** | 50K tokens/5min throttle | `STEWARD_TOKEN_VELOCITY_CAP=50000` |
+| **Cross-session loop detector** | 5× stejný criterion id v 7 dnech = halt | autodetekce |
+| **Max tokens per call** | Truncate multi-file plány | `STEWARD_MAX_TOKENS=4096` |
+| **Atomic rollback** | Spec-verifier fail = revert all | vždy |
+| **Path safety** | NUL byte / flag-injection / realpath containment | vždy |
+| **Lock mutex** | Druhá instance se nepustí | vždy |
+| **Clean tree guard** | Refuse to run on dirty working copy | vždy |
+| **Worktree guard** | Refuse to run mimo primary worktree | vždy |
+
+### 4.3 18 action_kinds — co Steward umí dělat
+
+#### Shipped, deterministic (žádné LLM volání)
+
+| Kind | Triggered by | Co dělá | Cena |
+|---|---|---|---|
+| `dep_update_patch` | `cron`: `steward-dep-patch` (04:30 daily) | `npm outdated` → patch-only bumps → `npm test` gate. Lockfile-aware. | $0 |
+| `lint_fix_shipper` | `cron`: `steward-lint-fix` (04:15 daily) | `eslint --fix` + `tsc --noEmit`. Auto-fix style, non-fixable → gh issue. | $0 |
+| `flaky_test_repair` | `cron`: `steward-flaky-test-repair` (05:00 daily) | Scan `// HERMES-FLAKY:` markery, nahradí `.skip`, gh issue. | $0 |
+| `recommendation_harvest` | `cron`: `steward-harvest` (03:30 daily) | Scan closed PRs + CI failures + issues, append candidates do `recommendations.md`. | $0 |
+| `doc_drift` | `cron`: `steward-doc-drift` (03:00 Sat) | Scan exported symbols vs README/CLAUDE.md, file gh issue per gap. | $0 |
+| `todo_triage` | `cron`: `steward-todo-triage` (03:30 Wed) | TODO/FIXME aged > N days, dedupe vs issues, gh issues with blame. | $0 |
+| `test_coverage_gap` | `cron`: `steward-test-coverage-gap` (03:30 Fri) | Cross-ref coverage + recent edits, file gh issues for gaps. | $0 |
+| `pr_review_responder` | `cron`: every 6h | Poll Steward-PR comments, aggregate into summary issue. | $0 |
+| `evolve_daily` | `cron`: `steward-evolve-daily` (03:00 daily) | Phase A consolidation (validate journal, flag stale, per-day rollup). | $0 |
+| `tech_debt_audit` | `cron`: `steward-tech-debt-audit` (03:30 Mon) | `qlty metrics/smells + knip` → snapshot do `cortex/debt-snapshot.json`. | $0 |
+| `workflow_hardener` | `cron`: `steward-workflow-hardener` (03:00 Sun) | Scan `.github/workflows/*.yml` pro hardening gaps, propose patches (pin actions na SHA, atd.). | $0 |
+| `secret_history_sweep` | `cron`: `steward-secret-history-sweep` (02:00 Sun) | `trufflehog --only-verified` full history scan, gh issue per hit. | $0 |
+| `senior_tester_review` | `cron`: `steward-senior-tester-review` (04:00 1st of month) | 16-smell detector (tsDetect + Sandoval + cortex-native) + optional LLM judge. ⭐ DIFFERENTIATOR. | $0–2 |
+
+#### Shipped, LLM-required (OpenRouter spotřeba)
+
+| Kind | Triggered by | Co dělá | Cena |
+|---|---|---|---|
+| `recommendation` | `cron`: `steward.yml` (04:00 daily — **nightly main loop**) | Standard cortex/recommendations.md položka. LLM edits → spec → test → atomic commit. | ~$0.001–0.5 |
+| `pattern_transfer` | manual / on-demand | Read sibling-project lessons, distill cross-project patterns. Strict path safety. | ~$0.1 |
+| `evolve_weekly` | `cron`: `steward-evolve-weekly` (04:00 Sun) | Mine repeated-mistake candidates z journalu (min_events=3, span=7d), LLM-validate top-3. | ~$0.05 |
+| `wiki_consolidate` | `cron`: `steward-wiki-consolidate` | Phase A: emit Obsidian wiki articles z `lessons.jsonl`. | ~$0.02 |
+| `autoresearch` | `cron`: `steward-autoresearch` (02:00 Sun) | Sprint 2.1 — overnight 3-candidate research burst before implementing unfamiliar topic. | ~$0.022 |
+
+#### Reserved (registry-only, executor čeká) 📋
+
+| Kind | Sprint | Co bude dělat |
+|---|---|---|
+| `recommendation_harvest_parallel` | 2.2.1 | 2-worker fan-out variant of harvest. Jediný `topology_safe: parallel` kind v v0. Registry-only, spawner deferred. |
+| `tdd_red_green` | 2.34 | Test-first loop. Vyžaduje named `target_tests` (žádné generic TDD prose). Anti-reward-hack: no test-assertion deletion. |
+
+### 4.4 Engine seam — který LLM?
+
+Steward má **pluggable backend**:
+
+| Engine | Kdy se použije | Konfig |
+|---|---|---|
+| `mock` | Testy. Vrací env-driven payloady. | Implicitní v testech |
+| `openrouter` | **Default**. Real LLM přes OpenRouter (OpenAI-compat). Built-in `fetch()`, zero-dep. | `OPENROUTER_API_KEY=sk-or-...` |
+| `claude-sdk` | Stub. Vrací `EX_USAGE` (64). | `STEWARD_ENGINE=claude-sdk` |
+
+Routing table (`bin/steward/_lib/routing-table.cjs`) mapuje action_kind → model tier:
+
+- **Cheap** (DeepSeek v4-flash ~$0.0008/run) — pro lehké úkoly
+- **Balanced** (Claude Sonnet 4.6) — default
+- **Premium** (Claude Opus 4.8) — Sprint 2.36 bump pro kritické akce
+- **Ensemble** — multi-call konsensus pro nejvyšší stakes (Sprint 2.x backlog)
+
+### 4.5 Aktuální stav
+
+| Co | Stav |
+|---|---|
+| Steward.yml nightly main loop | 🟡 občas LLM-bad-edit (`str_replace anchor not found`) → exit 1 = "nothing to commit today." Verifier+rollback funguje, není to infra problém. |
+| 16 cron workflows | 🟢 15 zelených, 1 občas oranžový |
+| Real LLM calls | 🟢 validovány od Sprint 1.6.13 dogfood |
+| Cost gates | 🟢 testovány v boji (Sprint 1.9.1) |
+
+---
+
+## 5. HOOKS (8 lifecycle callbacků) 🪝
+
+**Když:** Kontextové automatizace na _lifecycle eventech_ Claude Code. Fire-and-forget, fail-open by contract.
+
+### 5.1 Roster
+
+| Hook | Event | Co dělá | Vynucování |
+|---|---|---|---|
+| **session-start** | SessionStart | Injektne kontext: sprint state, git context, profile detection, budget summary, recovery nudges | Log + nudge |
+| **pre-tool-use** | PreToolUse (any) | Push `{ts, tool}` do tmpdir LIFO stack pro duration correlation | Log |
+| **post-tool-use** | PostToolUse (any) | Append journal entry + record Agent/Task/WebSearch spend + zapíše review marker pokud review-agent firednul | Log + budget |
+| **pre-compact** | PreCompact | Uloží active sprint phase + story progress do `.claude/compact-state.md` | Nudge (recovery) |
+| **block-destructive** | PreToolUse (Bash) | **HARD DENY** regex-matched: `rm -rf` · `git push --force` · `reset --hard` · `clean -f` · `DROP TABLE` · `TRUNCATE` · `--no-verify` · `cortex-uninstall --purge` | HARD DENY |
+| **auto-orchestrate** | UserPromptSubmit | Injektne **3-fronta rule** (Research parallel → Implementation single-thread → Review parallel) + research-cache freshness + budget warning na "new-impl" prompt pattern | **NUDGE** (ne gate) |
+| **tirith-scan** | SessionStart | Run `tirith scan` na CLAUDE.md / .cursorrules / .mcp.json **PŘED** Claude jejich load (prompt-injection defense). Optional Rust binary. | Log |
+| **pre-commit-review-gate** | PreToolUse (Bash `git commit`) | **HARD DENY** commit ≥3 staged souborů když žádný review-agent nefirednul v session. Escape: `[skip-review]` v message NEBO `CORTEX_REVIEW_GATE=0`. **`deny` jde k AGENTU, ne k operátorovi.** | **HARD DENY (conditional)** |
+
+### 5.2 Lifecycle diagram
+
+```
+SessionStart
+├─ session-start.cjs  → injektuje context (sprint, git, budget, nudges)
+└─ tirith-scan.cjs    → skenuje CLAUDE.md pro injection PŘED load
+
+UserPromptSubmit
+└─ auto-orchestrate.cjs  → injektuje 3-fronta + budget na new-impl trigger
+
+(jakékoli tool call)
+├─ PreToolUse  ── Bash ─→  block-destructive    → DENY na destruktivní regex
+│                          pre-commit-review-gate → DENY na unreviewed ≥3-file commit
+│              ─ all ──→  pre-tool-use          → push na pending stack
+│
+└─ PostToolUse  ── * ──→  post-tool-use         → journal + budget + review-marker
+
+PreCompact
+└─ pre-compact.cjs   → uloží state do .claude/compact-state.md
+```
+
+### 5.3 Co hooks zapisují
+
+| Cesta | Kdo zapisuje | K čemu to slouží |
+|---|---|---|
+| `$CORTEX_DATA_HOME/journal/YYYY-MM-DD-<slug>.jsonl` | post-tool-use | Každý tool call (privacy-safe metadata) |
+| `$CORTEX_DATA_HOME/journal/.budget.jsonl` | post-tool-use | Agent/Task/WebSearch token + cost |
+| `$CORTEX_DATA_HOME/.hook-errors.log` | any hook | Redacted error log, rotuje na 16KB |
+| `$OS_TMP/cortex-pending-<sessionHash>.jsonl` | pre/post-tool-use | LIFO stack pro duration correlation |
+| `$OS_TMP/cortex-review-<sessionHash>.flag` | post-tool-use | Session-scoped "review ran" marker — konzumováno pre-commit-review-gate |
+| `.claude/compact-state.md` | pre-compact | Recovery state napříč compaction |
+
+### 5.4 Skip env (escape hatches)
+
+Když potřebuješ něco rychle bez hooku:
+
+- `CORTEX_REGISTER_HOOKS=0` — preinstall, neregistrovat
+- `CORTEX_REVIEW_GATE=0` — preempt commit gate v dané session
+- `CORTEX_BUDGET_DISABLED=1` — Dave's default (Max x20 flat sub)
+- `[skip-review]` v commit message — message-level escape
+- `STEWARD_HALT` file — Steward run-time halt
+
+---
+
+## 6. AGENTS (10 reviewerů + orchestrátorů) 🕵️
+
+**Když:** Větší změna (≥3 souborů / public API / security-adjacent / agentic kód). R2 pipeline se spustí automaticky díky `pre-commit-review-gate`.
+
+### 6.1 R2 review pipeline (6 paralelně)
+
+Tihle se pouští **současně** v jednom message — minimální latence, maximální diverzita perspektiv.
+
+| Agent | Specializace | Tools |
+|---|---|---|
+| **blind-hunter** | Diff only, **NO project context**. Chytá bugy které kontextoví reviewers racionalizují. Vstup: pouze git diff. | Read, Grep |
+| **edge-case-hunter** | Walks every branch + boundary methodicky. Reportuje **jen unhandled cases**. Method-driven, ne attitude-driven. | Read, Grep, Glob |
+| **acceptance-auditor** | Spec vs reality. Udělal diff EXAKTNĚ to co bylo zadáno? Žádný scope creep, žádné chybějící AC. | Read, Grep |
+| **security-auditor** | OWASP 8-layer + Layer 9 **agentic** (lethal trifecta, 7 MUST patterns). CWE refs. | Read, Grep |
+| **correctness-auditor** | 5 practices: trust-boundary validation · property tests · evals · mutation · stateful simulation. Mezi "compiles" a "actually correct under adversarial inputs". | Read, Grep |
+| **ssot-enforcer** | Duplication detective. Konstanty, hardcoded labels, copy-paste, multiple-truth. **Rule 1 violation = PR block.** | Read, Grep, Glob |
+
+**Sprint 1 hardening:** Pass-2 confidence-validation re-derivuje každý finding a filtruje < 75 confidence — eliminuje falešně pozitivní R2 reporty.
+
+### 6.2 Orchestration agents (4)
+
+| Agent | Co dělá |
+|---|---|
+| **planner** | Vybere 3–5 research topiců z matice `{profile} × {concern}` pro parallel dispatch. Vstup detected stack. Output prioritizovaný JSON list. |
+| **synthesizer** | Sloučí parallel research outputs → `cortex/recommendations.md` + apenduje `## Stack reality check` do CLAUDE.md. **Vynucuje 3-hop citation traceability** (claim → finding ID → source URL). |
+| **cortex-thinker** | Meta-reflexní agent. Spouští se na SessionStart / Stop / `/cortex-reflect`. 1-2 grounded insights, **nikdy nehalucinuje patterns**, vše s file-path citation. |
+| **claude-code-guide** | Autoritativní odpovědi na Claude Code otázky (hooks, MCP, settings, SDK). |
+
+### 6.3 Composition (jak agenti spolu fungují)
+
+```
+/audit projekt
+  → planner → 4 paralelní audit agenti → synthesizer → recommendations.md
+                                                     ↓
+                                          cortex-doctor (health verify)
+
+/cortex-goal "..."
+  → cortex-goal skill napíše plan.md
+  → native /goal spustí Haiku-verifier loop
+        ↓
+        Na non-trivial diff:
+        R2 pipeline (6 agentů paralelně)
+        + Pass-2 confidence-validation
+              ↓
+        pre-commit-review-gate povolí commit
+              ↓
+        Steward nightly picks up nové recommendations
+```
+
+---
+
+## 7. STANDARDS (30 + 2 ref + 1 meta = 34) 📚
+
+**Když:** Když chceš vědět "co je naše discipline pro X." Tiered priority — když budget kolize, vyšší rule vyhrává.
+
+### 7.1 Rule 0 — Distribution gate (1)
+
+| Standard | Co řeší |
+|---|---|
+| **ship-ready** | PII grep + license scan + stranger-reproducible install. **Předchází všemu ostatnímu** — pokud tohle není OK, distribuce se neuskuteční. |
+
+### 7.2 Rule 1 — Inviolable invariants (3 + 1 meta) — **PR block**
+
+| Standard | Co řeší |
+|---|---|
+| **RULE-1** | Meta — tier hierarchie a kdy která rule platí |
+| **ssot** | Single Source of Truth — jeden autoritativní zdroj per knowledge piece |
+| **modular** | Clean interfaces, swappable subsystems |
+| **scalable** | 10x-safe patterns od day 1 |
+
+`ssot-enforcer` + `blind-hunter` agenti to vynucují.
+
+### 7.3 Rule 1.5 — Behavioral contracts (4)
+
+| Standard | Co řeší |
+|---|---|
+| **coding-behavior** | Think-before-code, Simplicity First, Surgical Changes, Goal-Driven Execution |
+| **coding-behavior-examples** | Praktické examples k coding-behavior |
+| **auto-optimization** | Wizard philosophy — kdy upgradovat na lepší tooling |
+| **auto-orchestration** | 3-fronta rule — Research parallel / Implementation single / Review parallel |
+| **self-correction** | Když chytíš sám sebe v chybě, jak reagovat |
+
+### 7.4 Rule 2 — Critical / must-have (9) — **review pipeline blocker**
+
+| Standard | Co řeší |
+|---|---|
+| **security** | 8-layer defense + § Agentic Security 2026 (lethal trifecta, 7 MUST patterns pro LLM/agent) + § Browser Automation Security |
+| **testing** | Layered pyramid, 5 pillars per test, AI-specific tests |
+| **observability** | Logs/metrics/traces + Runtime SLOs (burn-rate) + circuit breakers + LLM obs stack |
+| **correctness** | Zod at boundaries, property tests, eval-driven dev, mutation testing, stateful simulation. + § Reward hacking |
+| **verification-loop** | Sprint 2.27 — Implementation todo + Verification todo na další řádce, vždy spárované |
+| **context-engineering** | Sprint 2.31 — smart-zone budget, kdy /clear |
+| **mutation-testing** | Stryker 9.6 measure-only baseline |
+| **multi-agent-supervisor** | 6 safety contracts pro multi-agent topology |
+| **steward-policy** | Denylist, cost caps, action_kind kontrakty |
+
+### 7.5 Rule 3 — Process / should-have (12) — **review warning**
+
+| Standard | Co řeší |
+|---|---|
+| **performance** | Bundle size, Core Web Vitals, perf budget |
+| **accessibility** | WCAG 2.2 AA, ARIA, keyboard nav |
+| **error-handling** | Validate at boundaries, throw early, log structured |
+| **git-workflow** | Conventional commits, branch naming, PR template |
+| **documentation** | CLAUDE.md / PROGRESS.md / MEMORY.md / README.md |
+| **ai-patterns** | 10 agentic patterns každý projekt respektuje |
+| **ai-sdks** | Vercel AI SDK vs Claude Agent SDK vs OpenAI Agents SDK — decision tree |
+| **web-research** | R1 — Research before Assert; cite URLs, cache do research/ |
+| **voice** | Cross-skill identity + citation discipline + 5 failure-mode templates |
+| **skills** | agentskills.io SKILL.md open spec |
+| **skill-validate** | 3-tier validator (spec / Claude Code / cortex opinion) |
+| **visual-taste** | **Sprint 2.40** — anti-slop frontend rules (VARIANCE/MOTION/DENSITY dials, em-dash ban, GSAP skeletons). MIT vendored z taste-skill. |
+
+### 7.6 Supporting reference (2)
+
+| Standard | Co řeší |
+|---|---|
+| **test-types-catalog** | Inventář typů testů (unit/contract/integration/E2E/property/mutation/eval/stateful) |
+| **story-sizing** | Jak velký by měl být story (S/M/L definice) |
+
+---
+
+## 8. WORKFLOWS (23 GitHub Actions) 📅
+
+### 8.1 CI gates (4) — always-on, push-triggered, **vše 🟢**
+
+| Workflow | Co dělá | Trvání |
+|---|---|---|
+| **test.yml** | Full `npm test` (~1m07s) | ~1 min |
+| **install-smoke.yml** | 5-lane matrix: ubuntu-bash, macos-bash, win-gitbash, win-pwsh7, win-ps51 | ~32-47s per lane |
+| **no-pii.yml** | PII scanner (PR-scope) | ~13s |
+| **capabilities-refresh.yml** | Regeneruje `cortex/capabilities.{md,json}` na relevant path changes | ~13s |
+
+### 8.2 Steward cron workflows (16) — autonomní noční údržba
+
+| Cron (UTC) | Workflow | Action kind |
+|---|---|---|
+| 02:00 Sun | steward-autoresearch | 3-candidate research burst ($0.022) |
+| 02:00 Sun | steward-secret-history-sweep | trufflehog full history |
+| 03:00 Sun | steward-workflow-hardener | `.github/workflows` linting |
+| 03:00 Daily | steward-evolve-daily | Phase A consolidation ($0) |
+| 03:00 Sat | steward-doc-drift | exports vs docs |
+| 03:30 Daily | steward-harvest | refill recommendations.md |
+| 03:30 Mon | steward-tech-debt-audit | qlty + knip probes |
+| 03:30 Wed | steward-todo-triage | TODO/FIXME → gh issues |
+| 03:30 Fri | steward-test-coverage-gap | coverage + recent edits |
+| **04:00 Daily** | **steward.yml (nightly main loop)** | recommendation (LLM, $5/d cap) |
+| 04:00 Sun | steward-evolve-weekly | mistake mining (LLM-validated) |
+| 04:00 1st-of-month | steward-senior-tester-review | deep QA audit |
+| 04:15 Daily | steward-lint-fix | `eslint --fix` + tsc |
+| 04:30 Daily | steward-dep-patch | patch-only npm bumps |
+| 05:00 Daily | steward-flaky-test-repair | `// FLAKY` → `.skip` + issues |
+| Every 6h | steward-pr-review-responder | poll Steward PR comments |
+
+### 8.3 Special / manual (3)
+
+| Workflow | Trigger | Health | Note |
+|---|---|---|---|
+| **stryker.yml** | workflow_dispatch ONLY | 🔴 parked | Sprint 2.41: sandbox `FIXTURE_SHA_DRIFT` debug |
+| **steward-key-probe.yml** | workflow_dispatch | 🟢 | Smoke-test OPENROUTER_API_KEY (~$0.0001) |
+| **steward-eval-baseline.yml** | workflow_dispatch | 🟢 | Manual eval runner |
+
+---
+
+## 9. PROFILES & DETECTORS (auto-rozpoznání projektu) 🔍
+
+**Když:** Spouští se transparentně při `/cortex-init` / `/audit`. Žádné LLM, <100ms, fail-open.
+
+### 9.1 Profiles (11 typů projektu)
+
+Profile říká: "jaký tech stack + jaké standardy + jaké MCP doporučit." YAML v `profiles/`.
+
+| Profile | Pro koho | AI-ready by default? |
+|---|---|---|
+| **nextjs-saas** | Next.js + Supabase produktové SaaS | ✅ Agentic-ready (safe-tool wrapper + 3-layer memory + /api/chat) |
+| **ai-agent** | Projekty kde AI JE produkt | ✅ Agentic-heavy (Vercel AI SDK v6 + lethal trifecta defense) |
+| **browser-agent** | AI + browser automation | ✅ Agentic-heavy + 3 browser MUSTs (Tirith scan, …) |
+| **chatbot-platform** | Multi-tenant chatbot platforma | ✅ Agentic-heavy |
+| **kiosek** | Samoobsluzný kiosek pro restaurace | ✅ Agentic-ready |
+| **portfolio** | Personal portfolio web | ❌ Opt-out, static only |
+| **astro-static** | Static blog / landing | ❌ Opt-out, žádné AI |
+| **minimal** | Generic fallback | ❌ Opt-out |
+| **qa-engineer** | QA retrofit lens | ✅ AI-augmented-tester positioning |
+| **monorepo-lerna** | Lerna monorepo | ✅ Conditional |
+| **monorepo-rush/nx/moon** | Ostatní monorepo tooling | ✅ Conditional |
+
+### 9.2 Detectors (19 deterministických probů)
+
+| Cluster | Detectors | Co dělají |
+|---|---|---|
+| **Profile** | detect-profile, detect-stage, detect-user-identity, detect-sister-env | Co je tohle za projekt? Jaká fáze? Kdo je operátor? Jsou tu sourozenecké repa? |
+| **Recommendation feeders** | lint-fix, dep-update-patch, todo-triage, doc-drift, recommendation-harvest | Najdou kandidáty pro Steward nightly run |
+| **Test quality** | test-coverage-gap, senior-tester-review, flaky-test-repair | Kde testy chybí / kde jsou špatné / kde jsou flaky |
+| **Ops hardening** | tech-debt-audit, workflow-hardener, secret-history-sweep, pr-review-responder | Operations & security checks |
+| **Self-improvement** | evolve-daily, evolve-weekly, skill-proposal-mining | Cortex se sám zlepšuje |
+
+Všechny <100ms, žádné LLM, fail-open. Output: structured JSON → Steward dispatcher.
+
+---
+
+## 10. PROMPTS (20 reusable orchestrací) 📜
+
+**Když:** Paste-style nebo slash-bound, ale nejsou skills (žádné triggery). Pomocné šablony.
+
+| Cluster | Prompty | Co dělají |
+|---|---|---|
+| **Bootstrap** | new-project, existing-project-audit, retrofit, qa-retrofit, onboarding-first-10min, project-scan, cortex-goal | Šablony pro start / audit / retrofit |
+| **Self-improvement** | cortex-evolve, cortex-load, cortex-sync, cortex-reflect | Continuous improvement loop |
+| **Operations** | cortex-doctor, steward-setup, retrospective, sprint-status | Provozní prompty |
+| **Code review** | code-review (Sprint 1: two-pass confidence), auto-review, 95-confidence, agent-first-audit | Review patterns |
+
+### 10.1 Nejčastěji použité
+
+- **cortex-load.md** — paste na začátku session, dá Claudovi mental model
+- **cortex-sync.md** — paste na konci session, capture decisions/lessons
+- **95-confidence.md** — kanonické fráze pro "ptej se až do 95% confidence"
+- **cortex-reflect.md** — deep reflection mezi sprinty
+
+---
+
+## 11. SPEC-VERIFIER (6 druhů acceptance kritérií) 🧪
+
+**Když:** Steward action_kinds deklarují `acceptance_criteria[]` — po editu, před commitem se každé kritérium ověří. **Fail = atomic rollback.**
+
+Tohle je **klíčová bezpečnostní vrstva** mezi LLM editem a reálným commitem.
+
+| Kind | Co kontroluje | Příklad |
+|---|---|---|
+| **shell** | Příkaz vrátí exit 0 | `npm test` musí být zelený |
+| **file_predicate** | Soubor existuje / má velikost > 0 / matchuje predicate | `package.json` musí existovat |
+| **regex** | File content matchuje regex | `version: \d+\.\d+\.\d+` musí být v package.json |
+| **ears_text** | Natural-language acceptance (EARS notation) | "WHEN user submits form, THE system SHALL validate" |
+| **llm_judge** | Claude judge verdict | "Je tento test smysluplný? (yes/no)" |
+| **read_set** | **Sprint 2.18** — coverage proof: agent skutečně přečetl klíčové soubory před editem | LLM musí přečíst `standards/security.md` před security-related editem |
+
+### 11.1 Failure modes
+
+Když spec-verifier fail:
+
+1. Atomic rollback (revert všeho v této akci)
+2. Zapsat `spec_violation` event do journalu
+3. Připojit lesson do `lessons.jsonl` (root cause + remediation hint)
+4. Pokud >5× stejný criterion id v 7 dnech → cross-session loop detector → `STEWARD_HALT`
+
+---
+
+## 12. PAMĚŤ (multi-layer) 🧠
+
+**Když:** Cortex si pamatuje napříč konverzacemi a projekty. 3 vrstvy s různou granularitou.
+
+### 12.1 Per-projekt MEMORY.md
+
+**Cesta:** `~/.claude/projects/<slug>/memory/MEMORY.md`
+
+Index + jednotlivé soubory s frontmatter:
+
+```markdown
+- [Title](file.md) — one-line hook
+```
+
+**4 typy memories:**
+
+| Typ | Když psát | Kdy číst |
+|---|---|---|
+| **user** | Když se dozvíš detail o roli / preferencích / odpovědnostech | Když práce má být informována uživatelovým pohledem |
+| **feedback** | Když uživatel opraví tvůj přístup ("ne, ne tohle") NEBO potvrdí netriviální volbu ("jo, přesně tak") | Aby uživatel nemusel opakovat radu |
+| **project** | Když se dozvíš kdo / proč / kdy | Pro informovanější návrhy |
+| **reference** | Když se dozvíš o resource v externím systému | Když uživatel referenci dělá |
+
+### 12.2 Cross-project library
+
+**Cesta:** `$CORTEX_DATA_HOME/projects/<slug>.md`
+
+Persistuje mezi konverzacemi i mezi projekty. Naplnit přes paste `prompts/cortex-sync.md` na konci session.
+
+### 12.3 Lessons (machine-written)
+
+**Cesta:** `$CORTEX_DATA_HOME/lessons/<slug>.jsonl`
+
+Sprint 1.8.3 ReasoningBank-lite. Failure root-cause + remediation hint per (action_kind, action_key). Seeduje se do next LLM prompt → Steward neopakuje chyby.
+
+- FTS5 fulltextové vyhledávání: `$ cortex-lessons-search "query"`
+- Aged-out přes `memory-decay.cjs`
+- Konsolidace do Obsidian wiki: `$ cortex-wiki-consolidate`
+
+### 12.4 Insights (cross-project)
+
+**Cesta:** `$CORTEX_DATA_HOME/insights/`
+
+Generované cortex-thinker agentem. Read přes `$ cortex-insights` nebo `/cortex-insights`.
+
+### 12.5 Self-invocations
+
+**Cesta:** `$CORTEX_DATA_HOME/self-invocations/`
+
+Sprint 2.13.1 — tracking který Claude session volá který. Spouštěcí řetězec.
+
+---
+
+## 13. OBSERVABILITY (kolik to stálo, kde je problém) 📊
+
+### 13.1 Journal SSOT
+
+**Cesta:** `$CORTEX_DATA_HOME/journal/YYYY-MM-DD-<slug>.jsonl`
+
+Append-only execution trace. Schema:
+
+```json
+{"ts": "...", "project": "...", "tool": "...", "duration_ms": ..., "ok": true, "summary": "...", "file?": "...", "error?": "..."}
+```
+
+**Privacy:** Pouze metadata, žádný content. Reder cortex-usage / cortex-insights / cost-safety / status.cjs.
+
+### 13.2 Phoenix OTLP traces
+
+**Sprint 2.0** — `otel-emitter.cjs` emituje OTLP HTTP/JSON do Phoenix (OpenInference + gen_ai semconv).
+
+- Lokální 1-container deploy
+- Zero-dep emitter (zero-dep protobuf encoder ~370 LoC)
+- Fail-open: žádný endpoint → no-op, journal zůstává SSOT
+- Nezasahuje do prod, je to pro dev observability
+
+### 13.3 Cost tracking
+
+**Tři vrstvy:**
+
+1. **Real-time cost capture** — `action-engine.cjs` extrahuje `cost_usd` + `tokens_in/out` z OpenRouter headers
+2. **Per-action ledger** — `execute.cjs` zapisuje do journalu
+3. **Daily/weekly/monthly rollup** — `status.cjs --forecast` projektuje vůči capům
+
+### 13.4 cortex-usage (Sprint 2.38)
+
+```bash
+$ cortex-usage --since 2026-04-01
+```
+
+Měří **artifact usage** napříč všemi session journals:
+
+- Které **skills** se reálně volaly × kolikrát
+- Které **agents** firednuly × kolikrát
+- Které **prompts** se použily × kolikrát
+- Které **standards** se odkazovaly × kolikrát
+
+**Klíčové pro audit naplánovaný na 2026-07-17** — usage-driven pruning. Pokud soubor nebyl 3 měsíce použit → kandidát na smazání.
+
+### 13.5 Status dashboard
+
+```bash
+$ cortex-steward status              # halt + lock + journal rollup
+$ cortex-steward status --forecast   # + cost forecast vs caps
+```
+
+---
+
+## 14. INSPIRACE & EXTENSIONS
+
+**Když:** Budoucí směřování. Tier 2–4 roadmap, vendor candidates, integrace.
+
+### 14.1 Selektivní vendor (Sprint 2.40 pattern)
+
+cortex selektivně vendoruje high-value parts z jiných open-source frameworků s MIT atribucí.
+
+**Shipped:**
+
+- **taste-skill (MIT)** → `standards/visual-taste.md` — VARIANCE/MOTION/DENSITY dials + em-dash ban + GSAP skeletons (Sprint 2.40)
+
+**Backlog (Sprint 2.42 — oh-my-claudecode selektivní vendor, ~8h):**
+
+| # | OMC source | Cortex target | Proč |
+|---|---|---|---|
+| 1 | `skills/deep-interview` | `shared/skills/deep-interview/` | Operationalizuje 95%-confidence baseline do interaktivního Socratic flow |
+| 2 | `agents/critic.md` | `agents/critic.md` | "False-approval costs 10-100× false-rejection" + gap analysis + adversarial mode |
+| 3 | `skills/visual-verdict` | `shared/skills/visual-verdict/` | Strict JSON verdict contract pro screenshot vs reference comparison |
+| 4 | `skills/ralplan` (pattern) | `prompts/consensus-planning.md` | Planner+Architect+Critic 3-agent consensus s explicit pending approval gate |
+
+### 14.2 Trajektorie (4 tiers)
+
+| Tier | Status | Theme |
+|---|---|---|
+| **0** — Foundation | ✅ shipped | Scaffold + 16-kind capability palette + safety mechanics + 6-kind spec-driven verification |
+| **1** — Verification + multi-agent | ✅ shipped (Sprint 1.9 + 2.0–2.5) | Spec-driven verification + Phoenix OTLP + autoresearch + edit_ops + mutation foundation + senior_tester_review |
+| **2** — Compound learners | ⏳ Sprint 3.0–3.3 | AlphaEvolve prompt evolution, self-extending capabilities, FTS5 skills, GraphRAG |
+| **3** — Productization | ⏳ Sprint 4.0–4.7 | Capability marketplace, WaaS pro klienty, voice → recommendation, identity LoRA |
+| **4** — Persistent entity | 🔮 Sprint 5.0+ | Self-hosted home server, soul abstraction, Obsidian SSOT, multi-source life ingest |
+
+### 14.3 Sprint 2.41+ backlog
+
+| Sprint | Scope | Effort |
+|---|---|---|
+| **2.41** | Stryker sandbox debug — `FIXTURE_SHA_DRIFT` reproduction | ~3h |
+| **2.41.1** | Steward `bin/steward/**` coverage instrumentation | ~1h |
+| **2.42** | OMC selective vendor (4 pieces) | ~8h |
+| **2.43** (optional) | keyword-detector pattern (UserPromptSubmit skill-injector) | ~4h |
+
+---
+
+## Aktuální stav (snapshot 2026-06-01)
+
+| Subsystém | Status |
+|---|---|
+| Push CI (4 workflows) | 🟢 4/4 green |
+| Steward cron (16 workflows) | 🟡 15 green, 1 occasional orange (LLM bad-edit operational) |
+| Stryker workflow | 🔴 parked — Sprint 2.41 backlog |
+| Hooks (8) | 🟢 all wired globally |
+| Tests | 🟢 3270 pass / 2 skip |
+| Coverage | 🟡 84% overall, 0% pro `bin/steward/` (gap) |
+| augment block | 🟢 v5 deployed |
+| Standards | 🟢 30 + 2 ref + 1 meta |
+| Memory | 🟢 40+ memories indexed |
+
+---
+
+## Reference index
+
+| Když chceš... | Otevři |
+|---|---|
+| Code structure / LOC / coverage / seam map | [`atlas-2026-06-01.md`](./atlas-2026-06-01.md) |
+| Slash command rozcestník | `/cortex-help` v Claude Code |
+| Health check | `$ cortex-doctor` nebo `/cortex-doctor` |
+| Verze cortex-x | `$ cortex-update --check` |
+| Standards tier hierarchie | [`standards/README.md`](../standards/README.md) |
+| Tier 0–4 trajectory | [`docs/steward-roadmap.md`](../docs/steward-roadmap.md) |
+| Co Steward umí | § 4 tohoto dokumentu + [`bin/steward/_lib/action-kinds.cjs`](../bin/steward/_lib/action-kinds.cjs) |
+| Voice charter | [`standards/voice.md`](../standards/voice.md) |
+| R1 / R2 disciplina | [`standards/web-research.md`](../standards/web-research.md) + [`agents/`](../agents/) |
+
+---
+
+*Capability tree complete. Re-generate when new skills/CLIs/standards land, nebo když user reportuje "už nevím co všechno cortex umí."*
