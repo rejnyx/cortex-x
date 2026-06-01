@@ -508,6 +508,6 @@ Beyond default handoff, additionally emit:
 
 ### Cortex internal
 
-- Standards: [ai-patterns.md](../../../standards/ai-patterns.md), [ai-sdks.md](../../../standards/ai-sdks.md), [ssot.md](../../../standards/ssot.md)
+- Standards: [ai-patterns.md](../../../standards/ai-patterns.md), [ai-sdks.md](../../../standards/ai-sdks.md), [ssot.md](../../../standards/ssot.md), [visual-taste.md](../../../standards/visual-taste.md) (the rules layer Phase 2-3 enforces — taste dials, em-dash ban, pre-flight checklist, GSAP skeletons)
 - Sprint 2.16 — designer skill landing; Sprint 2.16.x — research-driven expansion (this version)
 - Steward roadmap: [docs/steward-roadmap.md](../../../docs/steward-roadmap.md)

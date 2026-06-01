@@ -1873,6 +1873,18 @@ Cortex's [`standards/voice.md`](../standards/voice.md) covers terse output + cit
 
 ---
 
+### Sprint 2.40 — selective vendor of `taste-skill` into `standards/visual-taste.md` (S effort, doc) — ✅ SHIPPED 2026-05-28
+
+**Why**: The operator surfaced [`leonxlnx/taste-skill`](https://github.com/Leonxlnx/taste-skill) (MIT, by Leon Lin / tasteskill.dev) — an anti-slop frontend Agent Skill with structured **VARIANCE / MOTION / DENSITY dials**, an unconditional **em-dash ban**, a **pre-flight mechanical checklist**, and canonical **GSAP skeletons** (sticky-stack, horizontal-pan, scroll-reveal). cortex's existing `designer` skill is the **process layer** (5-phase orchestration: discover → research → architect → scaffold → adapt + Stitch DESIGN.md handoff); taste-skill complements it with the **rules layer** designer didn't have. Two paths considered: install-as-is (npx skills add — creates two parallel design skills with drift risk + external maintenance dep) vs. selective vendor. Operator chose vendor.
+
+**What shipped**: `standards/visual-taste.md` — selectively adapts the 4 high-leverage parts of the source (dials + design-read inference table + em-dash ban + condensed pre-flight checklist + canonical GSAP code skeletons + forbidden animation patterns). NOT vendored: the source's palette bans (premium-consumer warm-beige+brass family, "Lila Rule" purple bans, serif discipline deep-dive), the v1 SKILL.md fallback, the gpt-tasteskill / soft / minimalist / brutalist variants, the three image-gen skills — those stay upstream for operators who need them. MIT attribution preserved per the license (`## Attribution` block at the end with copyright notice + license reference + scope of adaptation). `shared/skills/designer/SKILL.md` now references the standard as the rules layer Phase 2-3 enforces. `standards/README.md` count 29→30, new Rule 3 row, "Why N" section refreshed.
+
+**Tradeoff (named, not hidden)**: cortex now carries a copy of the rules. If taste-skill ships v2.0 with new dials/heuristics the vendored copy stays at v2-experimental until refreshed. Acceptable — the underlying anti-slop principles are stable (em-dash ban is binary, GSAP `start: "top top"` is a fact about ScrollTrigger, the dial taxonomy is a structural abstraction). Re-sync trigger: an upstream changelog entry that materially changes the dials or adds a new mandatory pre-flight item.
+
+**Sources**: [github.com/Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT © 2026 Leon Lin) · [tasteskill.dev](https://tasteskill.dev) · skill content fetched via `gh api repos/Leonxlnx/taste-skill/contents/skills/taste-skill/SKILL.md`.
+
+---
+
 ### Sprint 2.38 — `cortex-usage` artifact-usage telemetry (S effort) — ✅ SHIPPED 2026-05-28
 
 **Why**: The institutional-wisdom library grows every week (standards, prompts, agents, skills) and the operator stated the real pain directly — *"začínám přestávat mít přehled kompletně"* (losing the overview). The fix for comprehension is NOT more content or more tests (both make it worse); it is knowing which ~20% is actually load-bearing so only that has to be held in your head. The raw signal already existed — `shared/hooks/post-tool-use.cjs` logs every `Read` (with file path) to `{root}/journal/YYYY-MM-DD-<slug>.jsonl` — but nothing rolled it up. This sprint turns that stream into an answer: hot (earns its context cost) vs cold (prune candidate).

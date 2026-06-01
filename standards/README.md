@@ -1,6 +1,6 @@
 # cortex-x Standards
 
-> **29 standards** organized in 5 tiers (+ 1 meta-standard at `RULE-1.md` + 2 supporting reference docs). **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
+> **30 standards** organized in 5 tiers (+ 1 meta-standard at `RULE-1.md` + 2 supporting reference docs). **Rule 0 + Rule 1 are inviolable.** Read [`RULE-1.md`](./RULE-1.md) first — it establishes the hierarchy + active enforcement.
 
 ## Tier hierarchy
 
@@ -36,6 +36,7 @@
 | | [Voice](./voice.md) | Should-have | Cross-skill identity + citation discipline + 5 failure-mode templates; warning |
 | | [Skills](./skills.md) | Should-have | agentskills.io SKILL.md spec adoption; required for shared skills |
 | | [Skill validation](./skill-validate.md) | Should-have | 3-tier validator (spec / Claude Code / cortex opinion) + ToxicSkills security regex pass; Sprint 2.22 v0 |
+| | [Visual taste](./visual-taste.md) | Should-have | Anti-slop rules for frontend (3 dials · em-dash ban · pre-flight checklist · GSAP skeletons); consumed by `designer` Phase 2-3; MIT-vendored from taste-skill (Sprint 2.40) |
 | **📚 Supporting** | [Test types catalog](./test-types-catalog.md) | Reference | Catalogue of test kinds (unit/contract/integration/property/mutation/eval) |
 | | [Story sizing](./story-sizing.md) | Reference | Story-sizing heuristic for PROGRESS.md |
 
@@ -47,13 +48,15 @@ Security can be added. Testing can be retrofitted. Observability can be layered 
 
 Tier 1 is the only tier you can't fix later.
 
-## Why 29 (across 5 tiers)
+## Why 30 (across 5 tiers)
 
-Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + verification-loop + mutation-testing (Sprint 2.3) + multi-agent-supervisor (Sprint 2.2) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard, skill-validate). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
+Rule 0 is the distribution gate — without it nothing else matters. Rule 1 is the inviolable architectural foundation (SSOT/Modular/Scalable) — violations compound into rewrites. Rule 1.5 is the behavioral contract for AI-assisted edits (Think Before Coding, Surgical Changes) plus the auto-orchestration + self-correction patterns that keep cortex itself learning. Rule 2 is must-have technical quality (security/testing/observability/correctness) + verification-loop + mutation-testing (Sprint 2.3) + multi-agent-supervisor (Sprint 2.2) + Steward runtime safety. Rule 3 is process polish + cross-cutting concerns (a11y, perf, error handling, git, docs, AI patterns/SDKs, voice charter, web-research, skills standard, skill-validate, visual-taste). Supporting docs (test-types-catalog, story-sizing) are reference material referenced from Rule 2/3 standards.
 
 **Two added 2026-05-14 (Sprint 2.2 + 2.3 v0):** [`mutation-testing.md`](./mutation-testing.md) (Rule 2 — Stryker measure-only baseline as fitness signal beyond "tests pass") and [`multi-agent-supervisor.md`](./multi-agent-supervisor.md) (Rule 2 — 6 safety contracts S1-S6 the v1 spawner must respect: tree-budget cap, depth limit, judge order randomization, fingerprint-based dedup, worker-judge same-tier rule, fail-safe rollback).
 
 **One added 2026-05-28 (Sprint 2.31):** [`context-engineering.md`](./context-engineering.md) (Rule 2 — smart-zone/dumb-zone budget discipline: 40–60% utilization target, reasoning-degrades-faster-than-retrieval, clear-tool-noise vs. compact-into-artifacts decision, CLAUDE.md right-altitude). Validates the existing `pre-compact.cjs` hook as "intentional compaction".
+
+**One added 2026-05-28 (Sprint 2.40):** [`visual-taste.md`](./visual-taste.md) (Rule 3 — anti-slop visual rules selectively vendored from MIT-licensed [taste-skill](https://github.com/Leonxlnx/taste-skill) by Leon Lin: the three taste dials (VARIANCE / MOTION / DENSITY), the em-dash ban, the pre-flight checklist (eyebrow count, hero discipline, zigzag cap, WCAG button/form contrast, consistency locks, copy self-audit, fake-precision ban), the canonical GSAP skeletons (sticky-stack / horizontal-pan / scroll-reveal). Consumed by `designer` Phase 2-3 as the rules layer over the existing process flow.
 
 Most indie projects skip ~80% of this surface. cortex-x ships all of it as defaults.
 
