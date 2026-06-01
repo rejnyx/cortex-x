@@ -27,19 +27,28 @@ name: stryker-mutation
 #   - Standard: standards/mutation-testing.md
 
 on:
-  # Sprint 2.40 (2026-06-01): push trigger removed. The workflow assumes a
-  # committed `package-lock.json` (R2 HIGH-3 supply-chain integrity guard at
-  # line 76 + `actions/setup-node` cache: 'npm') but `.gitignore:7` excludes
-  # the lockfile per Sprint 1.6.11 ("untracked package-lock.json was tripping
-  # Hermes"). Two sprints landed contradictory assumptions; the workflow was
-  # broken-by-design but only fired when a push's diff matched its path
-  # filter — Sprint 2.40's test-fix commit was the first to land such a path
-  # and surfaced the rot. Until the lockfile-posture decision is revisited
-  # (commit lockfile vs. drop the npm-ci requirement), stryker runs only
-  # on the weekly cron + manual dispatch — measure-only baseline is
-  # preserved; per-commit incremental signal is paused, not the work.
-  schedule:
-    - cron: '0 3 * * 0'    # 03:00 UTC Sunday weekly
+  # Sprint 2.40 (2026-06-01): both push AND schedule triggers removed.
+  # The workflow has accumulated multiple latent bugs since Sprint 2.3 (May
+  # 14) that never surfaced because the workflow never got past its first
+  # gate — they cascaded one at a time over a 2026-06-01 debug session:
+  #   1. package-lock.json was .gitignored but workflow ran `npm ci`
+  #      → fixed by committing lockfile (commit 617ee5e).
+  #   2. `--since=HEAD~1` is not a real Stryker CLI flag
+  #      → fixed by switching to `--incremental` (commit 07c2d0a).
+  #   3. Stryker sandbox copy mechanism interacts with the fixture
+  #      content-hash check (FIXTURE_SHA_DRIFT) in eval-senior-tester:
+  #      all 5 fixtures' SHAs computed in the sandbox differ from the
+  #      committed baseline, even though the `test` workflow runs the
+  #      exact same `npm test` and passes. This is a deeper sandbox-vs-
+  #      runtime divergence that needs a dedicated debug pass — likely
+  #      Stryker's file-copy normalization of test files, or the runner's
+  #      walkTestFiles picking up sandbox-internal duplicates.
+  # Sprint 2.41 (TODO) will: reproduce locally with
+  # `npx stryker run --incremental` on a stryker.conf.json with a single
+  # fixture, dump the sandbox tree to compare against the working copy,
+  # decide whether to exclude the eval-senior-tester test from Stryker
+  # (testRunner config) or to fix the fixtureSha to be sandbox-stable.
+  # Until then: manual-dispatch only for debugging.
   workflow_dispatch:
     inputs:
       mode:
