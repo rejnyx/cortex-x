@@ -170,17 +170,18 @@ describe('Sprint 2.19 v1.5 — evolve_weekly cost flows into D/W/M caps', () => 
   });
 
   test('evolve_weekly cost flows into monthly cap (calendar-month window)', () => {
-    // R2 correctness MED: previous version placed entry at 01:00 UTC on
-    // month-start. If test ran at 23:59 UTC on last day of month, cost-safety
-    // would re-read `new Date()` after rollover and the entry would fall in
-    // last month's window → flake. Placing entry 12 hours ago guarantees same
-    // calendar month for both write + read regardless of test execution time.
+    // The previous "12 hours ago" defense was wrong in the OPPOSITE direction:
+    // within the first 12h of a UTC month, `Date.now() - 12h` is LAST month,
+    // so the writer's date is May 31 but readMonthlySpend's window is June 1+,
+    // and the rollup returns 0 (Sprint 2.40 surfaced this on a 2026-06-01 push).
+    // Writer and reader both call `new Date()` in the SAME synchronous test
+    // body — microseconds apart. UTC month cannot roll over inside microseconds
+    // of execution, so using `now` directly is correct AND boundary-safe.
     const dataHome = makeDataHome();
     try {
       withEnv({ CORTEX_DATA_HOME: dataHome, STEWARD_MONTHLY_USD_CAP: 80 }, () => {
-        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         writeJournalEntry(dataHome, SLUG, {
-          ts: twelveHoursAgo.toISOString(),
+          ts: new Date().toISOString(),
           tier: 'T0',
           event: 'evolve_weekly_completed',
           actor: 'steward',

@@ -138,28 +138,29 @@ describe('Sprint 1.9.1 integration: monthly cap', () => {
       STEWARD_TOKEN_VELOCITY_CAP: '0',
       STEWARD_LOOP_THRESHOLD: '0',
     }, async () => {
-      // Multiple dates this month accumulating > $15.
-      // Use yesterday's date (always same calendar month except midnight edge).
-      const today = new Date();
-      const isFirstOfMonth = today.getUTCDate() === 1;
-      // If we're on day 1, seed today only; otherwise seed yesterday + today.
-      const entries = [];
-      if (!isFirstOfMonth) {
-        entries.push({
-          date: dateMinus(1),
+      // Two entries TODAY (same UTC date, microseconds apart) accumulating
+      // > $15. The previous "yesterday + today" approach with a day-1 guard
+      // silently seeded only $10 on day-1 of any month → cap never tripped →
+      // test red on day 1 (Sprint 2.40 surfaced on 2026-06-01 push). Two
+      // same-day entries are boundary-safe regardless of calendar position
+      // and still exercise the multi-entry accumulator.
+      const nowMs = Date.now();
+      const entries = [
+        {
+          date: dateMinus(0),
           entry: {
-            ts: isoMinus(1), trigger: 'cron', tier: 'T2',
+            ts: new Date(nowMs - 1).toISOString(), trigger: 'cron', tier: 'T2',
             event: 'execute_completed', outcome: 'success', cost_usd: 10,
           },
-        });
-      }
-      entries.push({
-        date: dateMinus(0),
-        entry: {
-          ts: new Date().toISOString(), trigger: 'cron', tier: 'T2',
-          event: 'execute_completed', outcome: 'success', cost_usd: 10,
         },
-      });
+        {
+          date: dateMinus(0),
+          entry: {
+            ts: new Date(nowMs).toISOString(), trigger: 'cron', tier: 'T2',
+            event: 'execute_completed', outcome: 'success', cost_usd: 10,
+          },
+        },
+      ];
       seedJournal(entries);
 
       const result = await execute.runExecute({

@@ -59,9 +59,16 @@ describe('Sprint 2.9.7c — cost-safety multi-window monotonicity invariants', (
   test('invariant: spend monotonicity — daily ≤ weekly ≤ monthly when entries are within window', () => {
     const dataHome = tmpDataHome('monotonicity');
     const now = new Date();
+    // Clamp the spread to the current calendar month. The test name's
+    // "when entries are within window" qualifier requires ALL entries inside
+    // monthly's window (calendar-month-start … now); otherwise weekly's
+    // sliding-7-day window legitimately extends past the calendar boundary
+    // and exceeds monthly, breaking the invariant on day 1–6 of any UTC
+    // month (Sprint 2.40 surfaced this on a 2026-06-01 run).
+    const dayOfMonth = now.getUTCDate();                  // 1..31
+    const seedDays = Math.min(7, dayOfMonth);
     const entries = [];
-    // 7 entries, one per day for the past week, each $0.10
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < seedDays; i++) {
       const ts = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       entries.push({
         ts: ts.toISOString(),
@@ -79,8 +86,9 @@ describe('Sprint 2.9.7c — cost-safety multi-window monotonicity invariants', (
       assert.ok(weekly <= monthly, `weekly=${weekly} should be <= monthly=${monthly}`);
       // Daily should match today's only entry: $0.10
       assert.ok(Math.abs(daily - 0.10) < 1e-9, `daily=${daily} expected ~0.10`);
-      // Weekly should be ~7 × $0.10 = $0.70 (slight float tolerance)
-      assert.ok(Math.abs(weekly - 0.70) < 1e-6, `weekly=${weekly} expected ~0.70`);
+      // Weekly = seedDays × $0.10 (full 7 days normally; clamped near month start)
+      const expectedWeekly = seedDays * 0.10;
+      assert.ok(Math.abs(weekly - expectedWeekly) < 1e-6, `weekly=${weekly} expected ~${expectedWeekly}`);
     });
   });
 
