@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T10:32:45.655Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T10:40:25.136Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -18,7 +18,7 @@
 | GitHub workflows | 23 |
 | Tests total | 3011 (unit 2731 · contract 106 · integration 174 · smoke 0) |
 | Runtime LoC (`bin/`) | 32,773 |
-| Test LoC (`tests/`) | 40,508 |
+| Test LoC (`tests/`) | 40,518 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
