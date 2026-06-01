@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T10:40:25.136Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T10:51:42.769Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -252,7 +252,7 @@ CI + Steward cron workflows in `.github/workflows/`.
 | [`steward test-coverage-gap`](../.github/workflows/steward-test-coverage-gap.yml) | cron(0 6 * * 1) · manual | steward-test-coverage-gap.yml — autonomous Steward coverage-gap detector. |
 | [`steward todo-triage`](../.github/workflows/steward-todo-triage.yml) | cron(0 4 1 * *) · manual | steward-todo-triage.yml — autonomous Steward TODO/FIXME triage workflow. |
 | [`steward workflow-hardener`](../.github/workflows/steward-workflow-hardener.yml) | cron(0 3 * * 0) · manual | steward-workflow-hardener.yml — Sprint 2.5b weekly cron. |
-| [`stryker-mutation`](../.github/workflows/stryker.yml) | cron(0 3 * * 0) · manual · push | Mutation-testing workflow — Sprint 2.3 v0 measure-only posture. |
+| [`stryker-mutation`](../.github/workflows/stryker.yml) | cron(0 3 * * 0) · manual | Mutation-testing workflow — Sprint 2.3 v0 measure-only posture. |
 | [`test`](../.github/workflows/test.yml) | manual · push · pull_request | Fast lane — Linux only, runs the full test suite on every PR + push. |
 
 ---
