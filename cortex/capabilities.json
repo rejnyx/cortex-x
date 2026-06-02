@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T11:03:49.359Z",
+  "generated_at": "2026-06-02T18:17:11.349Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -741,6 +741,12 @@
       "path": "standards/web-research.md",
       "title": "Web Research — Rule 3 standard",
       "description": "cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple"
+    },
+    {
+      "name": "workflows",
+      "path": "standards/workflows.md",
+      "title": "Standard Workflows (dynamic multi-agent orchestration)",
+      "description": "Decision tree — pick the orchestration primitive that fits the shape of the task,"
     }
   ],
   "profiles": [
@@ -1218,15 +1224,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2731,
+      "unit": 2732,
       "contract": 106,
-      "integration": 174,
+      "integration": 178,
       "smoke": 0
     },
-    "total": 3011
+    "total": 3016
   },
   "code_volume": {
-    "steward_runtime_loc": 32773,
-    "test_code_loc": 40518
+    "steward_runtime_loc": 32779,
+    "test_code_loc": 40764
   }
 }

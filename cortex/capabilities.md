@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-01T11:03:49.359Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-02T18:17:11.349Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -11,14 +11,14 @@
 | Steward action_kinds | 21 |
 | Steward primitives (`bin/steward/_lib/`) | 51 |
 | Universal hooks (`shared/hooks/`) | 8 |
-| Standards (rule tiers 0-3) | 33 |
+| Standards (rule tiers 0-3) | 34 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 3011 (unit 2731 · contract 106 · integration 174 · smoke 0) |
-| Runtime LoC (`bin/`) | 32,773 |
-| Test LoC (`tests/`) | 40,518 |
+| Tests total | 3016 (unit 2732 · contract 106 · integration 178 · smoke 0) |
+| Runtime LoC (`bin/`) | 32,779 |
+| Test LoC (`tests/`) | 40,764 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -123,7 +123,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (33)
+## 4. Standards (34)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -162,6 +162,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`visual-taste`](../standards/visual-taste.md) | Visual Taste | Use this standard whenever a task lands frontend code or visuals — directly |
 | [`voice`](../standards/voice.md) | Voice — cortex-x identity & tone charter | The framework is invisible by default. **Claude is the actor, cortex is the environment.** This document is what cortex sounds like across all skills, so the operator hears one coherent agent — not eleven different bots wearing the cortex h |
 | [`web-research`](../standards/web-research.md) | Web Research — Rule 3 standard | cortex-x assumes Claude's training cutoff is **older than the relevant external state** for most non-trivial tasks. Framework versions, library APIs, CVEs, regulatory thresholds, and design trends move faster than any model release. **Imple |
+| [`workflows`](../standards/workflows.md) | Standard Workflows (dynamic multi-agent orchestration) | Decision tree — pick the orchestration primitive that fits the shape of the task, |
 
 ## 5. Profiles (11)
 
