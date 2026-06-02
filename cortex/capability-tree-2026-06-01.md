@@ -805,6 +805,34 @@ cortex selektivně vendoruje high-value parts z jiných open-source frameworků 
 | **2.42** | OMC selective vendor (4 pieces) | ~8h |
 | **2.43** (optional) | keyword-detector pattern (UserPromptSubmit skill-injector) | ~4h |
 
+### 14.4 Dynamic Workflows integration (Sprint 2.44)
+
+Claude Code v2.1.154+ shipped **dynamic workflows** — JavaScript scripts orchestrating subagents at scale via programmatic Task dispatch, context isolation per stage, and explicit fan-in barriers. Cortex adopted them in Sprint 2.44 for high-fan-out tasks where session-bound `Agent` blocks hit context-window or coordination ceilings. Workflows **complement, not replace** Steward (cron-bound nightly autonomy) and the R2 review pipeline (session-bound peer review) — they're a third runtime tier sitting between single-message Agent dispatch and full cron automation.
+
+**What is a workflow now in cortex (Sprint 2.44):**
+
+| Subsystem | Workflow? | Where | Why |
+|---|---|---|---|
+| **R2 review pipeline (6 agents)** | YES | [`shared/workflows/r2-review.js`](../shared/workflows/r2-review.js) | Context-isolated, resumable, Pass-2 confidence baked in |
+| **`/audit` 6-phase flow** | YES | [`shared/workflows/audit.js`](../shared/workflows/audit.js) | Multi-stage with explicit fan-in barriers (P1→P2→P3→…) |
+| **Steward nightly (16 cron workflows)** | NO | stays cron-driven | Session-bound vs cron-bound — different runtime |
+| **Hooks (8)** | NO | stays event-driven | Different vrstva — workflows respect hooks transparently |
+| **Individual skills (`cortex-init`, `designer`, …)** | NO | stay as skills | Session-bound, user-facing flows |
+
+**Hook compatibility verified (Sprint 2.44 probes):**
+
+- `post-tool-use` fires on workflow subagent `Task` calls (hook already handles `tool_name=Task`)
+- `block-destructive` intercepts workflow-agent destructive `Bash` (PreToolUse hook fires on `Bash` matcher regardless of permission mode)
+- `pre-commit-review-gate` sees review markers from workflow review-agents (`review-agents.cjs` SSOT keyed on `subagent_type`)
+
+**Cost guidance:** Workflow wins when `N > 6` parallel agents OR multi-stage with fan-in barriers. Below that, single-message `Agent` dispatch is cheaper (one round-trip, one context budget).
+
+**Cross-links:**
+- [`standards/workflows.md`](../standards/workflows.md) — when / how / why
+- [`shared/workflows/r2-review.js`](../shared/workflows/r2-review.js) — canonical example
+- [`shared/workflows/audit.js`](../shared/workflows/audit.js) — multi-phase example
+- [`docs/sprint-2.44-hook-probes.md`](../docs/sprint-2.44-hook-probes.md) — empirical verification
+
 ---
 
 ## Aktuální stav (snapshot 2026-06-01)

@@ -52,7 +52,11 @@ const CLAUDE_MD_PATH = path.join(HOME, '.claude', 'CLAUDE.md');
 // before ASSERT or implement" — frozen training data means even answering a
 // current-state question needs web research first (operator directive: AI is a
 // tool, not an oracle). +context-engineering standard, 29 files.
-const BLOCK_VERSION = '5';
+// v6 (Sprint 2.44): added Dynamic Workflows sub-section — Claude Code v2.1.154+
+// JS-script orchestration of subagents (shared/workflows/r2-review.js + audit.js),
+// fan-out threshold (≥6 agents or multi-stage), hook composition semantics,
+// 1-level nesting limit.
+const BLOCK_VERSION = '6';
 const CORTEX_BLOCK_START = '<!-- BEGIN cortex-x discipline (v' + BLOCK_VERSION + ') — managed by cortex-claude-md-augment -->';
 const CORTEX_BLOCK_END = '<!-- END cortex-x discipline -->';
 // Match any version of the block (for removal + version-drift detection).
@@ -69,6 +73,8 @@ You are working in an environment where cortex-x is installed (~/.claude/shared/
 **R2 — review pipeline.** For non-trivial diffs (≥3 files, public API change, security-adjacent, agentic code paths), dispatch the 6-agent parallel review pipeline (\`security-auditor\`, \`correctness-auditor\`, \`acceptance-auditor\`, \`ssot-enforcer\`, \`blind-hunter\`, \`edge-case-hunter\`) BEFORE the user merges. Apply consensus HIGH findings in-commit.
 
 **Parallel by default.** When multiple agent calls are independent (research topics, audit dimensions, file scans), dispatch them in a single message with multiple Agent tool blocks. Sequential calls only when later calls depend on earlier output.
+
+**Dynamic Workflows for high fan-out.** Claude Code v2.1.154+ supports dynamic workflows — JS scripts orchestrating subagents. cortex ships \`shared/workflows/r2-review.js\` (R2 6-agent pipeline) and \`shared/workflows/audit.js\` (12-dim audit). Use a workflow when N ≥ 6 parallel agents OR multi-stage with fan-in barriers. For ≤6 agents in one task, single-message Agent dispatch is cheaper. Hooks compose transparently — post-tool-use handles \`Task\` subagent_type, block-destructive intercepts Bash regardless of permission mode, pre-commit-review-gate sees review markers per \`review-agents.cjs\` SSOT. See \`standards/workflows.md\`. Never call a workflow from inside a workflow agent (1-level nesting limit).
 
 ### Execution discipline
 
