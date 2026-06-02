@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-02T18:17:11.349Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-02T19:13:57.380Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -16,9 +16,9 @@
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 3016 (unit 2732 · contract 106 · integration 178 · smoke 0) |
-| Runtime LoC (`bin/`) | 32,779 |
-| Test LoC (`tests/`) | 40,764 |
+| Tests total | 3024 (unit 2740 · contract 106 · integration 178 · smoke 0) |
+| Runtime LoC (`bin/`) | 33,486 |
+| Test LoC (`tests/`) | 41,026 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -139,7 +139,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`coding-behavior-examples`](../standards/coding-behavior-examples.md) | Coding Behavior — Concrete Examples | **Task:** "Add user export." |
 | [`context-engineering`](../standards/context-engineering.md) | Context engineering | The working context is a budget, not a backpack. Past a point, every token you add makes the model reason *worse* — not because the window is full, but because attention dilutes. Manage the budget deliberately. |
 | [`correctness`](../standards/correctness.md) | Correctness — Verification Beyond Structure | **Rule 2 (Critical)** — alongside Security, Testing, Observability. Must-have for any project moving beyond prototype. Review-pipeline flag = blocker. |
-| [`documentation`](../standards/documentation.md) | Documentation — Knowledge That Outlives Your Memory | **Document decisions, not code.** Code explains itself (with good naming). Comments explain why. |
+| [`documentation`](../standards/documentation.md) | Standard - Documentation (living docs + cortex-doc-regen) | This standard codifies the contract. It supersedes the legacy "Documentation - Knowledge That Outlives Your Memory" guidance for cortex-x repo docs; project-level docs (README, CLAUDE.md, PROGRESS.md, ADRs) keep their original conventions a |
 | [`error-handling`](../standards/error-handling.md) | Error Handling — Fail Gracefully, Recover Automatically | 1. **Fail fast at boundaries, fail gracefully inside.** Validate at API entry, crash early. Within the app, catch and recover. |
 | [`git-workflow`](../standards/git-workflow.md) | Git Workflow — Commit Like a Pro | ``` |
 | [`modular`](../standards/modular.md) | Modular — Isolated Subsystems | Tightly coupled code is where bugs hide and velocity dies. When changing X requires touching A, B, C, you don't change X — you avoid it. Modularity buys you the ability to refactor, replace, and scale individual pieces without cascading rew |

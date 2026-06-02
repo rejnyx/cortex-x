@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-02T18:17:11.349Z",
+  "generated_at": "2026-06-02T19:13:57.380Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -607,8 +607,8 @@
     {
       "name": "documentation",
       "path": "standards/documentation.md",
-      "title": "Documentation — Knowledge That Outlives Your Memory",
-      "description": "**Document decisions, not code.** Code explains itself (with good naming). Comments explain why."
+      "title": "Standard - Documentation (living docs + cortex-doc-regen)",
+      "description": "This standard codifies the contract. It supersedes the legacy \"Documentation - Knowledge That Outlives Your Memory\" guidance for cortex-x repo docs; project-level docs (README, CLAUDE.md, PROGRESS.md, ADRs) keep their original conventions a"
     },
     {
       "name": "error-handling",
@@ -1224,15 +1224,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2732,
+      "unit": 2740,
       "contract": 106,
       "integration": 178,
       "smoke": 0
     },
-    "total": 3016
+    "total": 3024
   },
   "code_volume": {
-    "steward_runtime_loc": 32779,
-    "test_code_loc": 40764
+    "steward_runtime_loc": 33486,
+    "test_code_loc": 41026
   }
 }
