@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "sprint_id": "2.46",
+  "workflow_run_id": "wf_e83c5244-478",
+  "timestamp": "2026-06-03T08:00:00.000Z",
+  "agent_roster": [
+    "security-auditor",
+    "correctness-auditor",
+    "acceptance-auditor",
+    "ssot-enforcer",
+    "blind-hunter",
+    "edge-case-hunter"
+  ],
+  "findings": {
+    "HIGH": 8,
+    "MEDIUM": 10,
+    "LOW": 9
+  },
+  "applied": [
+    "H-1..6:path-drift",
+    "H-4+M-11:fictional-gate-table",
+    "H-7+8:fictional-SKILL-claims",
+    "M-10:env-var-name",
+    "M-12:heading-rename",
+    "M-14:duplicate-Triage-collapse",
+    "M-16:canonicalize-undefined",
+    "L-19:test-case-5-tighten",
+    "L-25:explicit-decision"
+  ],
+  "deferred": [
+    "H-arch:commit_sha-binding -> 2.46.1",
+    "M-17:resolveSecret-hostname -> 2.46.1",
+    "M-9:fencing-contract-test -> 2.46.1",
+    "M-15:sprintId-match-commit-msg -> 2.46.1",
+    "L-24:_resolveSecret-public-rename -> 2.46.1",
+    "L-26:single-use-semantics -> 2.46.1"
+  ],
+  "refuted": [],
+  "decision": "PASS",
+  "signature": {
+    "alg": "HMAC-SHA256",
+    "value": "e9d47d1815271991d38479616ab6df7016c19cdab7dd4b2666961d68b4f65ef3"
+  }
+}

@@ -223,6 +223,10 @@ price. Within budget (Max x20 flat).
 - ❌ AC-12 R2 finds 5+ HIGH findings → rollback, redesign with smaller scope
 - ❌ Probe finds critical hook bypass (RISK-2 confirmed) → defer commit pending Sprint 2.44.1 mitigation
 
+## References
+
+- standards/sprint-pipeline.md — canonical Sprint pipeline (extracted in Sprint 2.46; this plan predates extraction and references it retroactively for traceability)
+
 ---
 
 *Plan complete. Ready for workflow dispatch.*

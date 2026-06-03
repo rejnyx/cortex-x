@@ -8,8 +8,13 @@
 // auto-orchestrate nudge — sited at the commit, the moment skipping review
 // costs the most.
 //
-// "Review ran" is detected via the session marker dropped by post-tool-use.cjs
-// when a review agent (blind-hunter, edge-case-hunter, …) fires.
+// "Review ran" is detected via TWO complementary signals:
+//   1. Session marker dropped by post-tool-use.cjs when a review agent
+//      (blind-hunter, edge-case-hunter, …) fires.
+//   2. (Sprint 2.46) A signed R2 verdict at `cortex/r2-verdict.json` that
+//      verifies against `bin/steward/_lib/r2-verdict.cjs` with decision=PASS.
+//      Lets workflows that ran R2 in a different session (or in CI) unblock
+//      the commit without relying on the per-session marker.
 //
 // Escape hatches (conscious skip, not noise): `[skip-review]` in the commit
 // message, or `CORTEX_REVIEW_GATE=0` in the environment.
@@ -62,7 +67,12 @@ function reviewMarkerPath(sessionHash) {
 
 // Pure decision core — all I/O resolved by the caller so this is unit-testable.
 // Returns { decision: 'allow' | 'deny', reason? }.
-function decide({ isCommit, skip, disabled, sessionHash, stagedCount, markerExists }) {
+//
+// `verdictValid` (Sprint 2.46): the caller has read `cortex/r2-verdict.json`,
+// verified its HMAC signature against the R2 secret, and confirmed
+// decision === 'PASS'. When true, this is a SECOND independent unblock path
+// equivalent to `markerExists`.
+function decide({ isCommit, skip, disabled, sessionHash, stagedCount, markerExists, verdictValid }) {
   if (!isCommit) return { decision: 'allow' };
   if (disabled || skip) return { decision: 'allow' };
   if (!sessionHash) return { decision: 'allow' };       // can't correlate → fail-open
@@ -70,14 +80,106 @@ function decide({ isCommit, skip, disabled, sessionHash, stagedCount, markerExis
     return { decision: 'allow' };                        // trivial / unknown → fail-open
   }
   if (markerExists) return { decision: 'allow' };        // review ran this session
+  if (verdictValid) return { decision: 'allow' };        // signed R2 verdict present (Sprint 2.46)
   return {
     decision: 'deny',
     reason:
       `cortex review-gate: this commit stages ${stagedCount} files but no review pipeline ran this session. ` +
       `Run the adversarial review (paste prompts/code-review.md, or dispatch the review agents — ${REVIEW_AGENTS.join(', ')} ` +
       '— in parallel), apply consensus HIGH findings, then retry the commit. ' +
+      'Alternative: emit a signed R2 verdict to cortex/r2-verdict.json (see shared/skills/cortex-sprint Phase 6.5). ' +
       'Conscious skip: add [skip-review] to the commit message, or set CORTEX_REVIEW_GATE=0.',
   };
+}
+
+// Resolve the repo root for a working directory. Neutralizes core.fsmonitor +
+// core.pager on the command line so a hostile repo config can't run code.
+// Returns '' (falsy) on any failure — caller treats that as "no verdict".
+function repoRootFor(cwd) {
+  try {
+    const out = execFileSync('git', [
+      '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat',
+      'rev-parse', '--show-toplevel',
+    ], {
+      cwd: cwd || process.cwd(),
+      encoding: 'utf8',
+      timeout: 4000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.trim();
+  } catch {
+    return '';
+  }
+}
+
+// Load + verify cortex/r2-verdict.json. Returns true iff the verdict exists,
+// parses, verifies cryptographically, AND decision === 'PASS'. Any failure
+// (missing file, bad JSON, missing module, secret-warning fail-open from the
+// module, bad signature, decision: FAIL) → false, and the hook falls back to
+// the existing markerExists / escape-hatch logic.
+//
+// This is fail-open by intent: a broken verdict pipeline never wedges the
+// commit — at worst the operator gets the original "run the review" message
+// and either runs it or uses [skip-review].
+//
+// Note (Sprint 2.46): the shipped r2-verdict module does NOT bind verdicts to
+// a commit SHA. The HMAC covers sprint_id + workflow_run_id + findings +
+// agent_roster, but a freshly-signed verdict can unblock any subsequent commit
+// on the same machine until the file is overwritten. This is acceptable for
+// single-operator local continuity; cross-commit replay defense is tracked
+// as follow-up work alongside Ed25519 promotion.
+function loadAndVerifyVerdict(repoRoot) {
+  if (!repoRoot) return false;
+
+  let r2;
+  try {
+    r2 = require('../../bin/steward/_lib/r2-verdict.cjs');
+  } catch {
+    return false; // module not installed (older cortex) → fail-open
+  }
+  if (!r2 || typeof r2.verifyVerdict !== 'function' || typeof r2.loadVerdict !== 'function') {
+    return false; // module shape unexpected → fail-open
+  }
+
+  let loaded;
+  try {
+    loaded = r2.loadVerdict(repoRoot);
+  } catch {
+    return false; // unexpected I/O error (EACCES, …) → fail-open
+  }
+  if (!loaded || !loaded.json) return false; // ENOENT or bad JSON
+
+  // Resolve the secret. The shipped module always returns a non-null secret
+  // (env first, else host-derived fallback). We treat the warning-state from
+  // verifyVerdict (secret missing) as a non-unblock — but with the shipped
+  // resolver the secret is never empty, so that path is defensive only.
+  let secret;
+  try {
+    const resolved = (typeof r2._resolveSecret === 'function')
+      ? r2._resolveSecret()
+      : null;
+    secret = resolved && resolved.secret;
+  } catch {
+    return false;
+  }
+  if (!secret) return false;
+
+  let result;
+  try {
+    result = r2.verifyVerdict(loaded.json, secret);
+  } catch {
+    return false;
+  }
+  if (!result || result.ok !== true) return false;
+  // Don't accept the fail-open "no secret" warning state as a valid unblock —
+  // we want a real signature check, not "couldn't check."
+  if (result.reason === 'CORTEX_R2_VERDICT_NO_SECRET_WARNING') return false;
+  // Decision must be PASS — a signed verdict with decision=FAIL means the R2
+  // pipeline explicitly rejected the change, and the gate must enforce that.
+  const parsed = result.parsed || loaded.json;
+  if (!parsed || parsed.decision !== 'PASS') return false;
+
+  return true;
 }
 
 function countStagedFiles(cwd) {
@@ -135,8 +237,17 @@ function main() {
   const markerExists = (() => {
     try { return fs.existsSync(reviewMarkerPath(sessionHash)); } catch { return false; }
   })();
+  // Sprint 2.46 — second independent unblock path via signed R2 verdict.
+  // Only resolve the repo root if the marker is absent (cheapest path first +
+  // the verdict is only consulted when it actually matters).
+  const verdictValid = markerExists ? false : (() => {
+    try {
+      const repoRoot = repoRootFor(data.cwd);
+      return loadAndVerifyVerdict(repoRoot);
+    } catch { return false; }
+  })();
 
-  const verdict = decide({ isCommit: true, skip, disabled, sessionHash, stagedCount, markerExists });
+  const verdict = decide({ isCommit: true, skip, disabled, sessionHash, stagedCount, markerExists, verdictValid });
 
   if (verdict.decision === 'deny') {
     process.stdout.write(JSON.stringify({
@@ -151,7 +262,16 @@ function main() {
   allow();
 }
 
-module.exports = { isGitCommit, hasSkipMarker, gateDisabled, hashSessionId, decide, TRIVIAL_FILE_THRESHOLD };
+module.exports = {
+  isGitCommit,
+  hasSkipMarker,
+  gateDisabled,
+  hashSessionId,
+  decide,
+  loadAndVerifyVerdict,
+  repoRootFor,
+  TRIVIAL_FILE_THRESHOLD,
+};
 
 if (require.main === module) {
   try { main(); }

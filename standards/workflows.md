@@ -459,6 +459,13 @@ conventions during the vendor step (e.g. `anthropic.review` →
 
 ## Cross-references
 
+- **`standards/sprint-pipeline.md`** — canonical 8-step sprint pipeline
+  and the 5-phase workflow contract (Research → Synthesize → Implement →
+  Review → Confidence). The phase shape that the cortex-sprint skill
+  dispatches is owned there; this document only specifies the workflow
+  primitive itself. See
+  [standards/sprint-pipeline.md § Phase contract](./sprint-pipeline.md#phase-contract)
+  for the canonical definition.
 - **`standards/auto-orchestration.md`** — the 3-fronta rule (≤3 parallel
   branches without explicit fan-in) applies WITHIN workflow design too. A
   workflow with 8 parallel branches and no judge phase is still a 3-fronta

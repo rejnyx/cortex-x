@@ -206,6 +206,10 @@ After workflow returns (main loop):
 - ❌ AC-9 doc-regen not idempotent → fix or defer to 2.45.0.1
 - ❌ R2 finds 5+ HIGH findings I can't address → rollback, smaller scope
 
+## References
+
+- standards/sprint-pipeline.md — canonical Sprint pipeline (extracted in Sprint 2.46; this plan predates extraction and references it retroactively for traceability)
+
 ---
 
 *Plan complete. Ready for workflow dispatch.*
