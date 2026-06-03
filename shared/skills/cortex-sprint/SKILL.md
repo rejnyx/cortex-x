@@ -156,7 +156,7 @@ The canonical sprint plan template mirrors [`cortex/sprint-2-44-plan.md`](../../
 1. **Frontmatter** — sprint id, date, status (`planned` / `in-progress` / `shipped`), owner.
 2. **Goal** — 1–2 sentence scope. Quote operator's brief verbatim where possible.
 3. **Deliverables** — numbered list, one artifact per item, with path or symbol.
-4. **Acceptance criteria** — bulleted, each one verifiable mechanically (test passes, file exists, regex matches). Mirror cortex spec-verifier kinds: `shell` / `file_predicate` / `regex` / `ears_text` / `llm_judge` / `read_set`.
+4. **Acceptance criteria** — bulleted, each one verifiable mechanically (test passes, file exists, regex matches). Mirror cortex spec-verifier's 7 criterion kinds: `shell` / `file_predicate` / `regex` / `ears_text` / `llm_judge` / `read_set` / `mutation_score` (Sprint 2.3.1 — fitness-signal gate, advisory thresholds per action_kind, see [`standards/mutation-testing.md`](../../../standards/mutation-testing.md) § Ratchet activation).
 5. **Workflow phases** — list the 5 phases (Research / Synthesize / Implement / Review / Confidence) with a 1-line scope per phase.
 6. **Risks** — bulleted, with mitigation per risk.
 7. **Out of scope** — what this sprint explicitly does NOT do. Important to prevent scope creep mid-flight.
@@ -227,6 +227,7 @@ This skill composes with:
 - [`cortex/sprint-2-44-plan.md`](../../../cortex/sprint-2-44-plan.md), [`cortex/sprint-2-45-plan.md`](../../../cortex/sprint-2-45-plan.md) — canonical plan-shape references.
 - [`cortex/sprint-2-44-r2-summary.md`](../../../cortex/sprint-2-44-r2-summary.md) — canonical r2-summary shape.
 - [`standards/sprint-pipeline.md`](../../../standards/sprint-pipeline.md) — canonical Sprint pipeline definition (this SKILL.md is the operational wrapper; the canonical contract lives there).
+- [`standards/mutation-testing.md`](../../../standards/mutation-testing.md) § Ratchet activation — Sprint 2.3.1 `mutation_score` is the 7th spec-verifier criterion kind; reference it from Acceptance criteria when the sprint touches `bin/steward/_lib/` or other mutation-scored surface.
 
 ## Honest caveats
 

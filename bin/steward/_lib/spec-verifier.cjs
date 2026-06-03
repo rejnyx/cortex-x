@@ -57,6 +57,17 @@
 //   - SPEC_READ_SET_INCOMPLETE    — Sprint 2.18: plan.read_set fails to cover
 //                                    expected_glob enumeration × min_coverage
 //                                    (read-coverage proof)
+//   - SPEC_MUTATION_SCORE_BELOW_MIN — Sprint 2.3.1: Stryker mutation score
+//                                    below configured min_percentage (block).
+//   - SPEC_MUTATION_REPORT_MISSING  — Sprint 2.3.1: stryker_output_path ENOENT,
+//                                    advisory fail-OPEN (ok: true).
+//   - SPEC_MUTATION_REPORT_MALFORMED — Sprint 2.3.1: report JSON.parse or
+//                                    shape invalid, advisory fail-OPEN.
+//   - SPEC_MUTATION_NO_VALID_MUTANTS — Sprint 2.3.1: no killed/survived/timeout/
+//                                    noCoverage mutants in target_files surface;
+//                                    advisory fail-OPEN.
+//   - SPEC_MUTATION_MIN_REQUIRED    — Sprint 2.3.1: criterion.min_percentage
+//                                    missing or invalid (registry typo); SPEC_MALFORMED-class.
 
 'use strict';
 
@@ -64,7 +75,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const VALID_KINDS = ['shell', 'file_predicate', 'regex', 'ears_text', 'llm_judge', 'read_set'];
+const VALID_KINDS = ['shell', 'file_predicate', 'regex', 'ears_text', 'llm_judge', 'read_set', 'mutation_score'];
 const VALID_SEVERITIES = ['block', 'warn'];
 const DEFAULT_SHELL_TIMEOUT_MS = 30_000;
 const SHELL_TIMEOUT_MAX_MS = 5 * 60_000;
@@ -257,6 +268,52 @@ function validateCriterion(c) {
             return { ok: false, reason: `read_set criterion '${c.id}' excludes entry '${e}' must be a single basename (no path separators)` };
           }
         }
+      }
+      break;
+    case 'mutation_score':
+      // Sprint 2.3.1 — 7th criterion kind. Reads a Stryker JSON report and
+      // scores killed-vs-survived over an optionally filtered surface. Three
+      // advisory fail-OPEN paths (missing report, malformed report, empty
+      // surface) preserve backward compat — Sprint 2.3.1 ships advisory across
+      // all 6 enforced thresholds; promotion to blocking is gated on Sprint
+      // 2.3.2 calibration data (60+ green runs).
+      if (typeof c.min_percentage !== 'number' || !Number.isFinite(c.min_percentage)) {
+        return { ok: false, reason: `mutation_score criterion '${c.id}' missing or non-numeric min_percentage (must be finite number in [0, 100])` };
+      }
+      if (c.min_percentage < 0 || c.min_percentage > 100) {
+        return { ok: false, reason: `mutation_score criterion '${c.id}' min_percentage must be in [0, 100], got ${c.min_percentage}` };
+      }
+      if (c.target_files !== undefined && c.target_files !== null) {
+        if (!Array.isArray(c.target_files)) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' target_files must be array of glob strings or null` };
+        }
+        for (const g of c.target_files) {
+          if (typeof g !== 'string' || g.length === 0) {
+            return { ok: false, reason: `mutation_score criterion '${c.id}' target_files entry must be non-empty string, got ${JSON.stringify(g)}` };
+          }
+        }
+      }
+      if (c.stryker_output_path !== undefined) {
+        if (typeof c.stryker_output_path !== 'string' || c.stryker_output_path.length === 0) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' stryker_output_path must be non-empty string when set` };
+        }
+        // Defense-in-depth: stryker_output_path is repo-relative. Reject
+        // absolute / .. / NUL / control chars same as expected_glob in read_set.
+        if (c.stryker_output_path.length > 500) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' stryker_output_path length exceeds 500-char cap` };
+        }
+        if (c.stryker_output_path.includes('\0')) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' stryker_output_path contains NUL byte` };
+        }
+        if (c.stryker_output_path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(c.stryker_output_path) || c.stryker_output_path.startsWith('\\')) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' stryker_output_path must be repo-relative` };
+        }
+        if (c.stryker_output_path.split(/[\\/]/).includes('..')) {
+          return { ok: false, reason: `mutation_score criterion '${c.id}' stryker_output_path contains '..' segment` };
+        }
+      }
+      if (c.advisory !== undefined && typeof c.advisory !== 'boolean') {
+        return { ok: false, reason: `mutation_score criterion '${c.id}' advisory must be boolean when set` };
       }
       break;
     default:
@@ -758,6 +815,215 @@ function runReadSet(c, ctx) {
     : { ok: true };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprint 2.3.1 — mutation_score runner (7th criterion kind)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Stryker status → camelCase counter key. Returning null for unknown statuses
+// keeps us forward-compatible with Stryker schema additions: unknown statuses
+// are dropped from both numerator and denominator instead of crashing the run.
+function statusToKey(status) {
+  if (typeof status !== 'string') return null;
+  switch (status) {
+    case 'Killed': return 'killed';
+    case 'Survived': return 'survived';
+    case 'Timeout': return 'timeout';
+    case 'NoCoverage': return 'noCoverage';
+    case 'CompileError': return 'compileError';
+    case 'RuntimeError': return 'runtimeError';
+    case 'Ignored': return 'ignored';
+    case 'Pending': return 'pending';
+    default: return null;
+  }
+}
+
+function matchesAnyGlob(p, globs) {
+  if (!Array.isArray(globs) || globs.length === 0) return true;
+  for (const g of globs) {
+    if (simpleGlobMatch(g, p)) return true;
+  }
+  return false;
+}
+
+function runMutationScore(c, ctx) {
+  // Sprint 2.3.1 — 7th criterion kind.
+  //
+  // Score formula (Stryker standard):
+  //   score = (killed + timeout) / (killed + survived + timeout + noCoverage) × 100
+  //
+  // CompileError / RuntimeError / Ignored / Pending are excluded from BOTH
+  // numerator and denominator (toolchain noise / explicit opt-out / not yet run).
+  // NoCoverage is counted as undetected (denominator only) — covered-only would
+  // let edits in unreachable branches pass trivially.
+  //
+  // Three advisory fail-OPEN paths return `{ ok: true, advisory: true }`:
+  //   - SPEC_MUTATION_REPORT_MISSING   (stryker_output_path ENOENT)
+  //   - SPEC_MUTATION_REPORT_MALFORMED (JSON.parse failed OR no .files key)
+  //   - SPEC_MUTATION_NO_VALID_MUTANTS (empty surface after target_files filter)
+  //
+  // STRYKER_RATCHET_MIN_PERCENTAGE env override (operator escape hatch) applies
+  // when set; documented in standards/mutation-testing.md as a one-shot lift.
+  const stryker_output_path = typeof c.stryker_output_path === 'string' && c.stryker_output_path.length > 0
+    ? c.stryker_output_path
+    : 'reports/mutation/mutation.json';
+  const target_files = Array.isArray(c.target_files) ? c.target_files : [];
+
+  const reportPath = path.resolve(ctx.repoRoot, stryker_output_path);
+  let raw;
+  try {
+    raw = fs.readFileSync(reportPath, 'utf8');
+  } catch (err) {
+    if (err && err.code === 'ENOENT') {
+      return {
+        ok: true,
+        advisory: true,
+        code: 'SPEC_MUTATION_REPORT_MISSING',
+        reason: 'SPEC_MUTATION_REPORT_MISSING',
+        message: `Stryker report not found at ${stryker_output_path} — advisory pass`,
+        score: null,
+      };
+    }
+    // Any other read error (EACCES, EISDIR, etc.) → still advisory; surfacing
+    // would block on toolchain misconfig, opposite of Sprint 2.3.1 ship gate.
+    return {
+      ok: true,
+      advisory: true,
+      code: 'SPEC_MUTATION_REPORT_MISSING',
+      reason: 'SPEC_MUTATION_REPORT_MISSING',
+      message: `Stryker report unreadable at ${stryker_output_path} (${err.code || 'read-error'}): ${err.message} — advisory pass`,
+      score: null,
+    };
+  }
+
+  let report;
+  try {
+    report = JSON.parse(raw);
+  } catch (err) {
+    return {
+      ok: true,
+      advisory: true,
+      code: 'SPEC_MUTATION_REPORT_MALFORMED',
+      reason: 'SPEC_MUTATION_REPORT_MALFORMED',
+      message: `Stryker report JSON.parse failed at ${stryker_output_path}: ${err.message} — advisory pass`,
+      score: null,
+    };
+  }
+
+  if (!report || typeof report !== 'object' || Array.isArray(report) || !report.files || typeof report.files !== 'object') {
+    return {
+      ok: true,
+      advisory: true,
+      code: 'SPEC_MUTATION_REPORT_MALFORMED',
+      reason: 'SPEC_MUTATION_REPORT_MALFORMED',
+      message: `Stryker report at ${stryker_output_path} missing .files key — advisory pass`,
+      score: null,
+    };
+  }
+
+  const counts = {
+    killed: 0, survived: 0, timeout: 0, noCoverage: 0,
+    compileError: 0, runtimeError: 0, ignored: 0, pending: 0,
+  };
+
+  // Collect per-file survivors for top_survivors hint (sorted later by file
+  // for determinism). Capped at READ_SET_MAX_FILES_ENUMERATED-equivalent.
+  const survivors = [];
+
+  for (const [filePath, fileEntry] of Object.entries(report.files)) {
+    if (target_files.length > 0 && !matchesAnyGlob(filePath, target_files)) continue;
+    if (!fileEntry || typeof fileEntry !== 'object') continue;
+    const mutants = Array.isArray(fileEntry.mutants) ? fileEntry.mutants : [];
+    for (const m of mutants) {
+      if (!m || typeof m !== 'object') continue;
+      const k = statusToKey(m.status);
+      if (!k) continue; // unknown status — forward-compat skip
+      counts[k] += 1;
+      if (k === 'survived' && survivors.length < 1000) {
+        const line = (m.location && m.location.start && Number.isFinite(m.location.start.line))
+          ? m.location.start.line
+          : (Number.isFinite(m.line) ? m.line : null);
+        survivors.push({
+          file: filePath,
+          line,
+          mutator: typeof m.mutatorName === 'string' ? m.mutatorName : (typeof m.mutator === 'string' ? m.mutator : null),
+        });
+      }
+    }
+  }
+
+  const detected = counts.killed + counts.timeout;
+  const valid = counts.killed + counts.survived + counts.timeout + counts.noCoverage;
+
+  if (valid === 0) {
+    return {
+      ok: true,
+      advisory: true,
+      code: 'SPEC_MUTATION_NO_VALID_MUTANTS',
+      reason: 'SPEC_MUTATION_NO_VALID_MUTANTS',
+      message: target_files.length > 0
+        ? `No valid mutants in target_files surface (${target_files.join(', ')}) — advisory pass`
+        : 'No valid mutants in Stryker report — advisory pass',
+      score: null,
+      counts,
+    };
+  }
+
+  const score = (detected / valid) * 100;
+
+  // Operator escape hatch (one-shot): STRYKER_RATCHET_MIN_PERCENTAGE env var
+  // overrides criterion.min_percentage when set + numeric. Documented in
+  // standards/mutation-testing.md as the emergency-raise procedure.
+  const envSource = (ctx.env && typeof ctx.env === 'object')
+    ? ctx.env
+    : (typeof process !== 'undefined' && process.env ? process.env : {});
+  const envRaw = envSource.STRYKER_RATCHET_MIN_PERCENTAGE;
+  let effectiveMin = c.min_percentage;
+  if (envRaw !== undefined && envRaw !== null && envRaw !== '') {
+    const parsed = Number(envRaw);
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) {
+      effectiveMin = parsed;
+    }
+  }
+
+  // top_survivors hint — deterministic ordering by (file, line, mutator).
+  // Pulled to top 3 for actionable PR-body diagnostic.
+  const top_survivors = survivors
+    .slice()
+    .sort((a, b) => {
+      if (a.file !== b.file) return a.file < b.file ? -1 : 1;
+      const al = a.line == null ? -1 : a.line;
+      const bl = b.line == null ? -1 : b.line;
+      if (al !== bl) return al - bl;
+      const am = a.mutator || '';
+      const bm = b.mutator || '';
+      if (am !== bm) return am < bm ? -1 : 1;
+      return 0;
+    })
+    .slice(0, 3);
+
+  if (score < effectiveMin) {
+    return {
+      ok: false,
+      code: 'SPEC_MUTATION_SCORE_BELOW_MIN',
+      reason: 'SPEC_MUTATION_SCORE_BELOW_MIN',
+      expected: `mutation_score ≥ ${effectiveMin}%`,
+      actual: `mutation_score=${score.toFixed(1)}% (killed=${counts.killed} survived=${counts.survived} timeout=${counts.timeout} noCoverage=${counts.noCoverage})`,
+      score,
+      threshold: effectiveMin,
+      counts,
+      top_survivors,
+    };
+  }
+
+  return {
+    ok: true,
+    score,
+    threshold: effectiveMin,
+    counts,
+    top_survivors,
+  };
+}
+
 const RUNNERS = {
   shell: runShell,
   file_predicate: runFilePredicate,
@@ -765,6 +1031,7 @@ const RUNNERS = {
   ears_text: runEarsText,
   llm_judge: runLlmJudge,
   read_set: runReadSet,
+  mutation_score: runMutationScore,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -913,6 +1180,7 @@ function runChecks(plan, applyResult, opts = {}) {
 
   const blockFailures = [];
   const warnFailures = [];
+  const advisories = [];
 
   for (const c of merge.criteria) {
     const runner = RUNNERS[c.kind];
@@ -935,7 +1203,41 @@ function runChecks(plan, applyResult, opts = {}) {
         spec_failures: [{ id: c.id, kind: c.kind, severity: c.severity || 'block', code: 'SPEC_MALFORMED', error: err.message }],
       };
     }
-    if (r.ok) continue;
+    if (r.ok) {
+      // Sprint 2.3.1: surface advisory (fail-OPEN) pass results so PR-body
+      // diagnostic + Phoenix spans can render them. ok=true still, no block.
+      // Treat any `advisory: true` flag OR any mutation_score pass (carries
+      // score+counts) as advisory diagnostic. Advisory-marked criteria with
+      // c.advisory === true are flagged as such regardless of fail-open code.
+      if (r.advisory === true || (c.kind === 'mutation_score' && c.advisory === true)) {
+        advisories.push({
+          id: c.id,
+          kind: c.kind,
+          severity: c.severity || 'block',
+          advisory: true,
+          code: r.code,
+          message: r.message,
+          score: r.score,
+          threshold: r.threshold,
+          counts: r.counts,
+          top_survivors: r.top_survivors,
+        });
+      } else if (c.kind === 'mutation_score') {
+        // mutation_score with enforced threshold that passed — emit info-level
+        // diagnostic for PR body (still ok, no block, but observable).
+        advisories.push({
+          id: c.id,
+          kind: c.kind,
+          severity: c.severity || 'block',
+          advisory: false,
+          code: 'SPEC_MUTATION_SCORE_OK',
+          score: r.score,
+          threshold: r.threshold,
+          counts: r.counts,
+        });
+      }
+      continue;
+    }
 
     const failure = {
       id: c.id,
@@ -945,6 +1247,10 @@ function runChecks(plan, applyResult, opts = {}) {
       code: r.code,
       expected: r.expected,
       actual: r.actual,
+      score: r.score,
+      threshold: r.threshold,
+      counts: r.counts,
+      top_survivors: r.top_survivors,
     };
 
     if (FAIL_CLOSED_CODES.has(r.code)) {
@@ -954,6 +1260,26 @@ function runChecks(plan, applyResult, opts = {}) {
         error: `criterion '${c.id}' (${c.kind}): ${r.actual || r.expected || r.code}`,
         spec_failures: [failure],
       };
+    }
+    // Sprint 2.3.1: mutation_score with c.advisory === true converts a
+    // BELOW_MIN block result into an advisory (ok=true, surfaced via
+    // advisories[]). Sprint 2.3.1 ships all 6 enforced thresholds advisory;
+    // Sprint 2.3.2 flips per-kind to enforced after 60+ green runs.
+    if (c.kind === 'mutation_score' && c.advisory === true) {
+      advisories.push({
+        id: c.id,
+        kind: c.kind,
+        severity: c.severity || 'block',
+        advisory: true,
+        code: r.code,
+        message: r.actual,
+        expected: r.expected,
+        score: r.score,
+        threshold: r.threshold,
+        counts: r.counts,
+        top_survivors: r.top_survivors,
+      });
+      continue;
     }
     if ((c.severity || 'block') === 'warn') {
       warnFailures.push(failure);
@@ -976,6 +1302,7 @@ function runChecks(plan, applyResult, opts = {}) {
       code: 'SPEC_VIOLATION',
       error: `${blockFailures.length} block criterion failure(s): ${blockFailures.map((f) => f.id).join(', ')}`,
       spec_failures: [...blockFailures, ...warnFailures],
+      advisories,
       criteria_passed: criteriaPassed,
       criteria_total: criteriaTotal,
     };
@@ -986,6 +1313,7 @@ function runChecks(plan, applyResult, opts = {}) {
       code: 'SPEC_WARNING',
       warnings: warnFailures.length,
       spec_failures: warnFailures,
+      advisories,
       criteria_passed: criteriaPassed,
       criteria_total: criteriaTotal,
     };
@@ -993,6 +1321,7 @@ function runChecks(plan, applyResult, opts = {}) {
   return {
     ok: true,
     spec_failures: [],
+    advisories,
     criteria_passed: criteriaTotal,
     criteria_total: criteriaTotal,
   };
@@ -1012,6 +1341,9 @@ module.exports = {
   runEarsText,
   runLlmJudge,
   runReadSet,
+  runMutationScore,
+  statusToKey,
+  matchesAnyGlob,
   enumerateGlob,
   normalizeReadSet,
   // constants

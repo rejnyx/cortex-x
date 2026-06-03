@@ -402,14 +402,20 @@ describe('action-kinds — tech_debt_audit registry entry', () => {
     assert.equal(k.shipped_in, '0.3.0');
   });
 
-  test('tech_debt_audit has all 4 acceptance criteria', () => {
+  test('tech_debt_audit has all 5 acceptance criteria (4 base + mutation_score Sprint 2.3.1)', () => {
     const k = actionKinds.getActionKind('tech_debt_audit');
-    assert.equal(k.acceptance_criteria.length, 4);
+    assert.equal(k.acceptance_criteria.length, 5);
     const ids = k.acceptance_criteria.map((c) => c.id);
     assert.ok(ids.includes('snapshot_file_written'));
     assert.ok(ids.includes('snapshot_schema_valid'));
     assert.ok(ids.includes('audit_only_writes_snapshot'));
     assert.ok(ids.includes('audit_readonly_ears'));
+    // Sprint 2.3.1: mutation_score criterion (60% advisory) added to all
+    // 7 LLM-touching action_kinds including tech_debt_audit.
+    assert.ok(
+      k.acceptance_criteria.some((c) => c.kind === 'mutation_score'),
+      'tech_debt_audit must include a mutation_score acceptance criterion (Sprint 2.3.1)'
+    );
   });
 
   test('isSupportedKind recognizes tech_debt_audit', () => {

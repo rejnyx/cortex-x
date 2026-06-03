@@ -35,6 +35,7 @@ describe('Sprint 2.9.7c — spec-verifier validateCriterion invariants', () => {
       ears_text: { ears: 'WHEN foo bar THE SYSTEM SHALL baz' },
       llm_judge: {},
       read_set: { expected_glob: 'src/**/*.ts' }, // Sprint 2.18
+      mutation_score: { min_percentage: 60 }, // Sprint 2.3.1
     };
     for (const kind of sv.VALID_KINDS) {
       const c = { id: 'x', kind, ...fixtures[kind] };

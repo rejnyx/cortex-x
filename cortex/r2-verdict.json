@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "sprint_id": "2.46.2",
-  "workflow_run_id": "wf_3a56fa77-ad8",
-  "timestamp": "2026-06-03T10:30:00.000Z",
+  "sprint_id": "2.3.1",
+  "workflow_run_id": "wf_d8ffc0f8-c85",
+  "timestamp": "2026-06-03T11:30:00.000Z",
   "agent_roster": [
     "security-auditor",
     "correctness-auditor",
@@ -12,36 +12,34 @@
     "edge-case-hunter"
   ],
   "findings": {
-    "HIGH": 7,
-    "MEDIUM": 6,
-    "LOW": 16
+    "HIGH": 2,
+    "MEDIUM": 11,
+    "LOW": 14
   },
   "applied": [
-    "H-doctor-path:tools->bin",
-    "H-doctor-flag:--format->--json",
-    "H-doctor-keys:summary.high/medium",
-    "H-doctor-files:explicit-target-list",
-    "H-baseline-signature:4-arg-with-contentOverride",
-    "H-baseline-result-key:findings-not-messages",
-    "H-baseline-severity:numeric-2-not-string-HIGH",
-    "H-qualifier-plus:trailingPlus-flag-separated",
-    "M-baseline-skip-list:atlas/cap-tree/recap-deferred-to-2.46.2.1"
+    "H-1-fictional-kinds:standards-table-rebuilt-21-real-kinds",
+    "H-2-target-files-contract:v1-whole-repo-semantics-documented",
+    "M-roadmap-drift:edit_ops->tdd_red_green",
+    "M-allowlist-fiction:NOT-YET-IMPLEMENTED-banner",
+    "M-test-count:tech-debt-audit-4->5"
   ],
   "deferred": [
-    "M-atlas-cleanup-12-stale-claims -> 2.46.2.1",
-    "M-cap-tree-drift-probe -> 2.46.2.1",
-    "M-snapshot-unavailable-dedup -> 2.46.2.1",
-    "M-schema-pinning-test -> 2.46.2.1",
-    "M-positive-fixture-assertion -> 2.46.2.1",
-    "LOW-housekeeping -> 2.46.2.1+"
+    "M-write-set-seam -> 2.3.2",
+    "M-allowlist-runtime -> 2.3.2",
+    "M-override-audit -> 2.3.2",
+    "M-advisory-emission -> 2.3.2",
+    "M-target-files-immutability -> 2.3.2",
+    "M-stryker-path-ssot -> 2.3.2",
+    "M-error-code-ssot -> 2.3.2",
+    "M-survivors-cap -> 2.3.2"
   ],
   "refuted": [],
   "decision": "PASS",
-  "commit_sha": "1255f41bd471d50232ad1ff2f11f26128adc8412",
-  "staged_tree": "d6b0343e6bfa667b480849863aaeb6b42b0096b8",
+  "commit_sha": "2fceee337786613a5afbc3cb4842ee62f06a3ffa",
+  "staged_tree": "9e209a29942f9d6bced094a3e41cc7b20ec5c631",
   "signature": {
     "alg": "HMAC-SHA256",
-    "value": "31e48e658cfd504430d17b73dd6b3bd7d60e0502e01435affc5c6a416514078f",
+    "value": "1803f83b934a04a0c7e6774a21623ebbceb41fa806c793c4b7c22e2d1f8ee08f",
     "secret_tier": "persisted"
   }
 }

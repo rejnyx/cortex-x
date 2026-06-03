@@ -172,6 +172,39 @@ const EDIT_POSITION_V1_EARS = {
   severity: 'block',
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprint 2.3.1 — mutation_score criterion factory (7th spec-verifier kind).
+//
+// Layered on top of the 6 existing criterion kinds (shell / file_predicate /
+// regex / ears_text / llm_judge / read_set). Reads Stryker JSON report,
+// computes (killed+timeout)/(killed+survived+timeout+noCoverage) × 100, gates
+// on per-kind min_percentage. All 6 enforced thresholds ship as
+// advisory: true in Sprint 2.3.1 — emit diagnostic, do NOT block PR. Promotion
+// to enforced requires 60+ green journal entries gated on Sprint 2.3.2.
+//
+// Action_kinds with no code mutation surface (lockfile/markdown/yaml/jsonl/
+// gh-issue-only kinds) get NO mutation_score criterion at all — mirrors
+// Stryker `mutate` glob exclusion.
+//
+// Per-kind threshold rationale lives at standards/mutation-testing.md
+// § Ratchet activation; numbers here are SSOT for the registry.
+//
+// STRYKER_RATCHET_MIN_PERCENTAGE env override is honored inside the verifier
+// (spec-verifier.cjs), not here — registry stays declarative.
+// ─────────────────────────────────────────────────────────────────────────────
+function mutationScoreCriterion({ idPrefix, minPercentage, rationale, targetFiles, advisory = true }) {
+  return {
+    id: `${idPrefix}_mutation_score`,
+    kind: 'mutation_score',
+    description: `Sprint 2.3.1 mutation score gate — min ${minPercentage}% (advisory in 2.3.1, promotes to block in 2.3.2 after 60 green journal entries). ${rationale}`,
+    min_percentage: minPercentage,
+    target_files: targetFiles || [],
+    stryker_output_path: 'reports/mutation/mutation.json',
+    advisory,
+    severity: advisory ? 'warn' : 'block',
+  };
+}
+
 const ACTION_KINDS = {
   // ── Currently shipped (Sprint 1.6.13 → 1.7.7) ─────────────────────────
   recommendation: {
@@ -198,6 +231,12 @@ const ACTION_KINDS = {
       EDIT_POSITION_STR_REPLACE_PRESERVED,
       EDIT_POSITION_INSERT_GROWS,
       EDIT_POSITION_V1_EARS,
+      // Sprint 2.3.1: LLM-mixed surface; equivalent-mutant rate is higher than deterministic edits, so threshold sits below the edit_ops 60% anchor's stricter peers.
+      mutationScoreCriterion({
+        idPrefix: 'recommendation',
+        minPercentage: 60,
+        rationale: 'LLM-mixed surface; equivalent-mutant rate justifies sitting at the edit_ops 60% anchor.',
+      }),
     ],
   },
 
@@ -310,6 +349,12 @@ const ACTION_KINDS = {
         ears: 'WHEN flaky_test_repair quarantines a test THE SYSTEM SHALL add a .skip marker without removing prior content',
         severity: 'block',
       },
+      // Sprint 2.3.1: tests ARE the mutation surface here — quarantining must preserve kill-capacity of the surrounding suite, so threshold sits ABOVE the generic 60% anchor.
+      mutationScoreCriterion({
+        idPrefix: 'flaky_test_repair',
+        minPercentage: 70,
+        rationale: 'Tests ARE the mutation surface — quarantining must preserve kill-capacity of the surrounding suite.',
+      }),
     ],
   },
 
@@ -389,6 +434,12 @@ const ACTION_KINDS = {
         ears: 'WHILE test_coverage_gap runs in v1 detection mode THE SYSTEM SHALL only file gh issues',
         severity: 'block',
       },
+      // Sprint 2.3.1: when v2 lands LLM-driven test generation, new tests should kill mutants by design — anchor at 65% advisory (above edit_ops generic, below flaky_repair 70).
+      mutationScoreCriterion({
+        idPrefix: 'test_coverage_gap',
+        minPercentage: 65,
+        rationale: 'New tests should kill mutants by design — anchor above generic 60% edit_ops, below flaky_repair 70%.',
+      }),
     ],
   },
 
@@ -418,6 +469,12 @@ const ACTION_KINDS = {
         ears: 'WHEN lint_fix_shipper applies edits THE SYSTEM SHALL not produce an empty file from a non-empty original',
         severity: 'block',
       },
+      // Sprint 2.3.1: codestyle edits — StringLiteral / WhitespaceMutator survives trivially, so threshold sits BELOW the edit_ops 60% anchor.
+      mutationScoreCriterion({
+        idPrefix: 'lint_fix_shipper',
+        minPercentage: 55,
+        rationale: 'Codestyle surface — StringLiteral mutators survive trivially, justifying threshold below generic edit_ops anchor.',
+      }),
     ],
   },
 
@@ -549,6 +606,12 @@ const ACTION_KINDS = {
         ears: 'WHEN tech_debt_audit runs THE SYSTEM SHALL only modify cortex/debt-snapshot.json',
         severity: 'block',
       },
+      // Sprint 2.3.1: snapshot-only in v1, but refactor-payload v2 must preserve behavior — anchor on Stryker low: 60 default.
+      mutationScoreCriterion({
+        idPrefix: 'tech_debt_audit',
+        minPercentage: 60,
+        rationale: 'Refactors must preserve behavior — anchor on Stryker low: 60 default.',
+      }),
     ],
   },
 
@@ -725,6 +788,12 @@ const ACTION_KINDS = {
         ears: 'WHEN senior_tester_review runs THE SYSTEM SHALL only write journal entries and open gh issues without editing any source or test files',
         severity: 'block',
       },
+      // Sprint 2.3.1: when v2 lands test-authoring auto-fix, the new/refined tests should pull score UP — matches flaky_repair 70% anchor.
+      mutationScoreCriterion({
+        idPrefix: 'senior_tester_review',
+        minPercentage: 70,
+        rationale: 'Adds tests — should pull score UP; matches flaky_repair 70% anchor as test-surface kind.',
+      }),
     ],
   },
 
@@ -856,6 +925,12 @@ const ACTION_KINDS = {
         ears: 'WHEN tdd_red_green runs THE SYSTEM SHALL write a failing test against the named target tests before implementing, confirm it fails, then implement until it passes without weakening or deleting existing assertions to force a green result',
         severity: 'block',
       },
+      // Sprint 2.3.1: TDD writes new test + implementation source — matches edit_ops 60% generic-code-edit anchor; reward-hacking gate above already blocks assertion-deletion path.
+      mutationScoreCriterion({
+        idPrefix: 'tdd_red_green',
+        minPercentage: 60,
+        rationale: 'Code-edit + test-author surface; matches edit_ops 60% generic anchor (assertion-deletion blocked separately by tdd_no_test_assertion_deletion).',
+      }),
     ],
   },
 
