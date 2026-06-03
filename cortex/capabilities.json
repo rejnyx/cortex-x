@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-02T19:13:57.380Z",
+  "generated_at": "2026-06-03T06:55:10.157Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -363,6 +363,12 @@
       "description": "Sprint 2.2 (Ralph-inspired): append-only success-side"
     },
     {
+      "name": "r2-verdict",
+      "path": "bin/steward/_lib/r2-verdict.cjs",
+      "sprint": "Sprint 2.46",
+      "description": "SPDX-License-Identifier: Apache-2.0"
+    },
+    {
       "name": "recommendations",
       "path": "bin/steward/_lib/recommendations.cjs",
       "sprint": null,
@@ -687,6 +693,12 @@
       "path": "standards/skills.md",
       "title": "Skills — Portable, Progressive-Disclosure Agent Instructions",
       "description": "**Rule 3 (Process)** — should-have convention. Skills are optional for trivial projects but deliver large leverage when you have repeatable procedures."
+    },
+    {
+      "name": "sprint-pipeline",
+      "path": "standards/sprint-pipeline.md",
+      "title": "Standard - Sprint pipeline (canonical 8-step sprint shape)",
+      "description": "A cortex-x sprint is a bounded unit of integration work (typically 5–15"
     },
     {
       "name": "ssot",
@@ -1224,15 +1236,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2740,
+      "unit": 2769,
       "contract": 106,
-      "integration": 178,
+      "integration": 185,
       "smoke": 0
     },
-    "total": 3024
+    "total": 3060
   },
   "code_volume": {
-    "steward_runtime_loc": 33486,
-    "test_code_loc": 41026
+    "steward_runtime_loc": 33778,
+    "test_code_loc": 41688
   }
 }

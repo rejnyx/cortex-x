@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-02T19:13:57.380Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-03T06:55:10.157Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 21 |
-| Steward primitives (`bin/steward/_lib/`) | 51 |
+| Steward primitives (`bin/steward/_lib/`) | 52 |
 | Universal hooks (`shared/hooks/`) | 8 |
-| Standards (rule tiers 0-3) | 34 |
+| Standards (rule tiers 0-3) | 35 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 3024 (unit 2740 · contract 106 · integration 178 · smoke 0) |
-| Runtime LoC (`bin/`) | 33,486 |
-| Test LoC (`tests/`) | 41,026 |
+| Tests total | 3060 (unit 2769 · contract 106 · integration 185 · smoke 0) |
+| Runtime LoC (`bin/`) | 33,778 |
+| Test LoC (`tests/`) | 41,688 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -50,7 +50,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `wiki_consolidate` | Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills… |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (51)
+## 2. Steward primitives (52)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -84,6 +84,7 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`otel-protobuf`](../bin/steward/_lib/otel-protobuf.cjs) | Sprint 2.0.1 | Sprint 2.0.1 zero-deps OTLP protobuf encoder |
 | [`policy-check`](../bin/steward/_lib/policy-check.cjs) | — | Steward Ring 1 denylist (over block-destructive Ring 2) |
 | [`project-ledger`](../bin/steward/_lib/project-ledger.cjs) | Sprint 2.2 | Sprint 2.2 (Ralph-inspired): append-only success-side |
+| [`r2-verdict`](../bin/steward/_lib/r2-verdict.cjs) | Sprint 2.46 | SPDX-License-Identifier: Apache-2.0 |
 | [`recommendations`](../bin/steward/_lib/recommendations.cjs) | — | parser for cortex/recommendations.md |
 | [`research-trigger`](../bin/steward/_lib/research-trigger.cjs) | Sprint 2.14 | Sprint 2.14 research-when-uncertain rule mechanics |
 | [`routing-policy`](../bin/steward/_lib/routing-policy.cjs) | Sprint 2.0b | Sprint 2.0b per-action USD cap + journal scan |
@@ -123,7 +124,7 @@ Claude Code session hooks shipped to `~/.claude/shared/hooks/` via install. Appl
 | [`session-start`](../shared/hooks/session-start.cjs) | // Detect active sprint/phase (### or ####, NOT marked done) |
 | [`tirith-scan`](../shared/hooks/tirith-scan.cjs) | cortex-x SessionStart hook — context-file prompt-injection scanner (Tirith wrapper). |
 
-## 4. Standards (34)
+## 4. Standards (35)
 
 Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy (Rule 0 distribution / 1 invariants / 1.5 coding behavior / 2 critical / 3 process).
 
@@ -153,6 +154,7 @@ Rule tiers — see [`standards/RULE-1.md`](../standards/RULE-1.md) for hierarchy
 | [`ship-ready`](../standards/ship-ready.md) | Ship-Ready — Governance Invariants for Distribution | Anything a stranger would never need to know about the maintainer must not live in templates, prompts, standards, profiles, hooks, or install scripts. Includes: |
 | [`skill-validate`](../standards/skill-validate.md) | Skill validation — 3-tier model + ToxicSkills baseline | cortex does NOT reimplement broad spec-conformance lint. `agnix` (npm, 414 rules) already covers that surface well. `cortex-skill-validate` runs AFTER `agnix` and adds three cortex-opinionated layers — spec-driven failure mode, Claude-Code- |
 | [`skills`](../standards/skills.md) | Skills — Portable, Progressive-Disclosure Agent Instructions | **Rule 3 (Process)** — should-have convention. Skills are optional for trivial projects but deliver large leverage when you have repeatable procedures. |
+| [`sprint-pipeline`](../standards/sprint-pipeline.md) | Standard - Sprint pipeline (canonical 8-step sprint shape) | A cortex-x sprint is a bounded unit of integration work (typically 5–15 |
 | [`ssot`](../standards/ssot.md) | SSOT — Single Source of Truth | Duplicated knowledge drifts. Labels in 3 files become 3 slightly different labels. Constants in 5 places become 5 different values after one hasty edit. Bug fixes get applied to 4 of 5 copies. Entropy wins. |
 | [`steward-policy`](../standards/steward-policy.md) | Steward Policy — Refusal List, Denylist, MUST patterns | Steward refuses the following at the tool-wrapper layer, **not via system prompt**. Promptword-only enforcement fails under prompt injection (Replit Agent prod-DB wipe, July 2025, is the canonical incident). All seven refusals are encoded i |
 | [`story-sizing`](../standards/story-sizing.md) | Story Sizing — Rule 3 | Cortex-x scaffolds projects whose recommendation backlogs are consumed by autonomous agents (Steward, manual `/audit`, Ralph-style loops). Action items must be sized so an LLM can complete one in a single context window without losing track |
