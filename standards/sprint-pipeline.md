@@ -26,7 +26,7 @@ has eight ordered steps. Each step is mandatory unless the per-step
 | 3 | Workflow dispatch | Run the 5-phase workflow (Research → Synthesize → Implement → Review → Confidence). | No — the workflow IS the sprint. |
 | 4 | Empirical | Run probes / measurements / spike scripts; write `cortex/sprint-<N>-probe-verdict.md`. | Yes — only if the sprint has no probe deliverable. |
 | 5 | Triage | Classify R2 findings (HIGH / MEDIUM / LOW / Architectural) and apply or defer per policy. | No — even a clean review is triaged (zero-findings is a valid verdict). |
-| 6 | Signed verdict emit | Write `cortex/r2-verdict.json` with HMAC-SHA256 signature over `{sprint_id, workflow_run_id, timestamp, agent_roster, findings, applied, deferred, refuted, decision}`. (Commit-SHA binding + replay journal deferred to Sprint 2.46.1 — see § Verdict-driven gate.) | No — primary pre-commit unblock path (Sprint 2.46+). |
+| 6 | Signed verdict emit | Write `cortex/r2-verdict.json` (schema_version=2) with HMAC-SHA256 or Ed25519 signature over `{sprint_id, workflow_run_id, ts, commit_sha, staged_tree, agent_roster, findings, applied, deferred, refuted, decision}`. Commit-SHA bound + single-use via `cortex/.r2-seen-runs.json` nonce journal (Sprint 2.46.1). | No — primary pre-commit unblock path (Sprint 2.46+). |
 | 7 | Doc-regen + commit | Run `cortex-doc-regen --apply`, stage diff, commit with conventional subject + `R2-verdict: <hash8>` trailer. | No — managed blocks must converge before commit. |
 | 8 | Status report | Emit operator-facing summary (deliverables shipped, R2 stats, deferred items, next-sprint pointer). | No — the report is the operator's checkpoint. |
 
@@ -101,20 +101,26 @@ verifier + secret resolver). See that file's header comment for the wire
 format; see this section for the gate behavior contract.
 
 **Gate behavior table** (`shared/hooks/pre-commit-review-gate.cjs`).
-v0 shipped in Sprint 2.46 covers ONLY signature + schema_version + `decision`
-PASS/FAIL semantics; rows reflect the actually shipped code, not aspirational
-properties.
+Sprint 2.46 shipped v0 (signature + schema_version + `decision` PASS/FAIL).
+Sprint 2.46.1 ships v2 of the verdict path: payload-bound `commit_sha`,
+single-use `workflow_run_id` via nonce journal, Ed25519 alongside HMAC,
+and CORTEX_R2_VERDICT_STRICT=1 fail-CLOSED mode. Rows reflect the actually shipped
+code, not aspirational properties.
 
 | State of `cortex/r2-verdict.json` | Gate decision | Reason returned |
 |---|---|---|
 | File absent | Fall through to marker check | n/a |
 | File present, malformed JSON | Fall through silently | n/a (not an error — gate is permissive) |
-| File present, signature verifies, `decision: "PASS"` | **ALLOW** | "signed R2 verdict present" |
+| File present, `schema_version=2`, signature verifies, `decision: "PASS"`, `commit_sha` matches HEAD, `workflow_run_id` NOT in journal | **ALLOW** | "signed R2 verdict present (v2, commit_sha bound, run_id fresh)" |
+| File present, `schema_version=2`, `commit_sha` does NOT match `git rev-parse HEAD` | **DENY** | "stale verdict — commit_sha mismatch (`CORTEX_R2_VERDICT_HEAD_MISMATCH`)" |
+| File present, `schema_version=2`, `workflow_run_id` IS in nonce journal | **DENY** | "replay attempt — workflow_run_id consumed (`CORTEX_R2_VERDICT_RUN_ID_BURNED`)" |
+| File present, `schema_version=1` (legacy HMAC, no commit_sha), signature verifies, `decision: "PASS"` | **ALLOW** (backward compat) | "signed R2 verdict present (legacy v1 — no commit binding)" |
 | File present, signature verifies, `decision: "FAIL"` | Fall through to other gates | n/a |
 | File present, signature mismatch (tampered) | Fall through silently | n/a (treated same as absent — verdict is informational, not enforced as deny) |
-| File present, schema_version mismatch | Fall through silently | n/a |
-| Secret unset (`CORTEX_R2_VERDICT_SECRET`) AND no host-fallback path | Fail-OPEN with `CORTEX_R2_VERDICT_NO_SECRET_WARNING` | "signed R2 verdict present (no secret to verify; warning logged)" |
-| Secret unset, falls back to hostname-derived key (default for local dev) | Signer + verifier both use the same fallback → signature matches normally | "signed R2 verdict present" |
+| File present, schema_version unsupported (not 1 or 2) | Fall through silently | n/a |
+| `CORTEX_R2_VERDICT_STRICT=1` AND secret cannot be resolved (env unset + persisted file missing) | **HARD-FAIL** | "strict secret mode — secret unresolved (`CORTEX_R2_VERDICT_STRICT_SECRET_MISSING`)" |
+| Secret unset (`CORTEX_R2_VERDICT_SECRET`) AND no host-fallback path AND `STRICT_SECRET` unset | Fail-OPEN with `CORTEX_R2_VERDICT_NO_SECRET_WARNING` | "signed R2 verdict present (no secret to verify; warning logged)" |
+| Secret unset, falls back to hostname-derived key (default for local dev), `STRICT_SECRET` unset | Signer + verifier both use the same fallback → signature matches normally | "signed R2 verdict present" |
 
 **Why the gate is permissive on tamper/mismatch:** the verdict is one of
 *four* allow paths (`[skip-review]` tag, `CORTEX_REVIEW_GATE=0` env,
@@ -123,34 +129,44 @@ this path; the commit still has three other unblock options. Refusing the
 commit on tamper would couple the gate to the verdict path and undo the
 structural separation step 6 was designed to enable.
 
-**HMAC vs Ed25519:** Sprint 2.46 ships HMAC-SHA256 because signer +
-verifier run on the same machine, single principal, zero-deps,
-Windows-portable. Ed25519 is deferred until cross-machine verification
-becomes a requirement (multi-operator setups, signed verdicts shipped to
-clients, public-attestation use cases).
+**HMAC vs Ed25519:** Sprint 2.46 shipped HMAC-SHA256 as the only path.
+Sprint 2.46.1 adds Ed25519 alongside HMAC at schema_version=2; the
+`signature.alg` field selects the algorithm per verdict, and the verifier
+dispatches accordingly (HMAC verified against `resolveSecret()` output;
+Ed25519 verified against `publicKeyRegistry` keyed by `public_key_id`).
+HMAC remains the default for single-machine local-dev use; Ed25519 is
+intended for multi-operator setups, signed verdicts shipped to clients,
+and public-attestation use cases.
 
-### Sprint 2.46.1 backlog (deferred verdict properties) {#verdict-deferred}
+**Sprint 2.46.1 closed 2026-06-03:** commit_sha binding, workflow_run_id nonce journal, Ed25519 promotion (schema_version=2), CORTEX_R2_VERDICT_STRICT=1 mode, and resolveSecret() v2 model all shipped — see cortex/sprint-2-46-1-plan.md.
 
-The v0 shipped in Sprint 2.46 deliberately defers the following bindings;
-they are NOT enforced by the gate today. Operators relying on these
-properties before Sprint 2.46.1 lands are relying on bindings that do not
-exist:
+## Replay-defense semantics {#replay-defense}
 
-- **commit_sha binding** — the signed payload does NOT include `commit_sha`,
-  and the gate does NOT cross-check against `git rev-parse HEAD`. A
-  freshly-signed verdict can unblock any subsequent commit on the same
-  machine until the file is overwritten. Cross-commit replay defense lands
-  in Sprint 2.46.1 alongside Ed25519 promotion.
-- **Age / expiry (`maxAgeSec`)** — verdict has no TTL field. Operators
-  rotate verdicts by overwriting `cortex/r2-verdict.json`.
-- **STRICT_SECRET=1 hard-fail mode** — no such env var is read. Missing
-  secret today fails-OPEN with a warning code (see table above). Strict
-  mode for CI deferred to Sprint 2.46.1.
-- **Workflow-run-id nonce journal** — verdict can be re-applied without a
-  per-`workflow_run_id` burn check. Single-use semantics deferred.
+Sprint 2.46.1 closes the replay window that v0 (Sprint 2.46) deliberately
+left open. A nonce journal at `cortex/.r2-seen-runs.json` (capped at 1000
+entries, FIFO eviction) records every `workflow_run_id` whose verdict has
+already unblocked a commit; each id is consumed exactly once. A replay
+attempt — reusing a verdict whose `workflow_run_id` is already in the
+journal — is detected by the pre-commit gate and denied with an explicit
+reason. Commit-SHA binding (the `commit_sha` field inside the
+schema_version=2 payload) ensures the verdict was computed against the
+same parent HEAD the operator is now committing on top of: a rebase or
+force-push that moves HEAD invalidates the verdict immediately, even if
+the file was not overwritten. Together with `staged_tree` cross-check, the
+verdict path becomes single-use and head-bound; the only way to land
+another sprint commit is to run R2 again and emit a fresh verdict with a
+new UUIDv4 `workflow_run_id`.
 
-These deferred items are tracked in
-`cortex/sprint-2-46-r2-summary.md § Deferred to Sprint 2.46.1`.
+**New error codes (consumed by the gate, surfaced in the pre-commit
+output):**
+
+- `CORTEX_R2_VERDICT_HEAD_MISMATCH` — `payload.commit_sha` does not match
+  `git rev-parse HEAD` at commit time.
+- `CORTEX_R2_VERDICT_RUN_ID_BURNED` — `payload.workflow_run_id` is already
+  recorded in `cortex/.r2-seen-runs.json`.
+- `CORTEX_R2_VERDICT_STRICT_SECRET_MISSING` — `CORTEX_R2_VERDICT_STRICT=1` is set and
+  `resolveSecret()` could not return a non-host-derived key (env unset AND
+  persisted file missing).
 
 ## Triage discipline {#triage-discipline}
 
@@ -206,11 +222,12 @@ blocks have nothing to update). It stays in the pipeline so it cannot be
 forgotten on the next code-touching sprint.
 
 **Failure mode — regen surfaces drift mid-sprint:** apply the drift fix
-in the same commit, note it in commit body. The signed verdict (step 6)
-was computed before regen — the v0 verdict does not bind to `commit_sha`
-(Sprint 2.46.1 backlog) so no re-sign is needed after regen, but operators
-should track the diff between the verdict's `findings`/`applied` counts
-and the final commit's contents in the r2-summary.md audit trail.
+in the same commit, note it in commit body. The signed verdict (step 6,
+schema_version=2) binds to the staged tree and parent HEAD at sign time;
+after a regen-induced restage, recompute `commit_sha` + `staged_tree` and
+re-sign with a fresh `workflow_run_id`. Operators should track the diff
+between the verdict's `findings`/`applied` counts and the final commit's
+contents in the r2-summary.md audit trail.
 
 **Reference SSOT:** `standards/documentation.md § State block convention`
 owns the marker contract. This sprint-pipeline standard owns the
