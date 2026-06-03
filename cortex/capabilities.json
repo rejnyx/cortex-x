@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-03T06:55:10.157Z",
+  "generated_at": "2026-06-03T09:11:40.403Z",
   "generator": "bin/cortex-capabilities.cjs",
   "note": "AUTO-GENERATED. Do not edit by hand. Re-run `npm run capabilities` to refresh.",
   "action_kinds": [
@@ -366,6 +366,18 @@
       "name": "r2-verdict",
       "path": "bin/steward/_lib/r2-verdict.cjs",
       "sprint": "Sprint 2.46",
+      "description": "SPDX-License-Identifier: Apache-2.0"
+    },
+    {
+      "name": "r2-verdict-journal",
+      "path": "bin/steward/_lib/r2-verdict-journal.cjs",
+      "sprint": "Sprint 2.46.1",
+      "description": "SPDX-License-Identifier: Apache-2.0"
+    },
+    {
+      "name": "r2-verdict-keys",
+      "path": "bin/steward/_lib/r2-verdict-keys.cjs",
+      "sprint": "Sprint 2.46.1",
       "description": "SPDX-License-Identifier: Apache-2.0"
     },
     {
@@ -1236,15 +1248,15 @@
   ],
   "tests": {
     "counts": {
-      "unit": 2769,
-      "contract": 106,
-      "integration": 185,
+      "unit": 2813,
+      "contract": 112,
+      "integration": 189,
       "smoke": 0
     },
-    "total": 3060
+    "total": 3114
   },
   "code_volume": {
-    "steward_runtime_loc": 33778,
-    "test_code_loc": 41688
+    "steward_runtime_loc": 34762,
+    "test_code_loc": 43022
   }
 }

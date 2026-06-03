@@ -1,6 +1,6 @@
 # cortex-x — capability registry
 
-> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-03T06:55:10.157Z
+> **AUTO-GENERATED** by [`bin/cortex-capabilities.cjs`](../bin/cortex-capabilities.cjs). Re-run `npm run capabilities` to refresh. Last generated: 2026-06-03T09:11:40.403Z
 
 > Single source of truth for "what cortex-x can do today." Sprint 2.15 ships this as operator-facing answer to *"I do not even know what we have anymore"* and as future Steward system-prompt injection substrate.
 
@@ -9,16 +9,16 @@
 | Category | Count |
 |---|---|
 | Steward action_kinds | 21 |
-| Steward primitives (`bin/steward/_lib/`) | 52 |
+| Steward primitives (`bin/steward/_lib/`) | 54 |
 | Universal hooks (`shared/hooks/`) | 8 |
 | Standards (rule tiers 0-3) | 35 |
 | Profiles (`profiles/`) | 11 |
 | Prompts (`prompts/`) | 20 |
 | Review-pipeline agents (`agents/`) | 10 |
 | GitHub workflows | 23 |
-| Tests total | 3060 (unit 2769 · contract 106 · integration 185 · smoke 0) |
-| Runtime LoC (`bin/`) | 33,778 |
-| Test LoC (`tests/`) | 41,688 |
+| Tests total | 3114 (unit 2813 · contract 112 · integration 189 · smoke 0) |
+| Runtime LoC (`bin/`) | 34,762 |
+| Test LoC (`tests/`) | 43,022 |
 
 > _Test count is computed via regex over `test()`/`it()` invocations across `tests/{unit,contract,integration,smoke}/`. The authoritative count for CI/release gating is whatever `npm test` reports (Node test runner) — currently slightly higher (~2339 at HEAD) because `describe()` blocks and some `.skip`/`.todo` variants resolve differently. Both numbers track the same suite; the regex is the discovery-surface estimate, `npm test` is the gate._
 
@@ -50,7 +50,7 @@ What the Steward autonomous runtime is allowed to DO. Dispatched via cron, manua
 | `wiki_consolidate` | Karpathy-style human-readable wiki layer over lessons.jsonl. Phase A is pure-deterministic — reads lessons.jsonl, groups by action_kind, emits one Obsidian-compatible article per kind to $CORTEX_DATA_HOME/wiki/<slug>/capabilities/<action_kind>.md. Frontmatter follows agentskills… |
 | `workflow_hardener` | Advisory analyzer for .github/workflows/*.yml — flags unpinned action SHAs, missing permissions:/concurrency:/timeout-minutes:. v1 opens ONE gh issue with proposed patches; v1.5 will add auto-fix behind explicit env flag. |
 
-## 2. Steward primitives (52)
+## 2. Steward primitives (54)
 
 Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch + memory layer.
 
@@ -85,6 +85,8 @@ Zero-deps CJS modules in `bin/steward/_lib/` implementing the safety + dispatch 
 | [`policy-check`](../bin/steward/_lib/policy-check.cjs) | — | Steward Ring 1 denylist (over block-destructive Ring 2) |
 | [`project-ledger`](../bin/steward/_lib/project-ledger.cjs) | Sprint 2.2 | Sprint 2.2 (Ralph-inspired): append-only success-side |
 | [`r2-verdict`](../bin/steward/_lib/r2-verdict.cjs) | Sprint 2.46 | SPDX-License-Identifier: Apache-2.0 |
+| [`r2-verdict-journal`](../bin/steward/_lib/r2-verdict-journal.cjs) | Sprint 2.46.1 | SPDX-License-Identifier: Apache-2.0 |
+| [`r2-verdict-keys`](../bin/steward/_lib/r2-verdict-keys.cjs) | Sprint 2.46.1 | SPDX-License-Identifier: Apache-2.0 |
 | [`recommendations`](../bin/steward/_lib/recommendations.cjs) | — | parser for cortex/recommendations.md |
 | [`research-trigger`](../bin/steward/_lib/research-trigger.cjs) | Sprint 2.14 | Sprint 2.14 research-when-uncertain rule mechanics |
 | [`routing-policy`](../bin/steward/_lib/routing-policy.cjs) | Sprint 2.0b | Sprint 2.0b per-action USD cap + journal scan |
