@@ -112,6 +112,195 @@ Backreference `\1` enforces matched IDs. Any state-block tooling MUST use this e
 
 **Reference SSOT:** This standard (`standards/documentation.md`) is the single source of truth for the marker contract. Sprint 2.45.1 may extract to `standards/state-blocks.md` if a second consumer beyond `cortex-doc-regen` emerges (currently only `cortex-claude-md-augment` uses a similar but distinct marker pattern).
 
+## Hand-prose currency convention {#hand-prose-currency}
+
+> Sprint 2.46.2 extension. State blocks (above) close the auto-regen layer — code-derived counts converge on every regen. The hand-prose around state blocks is the remaining drift surface: a paragraph that says "cortex-x ships 30 standards" rots the moment standard #31 lands. This section codifies the hand-prose contract and the `cortex-doc-currency` lint that enforces it.
+
+The lint detects two failure classes: (1) **numeric-claim drift** — prose asserts a count that disagrees with the nearest state block or with `cortex-doc-regen --json` snapshot; (2) **frontmatter expiry** — a doc declares `last_human_review:` or `expires:` and the reference date has passed.
+
+### Decision tree
+
+When you need to mention a count, ask three questions in order:
+
+1. **Is the value derived from code/tests/repo state and likely to change within a sprint?** → use a state-block reference (pattern A). The block carries the live value; prose around it reads the block via `{{state.<key>}}` placeholder or "see state-block above".
+2. **Is the value a rough magnitude that the reader needs for context, not a precise figure?** → use a qualified narrative (pattern B). Phrases like "dozens of standards", "over 30 action_kinds", "around 3000 tests" pass the lint because the qualifier carries explicit tolerance.
+3. **Is the value a frozen historical fact (decision-time snapshot, ADR rationale, post-mortem footprint)?** → use the point-in-time frontmatter (pattern C). The doc declares `point_in_time: true` and the body is immutable; the lint stays silent.
+
+Avoid the fourth path — a bare literal count outside a state block, without a qualifier, without a point-in-time declaration. That is the F1 forbidden pattern below.
+
+### Approved patterns
+
+**A — State-block reference (live counts):**
+
+```markdown
+<!-- BEGIN cortex-x state-snapshot (v1) - managed by cortex-doc-regen -->
+| Metric | Value |
+|---|---|
+| Standards | 34 |
+| Action kinds | 18 |
+<!-- END cortex-x state-snapshot -->
+
+cortex-x ships across Rule 0-3 — see the snapshot table above for the live count.
+The standards directory is the SSOT for principle documents.
+```
+
+*Why this passes:* the count lives inside the marker (regen owns it); the prose names the table, not the number. Refactors that add a standard update the table on the next regen and the prose stays correct.
+
+**B — Qualified narrative:**
+
+```markdown
+The standards directory holds dozens of files spanning Rule 0-3.
+Each file carries a single principle plus its enforcement contract.
+```
+
+*Why this passes:* "dozens" is a qualifier the lint recognizes (alongside "approximately", "around", "roughly", "about", "over", "more than", "nearly", "~", trailing `+`). The reader gets context without a specific number to rot. Use this when the exact count is not load-bearing for the paragraph's argument.
+
+**C — ADR point-in-time frontmatter:**
+
+```markdown
+---
+adr_id: 047
+date: 2026-05-08
+point_in_time: true
+as_of_snapshot:
+  standards_count: 30
+  action_kinds: 14
+---
+
+# ADR-047 — Phoenix replaces Langfuse for OTLP traces
+
+At decision time, cortex-x had 30 standards and 14 action_kinds. The Phoenix flip
+was scoped against that footprint and remains valid for the operating envelope it
+described.
+```
+
+*Why this passes:* `point_in_time: true` opts the file out of claim lint and expiry checks. The body is treated as an immutable historical record. Use for ADRs, sprint memos, audit snapshots, retrospectives, dated research notes.
+
+### Forbidden patterns
+
+**F1 — Bare literal count in prose without state-block backing:**
+
+```markdown
+# Bad
+cortex-x ships 30 standards across Rule 0-3.
+
+# Fix — pattern A (live)
+cortex-x ships {{state.standards_count}} standards (see snapshot above).
+
+# Fix — pattern B (qualified)
+cortex-x ships dozens of standards across Rule 0-3.
+```
+
+*Why forbidden:* the literal `30` rots silently when standard #31 lands. Pattern A pulls the count from regen; pattern B drops the precision in exchange for stability.
+
+**F2 — Mixed literal and state-block reference in same paragraph:**
+
+```markdown
+# Bad — two SSOTs for the same fact
+<!-- BEGIN cortex-x state-snapshot (v1) - managed by cortex-doc-regen -->
+| Standards | 34 |
+<!-- END cortex-x state-snapshot -->
+
+cortex-x has 30 standards. The breakdown is shown above.
+
+# Fix — drop the literal, reference the block
+cortex-x ships standards across Rule 0-3 — see the snapshot above.
+```
+
+*Why forbidden:* two declarations of the same count guarantee one will go stale. SSOT discipline: name the value in exactly one place.
+
+**F3 — Feature-bullet literal without state-block citation:**
+
+```markdown
+# Bad
+- 2447 tests passing across 8 tier gates
+
+# Fix
+- Test suite spans 8 tier gates (see state-snapshot for current count)
+```
+
+*Why forbidden:* feature bullets in `README.md`, `CLAUDE.md`, atlas docs are read top-of-funnel; a stale number in a feature bullet damages credibility more than a stale number in a deep prose section. Same fix as F1 — name the dimension, not the value.
+
+### Frontmatter fields
+
+Opt a doc into freshness tracking by adding YAML frontmatter at file top:
+
+```yaml
+---
+last_human_review: 2026-06-03    # ISO-8601 date; computed expiry = this + cadence_days
+expires: 2026-09-03              # ISO-8601 date; explicit expiry, overrides computed
+point_in_time: true              # immutable historical doc — no expiry, no claim lint
+cadence_days: 90                 # override the path-default cadence
+doc_currency_disable: true       # silence claim lint, keep expiry tracking
+doc_currency_waive_until: 2026-09-01  # blanket waiver until this ISO date
+---
+```
+
+Field semantics:
+
+- `last_human_review` — most recent date the operator read the file end-to-end and confirmed it reflects current intent. The lint computes `expiry = last_human_review + cadence_days` and warns once the reference date passes.
+- `expires` — explicit expiry date. Wins over the computed `last_human_review + cadence_days` when both are present. Use for time-bounded docs (e.g. quarterly roadmap, dated announcement).
+- `point_in_time: true` — declares the file an immutable historical record. No expiry warnings, no claim lint. ADRs, sprint memos, audit snapshots, research notes.
+- `cadence_days` — overrides the path-default cadence below. Use sparingly — prefer adjusting the path-default if the override would apply to a whole class of files.
+- `doc_currency_disable: true` — silences claim lint on the file while keeping expiry tracking. Use when claim lint produces sustained false positives despite qualifiers.
+- `doc_currency_waive_until: <ISO date>` — blanket waiver (claims + expiry) until the date. Useful during a deprecation runway where the file is intentionally stale until removal.
+
+Files without any of these fields are silent — claim lint runs, expiry tracking is opt-in.
+
+### Default cadence per doc type
+
+| Path glob | Cadence | Rationale |
+|---|---|---|
+| `runbooks/**` | 30 days | Operational procedures rot fast — env changes, tool versions, infra updates |
+| `cortex/atlas-*.md`, `cortex/capability-tree-*.md` | 30 days | Snapshot artifacts; explicit dated filename signals freshness expectation |
+| `prompts/**` | 60 days | Prompt drift follows model releases; revisit each major release |
+| `standards/**` | 90 days | Principles change slower than code; quarterly review fits sprint cadence |
+| `README.md`, `CLAUDE.md`, `CONTRIBUTING.md` | 180 days | Front-door docs; semi-annual review |
+| `docs/research/**`, `**/adr-*.md`, `cortex/journal/**` | point-in-time (implicit) | Historical artifacts; never expire |
+| else | 180 days | Conservative default — adjust per-file via frontmatter or per-glob in config |
+
+Grace period: each cadence carries a 14-day soft window. Within the window the lint emits a yellow warning (severity 1). Past the window it emits red (severity 2). Both stay warn-only unless `--strict` is passed.
+
+Tune cadences and globs via `cortex/config/doc-currency.json`:
+
+```json
+{
+  "cadenceByPath": { "runbooks/": 30, "standards/": 90, "prompts/": 60 },
+  "graceDays": 14,
+  "pointInTime": ["docs/research/**", "**/adr-*.md"]
+}
+```
+
+### Lint integration
+
+The lint ships as `bin/cortex-doc-currency.cjs` — zero-dep CJS CLI with the same shape as `cortex-doc-regen` (`--check`, `--json`, `--apply`, `--help`):
+
+```bash
+node bin/cortex-doc-currency.cjs --check       # exit 1 on stale claim or expired doc
+node bin/cortex-doc-currency.cjs --json        # ESLint-shaped findings to stdout
+node bin/cortex-doc-currency.cjs --apply       # autofix unambiguous numeric drift
+node bin/cortex-doc-currency.cjs --strict      # red findings exit 1 (else warn-only)
+```
+
+The CLI is deterministic — it reads the reference instant from `$CORTEX_LINT_NOW` (ISO-8601) or `--now <iso>`, never from `Date.now()`. CI sets `CORTEX_LINT_NOW=$(git log -1 --format=%cI HEAD)` for reproducible runs.
+
+**Composition with `cortex-doc-regen`:** doc-currency calls `cortex-doc-regen --json` once per run to fetch the live state snapshot, then walks the doc set and compares each prose claim against the corresponding snapshot key (`nounToStateKey` map in config). The two CLIs share zero code; the JSON contract is the only interface.
+
+**Composition with the sprint pipeline:** see [standards/sprint-pipeline.md](./sprint-pipeline.md) — Step 7 of the canonical sprint pipeline runs `cortex-doc-regen --apply` to refresh state blocks; doc-currency is the verification layer that catches the hand-prose drift Step 7 cannot fix. Run doc-currency in CI as part of `--check`; the contract test in `tests/contract/doc-currency-baseline.test.cjs` is the regression gate.
+
+**Inline allowlists** for legitimate edge cases (e.g. quoting a historical claim verbatim):
+
+```markdown
+<!-- doc-currency-disable-next-line -->
+The original RFC asserted 12 action_kinds — we have grown beyond that.
+
+<!-- doc-currency-disable -->
+Block of prose where claim lint is silenced (e.g. a quoted email thread).
+<!-- doc-currency-enable -->
+```
+
+Env kill-switch: `CORTEX_DOC_LINT_DISABLED=1` short-circuits the CLI to a no-op (exit 0). Use for emergency unblocks; the baseline test catches new drift introduced while disabled on the next CI run.
+
 ## Hand-curated vs auto-generated
 
 **Why both matter:**
@@ -259,6 +448,9 @@ Prevention: extractors wrapped in `try/catch` per the `bin/cortex-doc-regen.cjs`
 ## Cross-links
 
 - **`standards/documentation.md` § State block convention** — the SSOT for the marker contract lives here (Sprint 2.45). `standards/state-blocks.md` extraction deferred to 2.45.1+ if a second consumer emerges
+- **`standards/documentation.md` § Hand-prose currency convention** — the SSOT for the prose-side currency contract (Sprint 2.46.2) — patterns A/B/C, forbidden F1/F2/F3, frontmatter fields, default cadence table, lint integration
+- **`standards/sprint-pipeline.md`** — Step 7 of the canonical sprint pipeline runs `cortex-doc-regen --apply`; doc-currency verifies the surrounding hand-prose did not drift
+- **`bin/cortex-doc-currency.cjs`** — Sprint 2.46.2 lint enforcing the hand-prose currency contract; pairs with `cortex-doc-regen` over a JSON snapshot interface
 - **`standards/auto-orchestration.md`** — how doc-regen fits into the parallel-by-default agent orchestration model
 - **`standards/workflows.md`** — Steward cron workflow specifications including `steward-doc-regen.yml` cadence
 - **`bin/cortex-doc-regen.cjs`** — the CLI implementation; header SSOT carries invocation details, exit codes, env vars

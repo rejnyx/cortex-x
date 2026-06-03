@@ -465,6 +465,7 @@ emit_delegate_shim cortex-evolve-ab        cortex-evolve-ab.cjs
 emit_delegate_shim cortex-export-lessons   cortex-export-lessons.cjs
 emit_delegate_shim cortex-doc-audit        cortex-doc-audit.cjs
 emit_delegate_shim cortex-doc-regen        cortex-doc-regen.cjs
+emit_delegate_shim cortex-doc-currency     cortex-doc-currency.cjs
 emit_delegate_shim cortex-wiki-consolidate cortex-wiki-consolidate.cjs
 emit_delegate_shim cortex-update           cortex-update.cjs
 emit_delegate_shim cortex-uninstall        cortex-uninstall.cjs

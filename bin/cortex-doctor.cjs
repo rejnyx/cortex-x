@@ -347,7 +347,91 @@ function runChecks() {
     }
   }
 
-  // 13. git remote reachability (optional, only if source clone is git).
+  // 14. Sprint 2.46.2 — doc-currency lint (read-only, fail-OPEN).
+  // Surfaces hand-prose drift (numeric mismatches vs. cortex-auto-state blocks,
+  // expired frontmatter beyond grace) as info-severity. cortex-doctor NEVER
+  // invokes --apply or --fix — strictly read-only health probe. If the linter
+  // is missing, hangs, or crashes, we report info (unknown) rather than warn
+  // so a broken lint tool doesn't poison a doctor run. Opt-out via
+  // CORTEX_DOC_LINT_DISABLED=1 (mirrors the env kill-switch in the tool itself).
+  if (process.env.CORTEX_DOC_LINT_DISABLED !== '1') {
+    // Sprint 2.46.2 R2 fix HIGH (6 reviewers, 99 confidence): the binary
+    // ships at bin/cortex-doc-currency.cjs (install.sh / install.ps1 / tests
+    // / standards all agree). The original tools/ path probe was dead on
+    // arrival on every healthy install.
+    const docLintScript = sourceDir ? path.join(sourceDir, 'bin', 'cortex-doc-currency.cjs') : null;
+    if (docLintScript && fs.existsSync(docLintScript)) {
+      try {
+        // Reference instant: prefer caller env, else fall back to a fixed
+        // ISO timestamp from process start so the tool's determinism gate
+        // (which exits 2 without --now or CORTEX_LINT_NOW) is satisfied.
+        // doctor itself is the human-triggered top-of-stack invocation so
+        // sampling wall-clock here is acceptable.
+        const lintEnv = Object.assign({}, process.env);
+        if (!lintEnv.CORTEX_LINT_NOW) {
+          lintEnv.CORTEX_LINT_NOW = new Date().toISOString();
+        }
+        // Sprint 2.46.2 R2 fix HIGH: CLI requires explicit file arguments
+        // (exit 2 on empty file list). Lint the curated default set —
+        // atlas, capability-tree, operator-recap, plus standards/*.md.
+        const defaultTargets = [];
+        const cortexDir = path.join(sourceDir, 'cortex');
+        if (fs.existsSync(cortexDir)) {
+          for (const name of fs.readdirSync(cortexDir)) {
+            if (/^(atlas-|capability-tree-|operator-recap-).*\.md$/.test(name)) {
+              defaultTargets.push(path.join(cortexDir, name));
+            }
+          }
+        }
+        const standardsDir = path.join(sourceDir, 'standards');
+        if (fs.existsSync(standardsDir)) {
+          for (const name of fs.readdirSync(standardsDir)) {
+            if (/\.md$/.test(name)) defaultTargets.push(path.join(standardsDir, name));
+          }
+        }
+        // Sprint 2.46.2 R2 fix HIGH: CLI accepts --json (NOT --format json).
+        const out = execFileSync(process.execPath, [docLintScript, '--json', ...defaultTargets], {
+          cwd: sourceDir,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: HEALTH_CHECK_TIMEOUT_MS,
+          env: lintEnv,
+        });
+        const report = JSON.parse(out);
+        const summary = report && report.summary ? report.summary : null;
+        if (!summary) {
+          findings.push(check('doc_currency', 'info',
+            'cortex-doc-currency returned no summary — skipping'));
+        } else {
+          // Sprint 2.46.2 R2 fix HIGH: CLI emits { files, high, medium }
+          // (NOT violations / warnings / claims). Align reader to shipped shape.
+          const high = summary.high || 0;
+          const medium = summary.medium || 0;
+          const files = summary.files || 0;
+          if (high === 0 && medium === 0) {
+            findings.push(check('doc_currency', 'ok',
+              `doc-currency clean: 0 findings across ${files} file(s)`));
+          } else if (high === 0) {
+            findings.push(check('doc_currency', 'info',
+              `doc-currency: ${medium} medium finding(s) across ${files} file(s)`,
+              'node bin/cortex-doc-currency.cjs --check  (review findings)'));
+          } else {
+            findings.push(check('doc_currency', 'info',
+              `doc-currency: ${high} high + ${medium} medium finding(s) across ${files} file(s)`,
+              'node bin/cortex-doc-currency.cjs --check  (review findings)'));
+          }
+        }
+      } catch (err) {
+        findings.push(check('doc_currency', 'info',
+          `could not run doc-currency lint (${err.message || 'unknown'}) — status unknown`));
+      }
+    } else {
+      findings.push(check('doc_currency', 'info',
+        'cortex-doc-currency.cjs not found in source clone — skipping doc-currency lint'));
+    }
+  }
+
+  // 15. git remote reachability (optional, only if source clone is git).
   if (sourceDir && fs.existsSync(path.join(sourceDir, '.git'))) {
     try {
       const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {

@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "sprint_id": "2.46.1",
-  "workflow_run_id": "wf_0cb1f582-ac9",
-  "timestamp": "2026-06-03T09:30:00.000Z",
+  "sprint_id": "2.46.2",
+  "workflow_run_id": "wf_3a56fa77-ad8",
+  "timestamp": "2026-06-03T10:30:00.000Z",
   "agent_roster": [
     "security-auditor",
     "correctness-auditor",
@@ -12,33 +12,36 @@
     "edge-case-hunter"
   ],
   "findings": {
-    "HIGH": 8,
+    "HIGH": 7,
     "MEDIUM": 6,
-    "LOW": 14
+    "LOW": 16
   },
   "applied": [
-    "H-1+5:appendSeen-wired+marker-shortcut-closed",
-    "H-2+8:STRICT_SECRET-noGenerate",
-    "H-3:env-name-drift-CORTEX_R2_VERDICT_STRICT",
-    "H-4:CORTEX_DATA_HOME-SSOT-unified",
-    "M-fence:planHasFence-balanced-regex"
+    "H-doctor-path:tools->bin",
+    "H-doctor-flag:--format->--json",
+    "H-doctor-keys:summary.high/medium",
+    "H-doctor-files:explicit-target-list",
+    "H-baseline-signature:4-arg-with-contentOverride",
+    "H-baseline-result-key:findings-not-messages",
+    "H-baseline-severity:numeric-2-not-string-HIGH",
+    "H-qualifier-plus:trailingPlus-flag-separated",
+    "M-baseline-skip-list:atlas/cap-tree/recap-deferred-to-2.46.2.1"
   ],
   "deferred": [
-    "H-6:keys-test-coverage -> 2.46.1.1",
-    "H-7:journal-concurrent-lock -> 2.46.1.1",
-    "H-arch:resolveSecret-dedup -> 2.46.1.1",
-    "M-ed25519-registry -> 2.46.1.1",
-    "M-staged-tree -> 2.46.1.1",
-    "M-win-perms -> 2.46.1.1",
-    "M-skill-fencing-ssot -> 2.46.1.1"
+    "M-atlas-cleanup-12-stale-claims -> 2.46.2.1",
+    "M-cap-tree-drift-probe -> 2.46.2.1",
+    "M-snapshot-unavailable-dedup -> 2.46.2.1",
+    "M-schema-pinning-test -> 2.46.2.1",
+    "M-positive-fixture-assertion -> 2.46.2.1",
+    "LOW-housekeeping -> 2.46.2.1+"
   ],
   "refuted": [],
   "decision": "PASS",
-  "commit_sha": "5df034af32c02a2348c88b12426fcbdd1feefd70",
-  "staged_tree": "99dc876ec61e14a620964dbf3db3fe14f7b75097",
+  "commit_sha": "1255f41bd471d50232ad1ff2f11f26128adc8412",
+  "staged_tree": "d6b0343e6bfa667b480849863aaeb6b42b0096b8",
   "signature": {
     "alg": "HMAC-SHA256",
-    "value": "88e7cfe0dd52d12579bbaa3ace053a0bc2e1fcf2898795e08eda783b617cb708",
+    "value": "31e48e658cfd504430d17b73dd6b3bd7d60e0502e01435affc5c6a416514078f",
     "secret_tier": "persisted"
   }
 }
