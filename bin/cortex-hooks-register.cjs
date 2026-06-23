@@ -139,6 +139,12 @@ function backupSettings(raw) {
   return backupFile(SETTINGS_PATH, raw);
 }
 
+const TMP_WX_FLAG = { flag: 'wx' };
+
+function backupSettingsSafe() {
+  return backupFile(SETTINGS_PATH, fs.readFileSync(SETTINGS_PATH, 'utf8'));
+}
+
 function writeSettings(json) {
   // Pretty-print with 2-space indent matches Claude Code's settings.json convention.
   const out = JSON.stringify(json, null, 2) + '\n';
